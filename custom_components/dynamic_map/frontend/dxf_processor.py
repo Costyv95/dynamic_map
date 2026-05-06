@@ -83,6 +83,9 @@ def process_dxf(base_dir, floor_num):
     svg_path = os.path.join(base_dir, f"floor{floor_num}.svg")
     bg_png_path = os.path.join(base_dir, f"bg_floor{floor_num}.png")
     
+    debug_dir = os.path.join(base_dir, "debug")
+    os.makedirs(debug_dir, exist_ok=True)
+    
     if not os.path.exists(svg_path):
         print(f"File not found: {svg_path}")
         return
@@ -383,8 +386,8 @@ def process_dxf(base_dir, floor_num):
                         v_entity_index += 1
                         
                         
-    cv2.imwrite(os.path.join(base_dir, f"raw_debug_floor{floor_num}.png"), debug_img)
-    cv2.imwrite(os.path.join(base_dir, f"cv2_mask_floor{floor_num}.png"), bg_img)
+    cv2.imwrite(os.path.join(debug_dir, f"raw_debug_floor{floor_num}.png"), debug_img)
+    cv2.imwrite(os.path.join(debug_dir, f"cv2_mask_floor{floor_num}.png"), bg_img)
 
     # OpenCV Mathematical Room Extraction
     gray = cv2.cvtColor(bg_img, cv2.COLOR_BGR2GRAY)
@@ -471,7 +474,7 @@ def process_dxf(base_dir, floor_num):
         room_crop = masked_bg[y1:y2, x1:x2]
         
         # Save the crop for debugging/verification
-        crop_path = os.path.join(base_dir, f"crop_floor{floor_num}_room{room_idx}.png")
+        crop_path = os.path.join(debug_dir, f"crop_floor{floor_num}_room{room_idx}.png")
         cv2.imwrite(crop_path, room_crop)
         
         # 3. Predict Room Name
@@ -504,15 +507,12 @@ def process_dxf(base_dir, floor_num):
     with open(json_path, 'w') as f:
         json.dump(rooms, f, indent=2)
         
-    debug_path = os.path.join(base_dir, f"debug_floor{floor_num}.png")
+    debug_path = os.path.join(debug_dir, f"debug_floor{floor_num}.png")
     cv2.imwrite(debug_path, debug_img)
-    
-    import shutil
-    shutil.copy(debug_path, f'/home/costi/.gemini/antigravity/brain/6636dbf0-e294-4d15-a462-8bcb66f2fce2/debug_floor{floor_num}.png')
     
     print(f"Exported {len(rooms)} strictly orthogonal rooms to JSON and Debug Images.")
 
 if __name__ == "__main__":
-    base_dir = "/home/costi/workspace/water/homeassistant"
+    base_dir = os.path.dirname(os.path.abspath(__file__))
     process_dxf(base_dir, 1)
     process_dxf(base_dir, 2)
