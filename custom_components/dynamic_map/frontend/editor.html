@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
+    <title>Dynamic Map Editor</title>
+    <style>
+        :root { --bg: #f4f4f5; --panel: #ffffff; --accent: #0ea5e9; --text: #1e293b; --input-bg: #f8fafc; --input-border: #e2e8f0; --btn-hover: #f1f5f9; }
+        body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 350px; background: var(--panel); padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 10; border-right: 1px solid var(--input-border); }
+        h1 { font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; color: var(--accent); }
+        .control-group { margin-bottom: 20px; }
+        select, button, input { box-sizing: border-box; width: 100%; padding: 10px; margin-top: 5px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 6px; cursor: pointer; transition: 0.2s; font-family: inherit;}
+        button:hover { background: var(--btn-hover); border-color: var(--accent); }
+        button.primary { background: rgba(14, 165, 233, 0.1); color: var(--accent); border: 1px solid var(--accent); font-weight: 600; }
+        button.primary:hover { background: rgba(14, 165, 233, 0.2); box-shadow: 0 0 10px rgba(14,165,233,0.2); }
+        button.danger { border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        #canvas-container { flex-grow: 1; position: relative; overflow: hidden; background: #ffffff; display: flex; justify-content: center; align-items: center;}
+        canvas { box-shadow: 0 0 40px rgba(0,0,0,0.1); cursor: crosshair; max-width: 100%; max-height: 100%; object-fit: contain;}
+        
+        /* Modern output box */
+        textarea { width: 100%; height: 150px; background: #1e293b; color: #10b981; font-family: monospace; border: 1px solid var(--input-border); border-radius: 6px; padding: 10px; resize: none; margin-top: 5px; box-sizing: border-box;}
+        
+        .instructions { font-size: 13px; color: #64748b; margin-bottom: 10px; line-height: 1.4; }
+        .active-room-box { background: rgba(241,245,249,0.8); padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1; margin-top: 10px;}
+        
+        .floor-btn { padding: 10px 15px; font-weight: 600; cursor: pointer; text-align: center; font-size: 14px; background: white; color: var(--text); border-bottom: 1px solid var(--input-border); transition: 0.2s; }
+        .floor-btn:last-child { border-bottom: none; }
+        .floor-btn:hover:not(.active) { background: var(--btn-hover); }
+        .floor-btn.active { background: var(--accent); color: white; }
+        #rotationModeBtn { background: white; border: 1px solid var(--input-border); border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; color: var(--text); }
+        #rotationModeBtn:hover { background: var(--btn-hover); }
+    </style>
+    <script src="polybool.min.js"></script>
+</head>
+<body>
+    <div id="sidebar">
+        <h1>Map Editor</h1>
+        
+        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+            <button id="editModeBtn" style="background: var(--input-bg); color: var(--text);">🔒 View Mode</button>
+        </div>
+
+
+
+
+
+        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
+            <button id="undoBtn" title="Undo (Ctrl+Z)">↩ Undo</button>
+            <button id="redoBtn" title="Redo (Ctrl+Shift+Z)">↪ Redo</button>
+        </div>
+
+        <div class="instructions" id="roomInstructions">
+            <strong>Controls:</strong><br>
+            • Click a polygon to select it.<br>
+            • <b>Draw to Split:</b> Click and drag a line completely across a selected polygon to split it into two!<br>
+            • <b>Draw New:</b> Shift+Click to place corners of a new room. Press Enter to close it.
+        </div>
+
+        <div class="active-room-box" id="activeRoomUI" style="display: none;">
+            <label>Room Name</label>
+            <input type="text" id="roomName" placeholder="e.g. Living Room">
+            <div class="header-actions" style="margin-top: 10px; margin-bottom: 5px;">
+                <button id="saveNameBtn">Save Name</button>
+                <button id="deleteBtn" class="danger">Delete</button>
+            </div>
+            <button id="addShortcutBtn" class="primary" style="margin-top: 10px;">📍 Add Object Here</button>
+
+        </div>
+        <div class="active-room-box" id="mergeUI" style="display: none; margin-top: 10px;">
+            <button id="mergeBtn" class="primary">Merge Selected Rooms</button>
+        </div>
+
+        <div class="active-room-box" id="shortcutUI" style="display: none; margin-top: 10px;">
+            <h3 style="margin-top:0; color: var(--accent); font-size: 16px;">Shortcut Config</h3>
+            <label>Name</label>
+            <input type="text" id="scName" placeholder="e.g. Silvester Vacuum">
+            <label>Entity ID</label>
+            <input type="text" id="scEntity" placeholder="e.g. vacuum.silvester">
+            <label>Type</label>
+            <select id="scType">
+                <option value="generic">Generic Device</option>
+                <option value="vacuum">Roborock Vacuum</option>
+            </select>
+            <div style="display: flex; gap: 5px; margin-top: 5px;">
+                <div style="flex: 1;">
+                    <label>Shape</label>
+                    <select id="scShape">
+                        <option value="circle">Circle</option>
+                        <option value="rect">Rectangle</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 5px; margin-top: 5px; align-items: center;">
+                <div style="flex: 1;">
+                    <label>Color</label>
+                    <input type="color" id="scColor" value="#0ea5e9" style="height: 38px; padding: 2px;">
+                </div>
+                <div style="flex: 1; padding-top: 15px;">
+                    <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
+                        <input type="checkbox" id="scTransparent" style="width: auto; margin: 0;"> Background Color
+                    </label>
+                </div>
+            </div>
+
+            <div id="vacuumOptions" style="display: none; margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
+                <label style="color:var(--accent); font-weight:bold;">⚡ Dock Position is set to current icon location!</label>
+                <label style="margin-top:10px; display:block;">Room Mapping (SVG -> Roborock Name)</label>
+                <div id="roomMappingsList"></div>
+            </div>
+
+            <div class="header-actions" style="margin-top: 15px;">
+                <button id="saveShortcutBtn" class="primary">Save Config</button>
+                <button id="deleteShortcutBtn" class="danger">Delete</button>
+            </div>
+        </div>
+
+        <div style="flex-grow: 1;"></div>
+
+        <div class="control-group">
+            <button id="exportJsonBtn">1. Save JSON Progress</button>
+            <button id="exportYamlBtn" class="primary" style="margin-top: 10px;">2. Generate HA YAML</button>
+            <textarea id="yamlOutput" placeholder="YAML will appear here..." readonly></textarea>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="mapCanvas"></canvas>
+        <div style="position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 10;">
+            <!-- Floor Selector -->
+            <div style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                <div class="floor-btn active" data-floor="2">Floor 2</div>
+                <div class="floor-btn" data-floor="1">Floor 1</div>
+            </div>
+            <!-- Rotation Mode Toggle -->
+            <div id="rotationModeBtn" title="Rotation Mode: Auto">
+                <svg id="rotIconAuto" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><text x="12" y="16" font-size="10" font-family="sans-serif" text-anchor="middle" stroke="none" fill="currentColor">A</text></svg>
+                <svg id="rotIconHoriz" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="2" y="6" width="20" height="12" rx="2"/></svg>
+                <svg id="rotIconVert" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="6" y="2" width="12" height="20" rx="2"/></svg>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const activeRoomUI = document.getElementById('activeRoomUI');
+        const roomNameInput = document.getElementById('roomName');
+        const yamlOutput = document.getElementById('yamlOutput');
+
+        let bgImage = new Image();
+        let rooms = [];
+        let selectedRooms = [];
+        let shortcuts = [];
+        let selectedShortcutIdx = -1;
+        let isEditMode = false;
+        let isSplitting = false;
+        let splitStart = null;
+        let splitEnd = null;
+        
+        let history = [];
+        let historyIndex = -1;
+
+        let viewTransform = new DOMMatrix();
+        let defaultTransform = new DOMMatrix();
+        let minScale = 0.1;
+        let isRotated = false;
+        let rotationMode = 'auto'; // 'auto', 'horizontal', 'vertical'
+        let activeFloor = '2';
+        
+        let isPanning = false;
+        let panStart = null;
+        let resizeHandle = null;
+
+        function saveState() {
+            if (historyIndex < history.length - 1) {
+                history = history.slice(0, historyIndex + 1);
+            }
+            history.push(JSON.parse(JSON.stringify(rooms)));
+            historyIndex++;
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                rooms = JSON.parse(JSON.stringify(history[historyIndex]));
+                selectedRooms = [];
+                updateSidebarUI();
+                draw();
+            }
+        }
+
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                rooms = JSON.parse(JSON.stringify(history[historyIndex]));
+                selectedRooms = [];
+                updateSidebarUI();
+                draw();
+            }
+        }
+
+        document.getElementById('undoBtn').addEventListener('click', undo);
+        document.getElementById('redoBtn').addEventListener('click', redo);
+
+        document.getElementById('editModeBtn').addEventListener('click', () => {
+            isEditMode = !isEditMode;
+            const btn = document.getElementById('editModeBtn');
+            if (isEditMode) {
+                btn.textContent = '✏️ Edit Mode (ON)';
+                btn.className = 'danger';
+                btn.style.background = '';
+                btn.style.color = '';
+            } else {
+                btn.textContent = '🔒 View Mode';
+                btn.className = '';
+                btn.style.background = 'var(--input-bg)';
+                btn.style.color = 'var(--text)';
+                
+                // Clear selections
+                selectedRooms = [];
+                selectedShortcutIdx = -1;
+            }
+            updateSidebarUI();
+            updateCursor();
+            draw();
+        });
+
+        function updateCursor() {
+            canvas.style.cursor = 'default';
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+                if (e.key === 'Z' || (e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); redo(); }
+            }
+        });
+
+        function updateSidebarUI() {
+            document.getElementById('roomInstructions').style.display = isEditMode ? 'block' : 'none';
+            activeRoomUI.style.display = 'none';
+            document.getElementById('mergeUI').style.display = 'none';
+            document.getElementById('shortcutUI').style.display = 'none';
+
+            if (selectedShortcutIdx !== -1 && shortcuts[selectedShortcutIdx]) {
+                document.getElementById('shortcutUI').style.display = 'block';
+                const sc = shortcuts[selectedShortcutIdx];
+                document.getElementById('scName').value = sc.name || '';
+                document.getElementById('scEntity').value = sc.entity_id || '';
+                document.getElementById('scType').value = sc.type || 'generic';
+                
+                document.getElementById('scShape').value = sc.shape || 'circle';
+                document.getElementById('scColor').value = sc.color || '#0ea5e9';
+                document.getElementById('scTransparent').checked = sc.transparent || false;
+                
+                if (sc.type === 'vacuum') {
+                    document.getElementById('vacuumOptions').style.display = 'block';
+                    renderVacuumRoomMapping(sc);
+                } else {
+                    document.getElementById('vacuumOptions').style.display = 'none';
+                }
+            } else if (selectedRooms.length === 1) {
+                activeRoomUI.style.display = 'block';
+                roomNameInput.value = rooms[selectedRooms[0]].name || '';
+            } else if (selectedRooms.length === 2) {
+                document.getElementById('mergeUI').style.display = 'block';
+            }
+        }
+
+        function renderVacuumRoomMapping(sc) {
+            const container = document.getElementById('roomMappingsList');
+            container.innerHTML = '';
+            if (!sc.room_mapping) sc.room_mapping = {};
+            
+            rooms.forEach(room => {
+                if(!room.name) return; // Skip unnamed rooms
+                let val = sc.room_mapping[room.id] || '';
+                let div = document.createElement('div');
+                div.style.marginBottom = '5px';
+                div.innerHTML = `<span style="font-size:12px; color:#aaa">${room.name}:</span> <input type="text" class="room-map-input" data-roomid="${room.id}" value="${val}" placeholder="e.g. Kitchen" style="width:100%; padding:5px; margin-top:2px;">`;
+                container.appendChild(div);
+            });
+        }
+        
+        // Load Floor Data
+        let isTransitioning = false;
+
+        async function loadFloor(floorNum) {
+            activeFloor = floorNum;
+            isTransitioning = true;
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear screen immediately
+            const t = Date.now();
+            
+            // We need to wait for BOTH image and JSON to Auto-Crop
+            let imgLoaded = false;
+            let dataLoaded = false;
+
+            const checkAutoCrop = () => {
+                if (imgLoaded && dataLoaded) {
+                    calculateAutoCrop();
+                    isTransitioning = false;
+                    draw();
+                }
+            };
+
+            bgImage.src = `bg_floor${floorNum}.png?t=${t}`;
+            bgImage.onload = () => {
+                imgLoaded = true;
+                checkAutoCrop();
+            };
+
+            try {
+                const response = await fetch(`rooms_floor${floorNum}.json?t=${t}`);
+                if(response.ok) {
+                    rooms = await response.json();
+                } else {
+                    rooms = [];
+                }
+                
+                try {
+                    const scResponse = await fetch(`shortcuts_floor${floorNum}.json?t=${t}`);
+                    if(scResponse.ok) {
+                        shortcuts = await scResponse.json();
+                    } else {
+                        shortcuts = [];
+                    }
+                } catch(e) { shortcuts = []; }
+
+                // Initialize history
+                history = [];
+                historyIndex = -1;
+                saveState();
+                
+                selectedRooms = [];
+                updateCursor();
+                updateSidebarUI();
+                
+                dataLoaded = true;
+                checkAutoCrop();
+            } catch(e) {
+                console.error("Failed to load JSON", e);
+            }
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            if (canvas.width !== container.clientWidth || canvas.height !== container.clientHeight) {
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight;
+                if (bgImage.complete && rooms.length > 0) calculateAutoCrop();
+            }
+        }
+
+        function calculateAutoCrop() {
+            if (rooms.length === 0 || !bgImage.complete) return;
+            
+            let minPctX = 100, maxPctX = 0, minPctY = 100, maxPctY = 0;
+            rooms.forEach(r => {
+                r.polygon.forEach(pt => {
+                    if(pt[0] < minPctX) minPctX = pt[0];
+                    if(pt[0] > maxPctX) maxPctX = pt[0];
+                    if(pt[1] < minPctY) minPctY = pt[1];
+                    if(pt[1] > maxPctY) maxPctY = pt[1];
+                });
+            });
+
+            const minX = (minPctX / 100) * bgImage.width;
+            const maxX = (maxPctX / 100) * bgImage.width;
+            const minY = (minPctY / 100) * bgImage.height;
+            const maxY = (maxPctY / 100) * bgImage.height;
+            
+            const w = maxX - minX;
+            const h = maxY - minY;
+            
+            // Handle edge case of tiny bounding box
+            if (w < 1 || h < 1) return;
+
+            const mapRatio = w / h;
+            const screenRatio = canvas.width / canvas.height;
+            
+            if (rotationMode === 'auto') {
+                isRotated = (mapRatio > 1 && screenRatio < 1) || (mapRatio < 1 && screenRatio > 1);
+            } else if (rotationMode === 'horizontal') {
+                isRotated = mapRatio < 1; // tall map -> rotate to make horizontal
+            } else if (rotationMode === 'vertical') {
+                isRotated = mapRatio > 1; // wide map -> rotate to make vertical
+            }
+
+            let viewW = isRotated ? h : w;
+            let viewH = isRotated ? w : h;
+
+            const zoomX = (canvas.width * 0.75) / viewW;
+            const zoomY = (canvas.height * 0.75) / viewH;
+            minScale = Math.min(zoomX, zoomY);
+            
+            const cx = minX + w/2;
+            const cy = minY + h/2;
+            
+            defaultTransform = new DOMMatrix();
+            defaultTransform.translateSelf(canvas.width / 2, canvas.height / 2);
+            defaultTransform.scaleSelf(minScale);
+            if (isRotated) defaultTransform.rotateSelf(90);
+            defaultTransform.translateSelf(-cx, -cy);
+
+            viewTransform = new DOMMatrix(defaultTransform);
+        }
+
+        document.querySelectorAll('.floor-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                document.querySelectorAll('.floor-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                loadFloor(e.target.dataset.floor);
+            });
+        });
+        
+        document.getElementById('rotationModeBtn').addEventListener('click', () => {
+            if (rotationMode === 'auto') rotationMode = 'horizontal';
+            else if (rotationMode === 'horizontal') rotationMode = 'vertical';
+            else rotationMode = 'auto';
+            
+            document.getElementById('rotIconAuto').style.display = rotationMode === 'auto' ? 'block' : 'none';
+            document.getElementById('rotIconHoriz').style.display = rotationMode === 'horizontal' ? 'block' : 'none';
+            document.getElementById('rotIconVert').style.display = rotationMode === 'vertical' ? 'block' : 'none';
+            document.getElementById('rotationModeBtn').title = `Rotation Mode: ${rotationMode.charAt(0).toUpperCase() + rotationMode.slice(1)}`;
+            
+            if (bgImage.complete && rooms.length > 0) calculateAutoCrop();
+            draw();
+        });
+
+        loadFloor(2);
+
+        // Drawing loop
+        let animationFrameId = null;
+        
+        function draw() {
+            if(!bgImage.complete || isTransitioning) {
+                if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                animationFrameId = requestAnimationFrame(draw);
+                return;
+            }
+
+            resizeCanvas();
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            ctx.setTransform(viewTransform);
+
+            ctx.drawImage(bgImage, 0, 0);
+            
+            const time = Date.now();
+            // Undulating border thickness between 3 and 9
+            const borderPulse = 6 + Math.sin(time / 200) * 3;
+
+            // Draw Polygons
+            rooms.forEach((room, idx) => {
+                ctx.beginPath();
+                room.polygon.forEach((pt, i) => {
+                    const x = (pt[0] / 100) * bgImage.width;
+                    const y = (pt[1] / 100) * bgImage.height;
+                    if(i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.closePath();
+
+                // Generate a stable color based on index
+                const hue = (idx * 137.5) % 360;
+                
+                if(selectedRooms.includes(idx)) {
+                    // Keep base color, with high-contrast Neon Cyan undulating border
+                    ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.5)`;
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = borderPulse;
+                    ctx.shadowColor = '#00ffff';
+                    ctx.shadowBlur = 15;
+                } else {
+                    ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.3)`;
+                    ctx.strokeStyle = `hsla(${hue}, 100%, 50%, 0.8)`;
+                    ctx.lineWidth = 2;
+                }
+                ctx.fill();
+                ctx.stroke();
+                
+                // Reset shadow to prevent it bleeding to other elements
+                ctx.shadowBlur = 0;
+
+                // Draw Name
+                if(room.name) {
+                    const center = getPolygonCenter(room.polygon);
+                    const textX = (center[0]/100)*bgImage.width;
+                    const textY = (center[1]/100)*bgImage.height;
+                    
+                    ctx.save();
+                    ctx.translate(textX, textY);
+                    if (isRotated) ctx.rotate(-Math.PI / 2);
+
+                    ctx.font = '900 20px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 5;
+                    ctx.strokeText(room.name, 0, 0);
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.fillText(room.name, 0, 0);
+                    
+                    ctx.restore();
+                }
+            });
+
+            // Draw Splitting Line
+            if(isSplitting && splitStart && splitEnd) {
+                ctx.beginPath();
+                ctx.moveTo(splitStart.x, splitStart.y);
+                ctx.lineTo(splitEnd.x, splitEnd.y);
+                ctx.strokeStyle = '#ff00ff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            // Draw Shortcuts
+            shortcuts.forEach((sc, idx) => {
+                const x = (sc.position[0] / 100) * bgImage.width;
+                const y = (sc.position[1] / 100) * bgImage.height;
+                
+                const scaleX = sc.scaleX || sc.scale || 1;
+                const scaleY = sc.scaleY || sc.scale || 1;
+                const shape = sc.shape || 'circle';
+                const color = sc.color || '#0ea5e9';
+                const isTrans = sc.transparent || false;
+                const rx = 12 * scaleX;
+                const ry = 12 * scaleY;
+                const r = Math.max(rx, ry);
+
+                ctx.beginPath();
+                if (shape === 'rect') {
+                    ctx.rect(x - rx, y - ry, rx*2, ry*2);
+                } else {
+                    ctx.arc(x, y, rx, 0, Math.PI*2);
+                }
+
+                if (idx === selectedShortcutIdx) {
+                    ctx.fillStyle = isTrans ? 'rgba(0,0,0,0)' : color;
+                    ctx.shadowColor = '#0ea5e9';
+                    ctx.shadowBlur = 10;
+                    ctx.strokeStyle = '#0ea5e9';
+                    ctx.lineWidth = 3;
+                } else {
+                    ctx.fillStyle = isTrans ? 'rgba(0,0,0,0)' : color;
+                    ctx.shadowBlur = 0;
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                }
+                ctx.fill();
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+                
+                if (idx === selectedShortcutIdx && isEditMode) {
+                    const currentScale = Math.hypot(viewTransform.a, viewTransform.b);
+                    const hSize = 4 / currentScale;
+                    ctx.fillStyle = 'white';
+                    ctx.strokeStyle = 'black';
+                    ctx.lineWidth = 1 / currentScale;
+
+                    const drawHandle = (hx, hy) => {
+                        ctx.fillRect(hx - hSize, hy - hSize, hSize*2, hSize*2);
+                        ctx.strokeRect(hx - hSize, hy - hSize, hSize*2, hSize*2);
+                    };
+
+                    drawHandle(x, y - ry); // N
+                    drawHandle(x, y + ry); // S
+                    drawHandle(x - rx, y); // W
+                    drawHandle(x + rx, y); // E
+                    if (shape === 'rect') {
+                        drawHandle(x - rx, y - ry); // NW
+                        drawHandle(x + rx, y - ry); // NE
+                        drawHandle(x - rx, y + ry); // SW
+                        drawHandle(x + rx, y + ry); // SE
+                    }
+                }
+
+                if (sc.type === 'vacuum') {
+                    const maxR = shape === 'rect' ? Math.min(rx, ry) : rx;
+                    ctx.beginPath(); ctx.arc(x, y, maxR*0.8, 0, Math.PI*2); ctx.fillStyle = '#334155'; ctx.fill();
+                    ctx.beginPath(); ctx.arc(x, y, maxR*0.4, 0, Math.PI*2); ctx.fillStyle = '#0ea5e9'; ctx.fill();
+                    ctx.beginPath(); ctx.arc(x + maxR*0.5, y, maxR*0.15, 0, Math.PI*2); ctx.fillStyle = '#10b981'; ctx.fill();
+                } else {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    if (isRotated) ctx.rotate(-Math.PI / 2);
+                    ctx.font = `${14 * Math.min(scaleX, scaleY)}px sans-serif`;
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('💡', 0, 0);
+                    ctx.restore();
+                }
+
+                if (idx === selectedShortcutIdx) {
+                    ctx.save();
+                    ctx.translate(x, y);
+                    if (isRotated) ctx.rotate(-Math.PI / 2);
+
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'top';
+                    ctx.fillStyle = '#1e293b';
+                    ctx.shadowColor = 'white';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(sc.name || 'Shortcut', 0, r + 4);
+                    ctx.shadowBlur = 0;
+                    ctx.restore();
+                }
+            });
+            
+            ctx.restore();
+
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = requestAnimationFrame(draw);
+        }
+
+        function getPolygonCenter(polygon) {
+            let signedArea = 0;
+            let cx = 0;
+            let cy = 0;
+            
+            for (let i = 0; i < polygon.length; i++) {
+                let p1 = polygon[i];
+                let p2 = polygon[(i + 1) % polygon.length];
+                let a = p1[0] * p2[1] - p2[0] * p1[1];
+                signedArea += a;
+                cx += (p1[0] + p2[0]) * a;
+                cy += (p1[1] + p2[1]) * a;
+            }
+            
+            signedArea *= 0.5;
+            if (Math.abs(signedArea) < 0.0001) {
+                // Fallback to vertex average if area is 0
+                let avgX = 0, avgY = 0;
+                polygon.forEach(pt => { avgX += pt[0]; avgY += pt[1]; });
+                return [avgX / polygon.length, avgY / polygon.length];
+            }
+            
+            return [cx / (6 * signedArea), cy / (6 * signedArea)];
+        }
+
+        function isPointInPolygon(point, vs) {
+            let x = point[0], y = point[1];
+            let inside = false;
+            for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+                let xi = vs[i][0], yi = vs[i][1];
+                let xj = vs[j][0], yj = vs[j][1];
+                let intersect = ((yi > y) != (yj > y))
+                    && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                if (intersect) inside = !inside;
+            }
+            return inside;
+        }
+
+        // Mouse Events for Canvas
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            // Screen coords
+            const screenX = clientX - rect.left;
+            const screenY = clientY - rect.top;
+
+            const inverse = viewTransform.inverse();
+            const pt = new DOMPoint(screenX, screenY).matrixTransform(inverse);
+            return { x: pt.x, y: pt.y };
+        }
+
+        function getPolygonArea(polygon) {
+            let area = 0;
+            for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+                area += (polygon[j][0] + polygon[i][0]) * (polygon[j][1] - polygon[i][1]);
+            }
+            return Math.abs(area / 2);
+        }
+
+        let isDragging = false;
+        let dragStart = null;
+        let interactionState = 'NONE'; // NONE, PAN, DRAG_SC, SPLIT
+
+        canvas.addEventListener('contextmenu', e => e.preventDefault());
+
+        function handleZoom(clientX, clientY, deltaY) {
+            const zoomFactor = 1 - (deltaY * 0.001);
+            
+            const rect = canvas.getBoundingClientRect();
+            const screenX = clientX - rect.left;
+            const screenY = clientY - rect.top;
+
+            const newTransform = new DOMMatrix().translate(screenX, screenY).scale(zoomFactor).translate(-screenX, -screenY).multiply(viewTransform);
+            
+            const currentScale = Math.hypot(newTransform.a, newTransform.b);
+
+            if (currentScale <= minScale * 1.02 && zoomFactor < 1) {
+                viewTransform = new DOMMatrix(defaultTransform);
+            } else {
+                viewTransform = newTransform;
+            }
+
+            draw();
+        }
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const screenX = e.clientX - rect.left;
+            const screenY = e.clientY - rect.top;
+            handleZoom(e.clientX, e.clientY, e.deltaY);
+        }, { passive: false });
+
+        let initialPinchDist = null;
+        let initialViewTransform = null;
+
+        const onPointerDown = (e) => {
+            if (e.button === 2) { // Right Click -> Split
+                if (isEditMode && selectedRooms.length === 1) {
+                    interactionState = 'SPLIT';
+                    splitStart = getMousePos(e);
+                    isSplitting = false;
+                }
+                e.preventDefault();
+                return;
+            }
+
+            // Left Click or Touch -> Check Handles, Pan or Drag Shortcut or Select
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+            panStart = { x: clientX, y: clientY };
+            dragStart = getMousePos(e);
+            isDragging = false;
+            resizeHandle = null;
+            
+            // Check Resize Handles
+            if (isEditMode && selectedShortcutIdx !== -1 && shortcuts[selectedShortcutIdx]) {
+                const sc = shortcuts[selectedShortcutIdx];
+                const scX = (sc.position[0]/100)*bgImage.width;
+                const scY = (sc.position[1]/100)*bgImage.height;
+                const rx = 12 * (sc.scaleX || sc.scale || 1);
+                const ry = 12 * (sc.scaleY || sc.scale || 1);
+                const currentScale = Math.hypot(viewTransform.a, viewTransform.b);
+                const hSize = 8 / currentScale; // Larger hit area
+
+                const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
+
+                if (sc.shape === 'rect') {
+                    if (hitTest(dragStart.x, dragStart.y, scX - rx, scY - ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'NW'; return; }
+                    if (hitTest(dragStart.x, dragStart.y, scX + rx, scY - ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'NE'; return; }
+                    if (hitTest(dragStart.x, dragStart.y, scX - rx, scY + ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'SW'; return; }
+                    if (hitTest(dragStart.x, dragStart.y, scX + rx, scY + ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'SE'; return; }
+                }
+                if (hitTest(dragStart.x, dragStart.y, scX, scY - ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'N'; return; }
+                if (hitTest(dragStart.x, dragStart.y, scX, scY + ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'S'; return; }
+                if (hitTest(dragStart.x, dragStart.y, scX - rx, scY)) { interactionState = 'RESIZE_SC'; resizeHandle = 'W'; return; }
+                if (hitTest(dragStart.x, dragStart.y, scX + rx, scY)) { interactionState = 'RESIZE_SC'; resizeHandle = 'E'; return; }
+            }
+            
+            let overScIdx = -1;
+            for (let i = 0; i < shortcuts.length; i++) {
+                const scX = (shortcuts[i].position[0]/100)*bgImage.width;
+                const scY = (shortcuts[i].position[1]/100)*bgImage.height;
+                // Use a wider hit radius for shortcuts
+                if (Math.hypot(dragStart.x - scX, dragStart.y - scY) < 25) {
+                    overScIdx = i; break;
+                }
+            }
+
+            if (overScIdx !== -1) {
+                // Shortcut selected
+                selectedShortcutIdx = overScIdx;
+                selectedRooms = [];
+                if (isEditMode) interactionState = 'DRAG_SC';
+                updateSidebarUI();
+                draw();
+                return;
+            }
+
+            // Otherwise, check if room selected
+            interactionState = 'MAYBE_PAN';
+        };
+        const onPointerMove = (e) => {
+            // Touch pinch-to-zoom
+            if (e.touches && e.touches.length === 2) {
+                e.preventDefault();
+                const dist = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                if (!initialPinchDist) {
+                    initialPinchDist = dist;
+                    initialViewTransform = new DOMMatrix(viewTransform);
+                } else {
+                    const zoomFactor = dist / initialPinchDist;
+                    
+                    const rect = canvas.getBoundingClientRect();
+                    const cx = (e.touches[0].clientX + e.touches[1].clientX)/2;
+                    const cy = (e.touches[0].clientY + e.touches[1].clientY)/2;
+                    const screenX = cx - rect.left;
+                    const screenY = cy - rect.top;
+
+                    const newTransform = new DOMMatrix().translate(screenX, screenY).scale(zoomFactor).translate(-screenX, -screenY).multiply(initialViewTransform);
+                    
+                    const currentScale = Math.hypot(newTransform.a, newTransform.b);
+
+                    if (currentScale <= minScale * 1.02 && zoomFactor < 1) {
+                        viewTransform = new DOMMatrix(defaultTransform);
+                    } else {
+                        viewTransform = newTransform;
+                    }
+                    draw();
+                }
+                return;
+            }
+
+            // Pointer hover effect
+            if (interactionState === 'NONE' || interactionState === 'MAYBE_PAN') {
+                const worldPos = getMousePos(e);
+                let cursorStyle = 'default';
+                let overShortcut = false;
+
+                if (isEditMode && selectedShortcutIdx !== -1) {
+                    const sc = shortcuts[selectedShortcutIdx];
+                    const scX = (sc.position[0]/100)*bgImage.width;
+                    const scY = (sc.position[1]/100)*bgImage.height;
+                    const rx = 12 * (sc.scaleX || sc.scale || 1);
+                    const ry = 12 * (sc.scaleY || sc.scale || 1);
+                    const currentScale = Math.hypot(viewTransform.a, viewTransform.b);
+                    const hSize = 8 / currentScale;
+
+                    const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
+                    const isRect = sc.shape === 'rect';
+
+                    if (isRect && (hitTest(worldPos.x, worldPos.y, scX - rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX + rx, scY + ry))) cursorStyle = 'nwse-resize';
+                    else if (isRect && (hitTest(worldPos.x, worldPos.y, scX + rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX - rx, scY + ry))) cursorStyle = 'nesw-resize';
+                    else if (hitTest(worldPos.x, worldPos.y, scX, scY - ry) || hitTest(worldPos.x, worldPos.y, scX, scY + ry)) cursorStyle = 'ns-resize';
+                    else if (hitTest(worldPos.x, worldPos.y, scX - rx, scY) || hitTest(worldPos.x, worldPos.y, scX + rx, scY)) cursorStyle = 'ew-resize';
+                }
+
+                if (cursorStyle === 'default') {
+                    for (let i = 0; i < shortcuts.length; i++) {
+                        const scX = (shortcuts[i].position[0]/100)*bgImage.width;
+                        const scY = (shortcuts[i].position[1]/100)*bgImage.height;
+                        if (Math.hypot(worldPos.x - scX, worldPos.y - scY) < 15) {
+                            overShortcut = true; break;
+                        }
+                    }
+                    if (overShortcut) {
+                        cursorStyle = isEditMode ? 'move' : 'pointer';
+                    }
+                }
+                canvas.style.cursor = cursorStyle;
+            }
+
+            if (interactionState === 'SPLIT') {
+                isSplitting = true;
+                splitEnd = getMousePos(e);
+                draw();
+                return;
+            }
+
+            if (interactionState === 'DRAG_SC') {
+                isDragging = true;
+                const worldPos = getMousePos(e);
+                shortcuts[selectedShortcutIdx].position = [(worldPos.x / bgImage.width)*100, (worldPos.y / bgImage.height)*100];
+                draw();
+                return;
+            }
+
+            if (interactionState === 'RESIZE_SC') {
+                isDragging = true;
+                const worldPos = getMousePos(e);
+                const sc = shortcuts[selectedShortcutIdx];
+                const scX = (sc.position[0]/100)*bgImage.width;
+                const scY = (sc.position[1]/100)*bgImage.height;
+                let newRx = 12 * (sc.scaleX || sc.scale || 1);
+                let newRy = 12 * (sc.scaleY || sc.scale || 1);
+
+                if (resizeHandle.includes('N')) newRy = scY - worldPos.y;
+                if (resizeHandle.includes('S')) newRy = worldPos.y - scY;
+                if (resizeHandle.includes('W')) newRx = scX - worldPos.x;
+                if (resizeHandle.includes('E')) newRx = worldPos.x - scX;
+
+                if (sc.shape !== 'rect') {
+                    // circle locks aspect ratio
+                    const maxR = Math.max(Math.abs(newRx), Math.abs(newRy));
+                    newRx = maxR;
+                    newRy = maxR;
+                } else {
+                    newRx = Math.max(5, Math.abs(newRx));
+                    newRy = Math.max(5, Math.abs(newRy));
+                }
+
+                sc.scaleX = newRx / 12;
+                sc.scaleY = newRy / 12;
+                draw();
+                return;
+            }
+
+            if (interactionState === 'PAN') {
+                let clientX = e.clientX;
+                let clientY = e.clientY;
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                }
+                
+                const dx = clientX - panStart.x;
+                const dy = clientY - panStart.y;
+                
+                viewTransform.e += dx;
+                viewTransform.f += dy;
+                
+                panStart = { x: clientX, y: clientY };
+                draw();
+            } else if (interactionState === 'MAYBE_PAN') {
+                let clientX = e.clientX;
+                let clientY = e.clientY;
+                if (e.touches && e.touches.length > 0) {
+                    clientX = e.touches[0].clientX;
+                    clientY = e.touches[0].clientY;
+                }
+                const dist = Math.hypot(clientX - panStart.x, clientY - panStart.y);
+                if (dist > 5) {
+                    interactionState = 'PAN';
+                }
+            }
+        };
+        const onPointerUp = (e) => {
+            initialPinchDist = null;
+
+            if (interactionState === 'MAYBE_PAN') {
+                // Was just a click! Handle selection.
+                const worldPos = getMousePos(e);
+                const pctPos = [(worldPos.x / bgImage.width)*100, (worldPos.y / bgImage.height)*100];
+
+                let clickedIdx = -1;
+                for(let i = 0; i < rooms.length; i++) {
+                    // isPointInPolygon needs pctPos, not worldPos!
+                    if (isPointInPolygon(pctPos, rooms[i].polygon)) {
+                        clickedIdx = i; break;
+                    }
+                }
+
+                if (clickedIdx !== -1) {
+                    if (isEditMode && (e.ctrlKey || e.metaKey || e.shiftKey)) {
+                        if (selectedRooms.includes(clickedIdx)) {
+                            selectedRooms = selectedRooms.filter(i => i !== clickedIdx);
+                        } else if (selectedRooms.length < 2) {
+                            selectedRooms.push(clickedIdx);
+                        }
+                    } else {
+                        selectedRooms = [clickedIdx];
+                        selectedShortcutIdx = -1;
+                    }
+                } else {
+                    selectedRooms = [];
+                    selectedShortcutIdx = -1;
+                }
+                updateSidebarUI();
+                draw();
+            } else if (interactionState === 'SPLIT' && isSplitting) {
+                // Perform geometric split
+                const dist = Math.hypot(splitEnd.x - splitStart.x, splitEnd.y - splitStart.y);
+                if(dist > 10 && selectedRooms.length === 1) {
+                    const pctStart = [(splitStart.x / bgImage.width)*100, (splitStart.y / bgImage.height)*100];
+                    const pctEnd = [(splitEnd.x / bgImage.width)*100, (splitEnd.y / bgImage.height)*100];
+                    
+                    const pctDx = pctEnd[0] - pctStart[0];
+                    const pctDy = pctEnd[1] - pctStart[1];
+                    const pctLen = Math.hypot(pctDx, pctDy);
+                    
+                    const pNx = (-pctDy / pctLen);
+                    const pNy = (pctDx / pctLen);
+
+                    const pA = [pctStart[0] - pctDx * 1000, pctStart[1] - pctDy * 1000];
+                    const pB = [pctEnd[0] + pctDx * 1000, pctEnd[1] + pctDy * 1000];
+                    const pC = [pB[0] + pNx * 10000, pB[1] + pNy * 10000];
+                    const pD = [pA[0] + pNx * 10000, pA[1] + pNy * 10000];
+
+                    const halfPlane = [pA, pB, pC, pD];
+                    
+                    const targetRoomIdx = selectedRooms[0];
+                    const targetRoom = rooms[targetRoomIdx];
+                    const targetPB = { regions: [targetRoom.polygon], inverted: false };
+                    const halfPlanePB = { regions: [halfPlane], inverted: false };
+                    
+                    try {
+                        const cut1 = PolyBool.intersect(targetPB, halfPlanePB);
+                        const cut2 = PolyBool.difference(targetPB, halfPlanePB);
+                        
+                        if(cut1.regions.length > 0 && cut2.regions.length > 0) {
+                            rooms.splice(targetRoomIdx, 1);
+                            cut1.regions.forEach((reg, i) => {
+                                if(getPolygonArea(reg) > 2.0) {
+                                    rooms.push({ id: `room_${Date.now()}_A${i}`, name: `${targetRoom.name || 'Room'} Part A`, polygon: reg });
+                                }
+                            });
+                            cut2.regions.forEach((reg, i) => {
+                                if(getPolygonArea(reg) > 2.0) {
+                                    rooms.push({ id: `room_${Date.now()}_B${i}`, name: `${targetRoom.name || 'Room'} Part B`, polygon: reg });
+                                }
+                            });
+                            selectedRooms = [];
+                            saveState();
+                        }
+                    } catch(err) {
+                        console.error("Splitting failed mathematically", err);
+                    }
+                }
+            }
+
+            interactionState = 'NONE';
+            isSplitting = false;
+            splitStart = null;
+            splitEnd = null;
+            isDragging = false;
+            updateSidebarUI();
+            draw();
+        };
+
+        canvas.addEventListener('mousedown', onPointerDown);
+        canvas.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp); // Use window so it catches releases outside canvas
+
+        canvas.addEventListener('touchstart', onPointerDown, {passive: false});
+        canvas.addEventListener('touchmove', onPointerMove, {passive: false});
+        window.addEventListener('touchend', onPointerUp);
+        window.addEventListener('touchcancel', onPointerUp);
+
+        // Merge Logic
+        document.getElementById('mergeBtn').addEventListener('click', () => {
+            if(selectedRooms.length !== 2) return;
+            const r1 = rooms[selectedRooms[0]];
+            const r2 = rooms[selectedRooms[1]];
+            
+            const p1 = { regions: [r1.polygon], inverted: false };
+            const p2 = { regions: [r2.polygon], inverted: false };
+            try {
+                const merged = PolyBool.union(p1, p2);
+                if(merged.regions.length === 0) return;
+                
+                const newRoom = {
+                    id: `room_${Date.now()}`,
+                    name: r1.name || r2.name || "Merged Room",
+                    polygon: merged.regions[0]
+                };
+                
+                const sortedIndices = [...selectedRooms].sort((a,b) => b-a);
+                rooms.splice(sortedIndices[0], 1);
+                rooms.splice(sortedIndices[1], 1);
+                
+                merged.regions.forEach((reg, i) => {
+                    if(i === 0) rooms.push(newRoom);
+                    else rooms.push({ id: `room_${Date.now()}_${i}`, name: "Disconnected Part", polygon: reg });
+                });
+                
+                selectedRooms = [rooms.length - 1];
+                saveState();
+                updateSidebarUI();
+                draw();
+            } catch(e) {
+                console.error(e);
+                alert("Could not merge polygons (invalid overlap).");
+            }
+        });
+
+        // Drawing New Polygons (Shift+Click)
+        let drawingPolygon = null;
+        canvas.addEventListener('click', (e) => {
+            if(!isEditMode) return;
+            if(e.shiftKey && isEditMode) {
+                const pos = getMousePos(e);
+                const pctPos = [(pos.x / bgImage.width)*100, (pos.y / bgImage.height)*100];
+                if(!drawingPolygon) drawingPolygon = [];
+                drawingPolygon.push(pctPos);
+                
+                // Draw live preview
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 5, 0, Math.PI*2);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+            }
+        });
+        
+        window.addEventListener('keydown', (e) => {
+            if(!isEditMode) return;
+            if(e.key === 'Enter' && drawingPolygon && drawingPolygon.length >= 3) {
+                rooms.push({
+                    id: `room_${Date.now()}`,
+                    name: "New Room",
+                    polygon: drawingPolygon
+                });
+                drawingPolygon = null;
+                selectedRooms = [rooms.length - 1];
+                saveState();
+                updateSidebarUI();
+                draw();
+            } else if(e.key === 'Escape' && drawingPolygon) {
+                drawingPolygon = null;
+                draw();
+            }
+        });
+
+        // UI Listeners
+        function saveRoomName() {
+            if(selectedRooms.length === 1) {
+                rooms[selectedRooms[0]].name = roomNameInput.value;
+                saveState();
+                draw(); // Redraw to update text on canvas
+            }
+        }
+
+        document.getElementById('saveNameBtn').addEventListener('click', saveRoomName);
+        
+        roomNameInput.addEventListener('keydown', (e) => {
+            if(e.key === 'Enter') {
+                e.preventDefault();
+                saveRoomName();
+                roomNameInput.blur();
+            }
+        });
+
+        document.getElementById('deleteBtn').addEventListener('click', () => {
+            if(selectedRooms.length === 1) {
+                rooms.splice(selectedRooms[0], 1);
+                selectedRooms = [];
+                saveState();
+                updateSidebarUI();
+                draw();
+            }
+        });
+
+        document.getElementById('addShortcutBtn').addEventListener('click', () => {
+            if (selectedRooms.length === 1) {
+                const room = rooms[selectedRooms[0]];
+                const center = getPolygonCenter(room.polygon);
+                const newSc = {
+                    id: `sc_${Date.now()}`, name: "New Shortcut", type: "generic",
+                    entity_id: "", position: center, room_mapping: {}
+                };
+                shortcuts.push(newSc);
+                selectedShortcutIdx = shortcuts.length - 1;
+                selectedRooms = []; // Deselect room
+                updateSidebarUI();
+                draw();
+            }
+        });
+
+        // Shortcut Save & Delete
+        document.getElementById('saveShortcutBtn').addEventListener('click', () => {
+            if (selectedShortcutIdx !== -1) {
+                const sc = shortcuts[selectedShortcutIdx];
+                sc.name = document.getElementById('scName').value;
+                sc.entity_id = document.getElementById('scEntity').value;
+                sc.type = document.getElementById('scType').value;
+                
+                if (sc.type === 'vacuum') {
+                    const inputs = document.querySelectorAll('.room-map-input');
+                    inputs.forEach(input => {
+                        sc.room_mapping[input.dataset.roomid] = input.value;
+                    });
+                }
+                updateSidebarUI();
+                draw();
+            }
+        });
+
+        document.getElementById('scType').addEventListener('change', (e) => {
+            if(selectedShortcutIdx !== -1) {
+                shortcuts[selectedShortcutIdx].type = e.target.value;
+                updateSidebarUI();
+                draw();
+            }
+        });
+        
+        document.getElementById('scShape').addEventListener('change', (e) => {
+            if(selectedShortcutIdx !== -1) {
+                shortcuts[selectedShortcutIdx].shape = e.target.value;
+                draw();
+            }
+        });
+
+
+        document.getElementById('scColor').addEventListener('input', (e) => {
+            if(selectedShortcutIdx !== -1) {
+                shortcuts[selectedShortcutIdx].color = e.target.value;
+                draw();
+            }
+        });
+
+        document.getElementById('scTransparent').addEventListener('change', (e) => {
+            if(selectedShortcutIdx !== -1) {
+                shortcuts[selectedShortcutIdx].transparent = e.target.checked;
+                draw();
+            }
+        });
+
+        document.getElementById('deleteShortcutBtn').addEventListener('click', () => {
+            if (selectedShortcutIdx !== -1) {
+                shortcuts.splice(selectedShortcutIdx, 1);
+                selectedShortcutIdx = -1;
+                updateSidebarUI();
+                draw();
+            }
+        });
+
+        // SAVE TO HA
+        document.getElementById('exportJsonBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('exportJsonBtn');
+            const originalText = btn.textContent;
+            btn.textContent = "Saving to HA...";
+            
+            try {
+                // Save Rooms
+                await fetch('/api/dynamic_map/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: `rooms_floor${activeFloor}.json`, content: rooms })
+                });
+
+                // Save Shortcuts
+                await fetch('/api/dynamic_map/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filename: `shortcuts_floor${activeFloor}.json`, content: shortcuts })
+                });
+
+                btn.textContent = "✅ Saved to HA Successfully!";
+            } catch (err) {
+                console.error("Save failed, is HA running?", err);
+                btn.textContent = "❌ Save Failed";
+            }
+            
+            setTimeout(() => { btn.textContent = originalText; }, 3000);
+        });
+
+        // EXPORT YAML
+        document.getElementById('exportYamlBtn').addEventListener('click', () => {
+            let yaml = `type: picture-elements\nimage: /local/bg_floor${activeFloor}.png\nelements:\n`;
+            
+            rooms.forEach(room => {
+                // Generate CSS clip-path polygon string
+                const clipPath = `polygon(${room.polygon.map(pt => `${pt[0].toFixed(2)}% ${pt[1].toFixed(2)}%`).join(', ')})`;
+                
+                yaml += `  - type: custom:button-card\n`;
+                yaml += `    # Change this to your light/room entity!\n`;
+                yaml += `    entity: light.dummy_entity\n`;
+                yaml += `    name: ${room.name}\n`;
+                yaml += `    show_name: true\n`;
+                yaml += `    show_icon: false\n`;
+                yaml += `    style:\n`;
+                yaml += `      top: 50%\n`;
+                yaml += `      left: 50%\n`;
+                yaml += `      width: 100%\n`;
+                yaml += `      height: 100%\n`;
+                yaml += `      # This mathematically masks the button to the exact room shape!\n`;
+                yaml += `      clip-path: "${clipPath}"\n`;
+                yaml += `    styles:\n`;
+                yaml += `      card:\n`;
+                yaml += `        - background: "rgba(0, 255, 255, 0.3)"\n`;
+                yaml += `        - border: "2px solid #00ffff"\n`;
+                yaml += `      name:\n`;
+                yaml += `        - color: white\n`;
+                yaml += `        - font-weight: bold\n`;
+            });
+            
+            yamlOutput.value = yaml;
+        });
+
+        // Init
+        loadFloor(2);
+    </script>
+</body>
+</html>

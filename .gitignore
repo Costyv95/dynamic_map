@@ -1,0 +1,31 @@
+# Home Assistant
+.storage/
+*.log
+
+# Windows / OS Files
+*Zone.Identifier
+Thumbs.db
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+env/
+
+# Map Generation Debug Outputs
+debug_*.png
+raw_debug_*.png
+raw_floor*.png
+cv2_mask_*.png
+crop_floor*.png
+test_*.png
+contour_output.txt
+
+# Editor Output Backups (Optional - uncomment if you don't want to track JSON history)
+# rooms_floor*.json
+# shortcuts_floor*.json
+
+# Misc
+.env
+*.tmp
