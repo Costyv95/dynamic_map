@@ -658,10 +658,7 @@ class CustomSvgMap extends HTMLElement {
     updateVacuumLogic(sc) {
         console.log(`[Vacuum] Status: ${this.vacuumState.status}, Current Room Sensor: "${this.vacuumState.room}"`);
         const dockingStates = [
-            'charging', 'charging_complete', 'docking', 'returning_home', 
-            'emptying_the_bin', 'washing_the_mop', 'washing_the_mop_2', 
-            'going_to_wash_the_mop', 'attaching_the_mop', 'detaching_the_mop',
-            'back_to_dock_washing_duster', 'docked', 'unknown', 'device_offline'
+            'charging', 'charging_complete', 'docked', 'unknown', 'device_offline'
         ];
         const isTrackingRoom = !dockingStates.includes((this.vacuumState.status || '').toLowerCase());
         
