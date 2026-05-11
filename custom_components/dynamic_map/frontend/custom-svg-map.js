@@ -662,8 +662,8 @@ class CustomSvgMap extends HTMLElement {
             this.vacuumState.activePolygon = null;
         } else {
             let targetSvgRoomId = null;
-            for (const [svgRoomId, roboRoomName] of Object.entries(sc.room_mapping || {})) {
-                if (roboRoomName.toLowerCase() === this.vacuumState.room.toLowerCase()) {
+            for (const [roboRoomName, svgRoomId] of Object.entries(sc.room_mapping || {})) {
+                if (roboRoomName.toLowerCase() === (this.vacuumState.room || '').toLowerCase()) {
                     targetSvgRoomId = svgRoomId;
                     break;
                 }
