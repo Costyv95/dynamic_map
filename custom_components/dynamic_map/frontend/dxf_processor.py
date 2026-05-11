@@ -1,7 +1,11 @@
 import os
 import json
-import cv2
-import numpy as np
+try:
+    import cv2
+    import numpy as np
+except ImportError:
+    raise Exception("The 'Recompute' feature requires 'opencv-python-headless' and 'numpy' to be installed on your Home Assistant OS.")
+
 import ezdxf
 from ezdxf import bbox
 from shapely.geometry import LineString, Point, box as shapely_box
@@ -117,9 +121,12 @@ def process_dxf(base_dir, floor_num, svg_filename=None, dxf_filename=None):
         svg_px_min_y, svg_px_max_y = 0, img_h
 
     # Generate PNG from SVG for Editor and Debug overlay
-    import cairosvg
-    print(f"Rasterizing {clean_svg_path} to {bg_png_path}...")
-    cairosvg.svg2png(url=clean_svg_path, write_to=bg_png_path, scale=1.0)
+    try:
+        import cairosvg
+        print(f"Rasterizing {clean_svg_path} to {bg_png_path}...")
+        cairosvg.svg2png(url=clean_svg_path, write_to=bg_png_path, scale=1.0)
+    except ImportError:
+        raise Exception("The 'Recompute' feature requires 'cairosvg' to be installed on your Home Assistant OS. Please install it manually, or run Recompute locally.")
     
     # Clean up temp file
     if os.path.exists(clean_svg_path):
