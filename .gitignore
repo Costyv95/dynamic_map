@@ -24,9 +24,13 @@ crop_floor*.png
 test_*.png
 contour_output.txt
 
-# Editor Output Backups (Optional - uncomment if you don't want to track JSON history)
+# User Data (Private)
 rooms_floor*.json
 shortcuts_floor*.json
+floor*.png
+bg_floor*.png
+floor*.svg
+floor*.dxf
 
 # Misc
 .env
