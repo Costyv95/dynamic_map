@@ -1322,6 +1322,7 @@
         // EXPORT YAML
         document.getElementById('exportYamlBtn').addEventListener('click', () => {
             let yaml = `type: custom:custom-svg-map\n`;
+            yaml += `vacuum_entity: vacuum.roborock_s7\n`;
             yaml += `default_floor: ${activeFloor}\n`;
             yaml += `floors: [1, 2]\n`;
             yaml += `# Note: You can also just add this card visually\n`;
