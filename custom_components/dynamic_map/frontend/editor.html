@@ -283,26 +283,50 @@
             container.innerHTML = '';
             if (!sc.room_mapping) sc.room_mapping = {};
             
-            rooms.forEach(room => {
-                if(!room.name) return; // Skip unnamed rooms
-                let val = sc.room_mapping[room.id] || '';
+            // Collect all known Roborock IDs from previous mappings and fetched options
+            let roboRoomIds = new Set(Object.keys(sc.room_mapping));
+            let optNames = {};
+            if (lastFetchedVacuumOptions) {
+                lastFetchedVacuumOptions.forEach(opt => {
+                    roboRoomIds.add(String(opt.id));
+                    optNames[opt.id] = opt.name;
+                });
+            }
+            
+            if (roboRoomIds.size === 0) {
+                container.innerHTML = `<div style="font-size:11px; color:#888; margin-top:5px;">Click 'Fetch HA' to pull your vacuum's rooms.</div>`;
+                return;
+            }
+            
+            roboRoomIds.forEach(roboId => {
+                let val = sc.room_mapping[roboId] || '';
+                let name = optNames[roboId] || `Room ID ${roboId}`;
                 let div = document.createElement('div');
                 div.style.marginBottom = '5px';
                 
-                if (lastFetchedVacuumOptions && lastFetchedVacuumOptions.length > 0) {
-                    let selectHtml = `<select class="room-map-input" data-roomid="${room.id}" style="width:100%; padding:5px; margin-top:2px;">`;
-                    selectHtml += `<option value="">-- Select Room --</option>`;
-                    lastFetchedVacuumOptions.forEach(opt => {
-                        const selected = (val == opt.id || val == opt.name) ? 'selected' : '';
-                        selectHtml += `<option value="${opt.id}" ${selected}>${opt.name}</option>`;
-                    });
-                    selectHtml += `</select>`;
-                    div.innerHTML = `<span style="font-size:12px; color:#aaa">${room.name}:</span> ${selectHtml}`;
-                } else {
-                    div.innerHTML = `<span style="font-size:12px; color:#aaa">${room.name}:</span> <input type="text" class="room-map-input" data-roomid="${room.id}" value="${val}" placeholder="e.g. Kitchen" style="width:100%; padding:5px; margin-top:2px;">`;
-                }
+                let selectHtml = `<select class="room-map-input" data-roboroomid="${roboId}" style="width:100%; padding:5px; margin-top:2px; background:var(--bg-secondary); color:var(--text-main); border:1px solid var(--input-border); border-radius:4px;">`;
+                selectHtml += `<option value="">-- Ignore --</option>`;
+                rooms.forEach(room => {
+                    if(!room.name) return;
+                    const selected = (val === room.id) ? 'selected' : '';
+                    selectHtml += `<option value="${room.id}" ${selected}>${room.name}</option>`;
+                });
+                selectHtml += `</select>`;
+                div.innerHTML = `<span style="font-size:12px; color:#aaa">Vacuum: ${name}</span> ${selectHtml}`;
                 
                 container.appendChild(div);
+            });
+            
+            // Real-time binding
+            container.querySelectorAll('.room-map-input').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const rId = e.target.dataset.roboroomid;
+                    if (e.target.value === "") {
+                        delete sc.room_mapping[rId];
+                    } else {
+                        sc.room_mapping[rId] = e.target.value;
+                    }
+                });
             });
         }
         
@@ -1237,12 +1261,8 @@
                 sc.entity_id = document.getElementById('scEntity').value;
                 sc.type = document.getElementById('scType').value;
                 
-                if (sc.type === 'vacuum') {
-                    const inputs = document.querySelectorAll('.room-map-input');
-                    inputs.forEach(input => {
-                        sc.room_mapping[input.dataset.roomid] = input.value;
-                    });
-                }
+                // Note: room_mapping is now saved in real-time by buildRoomMappingInputs
+                
                 updateSidebarUI();
                 draw();
             }
