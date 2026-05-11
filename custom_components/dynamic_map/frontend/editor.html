@@ -1256,6 +1256,18 @@
             }
         });
         
+        document.getElementById('scName').addEventListener('input', (e) => {
+            if(selectedShortcutIdx !== -1) {
+                shortcuts[selectedShortcutIdx].name = e.target.value;
+            }
+        });
+
+        document.getElementById('scEntity').addEventListener('input', (e) => {
+            if(selectedShortcutIdx !== -1) {
+                shortcuts[selectedShortcutIdx].entity_id = e.target.value;
+            }
+        });
+        
         document.getElementById('scShape').addEventListener('change', (e) => {
             if(selectedShortcutIdx !== -1) {
                 shortcuts[selectedShortcutIdx].shape = e.target.value;
