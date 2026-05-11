@@ -341,38 +341,51 @@
             const origText = btn.textContent;
             btn.textContent = "Fetching...";
             try {
-                const res = await fetch(`/api/dynamic_map/state?entity_id=${entityId}`);
-                const data = await res.json();
-                if (data.success && data.attributes) {
-                    // Roborock usually stores rooms in 'rooms' attribute as a dict/list
-                    // Or xiaomi_miio stores it in 'room_mapping' or similar
-                    // We will just try to parse common formats, or list attributes that look like rooms
-                    let roomsFound = [];
-                    if (data.attributes.rooms) {
-                        const rAttr = data.attributes.rooms;
-                        if (Array.isArray(rAttr)) roomsFound = rAttr.map((v,i) => ({ id: v, name: String(v) }));
-                        else if (typeof rAttr === 'object') {
-                            for (const [k, v] of Object.entries(rAttr)) roomsFound.push({ id: k, name: v });
+                let data = null;
+                let roomsFound = [];
+
+                if (entityId.startsWith('vacuum.')) {
+                    // Try to fetch the matching _current_room sensor first for Enum options
+                    const baseName = entityId.replace('vacuum.', '');
+                    const roomRes = await fetch(`/api/dynamic_map/state?entity_id=sensor.${baseName}_current_room`);
+                    if (roomRes.ok) {
+                        const roomData = await roomRes.json();
+                        if (roomData.success && roomData.attributes && Array.isArray(roomData.attributes.options)) {
+                            roomsFound = roomData.attributes.options.map(o => ({ id: o, name: o }));
                         }
-                    } else if (data.attributes.room_mapping) {
-                        const rAttr = data.attributes.room_mapping;
-                        if (typeof rAttr === 'object') {
-                            for (const [k, v] of Object.entries(rAttr)) roomsFound.push({ id: v, name: k });
-                        }
-                    } else {
-                        // Fallback, just generate 1-20 IDs
-                        for(let i=16; i<=25; i++) roomsFound.push({ id: i, name: `Room ${i}`});
                     }
-                    
-                    lastFetchedVacuumOptions = roomsFound;
-                    if (selectedShortcutIdx !== -1) {
-                        renderVacuumRoomMapping(shortcuts[selectedShortcutIdx]);
-                    }
-                    btn.textContent = "Success!";
-                } else {
-                    alert("Failed to fetch vacuum entity or no attributes found.");
-                    btn.textContent = "Failed";
                 }
+
+                // If no options found, fetch the vacuum entity and check for typical room attributes
+                if (roomsFound.length === 0) {
+                    const res = await fetch(`/api/dynamic_map/state?entity_id=${entityId}`);
+                    data = await res.json();
+                    
+                    if (data.success && data.attributes) {
+                        if (data.attributes.rooms) {
+                            const rAttr = data.attributes.rooms;
+                            if (Array.isArray(rAttr)) roomsFound = rAttr.map((v,i) => ({ id: v, name: String(v) }));
+                            else if (typeof rAttr === 'object') {
+                                for (const [k, v] of Object.entries(rAttr)) roomsFound.push({ id: k, name: v });
+                            }
+                        } else if (data.attributes.room_mapping) {
+                            const rAttr = data.attributes.room_mapping;
+                            if (typeof rAttr === 'object') {
+                                for (const [k, v] of Object.entries(rAttr)) roomsFound.push({ id: v, name: k });
+                            }
+                        }
+                    }
+                }
+
+                // Fallback, just generate 16-25 IDs
+                if (roomsFound.length === 0) {
+                    for(let i=16; i<=25; i++) roomsFound.push({ id: i, name: `Room ${i}`});
+                }
+                lastFetchedVacuumOptions = roomsFound;
+                if (selectedShortcutIdx !== -1) {
+                    renderVacuumRoomMapping(shortcuts[selectedShortcutIdx]);
+                }
+                btn.textContent = "Success!";
             } catch (e) {
                 console.error(e);
                 btn.textContent = "Error";
@@ -1132,6 +1145,12 @@
         canvas.addEventListener('touchmove', onPointerMove, {passive: false});
         window.addEventListener('touchend', onPointerUp);
         window.addEventListener('touchcancel', onPointerUp);
+        
+        // Prevent clicks inside the sidebar from bubbling up and triggering map redraws
+        const sidebarEl = document.getElementById('sidebar');
+        ['mousedown', 'mouseup', 'touchstart', 'touchend'].forEach(evt => {
+            sidebarEl.addEventListener(evt, (e) => e.stopPropagation());
+        });
 
         // Merge Logic
         document.getElementById('mergeBtn').addEventListener('click', () => {
