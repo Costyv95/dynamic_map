@@ -82,8 +82,8 @@ class CustomSvgMap extends HTMLElement {
 
         try {
             const [roomsRes, shortcutsRes] = await Promise.all([
-                fetch(roomsUrl).catch(() => ({ ok: false })),
-                fetch(shortcutsUrl).catch(() => ({ ok: false }))
+                fetch(`${roomsUrl}?t=${Date.now()}`).catch(() => ({ ok: false })),
+                fetch(`${shortcutsUrl}?t=${Date.now()}`).catch(() => ({ ok: false }))
             ]);
 
             if (roomsRes.ok) this.rooms = await roomsRes.json();
