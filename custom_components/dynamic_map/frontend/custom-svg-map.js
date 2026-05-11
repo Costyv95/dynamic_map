@@ -699,6 +699,9 @@ class CustomSvgMap extends HTMLElement {
                             const center = this.getPolygonCenter(targetRoom.polygon);
                             this.vacuumState.targetX = (center[0] / 100) * this.imgW;
                             this.vacuumState.targetY = (center[1] / 100) * this.imgH;
+                            // Teleport instantly to avoid flying through walls!
+                            this.vacuumState.x = this.vacuumState.targetX;
+                            this.vacuumState.y = this.vacuumState.targetY;
                         }
                     }
                 } else {
@@ -752,7 +755,10 @@ class CustomSvgMap extends HTMLElement {
         for (const id in this.shortcutElements) {
             const el = this.shortcutElements[id];
             if (el.sc.type === 'vacuum') {
-                if (this.vacuumState.status === 'cleaning' && this.vacuumState.activePolygon) {
+                const isOffline = ['unknown', 'device_offline'].includes((this.vacuumState.status || '').toLowerCase());
+                const isTrackingRoom = !this.vacuumState.isCharging && !isOffline;
+
+                if (isTrackingRoom && this.vacuumState.activePolygon) {
                     const distToTarget = Math.hypot(this.vacuumState.targetX - this.vacuumState.x, this.vacuumState.targetY - this.vacuumState.y);
                     if (distToTarget < (this.imgW * 0.01)) {
                         const newTarget = this.getRandomPointInPolygon(this.vacuumState.activePolygon);
@@ -766,7 +772,7 @@ class CustomSvgMap extends HTMLElement {
                 const dist = Math.hypot(dx, dy);
 
                 const baseSpeed = (this.imgW + this.imgH) / 2;
-                const speed = (this.vacuumState.status === 'cleaning') ? baseSpeed * 0.03 : baseSpeed * 0.15;
+                const speed = (isTrackingRoom) ? baseSpeed * 0.03 : baseSpeed * 0.15;
 
                 if (dist > (this.imgW * 0.001)) {
                     const moveAmt = Math.min(dist, speed * deltaTime);
