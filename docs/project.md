@@ -21,7 +21,7 @@ A standalone vanilla JavaScript single-page application (`editor.html`).
 - **Unified State**: Operates in either `View Mode` or `Edit Mode`.
 - **Canvas Interaction**: Features a dynamic panning, zooming, and automated orientation engine.
 - **Object Manipulation**: Supports interactive dragging, point-and-click room definitions, Polygon merging/splitting, and shape manipulation (independent X/Y scaling for shortcuts).
-- **Smart Device Integration**: Dynamically fetches and maps Roborock vacuum room configurations directly from Home Assistant entities.
+- **Smart Device Integration**: Dynamically fetches and maps Roborock vacuum room configurations directly from Home Assistant entities. Utilizes `binary_sensor.<vac>_charging` for precise dock-snapping, and features advanced `requestAnimationFrame` SVG boundary-wandering for live tracking.
 - **HA Exporter**: Automatically generates the required YAML `picture-elements` card code to deploy the live view.
 
 ## Core Dependencies
