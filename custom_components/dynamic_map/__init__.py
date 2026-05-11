@@ -2,7 +2,7 @@ import logging
 import os
 import json
 from homeassistant.core import HomeAssistant
-from homeassistant.components.http import HomeAssistantView
+from homeassistant.components.http import HomeAssistantView, StaticPathConfig
 from homeassistant.components.frontend import async_register_built_in_panel
 
 _LOGGER = logging.getLogger(__name__)
@@ -14,18 +14,22 @@ async def async_setup(hass: HomeAssistant, config: dict):
     
     # Register the save API endpoint
     hass.http.register_view(DynamicMapSaveView(hass))
+    hass.http.register_view(DynamicMapStateView(hass))
     
     # Expose the frontend folder statically
     frontend_dir = hass.config.path("custom_components", DOMAIN, "frontend")
-    hass.http.register_static_path("/dynamic_map_ui", frontend_dir, cache_headers=False)
+    await hass.http.async_register_static_paths([
+        StaticPathConfig("/dynamic_map_ui", frontend_dir, cache_headers=False)
+    ])
     
     # Register the custom panel editor
-    hass.components.frontend.async_register_built_in_panel(
+    async_register_built_in_panel(
+        hass,
         component_name="iframe",
         sidebar_title="Map Editor",
         sidebar_icon="mdi:map-search-outline",
         frontend_url_path="dynamic_map_editor",
-        config={"url": "/dynamic_map_ui/editor.html"},
+        config={"url": "/dynamic_map_ui/editor.html?v=2"},
         require_admin=True,
     )
     
@@ -69,3 +73,28 @@ class DynamicMapSaveView(HomeAssistantView):
         except Exception as e:
             _LOGGER.error(f"Failed to save dynamic map config: {e}")
             return self.json({"success": False, "error": str(e)})
+
+class DynamicMapStateView(HomeAssistantView):
+    """View to fetch state and attributes of an entity."""
+    url = "/api/dynamic_map/state"
+    name = "api:dynamic_map:state"
+    requires_auth = True
+
+    def __init__(self, hass):
+        self.hass = hass
+
+    async def get(self, request):
+        """Handle GET request to fetch entity state."""
+        entity_id = request.query.get("entity_id")
+        if not entity_id:
+            return self.json({"success": False, "error": "Missing entity_id parameter."})
+
+        state = self.hass.states.get(entity_id)
+        if state is None:
+            return self.json({"success": False, "error": "Entity not found."})
+
+        return self.json({
+            "success": True,
+            "state": state.state,
+            "attributes": dict(state.attributes)
+        })

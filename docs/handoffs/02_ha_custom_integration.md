@@ -11,10 +11,10 @@ The primary objective of this phase was to mature the project from a local Pytho
 - **Python Backend (`__init__.py`):** Authored the core integration logic. The backend performs three critical tasks upon initialization:
     1. Registers a static path (`/dynamic_map_ui`) mapping to the `frontend/` directory, allowing Home Assistant's web server to host the static assets (HTML, JS, SVGs).
     2. Registers an iframe-based Custom Panel, injecting the "Map Editor" directly into the user's main Home Assistant sidebar.
-    3. Registers a custom HTTP View (`DynamicMapSaveView`) exposing the `POST /api/dynamic_map/save` endpoint.
+    3. Registers custom HTTP Views (`DynamicMapSaveView`, `DynamicMapStateView`) exposing the `POST /api/dynamic_map/save` and `GET /api/dynamic_map/state` endpoints.
 
-### 2. Secure Persistence Layer
-- **API Endpoint:** The `DynamicMapSaveView` class securely intercepts POST requests from the frontend. It includes built-in Home Assistant authentication requirements (`requires_auth = True`) and strict directory traversal protections.
+### 2. Secure API Layer
+- **API Endpoints:** The `DynamicMapSaveView` securely intercepts POST requests from the frontend, while `DynamicMapStateView` provides secure read access to entity states. Both include built-in Home Assistant authentication requirements (`requires_auth = True`). The save endpoint includes strict directory traversal protections.
 - **Direct File I/O:** When triggered, the backend decodes the incoming JSON payload and writes `rooms.json` and `shortcuts.json` directly back into the `frontend/` directory on the host machine. This entirely replaces the need for the legacy local Python server.
 
 ### 3. Frontend Decoupling

@@ -61,6 +61,8 @@
         <div class="active-room-box" id="activeRoomUI" style="display: none;">
             <label>Room Name</label>
             <input type="text" id="roomName" placeholder="e.g. Living Room">
+            <label style="margin-top: 10px; display:block;">Entity ID (Optional)</label>
+            <input type="text" id="roomEntity" placeholder="e.g. light.living_room">
             <div class="header-actions" style="margin-top: 10px; margin-bottom: 5px;">
                 <button id="saveNameBtn">Save Name</button>
                 <button id="deleteBtn" class="danger">Delete</button>
@@ -107,8 +109,11 @@
 
             <div id="vacuumOptions" style="display: none; margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
                 <label style="color:var(--accent); font-weight:bold;">⚡ Dock Position is set to current icon location!</label>
-                <label style="margin-top:10px; display:block;">Room Mapping (SVG -> Roborock Name)</label>
-                <div id="roomMappingsList"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                    <label style="display:block;">Room Mapping</label>
+                    <button id="fetchHABtn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0; border-radius: 4px; background: #10b981; color: white; border: none;">Fetch HA</button>
+                </div>
+                <div id="roomMappingsList" style="margin-top: 5px;"></div>
             </div>
 
             <div class="header-actions" style="margin-top: 15px;">
@@ -265,10 +270,13 @@
             } else if (selectedRooms.length === 1) {
                 activeRoomUI.style.display = 'block';
                 roomNameInput.value = rooms[selectedRooms[0]].name || '';
+                document.getElementById('roomEntity').value = rooms[selectedRooms[0]].entity_id || '';
             } else if (selectedRooms.length === 2) {
                 document.getElementById('mergeUI').style.display = 'block';
             }
         }
+
+        let lastFetchedVacuumOptions = null;
 
         function renderVacuumRoomMapping(sc) {
             const container = document.getElementById('roomMappingsList');
@@ -280,10 +288,73 @@
                 let val = sc.room_mapping[room.id] || '';
                 let div = document.createElement('div');
                 div.style.marginBottom = '5px';
-                div.innerHTML = `<span style="font-size:12px; color:#aaa">${room.name}:</span> <input type="text" class="room-map-input" data-roomid="${room.id}" value="${val}" placeholder="e.g. Kitchen" style="width:100%; padding:5px; margin-top:2px;">`;
+                
+                if (lastFetchedVacuumOptions && lastFetchedVacuumOptions.length > 0) {
+                    let selectHtml = `<select class="room-map-input" data-roomid="${room.id}" style="width:100%; padding:5px; margin-top:2px;">`;
+                    selectHtml += `<option value="">-- Select Room --</option>`;
+                    lastFetchedVacuumOptions.forEach(opt => {
+                        const selected = (val == opt.id || val == opt.name) ? 'selected' : '';
+                        selectHtml += `<option value="${opt.id}" ${selected}>${opt.name}</option>`;
+                    });
+                    selectHtml += `</select>`;
+                    div.innerHTML = `<span style="font-size:12px; color:#aaa">${room.name}:</span> ${selectHtml}`;
+                } else {
+                    div.innerHTML = `<span style="font-size:12px; color:#aaa">${room.name}:</span> <input type="text" class="room-map-input" data-roomid="${room.id}" value="${val}" placeholder="e.g. Kitchen" style="width:100%; padding:5px; margin-top:2px;">`;
+                }
+                
                 container.appendChild(div);
             });
         }
+        
+        document.getElementById('fetchHABtn').addEventListener('click', async () => {
+            const entityId = document.getElementById('scEntity').value;
+            const btn = document.getElementById('fetchHABtn');
+            if (!entityId) {
+                alert("Please enter a valid Vacuum Entity ID first!");
+                return;
+            }
+            
+            const origText = btn.textContent;
+            btn.textContent = "Fetching...";
+            try {
+                const res = await fetch(`/api/dynamic_map/state?entity_id=${entityId}`);
+                const data = await res.json();
+                if (data.success && data.attributes) {
+                    // Roborock usually stores rooms in 'rooms' attribute as a dict/list
+                    // Or xiaomi_miio stores it in 'room_mapping' or similar
+                    // We will just try to parse common formats, or list attributes that look like rooms
+                    let roomsFound = [];
+                    if (data.attributes.rooms) {
+                        const rAttr = data.attributes.rooms;
+                        if (Array.isArray(rAttr)) roomsFound = rAttr.map((v,i) => ({ id: v, name: String(v) }));
+                        else if (typeof rAttr === 'object') {
+                            for (const [k, v] of Object.entries(rAttr)) roomsFound.push({ id: k, name: v });
+                        }
+                    } else if (data.attributes.room_mapping) {
+                        const rAttr = data.attributes.room_mapping;
+                        if (typeof rAttr === 'object') {
+                            for (const [k, v] of Object.entries(rAttr)) roomsFound.push({ id: v, name: k });
+                        }
+                    } else {
+                        // Fallback, just generate 1-20 IDs
+                        for(let i=16; i<=25; i++) roomsFound.push({ id: i, name: `Room ${i}`});
+                    }
+                    
+                    lastFetchedVacuumOptions = roomsFound;
+                    if (selectedShortcutIdx !== -1) {
+                        renderVacuumRoomMapping(shortcuts[selectedShortcutIdx]);
+                    }
+                    btn.textContent = "Success!";
+                } else {
+                    alert("Failed to fetch vacuum entity or no attributes found.");
+                    btn.textContent = "Failed";
+                }
+            } catch (e) {
+                console.error(e);
+                btn.textContent = "Error";
+            }
+            setTimeout(() => { btn.textContent = origText; }, 2000);
+        });
         
         // Load Floor Data
         let isTransitioning = false;
@@ -1116,6 +1187,7 @@
         function saveRoomName() {
             if(selectedRooms.length === 1) {
                 rooms[selectedRooms[0]].name = roomNameInput.value;
+                rooms[selectedRooms[0]].entity_id = document.getElementById('roomEntity').value;
                 saveState();
                 draw(); // Redraw to update text on canvas
             }
@@ -1223,18 +1295,20 @@
             
             try {
                 // Save Rooms
-                await fetch('/api/dynamic_map/save', {
+                let res1 = await fetch('/api/dynamic_map/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ filename: `rooms_floor${activeFloor}.json`, content: rooms })
                 });
+                if (!res1.ok) throw new Error(`Rooms save failed: ${res1.statusText}`);
 
                 // Save Shortcuts
-                await fetch('/api/dynamic_map/save', {
+                let res2 = await fetch('/api/dynamic_map/save', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ filename: `shortcuts_floor${activeFloor}.json`, content: shortcuts })
                 });
+                if (!res2.ok) throw new Error(`Shortcuts save failed: ${res2.statusText}`);
 
                 btn.textContent = "✅ Saved to HA Successfully!";
             } catch (err) {
@@ -1247,33 +1321,11 @@
 
         // EXPORT YAML
         document.getElementById('exportYamlBtn').addEventListener('click', () => {
-            let yaml = `type: picture-elements\nimage: /local/bg_floor${activeFloor}.png\nelements:\n`;
-            
-            rooms.forEach(room => {
-                // Generate CSS clip-path polygon string
-                const clipPath = `polygon(${room.polygon.map(pt => `${pt[0].toFixed(2)}% ${pt[1].toFixed(2)}%`).join(', ')})`;
-                
-                yaml += `  - type: custom:button-card\n`;
-                yaml += `    # Change this to your light/room entity!\n`;
-                yaml += `    entity: light.dummy_entity\n`;
-                yaml += `    name: ${room.name}\n`;
-                yaml += `    show_name: true\n`;
-                yaml += `    show_icon: false\n`;
-                yaml += `    style:\n`;
-                yaml += `      top: 50%\n`;
-                yaml += `      left: 50%\n`;
-                yaml += `      width: 100%\n`;
-                yaml += `      height: 100%\n`;
-                yaml += `      # This mathematically masks the button to the exact room shape!\n`;
-                yaml += `      clip-path: "${clipPath}"\n`;
-                yaml += `    styles:\n`;
-                yaml += `      card:\n`;
-                yaml += `        - background: "rgba(0, 255, 255, 0.3)"\n`;
-                yaml += `        - border: "2px solid #00ffff"\n`;
-                yaml += `      name:\n`;
-                yaml += `        - color: white\n`;
-                yaml += `        - font-weight: bold\n`;
-            });
+            let yaml = `type: custom:custom-svg-map\n`;
+            yaml += `default_floor: ${activeFloor}\n`;
+            yaml += `floors: [1, 2]\n`;
+            yaml += `# Note: You can also just add this card visually\n`;
+            yaml += `# by clicking 'Add Card' and searching for 'Custom Svg Map'\n`;
             
             yamlOutput.value = yaml;
         });

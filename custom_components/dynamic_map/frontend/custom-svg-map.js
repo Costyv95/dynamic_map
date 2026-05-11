@@ -3,59 +3,139 @@ class CustomSvgMap extends HTMLElement {
         super();
         this.attachShadow({ mode: 'open' });
         this.svgNS = "http://www.w3.org/2000/svg";
-        
+
         this.rooms = [];
         this.shortcuts = [];
         this.vacuumState = { status: 'unknown', room: 'unknown', x: 0, y: 0, targetX: 0, targetY: 0, activePolygon: null };
         this.lastTime = 0;
-        
+        this.selectedRoomId = null;
+
+        // renderRoot is a flex container that perfectly centers the map
         this.renderRoot = document.createElement('div');
         this.renderRoot.style.position = 'relative';
         this.renderRoot.style.width = '100%';
         this.renderRoot.style.height = '100%';
         this.renderRoot.style.background = 'transparent';
-        
+        this.renderRoot.style.display = 'flex';
+        this.renderRoot.style.justifyContent = 'center';
+        this.renderRoot.style.alignItems = 'center';
+
         this.shadowRoot.appendChild(this.renderRoot);
         this.animationFrame = null;
     }
 
+    static getConfigElement() {
+        return document.createElement('custom-svg-map-editor');
+    }
+
+    static getStubConfig() {
+        return { type: 'custom:custom-svg-map', default_floor: 1, floors: [1, 2] };
+    }
+
     setConfig(config) {
-        if (!config.floor) {
-            throw new Error('You need to define a floor number (e.g., floor: 1)');
+        if (!config.floors || !config.floors.length) {
+            this.config = { floors: [1, 2], default_floor: config.default_floor || config.floor || 1, ...config };
+        } else {
+            this.config = config;
         }
-        this.config = config;
+        this.activeFloor = this.config.default_floor || this.config.floors[0];
         this.loadData();
     }
 
     async loadData() {
-        const floor = this.config.floor;
-        // In HA, images/JSON uploaded to www are available at /local/
-        const bgUrl = `/local/bg_floor${floor}.png`;
-        const roomsUrl = `/local/rooms_floor${floor}.json`;
-        const shortcutsUrl = `/local/shortcuts_floor${floor}.json`;
+        const floor = this.activeFloor;
+        const bgUrl = `/dynamic_map_ui/bg_floor${floor}.png`;
+        const roomsUrl = `/dynamic_map_ui/rooms_floor${floor}.json`;
+        const shortcutsUrl = `/dynamic_map_ui/shortcuts_floor${floor}.json`;
 
         try {
             const [roomsRes, shortcutsRes] = await Promise.all([
-                fetch(roomsUrl),
+                fetch(roomsUrl).catch(() => ({ ok: false })),
                 fetch(shortcutsUrl).catch(() => ({ ok: false }))
             ]);
 
             if (roomsRes.ok) this.rooms = await roomsRes.json();
-            if (shortcutsRes && shortcutsRes.ok) this.shortcuts = await shortcutsRes.json();
+            else this.rooms = [];
 
-            this.buildSVG(bgUrl);
+            if (shortcutsRes && shortcutsRes.ok) this.shortcuts = await shortcutsRes.json();
+            else this.shortcuts = [];
+
+            const img = new Image();
+            img.onload = () => {
+                // Wait to ensure width is populated
+                this.imgW = img.naturalWidth || 1000;
+                this.imgH = img.naturalHeight || 1000;
+                this.buildSVG(bgUrl);
+            };
+            img.onerror = () => {
+                this.imgW = 1000;
+                this.imgH = 1000;
+                this.buildSVG(bgUrl);
+            };
+            img.src = bgUrl;
+
         } catch (e) {
             console.error("Failed to load map data", e);
-            this.renderRoot.innerHTML = `<div style="color:red; padding: 20px;">Failed to load map data from /local/. Ensure rooms_floor${floor}.json and shortcuts_floor${floor}.json are in your www folder.</div>`;
+            this.renderRoot.innerHTML = `<div style="color:red; padding: 20px;">Failed to load map data from /dynamic_map_ui/. Ensure rooms_floor${floor}.json is present.</div>`;
+        }
+    }
+
+    buildFloorSwitcher() {
+        if (this.config.floors.length <= 1) return;
+
+        const switcher = document.createElement('div');
+        switcher.className = 'floor-switcher';
+        switcher.style.position = 'absolute';
+        switcher.style.top = '10px';
+        switcher.style.left = '10px';
+        switcher.style.display = 'flex';
+        switcher.style.flexDirection = 'column';
+        switcher.style.background = 'rgba(255, 255, 255, 0.9)';
+        switcher.style.borderRadius = '8px';
+        switcher.style.overflow = 'hidden';
+        switcher.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
+        switcher.style.zIndex = '10';
+
+        this.config.floors.forEach(f => {
+            const btn = document.createElement('div');
+            btn.textContent = `Floor ${f}`;
+            btn.style.padding = '8px 12px';
+            btn.style.cursor = 'pointer';
+            btn.style.fontSize = '12px';
+            btn.style.fontWeight = 'bold';
+            btn.style.fontFamily = 'sans-serif';
+            btn.style.borderBottom = '1px solid #e2e8f0';
+            btn.style.color = '#1e293b';
+            btn.style.background = (f == this.activeFloor) ? '#0ea5e9' : 'transparent';
+            if (f == this.activeFloor) btn.style.color = 'white';
+
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (this.activeFloor !== f) {
+                    this.activeFloor = f;
+                    this.loadData();
+                }
+            });
+            switcher.appendChild(btn);
+        });
+        switcher.lastChild.style.borderBottom = 'none';
+
+        // Append to mapWrapper to perfectly overlay the map bounds
+        if (this.mapWrapper) {
+            this.mapWrapper.appendChild(switcher);
         }
     }
 
     buildSVG(bgUrl) {
         this.renderRoot.innerHTML = '';
-        
-        // We assume 1000x1000 base viewBox to map percentages
+
+        // mapWrapper will strictly confine the SVG and overlay UI
+        this.mapWrapper = document.createElement('div');
+        this.mapWrapper.style.position = 'relative';
+        this.mapWrapper.style.margin = '0 auto';
+        this.mapWrapper.style.display = 'block';
+
         this.svg = document.createElementNS(this.svgNS, 'svg');
-        this.svg.setAttribute('viewBox', '0 0 100 100');
         this.svg.style.width = '100%';
         this.svg.style.height = '100%';
         this.svg.style.display = 'block';
@@ -63,83 +143,104 @@ class CustomSvgMap extends HTMLElement {
         this.mapRoot = document.createElementNS(this.svgNS, 'g');
         this.mapRoot.id = 'map-root';
 
-        // Background Image
         const image = document.createElementNS(this.svgNS, 'image');
         image.setAttribute('href', bgUrl);
-        image.setAttribute('width', '100');
-        image.setAttribute('height', '100');
+        image.setAttribute('width', this.imgW.toString());
+        image.setAttribute('height', this.imgH.toString());
         image.setAttribute('preserveAspectRatio', 'none');
         this.mapRoot.appendChild(image);
 
-        // Draw Room Highlights (optional, for debug or visual effect)
         this.rooms.forEach(room => {
             const polygon = document.createElementNS(this.svgNS, 'polygon');
-            const pointsStr = room.polygon.map(pt => `${pt[0]},${pt[1]}`).join(' ');
+            const pointsStr = room.polygon.map(pt => {
+                const px = (pt[0] / 100) * this.imgW;
+                const py = (pt[1] / 100) * this.imgH;
+                return `${px},${py}`;
+            }).join(' ');
             polygon.setAttribute('points', pointsStr);
-            polygon.setAttribute('fill', 'rgba(0, 255, 255, 0.05)');
-            polygon.setAttribute('stroke', 'rgba(0, 255, 255, 0.2)');
-            polygon.setAttribute('stroke-width', '0.2');
-            this.mapRoot.appendChild(polygon);
-            
-            // Text Label
+            polygon.setAttribute('stroke-width', (this.imgW * 0.002).toString());
+
+            let cx = 0, cy = 0;
             if (room.name) {
-                // Calculate center
-                let minX = 100, maxX = 0, minY = 100, maxY = 0;
+                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
                 room.polygon.forEach(pt => {
-                    if(pt[0] < minX) minX = pt[0];
-                    if(pt[0] > maxX) maxX = pt[0];
-                    if(pt[1] < minY) minY = pt[1];
-                    if(pt[1] > maxY) maxY = pt[1];
+                    const px = (pt[0] / 100) * this.imgW;
+                    const py = (pt[1] / 100) * this.imgH;
+                    if (px < minX) minX = px;
+                    if (px > maxX) maxX = px;
+                    if (py < minY) minY = py;
+                    if (py > maxY) maxY = py;
                 });
-                const cx = minX + (maxX - minX)/2;
-                const cy = minY + (maxY - minY)/2;
-                
+                cx = minX + (maxX - minX) / 2;
+                cy = minY + (maxY - minY) / 2;
+
                 const text = document.createElementNS(this.svgNS, 'text');
                 text.setAttribute('x', cx);
                 text.setAttribute('y', cy);
                 text.setAttribute('text-anchor', 'middle');
                 text.setAttribute('dominant-baseline', 'central');
-                text.setAttribute('font-size', '2');
+                text.setAttribute('font-size', (this.imgW * 0.02).toString());
                 text.setAttribute('fill', 'white');
                 text.setAttribute('font-weight', 'bold');
                 text.style.textShadow = '0px 0px 4px black, 0px 0px 4px black';
                 text.textContent = room.name;
                 text.classList.add('room-label');
-                
+
+                // Save raw center for counter-rotation later
+                text.rawCx = cx;
+                text.rawCy = cy;
                 this.mapRoot.appendChild(text);
             }
+
+            polygon.classList.add('room-polygon');
+
+            polygon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.selectedRoomId = (this.selectedRoomId === room.id) ? null : room.id;
+                this.updateRoomStyles();
+
+                if (room.entity_id && this._hass) {
+                    const domain = room.entity_id.split('.')[0];
+                    this._hass.callService(domain, 'toggle', { entity_id: room.entity_id });
+                }
+            });
+
+            this.mapRoot.insertBefore(polygon, this.mapRoot.lastChild);
         });
 
-        // Initialize Shortcut Elements
+        this.updateRoomStyles();
+
         this.shortcutElements = {};
         this.shortcuts.forEach(sc => {
             const group = document.createElementNS(this.svgNS, 'g');
-            // Store raw coordinates for counter-rotation calculation later
-            group.scX = sc.position[0];
-            group.scY = sc.position[1];
-            group.setAttribute('transform', `translate(${sc.position[0]}, ${sc.position[1]})`);
-            
+            const px = (sc.position[0] / 100) * this.imgW;
+            const py = (sc.position[1] / 100) * this.imgH;
+
+            group.scX = px;
+            group.scY = py;
+            group.setAttribute('transform', `translate(${px}, ${py})`);
+
             const scaleX = sc.scaleX || sc.scale || 1;
             const scaleY = sc.scaleY || sc.scale || 1;
-            const rx = 1.5 * scaleX;
-            const ry = 1.5 * scaleY;
+            const rx = (1.5 * scaleX / 100) * this.imgW;
+            const ry = (1.5 * scaleY / 100) * this.imgH;
             const r = Math.max(rx, ry);
             const shapeType = sc.shape === 'rect' ? 'rect' : 'circle';
             const shape = document.createElementNS(this.svgNS, shapeType);
-            
+
             if (shapeType === 'rect') {
                 shape.setAttribute('x', -rx);
                 shape.setAttribute('y', -ry);
-                shape.setAttribute('width', rx*2);
-                shape.setAttribute('height', ry*2);
-                shape.setAttribute('rx', 0.3);
+                shape.setAttribute('width', rx * 2);
+                shape.setAttribute('height', ry * 2);
+                shape.setAttribute('rx', (0.3 / 100) * this.imgW);
             } else {
                 shape.setAttribute('r', rx);
             }
-            
+
             shape.setAttribute('fill', sc.transparent ? 'rgba(0,0,0,0)' : (sc.color || '#0ea5e9'));
             shape.setAttribute('stroke', 'white');
-            shape.setAttribute('stroke-width', '0.2');
+            shape.setAttribute('stroke-width', (0.2 / 100) * this.imgW);
             group.appendChild(shape);
 
             if (sc.type === 'vacuum') {
@@ -149,13 +250,8 @@ class CustomSvgMap extends HTMLElement {
                 const inner2 = document.createElementNS(this.svgNS, 'circle');
                 inner2.setAttribute('r', r * 0.4);
                 inner2.setAttribute('fill', '#0ea5e9');
-                const inner3 = document.createElementNS(this.svgNS, 'circle');
-                inner3.setAttribute('r', r * 0.15);
-                inner3.setAttribute('cx', r * 0.5);
-                inner3.setAttribute('fill', '#10b981');
                 group.appendChild(inner1);
                 group.appendChild(inner2);
-                group.appendChild(inner3);
             } else {
                 const text = document.createElementNS(this.svgNS, 'text');
                 text.setAttribute('text-anchor', 'middle');
@@ -168,29 +264,43 @@ class CustomSvgMap extends HTMLElement {
             const stateBadge = document.createElementNS(this.svgNS, 'text');
             stateBadge.setAttribute('text-anchor', 'middle');
             stateBadge.setAttribute('dominant-baseline', 'central');
-            stateBadge.setAttribute('font-size', '1');
-            stateBadge.setAttribute('y', r + 1); // Display visually below the icon
+            stateBadge.setAttribute('font-size', (this.imgW * 0.015).toString());
+            stateBadge.setAttribute('y', r + (this.imgH * 0.01));
             stateBadge.setAttribute('fill', '#1e293b');
             stateBadge.style.textShadow = '0px 0px 2px white';
             group.appendChild(stateBadge);
-            
+
             group.classList.add('shortcut-group');
             this.mapRoot.appendChild(group);
 
             this.shortcutElements[sc.id] = { group, stateBadge, sc };
 
-            // Initialize Vacuum State
             if (sc.type === 'vacuum') {
-                this.vacuumState.x = sc.position[0];
-                this.vacuumState.y = sc.position[1];
+                this.vacuumState.x = px;
+                this.vacuumState.y = py;
+                this.vacuumState.targetX = px;
+                this.vacuumState.targetY = py;
             }
         });
 
         this.svg.appendChild(this.mapRoot);
-        this.renderRoot.appendChild(this.svg);
+        this.mapWrapper.appendChild(this.svg);
+        this.renderRoot.appendChild(this.mapWrapper);
 
-        this.vb = { x: 0, y: 0, w: 100, h: 100 };
+        // Calculate geometry and rotation
         this.calculateAutoCrop();
+
+        // Add floor switcher safely overlaid
+        this.buildFloorSwitcher();
+
+        // Version badge appended last to avoid rotation logic
+        this.versionText = document.createElementNS(this.svgNS, 'text');
+        this.versionText.setAttribute('text-anchor', 'start');
+        this.versionText.setAttribute('font-weight', 'bold');
+        this.versionText.setAttribute('fill', 'red');
+        this.versionText.textContent = "v2.0.15";
+        this.svg.appendChild(this.versionText);
+
         this.setupInteraction();
 
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
@@ -199,65 +309,106 @@ class CustomSvgMap extends HTMLElement {
     }
 
     calculateAutoCrop() {
-        if (this.rooms.length === 0) return;
+        this.isRotated = false;
+
+        if (this.rooms.length === 0) {
+            this.vb = { x: 0, y: 0, w: this.imgW, h: this.imgH };
+            this.defaultVb = { ...this.vb };
+            this.updateViewBox();
+            return;
+        }
+
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         this.rooms.forEach(r => {
             r.polygon.forEach(pt => {
-                if(pt[0] < minX) minX = pt[0];
-                if(pt[0] > maxX) maxX = pt[0];
-                if(pt[1] < minY) minY = pt[1];
-                if(pt[1] > maxY) maxY = pt[1];
+                const px = (pt[0] / 100) * this.imgW;
+                const py = (pt[1] / 100) * this.imgH;
+                if (px < minX) minX = px;
+                if (px > maxX) maxX = px;
+                if (py < minY) minY = py;
+                if (py > maxY) maxY = py;
             });
         });
-        if (minX === Infinity) return;
+
         const w = maxX - minX;
         const h = maxY - minY;
-        const cx = minX + w/2;
-        const cy = minY + h/2;
+        const padX = w * 0.15;
+        const padY = h * 0.15;
 
-        const mapRatio = w / h;
-        const screenW = this.renderRoot.clientWidth || 100;
-        const screenH = this.renderRoot.clientHeight || 100;
-        const screenRatio = screenW / screenH;
-        
-        this.isRotated = (mapRatio > 1 && screenRatio < 1) || (mapRatio < 1 && screenRatio > 1);
+        let targetW = w + (padX * 2);
+        let targetH = h + (padY * 2);
+        const cx = minX + w / 2;
+        const cy = minY + h / 2;
 
-        if (this.isRotated) {
-            this.mapRoot.setAttribute('transform', `rotate(90, ${cx}, ${cy})`);
-            
-            // Counter-rotate text elements so they remain upright
+        const isScreenLandscape = window.innerWidth > window.innerHeight;
+        const isMapLandscape = targetW > targetH;
+
+        if (isScreenLandscape !== isMapLandscape) {
+            this.isRotated = true;
+            this.mapRoot.setAttribute('transform', `rotate(-90, ${cx}, ${cy})`);
+
+            // Content rotated, swap target dimensions
+            const temp = targetW;
+            targetW = targetH;
+            targetH = temp;
+
             this.mapRoot.querySelectorAll('.room-label').forEach(t => {
-                t.setAttribute('transform', `rotate(-90, ${t.getAttribute('x')}, ${t.getAttribute('y')})`);
+                if (t.rawCx) t.setAttribute('transform', `rotate(90, ${t.rawCx}, ${t.rawCy})`);
             });
             this.mapRoot.querySelectorAll('.shortcut-group').forEach(g => {
-                g.setAttribute('transform', `translate(${g.scX}, ${g.scY}) rotate(-90)`);
+                if (g.scX) g.setAttribute('transform', `translate(${g.scX}, ${g.scY}) rotate(90)`);
             });
         } else {
             this.mapRoot.removeAttribute('transform');
             this.mapRoot.querySelectorAll('.room-label').forEach(t => t.removeAttribute('transform'));
             this.mapRoot.querySelectorAll('.shortcut-group').forEach(g => {
-                g.setAttribute('transform', `translate(${g.scX}, ${g.scY})`);
+                if (g.scX) g.setAttribute('transform', `translate(${g.scX}, ${g.scY})`);
             });
         }
 
-        let viewW = this.isRotated ? h : w;
-        let viewH = this.isRotated ? w : h;
-
-        const padX = viewW * 0.16666666;
-        const padY = viewH * 0.16666666;
+        const rect = this.getBoundingClientRect();
+        const screenW = rect.width > 50 ? rect.width : window.innerWidth;
+        const screenH = rect.height > 100 ? rect.height : (window.innerHeight * 0.85);
+        const screenRatio = screenW / screenH;
         
+        const targetRatio = targetW / targetH;
+        let finalW = targetW;
+        let finalH = targetH;
+
+        // Expand viewBox to perfectly match screen aspect ratio
+        if (targetRatio < screenRatio) {
+            finalW = targetH * screenRatio;
+        } else {
+            finalH = targetW / screenRatio;
+        }
+
         this.vb = {
-            x: cx - viewW/2 - padX,
-            y: cy - viewH/2 - padY,
-            w: viewW + 2*padX,
-            h: viewH + 2*padY
+            x: cx - finalW/2,
+            y: cy - finalH/2,
+            w: finalW,
+            h: finalH
         };
+
         this.defaultVb = { ...this.vb };
         this.updateViewBox();
     }
 
     updateViewBox() {
+        if (!this.svg) return;
         this.svg.setAttribute('viewBox', `${this.vb.x} ${this.vb.y} ${this.vb.w} ${this.vb.h}`);
+
+        if (this.mapWrapper) {
+            this.mapWrapper.style.width = '100%';
+            this.mapWrapper.style.height = 'auto';
+            this.mapWrapper.style.aspectRatio = `${this.vb.w} / ${this.vb.h}`;
+            this.mapWrapper.style.maxWidth = '100%';
+        }
+
+        if (this.versionText) {
+            this.versionText.setAttribute('x', this.vb.x + (this.vb.w * 0.02));
+            this.versionText.setAttribute('y', this.vb.y + (this.vb.h * 0.06));
+            this.versionText.setAttribute('font-size', (this.vb.h * 0.05).toString());
+        }
     }
 
     setupInteraction() {
@@ -266,9 +417,7 @@ class CustomSvgMap extends HTMLElement {
         let startVB = { x: 0, y: 0 };
 
         const getEventPos = (e) => {
-            if (e.touches && e.touches.length > 0) {
-                return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            }
+            if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
             return { x: e.clientX, y: e.clientY };
         };
 
@@ -280,13 +429,9 @@ class CustomSvgMap extends HTMLElement {
         };
 
         const onPointerMove = (e) => {
-            // Touch pinch-to-zoom
             if (e.touches && e.touches.length === 2) {
                 e.preventDefault();
-                const dist = Math.hypot(
-                    e.touches[0].clientX - e.touches[1].clientX,
-                    e.touches[0].clientY - e.touches[1].clientY
-                );
+                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
                 if (!this.initialPinchDist) {
                     this.initialPinchDist = dist;
                     this.initialVbW = this.vb.w;
@@ -294,18 +439,18 @@ class CustomSvgMap extends HTMLElement {
                     this.initialVbX = this.vb.x;
                     this.initialVbY = this.vb.y;
                 } else {
-                    const zoomFactor = this.initialPinchDist / dist; // Smaller dist = zoom out (larger viewBox)
+                    const zoomFactor = this.initialPinchDist / dist;
                     const newW = this.initialVbW * zoomFactor;
                     const newH = this.initialVbH * zoomFactor;
-                    
+
                     if (newW >= this.defaultVb.w * 0.99) {
                         this.vb = { ...this.defaultVb };
                     } else {
-                        if (newW < 5) return;
-                        
+                        if (newW < (this.imgW * 0.05)) return;
+
                         const rect = this.svg.getBoundingClientRect();
-                        const cx = (e.touches[0].clientX + e.touches[1].clientX)/2;
-                        const cy = (e.touches[0].clientY + e.touches[1].clientY)/2;
+                        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
                         const mouseX = cx - rect.left;
                         const mouseY = cy - rect.top;
 
@@ -327,28 +472,24 @@ class CustomSvgMap extends HTMLElement {
             const pos = getEventPos(e);
             const dx = pos.x - startPan.x;
             const dy = pos.y - startPan.y;
-            
+
             const rect = this.svg.getBoundingClientRect();
             const scaleX = this.vb.w / rect.width;
             const scaleY = this.vb.h / rect.height;
-            
+
             this.vb.x = startVB.x - (dx * scaleX);
             this.vb.y = startVB.y - (dy * scaleY);
             this.updateViewBox();
         };
 
-        const onPointerUp = () => { 
-            isPanning = false; 
-            this.initialPinchDist = null;
-        };
+        const onPointerUp = () => { isPanning = false; this.initialPinchDist = null; };
 
         this.svg.addEventListener('mousedown', onPointerDown);
         this.svg.addEventListener('mousemove', onPointerMove);
         this.svg.addEventListener('mouseup', onPointerUp);
         this.svg.addEventListener('mouseleave', onPointerUp);
-        
-        this.svg.addEventListener('touchstart', onPointerDown, {passive: false});
-        this.svg.addEventListener('touchmove', onPointerMove, {passive: false});
+        this.svg.addEventListener('touchstart', onPointerDown, { passive: false });
+        this.svg.addEventListener('touchmove', onPointerMove, { passive: false });
         this.svg.addEventListener('touchend', onPointerUp);
         this.svg.addEventListener('touchcancel', onPointerUp);
 
@@ -361,76 +502,70 @@ class CustomSvgMap extends HTMLElement {
             const vx = this.vb.x + (mouseX / rect.width) * this.vb.w;
             const vy = this.vb.y + (mouseY / rect.height) * this.vb.h;
 
-            // Smoother zoom based on delta
             const zoomSpeed = 0.001;
             let zoomFactor = Math.exp(-e.deltaY * zoomSpeed);
             if (zoomFactor > 1.2) zoomFactor = 1.2;
             if (zoomFactor < 0.8) zoomFactor = 0.8;
 
-            // Inverted for viewBox math: > 1 means zooming in (smaller viewBox)
             const viewZoom = 1 / zoomFactor;
-            
             const newW = this.vb.w * viewZoom;
 
             if (newW >= this.defaultVb.w * 0.99) {
                 this.vb = { ...this.defaultVb };
             } else {
-                if (newW < 5) return;
+                if (newW < (this.imgW * 0.05)) return;
                 this.vb.w = newW;
                 this.vb.h *= viewZoom;
                 this.vb.x = vx - (mouseX / rect.width) * this.vb.w;
                 this.vb.y = vy - (mouseY / rect.height) * this.vb.h;
             }
-
             this.updateViewBox();
         });
     }
 
     set hass(hass) {
         this._hass = hass;
-        
-        // Update shortcuts based on state
+
         for (const id in this.shortcutElements) {
             const el = this.shortcutElements[id];
             const entityId = el.sc.entity_id;
-            
+
             if (el.sc.type === 'vacuum') {
-                // Determine vacuum state
-                // Use the base entity to guess status and room sensors, or config.
-                // Assuming default silvester format:
                 const baseName = entityId.replace('vacuum.', '');
-                const statusState = hass.states[`sensor.${baseName}_status`];
+                const statusState = hass.states[`sensor.${baseName}_status`] || hass.states[entityId];
                 const roomState = hass.states[`sensor.${baseName}_current_room`];
-                
+
                 if (statusState) this.vacuumState.status = statusState.state;
+                else this.vacuumState.status = 'unknown';
+
                 if (roomState) this.vacuumState.room = roomState.state;
+                else this.vacuumState.room = 'unknown';
 
                 this.updateVacuumLogic(el.sc);
-                
-                // Update Badge
-                if (this.vacuumState.status === 'charging') el.stateBadge.textContent = '⚡';
+
+                if (this.vacuumState.status === 'charging' || this.vacuumState.status === 'docked') el.stateBadge.textContent = '⚡';
                 else if (this.vacuumState.status === 'error') el.stateBadge.textContent = '❌';
-                else if (this.vacuumState.status === 'cleaning') el.stateBadge.textContent = '🧹';
+                else if (this.vacuumState.status === 'cleaning' || this.vacuumState.status === 'returning') el.stateBadge.textContent = '🧹';
                 else el.stateBadge.textContent = '';
-                
+
             } else {
-                // Generic state coloring
                 const stateObj = hass.states[entityId];
                 if (stateObj) {
                     const isOn = stateObj.state === 'on';
-                    el.group.querySelector('circle').setAttribute('fill', isOn ? '#00ff00' : '#ffaa00');
+                    el.group.querySelector('circle, rect')?.setAttribute('fill', isOn ? '#00ff00' : (el.sc.color || '#ffaa00'));
                 }
             }
         }
+
+        this.updateRoomStyles();
     }
 
     updateVacuumLogic(sc) {
-        if (this.vacuumState.status === 'charging') {
-            this.vacuumState.targetX = sc.position[0];
-            this.vacuumState.targetY = sc.position[1];
+        if (this.vacuumState.status !== 'cleaning' && this.vacuumState.status !== 'error') {
+            this.vacuumState.targetX = (sc.position[0] / 100) * this.imgW;
+            this.vacuumState.targetY = (sc.position[1] / 100) * this.imgH;
             this.vacuumState.activePolygon = null;
         } else {
-            // Find the SVG room ID based on the mapping
             let targetSvgRoomId = null;
             for (const [svgRoomId, roboRoomName] of Object.entries(sc.room_mapping || {})) {
                 if (roboRoomName.toLowerCase() === this.vacuumState.room.toLowerCase()) {
@@ -442,48 +577,93 @@ class CustomSvgMap extends HTMLElement {
             if (targetSvgRoomId) {
                 const targetRoom = this.rooms.find(r => r.id === targetSvgRoomId);
                 if (targetRoom) {
-                    this.vacuumState.activePolygon = targetRoom.polygon;
-                    
                     if (this.vacuumState.status === 'error') {
-                        // Snap to Centroid
+                        this.vacuumState.activePolygon = targetRoom.polygon;
                         const center = this.getPolygonCenter(targetRoom.polygon);
-                        this.vacuumState.targetX = center[0];
-                        this.vacuumState.targetY = center[1];
+                        this.vacuumState.targetX = (center[0] / 100) * this.imgW;
+                        this.vacuumState.targetY = (center[1] / 100) * this.imgH;
                     } else if (this.vacuumState.status === 'cleaning') {
-                        // Needs to pick a random target if it reached the current one
-                        const dist = Math.hypot(this.vacuumState.x - this.vacuumState.targetX, this.vacuumState.y - this.vacuumState.targetY);
-                        if (dist < 1 || !this.isPointInPolygon([this.vacuumState.targetX, this.vacuumState.targetY], targetRoom.polygon)) {
-                            // Pick new random point in polygon
-                            const newTarget = this.getRandomPointInPolygon(targetRoom.polygon);
-                            this.vacuumState.targetX = newTarget[0];
-                            this.vacuumState.targetY = newTarget[1];
+                        if (this.vacuumState.activePolygon !== targetRoom.polygon) {
+                            this.vacuumState.activePolygon = targetRoom.polygon;
+                            const center = this.getPolygonCenter(targetRoom.polygon);
+                            this.vacuumState.targetX = (center[0] / 100) * this.imgW;
+                            this.vacuumState.targetY = (center[1] / 100) * this.imgH;
                         }
                     }
                 }
+            } else {
+                this.vacuumState.targetX = (sc.position[0] / 100) * this.imgW;
+                this.vacuumState.targetY = (sc.position[1] / 100) * this.imgH;
+                this.vacuumState.activePolygon = null;
             }
         }
     }
 
+    updateRoomStyles() {
+        if (!this.mapRoot) return;
+        const polygons = this.mapRoot.querySelectorAll('polygon.room-polygon');
+        polygons.forEach((poly, idx) => {
+            const room = this.rooms[idx];
+            if (!room) return;
+
+            const isSelected = (this.selectedRoomId === room.id);
+            const hue = (idx * 137.5) % 360;
+
+            let isOn = false;
+            if (room.entity_id && this._hass) {
+                const stateObj = this._hass.states[room.entity_id];
+                if (stateObj && stateObj.state === 'on') isOn = true;
+            }
+
+            if (isSelected) {
+                poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.5)`);
+                poly.setAttribute('stroke', '#00ffff');
+                poly.style.filter = 'drop-shadow(0px 0px 5px #00ffff)';
+            } else if (isOn) {
+                poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.4)`);
+                poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 1)`);
+                poly.style.filter = 'drop-shadow(0px 0px 8px yellow)';
+            } else {
+                poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.3)`);
+                poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 0.8)`);
+                poly.style.filter = 'none';
+            }
+        });
+    }
+
     animate(currentTime) {
-        const deltaTime = (currentTime - this.lastTime) / 1000; // seconds
+        const deltaTime = (currentTime - this.lastTime) / 1000;
         this.lastTime = currentTime;
 
-        // Move vacuums
         for (const id in this.shortcutElements) {
             const el = this.shortcutElements[id];
             if (el.sc.type === 'vacuum') {
+                if (this.vacuumState.status === 'cleaning' && this.vacuumState.activePolygon) {
+                    const distToTarget = Math.hypot(this.vacuumState.targetX - this.vacuumState.x, this.vacuumState.targetY - this.vacuumState.y);
+                    if (distToTarget < (this.imgW * 0.01)) {
+                        const newTarget = this.getRandomPointInPolygon(this.vacuumState.activePolygon);
+                        this.vacuumState.targetX = (newTarget[0] / 100) * this.imgW;
+                        this.vacuumState.targetY = (newTarget[1] / 100) * this.imgH;
+                    }
+                }
+
                 const dx = this.vacuumState.targetX - this.vacuumState.x;
                 const dy = this.vacuumState.targetY - this.vacuumState.y;
                 const dist = Math.hypot(dx, dy);
-                
-                // Speed is 5% of map per second while cleaning, 20% while snapping back
-                const speed = (this.vacuumState.status === 'cleaning') ? 2 : 10; 
-                
-                if (dist > 0.1) {
+
+                const baseSpeed = (this.imgW + this.imgH) / 2;
+                const speed = (this.vacuumState.status === 'cleaning') ? baseSpeed * 0.03 : baseSpeed * 0.15;
+
+                if (dist > (this.imgW * 0.001)) {
                     const moveAmt = Math.min(dist, speed * deltaTime);
                     this.vacuumState.x += (dx / dist) * moveAmt;
                     this.vacuumState.y += (dy / dist) * moveAmt;
-                    
+
+                    if (isNaN(this.vacuumState.x) || isNaN(this.vacuumState.y)) {
+                        this.vacuumState.x = el.scX;
+                        this.vacuumState.y = el.scY;
+                    }
+
                     el.group.setAttribute('transform', `translate(${this.vacuumState.x}, ${this.vacuumState.y})`);
                 }
             }
@@ -511,26 +691,27 @@ class CustomSvgMap extends HTMLElement {
     }
 
     getRandomPointInPolygon(polygon) {
-        // Simple bounding box rejection sampling
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         polygon.forEach(pt => {
-            if(pt[0] < minX) minX = pt[0];
-            if(pt[0] > maxX) maxX = pt[0];
-            if(pt[1] < minY) minY = pt[1];
-            if(pt[1] > maxY) maxY = pt[1];
+            if (pt[0] < minX) minX = pt[0];
+            if (pt[0] > maxX) maxX = pt[0];
+            if (pt[1] < minY) minY = pt[1];
+            if (pt[1] > maxY) maxY = pt[1];
         });
 
-        for(let i=0; i<100; i++) {
+        for (let i = 0; i < 100; i++) {
             const rx = minX + Math.random() * (maxX - minX);
             const ry = minY + Math.random() * (maxY - minY);
             if (this.isPointInPolygon([rx, ry], polygon)) {
                 return [rx, ry];
             }
         }
-        return this.getPolygonCenter(polygon); // fallback
+        return this.getPolygonCenter(polygon);
     }
 
     getCardSize() { return 3; }
 }
 
-customElements.define('custom-svg-map', CustomSvgMap);
+if (!customElements.get('custom-svg-map')) {
+    customElements.define('custom-svg-map', CustomSvgMap);
+}

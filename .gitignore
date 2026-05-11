@@ -1,6 +1,8 @@
 # Home Assistant
 .storage/
 *.log
+*.log.*
+ha_test/
 
 # Windows / OS Files
 *Zone.Identifier
@@ -23,8 +25,8 @@ test_*.png
 contour_output.txt
 
 # Editor Output Backups (Optional - uncomment if you don't want to track JSON history)
-# rooms_floor*.json
-# shortcuts_floor*.json
+rooms_floor*.json
+shortcuts_floor*.json
 
 # Misc
 .env
