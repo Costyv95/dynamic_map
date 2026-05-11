@@ -122,7 +122,8 @@
             </div>
         </div>
 
-        <div class="control-group" id="recomputePanel" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+        <div class="control-group" id="recomputePanel" style="display: none; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px; position: relative;">
+            <button id="closeRecomputeBtn" style="position: absolute; top: 10px; right: 0; width: 24px; height: 24px; padding: 0; background: transparent; color: var(--text-muted); border: none; font-size: 16px; cursor: pointer;">×</button>
             <h3 style="margin-bottom: 10px; font-size: 14px; font-weight: bold;">Advanced: Recompute Floor</h3>
             <label style="font-size: 11px; margin-bottom: 5px; display: block; color: var(--text-muted);">Ensure files are uploaded to /config/dynamic_map_data/ first.</label>
             
@@ -149,6 +150,7 @@
             <button id="exportJsonBtn">1. Save to Home Assistant</button>
             <button id="exportYamlBtn" class="primary" style="margin-top: 10px;">2. Generate HA YAML</button>
             <textarea id="yamlOutput" placeholder="YAML will appear here..." readonly></textarea>
+            <button id="toggleRecomputeBtn" style="margin-top: 10px; background: transparent; border: 1px solid var(--border-color); color: var(--text-color); font-size: 11px;">Advanced: Recompute Floors</button>
         </div>
     </div>
 
@@ -1422,6 +1424,15 @@
                 console.error("Failed to load available files", err);
             }
         }
+
+        document.getElementById('toggleRecomputeBtn').addEventListener('click', () => {
+            const panel = document.getElementById('recomputePanel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        });
+
+        document.getElementById('closeRecomputeBtn').addEventListener('click', () => {
+            document.getElementById('recomputePanel').style.display = 'none';
+        });
 
         document.getElementById('recomputeBtn').addEventListener('click', async () => {
             const btn = document.getElementById('recomputeBtn');
