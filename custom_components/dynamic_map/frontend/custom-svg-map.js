@@ -629,16 +629,20 @@ class CustomSvgMap extends HTMLElement {
                 const baseName = entityId.replace('vacuum.', '');
                 const statusState = hass.states[`sensor.${baseName}_status`] || hass.states[entityId];
                 const roomState = hass.states[`sensor.${baseName}_current_room`];
+                const chargingState = hass.states[`binary_sensor.${baseName}_charging`];
 
                 if (statusState) this.vacuumState.status = statusState.state;
                 else this.vacuumState.status = 'unknown';
 
                 if (roomState) this.vacuumState.room = roomState.state;
                 else this.vacuumState.room = 'unknown';
+                
+                if (chargingState) this.vacuumState.isCharging = (chargingState.state === 'on');
+                else this.vacuumState.isCharging = ['charging', 'docked', 'charging_complete'].includes(this.vacuumState.status);
 
                 this.updateVacuumLogic(el.sc);
 
-                if (['charging', 'docked', 'charging_complete'].includes(this.vacuumState.status)) el.stateBadge.textContent = '⚡';
+                if (this.vacuumState.isCharging) el.stateBadge.textContent = '⚡';
                 else if (this.vacuumState.status === 'error') el.stateBadge.textContent = '❌';
                 else if (this.vacuumState.status.includes('clean') || this.vacuumState.status === 'returning') el.stateBadge.textContent = '🧹';
                 else el.stateBadge.textContent = '';
@@ -656,14 +660,14 @@ class CustomSvgMap extends HTMLElement {
     }
 
     updateVacuumLogic(sc) {
-        console.log(`[Vacuum] Status: ${this.vacuumState.status}, Current Room Sensor: "${this.vacuumState.room}"`);
-        const dockingStates = [
-            'charging', 'charging_complete', 'docked', 'unknown', 'device_offline'
-        ];
-        const isTrackingRoom = !dockingStates.includes((this.vacuumState.status || '').toLowerCase());
+        console.log(`[Vacuum] Status: ${this.vacuumState.status}, Charging: ${this.vacuumState.isCharging}, Current Room Sensor: "${this.vacuumState.room}"`);
+        
+        // If it's explicitly charging, or offline/unknown without a room sensor, snap to dock
+        const isOffline = ['unknown', 'device_offline'].includes((this.vacuumState.status || '').toLowerCase());
+        const isTrackingRoom = !this.vacuumState.isCharging && !isOffline;
         
         if (!isTrackingRoom) {
-            console.log(`[Vacuum] Not cleaning/error. Snapping to dock.`);
+            console.log(`[Vacuum] Vacuum is charging or offline. Snapping to dock.`);
             this.vacuumState.targetX = (sc.position[0] / 100) * this.imgW;
             this.vacuumState.targetY = (sc.position[1] / 100) * this.imgH;
             this.vacuumState.activePolygon = null;
