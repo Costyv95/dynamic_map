@@ -18,8 +18,15 @@ async def async_setup(hass: HomeAssistant, config: dict):
     
     # Expose the frontend folder statically
     frontend_dir = hass.config.path("custom_components", DOMAIN, "frontend")
+    
+    # Expose the user data folder statically
+    data_dir = hass.config.path(DOMAIN + "_data")
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir)
+        
     await hass.http.async_register_static_paths([
-        StaticPathConfig("/dynamic_map_ui", frontend_dir, cache_headers=False)
+        StaticPathConfig("/dynamic_map_ui", frontend_dir, cache_headers=False),
+        StaticPathConfig("/dynamic_map_data", data_dir, cache_headers=False)
     ])
     
     # Register the custom panel editor
@@ -59,8 +66,8 @@ class DynamicMapSaveView(HomeAssistantView):
             if not filename.endswith(".json") or ".." in filename or "/" in filename:
                 return self.json({"success": False, "error": "Invalid filename format."})
 
-            # Save to the frontend directory so editor.html and the dashboard can both read it
-            save_path = self.hass.config.path("custom_components", DOMAIN, "frontend", filename)
+            # Save to the isolated data directory so HACS updates don't destroy it
+            save_path = self.hass.config.path(DOMAIN + "_data", filename)
             
             def save_file():
                 with open(save_path, "w", encoding="utf-8") as f:

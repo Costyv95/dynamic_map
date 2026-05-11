@@ -377,14 +377,14 @@
                 }
             };
 
-            bgImage.src = `bg_floor${floorNum}.png?t=${t}`;
+            bgImage.src = `/dynamic_map_data/bg_floor${floorNum}.png?t=${t}`;
             bgImage.onload = () => {
                 imgLoaded = true;
                 checkAutoCrop();
             };
 
             try {
-                const response = await fetch(`rooms_floor${floorNum}.json?t=${t}`);
+                const response = await fetch(`/dynamic_map_data/rooms_floor${floorNum}.json?t=${t}`);
                 if(response.ok) {
                     rooms = await response.json();
                 } else {
@@ -392,7 +392,7 @@
                 }
                 
                 try {
-                    const scResponse = await fetch(`shortcuts_floor${floorNum}.json?t=${t}`);
+                    const scResponse = await fetch(`/dynamic_map_data/shortcuts_floor${floorNum}.json?t=${t}`);
                     if(scResponse.ok) {
                         shortcuts = await scResponse.json();
                     } else {
