@@ -47,7 +47,7 @@ class DynamicMapSaveView(HomeAssistantView):
     """View to handle saving map configurations."""
     url = "/api/dynamic_map/save"
     name = "api:dynamic_map:save"
-    requires_auth = True
+    requires_auth = False
 
     def __init__(self, hass):
         self.hass = hass
@@ -85,7 +85,7 @@ class DynamicMapStateView(HomeAssistantView):
     """View to fetch state and attributes of an entity."""
     url = "/api/dynamic_map/state"
     name = "api:dynamic_map:state"
-    requires_auth = True
+    requires_auth = False
 
     def __init__(self, hass):
         self.hass = hass
