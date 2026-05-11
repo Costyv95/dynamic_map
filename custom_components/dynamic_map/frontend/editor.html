@@ -117,7 +117,7 @@
             </div>
 
             <div class="header-actions" style="margin-top: 15px;">
-                <button id="saveShortcutBtn" class="primary">Save Config</button>
+                <button id="saveShortcutBtn" class="primary">Done</button>
                 <button id="deleteShortcutBtn" class="danger">Delete</button>
             </div>
         </div>
@@ -125,7 +125,7 @@
         <div style="flex-grow: 1;"></div>
 
         <div class="control-group">
-            <button id="exportJsonBtn">1. Save JSON Progress</button>
+            <button id="exportJsonBtn">1. Save to Home Assistant</button>
             <button id="exportYamlBtn" class="primary" style="margin-top: 10px;">2. Generate HA YAML</button>
             <textarea id="yamlOutput" placeholder="YAML will appear here..." readonly></textarea>
         </div>
@@ -282,6 +282,11 @@
             const container = document.getElementById('roomMappingsList');
             container.innerHTML = '';
             if (!sc.room_mapping) sc.room_mapping = {};
+            
+            // Clean up legacy inverted mapping IDs (drawn rooms starting with room_)
+            Object.keys(sc.room_mapping).forEach(id => {
+                if (id.startsWith('room_')) delete sc.room_mapping[id];
+            });
             
             // Collect all known Roborock IDs from previous mappings and fetched options
             let roboRoomIds = new Set(Object.keys(sc.room_mapping));
@@ -1274,17 +1279,10 @@
 
         // Shortcut Save & Delete
         document.getElementById('saveShortcutBtn').addEventListener('click', () => {
-            if (selectedShortcutIdx !== -1) {
-                const sc = shortcuts[selectedShortcutIdx];
-                sc.name = document.getElementById('scName').value;
-                sc.entity_id = document.getElementById('scEntity').value;
-                sc.type = document.getElementById('scType').value;
-                
-                // Note: room_mapping is now saved in real-time by buildRoomMappingInputs
-                
-                updateSidebarUI();
-                draw();
-            }
+            // Data is already saved in real-time, just close the UI
+            selectedShortcutIdx = -1;
+            updateSidebarUI();
+            draw();
         });
 
         document.getElementById('scType').addEventListener('change', (e) => {
