@@ -640,7 +640,7 @@ class CustomSvgMap extends HTMLElement {
 
                 if (this.vacuumState.status === 'charging' || this.vacuumState.status === 'docked') el.stateBadge.textContent = '⚡';
                 else if (this.vacuumState.status === 'error') el.stateBadge.textContent = '❌';
-                else if (this.vacuumState.status === 'cleaning' || this.vacuumState.status === 'returning') el.stateBadge.textContent = '🧹';
+                else if (this.vacuumState.status.includes('clean') || this.vacuumState.status === 'returning') el.stateBadge.textContent = '🧹';
                 else el.stateBadge.textContent = '';
 
             } else {
@@ -657,7 +657,8 @@ class CustomSvgMap extends HTMLElement {
 
     updateVacuumLogic(sc) {
         console.log(`[Vacuum] Status: ${this.vacuumState.status}, Current Room Sensor: "${this.vacuumState.room}"`);
-        if (this.vacuumState.status !== 'cleaning' && this.vacuumState.status !== 'error') {
+        const isCleaning = this.vacuumState.status.includes('clean');
+        if (!isCleaning && this.vacuumState.status !== 'error') {
             console.log(`[Vacuum] Not cleaning/error. Snapping to dock.`);
             this.vacuumState.targetX = (sc.position[0] / 100) * this.imgW;
             this.vacuumState.targetY = (sc.position[1] / 100) * this.imgH;
@@ -683,7 +684,7 @@ class CustomSvgMap extends HTMLElement {
                         const center = this.getPolygonCenter(targetRoom.polygon);
                         this.vacuumState.targetX = (center[0] / 100) * this.imgW;
                         this.vacuumState.targetY = (center[1] / 100) * this.imgH;
-                    } else if (this.vacuumState.status === 'cleaning') {
+                    } else if (isCleaning) {
                         if (this.vacuumState.activePolygon !== targetRoom.polygon) {
                             console.log(`[Vacuum] Moving to center of ${targetRoom.name}`);
                             this.vacuumState.activePolygon = targetRoom.polygon;
