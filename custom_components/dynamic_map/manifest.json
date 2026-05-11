@@ -1,7 +1,7 @@
 {
   "domain": "dynamic_map",
   "name": "Dynamic Floorplan Map",
-  "version": "1.0.0",
+  "version": "2.2.0",
   "documentation": "https://github.com/Costyv95/dynamic_map",
   "dependencies": ["http", "frontend"],
   "codeowners": ["@Costyv95"],

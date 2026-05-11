@@ -4,24 +4,56 @@ class CustomSvgMap extends HTMLElement {
         this.attachShadow({ mode: 'open' });
         this.svgNS = "http://www.w3.org/2000/svg";
 
+        const style = document.createElement('style');
+        style.textContent = `
+            :host {
+                display: block;
+                width: 100%;
+                height: 100%;
+                min-height: 70vh; /* Fallback for non-panel views */
+                position: relative;
+            }
+        `;
+        this.shadowRoot.appendChild(style);
+
         this.rooms = [];
         this.shortcuts = [];
         this.vacuumState = { status: 'unknown', room: 'unknown', x: 0, y: 0, targetX: 0, targetY: 0, activePolygon: null };
         this.lastTime = 0;
         this.selectedRoomId = null;
+        this.rotationMode = 'auto';
 
-        // renderRoot is a flex container that perfectly centers the map
+        // renderRoot fills the host perfectly
         this.renderRoot = document.createElement('div');
-        this.renderRoot.style.position = 'relative';
-        this.renderRoot.style.width = '100%';
-        this.renderRoot.style.height = '100%';
-        this.renderRoot.style.background = 'transparent';
-        this.renderRoot.style.display = 'flex';
-        this.renderRoot.style.justifyContent = 'center';
-        this.renderRoot.style.alignItems = 'center';
+        this.renderRoot.style.position = 'absolute';
+        this.renderRoot.style.top = '0';
+        this.renderRoot.style.left = '0';
+        this.renderRoot.style.right = '0';
+        this.renderRoot.style.bottom = '0';
+        this.renderRoot.style.background = '#ffffff';
+        this.renderRoot.style.display = 'block';
+        this.renderRoot.style.overflow = 'hidden';
 
         this.shadowRoot.appendChild(this.renderRoot);
         this.animationFrame = null;
+    }
+
+    connectedCallback() {
+        if (!this.resizeObserver) {
+            this.resizeObserver = new ResizeObserver(() => {
+                if (this.rooms && this.rooms.length > 0 && this.imgW && this.imgH) {
+                    this.calculateAutoCrop();
+                }
+            });
+            this.resizeObserver.observe(this);
+        }
+    }
+
+    disconnectedCallback() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
     }
 
     static getConfigElement() {
@@ -85,16 +117,12 @@ class CustomSvgMap extends HTMLElement {
 
         const switcher = document.createElement('div');
         switcher.className = 'floor-switcher';
-        switcher.style.position = 'absolute';
-        switcher.style.top = '10px';
-        switcher.style.left = '10px';
         switcher.style.display = 'flex';
         switcher.style.flexDirection = 'column';
         switcher.style.background = 'rgba(255, 255, 255, 0.9)';
         switcher.style.borderRadius = '8px';
         switcher.style.overflow = 'hidden';
         switcher.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
-        switcher.style.zIndex = '10';
 
         this.config.floors.forEach(f => {
             const btn = document.createElement('div');
@@ -120,9 +148,53 @@ class CustomSvgMap extends HTMLElement {
         });
         switcher.lastChild.style.borderBottom = 'none';
 
-        // Append to mapWrapper to perfectly overlay the map bounds
-        if (this.mapWrapper) {
-            this.mapWrapper.appendChild(switcher);
+        // Append to top-left UI container
+        if (this.topLeftUI) {
+            this.topLeftUI.appendChild(switcher);
+        }
+    }
+
+    buildRotationSwitcher() {
+        const switcher = document.createElement('button');
+        switcher.className = 'rotation-switcher';
+        switcher.style.background = 'rgba(255, 255, 255, 0.9)';
+        switcher.style.border = 'none';
+        switcher.style.borderRadius = '8px';
+        switcher.style.padding = '8px';
+        switcher.style.cursor = 'pointer';
+        switcher.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
+        switcher.style.display = 'flex';
+        switcher.style.alignItems = 'center';
+        switcher.style.justifyContent = 'center';
+        switcher.style.color = '#1e293b';
+
+        const updateIcon = () => {
+            if (this.rotationMode === 'auto') {
+                switcher.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><text x="12" y="16" font-size="8" text-anchor="middle" font-family="sans-serif">AUTO</text></svg>`;
+                switcher.title = 'Rotation Mode: Auto';
+            } else if (this.rotationMode === 'horizontal') {
+                switcher.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M12 12h.01"></path></svg>`;
+                switcher.title = 'Rotation Mode: Horizontal';
+            } else {
+                switcher.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2"></rect><path d="M12 12h.01"></path></svg>`;
+                switcher.title = 'Rotation Mode: Vertical';
+            }
+        };
+
+        updateIcon();
+
+        switcher.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (this.rotationMode === 'auto') this.rotationMode = 'horizontal';
+            else if (this.rotationMode === 'horizontal') this.rotationMode = 'vertical';
+            else this.rotationMode = 'auto';
+            
+            updateIcon();
+            this.calculateAutoCrop();
+        });
+
+        if (this.topLeftUI) {
+            this.topLeftUI.appendChild(switcher);
         }
     }
 
@@ -222,9 +294,8 @@ class CustomSvgMap extends HTMLElement {
 
             const scaleX = sc.scaleX || sc.scale || 1;
             const scaleY = sc.scaleY || sc.scale || 1;
-            const rx = (1.5 * scaleX / 100) * this.imgW;
-            const ry = (1.5 * scaleY / 100) * this.imgH;
-            const r = Math.max(rx, ry);
+            const rx = 12 * scaleX;
+            const ry = 12 * scaleY;
             const shapeType = sc.shape === 'rect' ? 'rect' : 'circle';
             const shape = document.createElementNS(this.svgNS, shapeType);
 
@@ -233,30 +304,40 @@ class CustomSvgMap extends HTMLElement {
                 shape.setAttribute('y', -ry);
                 shape.setAttribute('width', rx * 2);
                 shape.setAttribute('height', ry * 2);
-                shape.setAttribute('rx', (0.3 / 100) * this.imgW);
+                shape.setAttribute('rx', 2);
             } else {
                 shape.setAttribute('r', rx);
             }
 
             shape.setAttribute('fill', sc.transparent ? 'rgba(0,0,0,0)' : (sc.color || '#0ea5e9'));
             shape.setAttribute('stroke', 'white');
-            shape.setAttribute('stroke-width', (0.2 / 100) * this.imgW);
+            shape.setAttribute('stroke-width', 2);
             group.appendChild(shape);
 
             if (sc.type === 'vacuum') {
+                const maxR = shapeType === 'rect' ? Math.min(rx, ry) : rx;
+                
                 const inner1 = document.createElementNS(this.svgNS, 'circle');
-                inner1.setAttribute('r', r * 0.8);
+                inner1.setAttribute('r', maxR * 0.8);
                 inner1.setAttribute('fill', '#334155');
+                
                 const inner2 = document.createElementNS(this.svgNS, 'circle');
-                inner2.setAttribute('r', r * 0.4);
+                inner2.setAttribute('r', maxR * 0.4);
                 inner2.setAttribute('fill', '#0ea5e9');
+                
+                const inner3 = document.createElementNS(this.svgNS, 'circle');
+                inner3.setAttribute('cx', maxR * 0.5);
+                inner3.setAttribute('r', maxR * 0.15);
+                inner3.setAttribute('fill', '#10b981');
+                
                 group.appendChild(inner1);
                 group.appendChild(inner2);
+                group.appendChild(inner3);
             } else {
                 const text = document.createElementNS(this.svgNS, 'text');
                 text.setAttribute('text-anchor', 'middle');
                 text.setAttribute('dominant-baseline', 'central');
-                text.setAttribute('font-size', Math.min(rx, ry) * 1.2);
+                text.setAttribute('font-size', 14 * Math.min(scaleX, scaleY));
                 text.textContent = '💡';
                 group.appendChild(text);
             }
@@ -264,8 +345,8 @@ class CustomSvgMap extends HTMLElement {
             const stateBadge = document.createElementNS(this.svgNS, 'text');
             stateBadge.setAttribute('text-anchor', 'middle');
             stateBadge.setAttribute('dominant-baseline', 'central');
-            stateBadge.setAttribute('font-size', (this.imgW * 0.015).toString());
-            stateBadge.setAttribute('y', r + (this.imgH * 0.01));
+            stateBadge.setAttribute('font-size', 12);
+            stateBadge.setAttribute('y', Math.max(rx, ry) + 14);
             stateBadge.setAttribute('fill', '#1e293b');
             stateBadge.style.textShadow = '0px 0px 2px white';
             group.appendChild(stateBadge);
@@ -290,15 +371,26 @@ class CustomSvgMap extends HTMLElement {
         // Calculate geometry and rotation
         this.calculateAutoCrop();
 
-        // Add floor switcher safely overlaid
+        // Setup top-left UI container for overlay controls
+        this.topLeftUI = document.createElement('div');
+        this.topLeftUI.style.position = 'absolute';
+        this.topLeftUI.style.top = '10px';
+        this.topLeftUI.style.left = '10px';
+        this.topLeftUI.style.display = 'flex';
+        this.topLeftUI.style.gap = '10px';
+        this.topLeftUI.style.alignItems = 'flex-start';
+        this.topLeftUI.style.zIndex = '10';
+        if (this.renderRoot) this.renderRoot.appendChild(this.topLeftUI);
+
         this.buildFloorSwitcher();
+        this.buildRotationSwitcher();
 
         // Version badge appended last to avoid rotation logic
         this.versionText = document.createElementNS(this.svgNS, 'text');
         this.versionText.setAttribute('text-anchor', 'start');
         this.versionText.setAttribute('font-weight', 'bold');
         this.versionText.setAttribute('fill', 'red');
-        this.versionText.textContent = "v2.0.15";
+        this.versionText.textContent = "v2.2";
         this.svg.appendChild(this.versionText);
 
         this.setupInteraction();
@@ -340,36 +432,39 @@ class CustomSvgMap extends HTMLElement {
         const cx = minX + w / 2;
         const cy = minY + h / 2;
 
-        const isScreenLandscape = window.innerWidth > window.innerHeight;
+        const rect = this.getBoundingClientRect();
+        const screenW = rect.width > 0 ? rect.width : 1;
+        const screenH = rect.height > 0 ? rect.height : 1;
+        const screenRatio = screenW / screenH;
+
+        let shouldRotate = false;
+        const isScreenLandscape = screenRatio > 1;
         const isMapLandscape = targetW > targetH;
 
-        if (isScreenLandscape !== isMapLandscape) {
+        if (this.rotationMode === 'auto') {
+            shouldRotate = isScreenLandscape !== isMapLandscape;
+        } else if (this.rotationMode === 'horizontal') {
+            shouldRotate = !isMapLandscape;
+        } else if (this.rotationMode === 'vertical') {
+            shouldRotate = isMapLandscape;
+        }
+
+        if (shouldRotate) {
             this.isRotated = true;
-            this.mapRoot.setAttribute('transform', `rotate(-90, ${cx}, ${cy})`);
+            this.mapRoot.setAttribute('transform', `rotate(90, ${cx}, ${cy})`);
 
             // Content rotated, swap target dimensions
             const temp = targetW;
             targetW = targetH;
             targetH = temp;
 
-            this.mapRoot.querySelectorAll('.room-label').forEach(t => {
-                if (t.rawCx) t.setAttribute('transform', `rotate(90, ${t.rawCx}, ${t.rawCy})`);
-            });
-            this.mapRoot.querySelectorAll('.shortcut-group').forEach(g => {
-                if (g.scX) g.setAttribute('transform', `translate(${g.scX}, ${g.scY}) rotate(90)`);
-            });
+
         } else {
             this.mapRoot.removeAttribute('transform');
-            this.mapRoot.querySelectorAll('.room-label').forEach(t => t.removeAttribute('transform'));
-            this.mapRoot.querySelectorAll('.shortcut-group').forEach(g => {
-                if (g.scX) g.setAttribute('transform', `translate(${g.scX}, ${g.scY})`);
-            });
+
         }
 
-        const rect = this.getBoundingClientRect();
-        const screenW = rect.width > 50 ? rect.width : window.innerWidth;
-        const screenH = rect.height > 100 ? rect.height : (window.innerHeight * 0.85);
-        const screenRatio = screenW / screenH;
+        // (rect calculation moved up)
         
         const targetRatio = targetW / targetH;
         let finalW = targetW;
@@ -399,9 +494,7 @@ class CustomSvgMap extends HTMLElement {
 
         if (this.mapWrapper) {
             this.mapWrapper.style.width = '100%';
-            this.mapWrapper.style.height = 'auto';
-            this.mapWrapper.style.aspectRatio = `${this.vb.w} / ${this.vb.h}`;
-            this.mapWrapper.style.maxWidth = '100%';
+            this.mapWrapper.style.height = '100%';
         }
 
         if (this.versionText) {
