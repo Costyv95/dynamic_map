@@ -5,6 +5,6 @@
   "documentation": "https://github.com/Costyv95/dynamic_map",
   "dependencies": ["http", "frontend"],
   "codeowners": ["@Costyv95"],
-  "requirements": [],
+  "requirements": ["ezdxf==1.1.4", "opencv-python-headless==4.9.0.80", "shapely==2.0.4", "cairosvg==2.7.1"],
   "iot_class": "local_push"
 }

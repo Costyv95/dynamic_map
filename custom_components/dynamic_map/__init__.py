@@ -15,6 +15,8 @@ async def async_setup(hass: HomeAssistant, config: dict):
     # Register the save API endpoint
     hass.http.register_view(DynamicMapSaveView(hass))
     hass.http.register_view(DynamicMapStateView(hass))
+    hass.http.register_view(DynamicMapFilesView(hass))
+    hass.http.register_view(DynamicMapRecomputeView(hass))
     
     # Expose the frontend folder statically
     frontend_dir = hass.config.path("custom_components", DOMAIN, "frontend")
@@ -40,7 +42,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
         require_admin=True,
     )
     
-    _LOGGER.info("Dynamic Map Component loaded successfully. Registered /api/dynamic_map/save endpoint and /dynamic_map_ui static path.")
+    _LOGGER.info("Dynamic Map Component loaded successfully.")
     return True
 
 class DynamicMapSaveView(HomeAssistantView):
@@ -105,3 +107,56 @@ class DynamicMapStateView(HomeAssistantView):
             "state": state.state,
             "attributes": dict(state.attributes)
         })
+
+class DynamicMapFilesView(HomeAssistantView):
+    """View to list available DXF and SVG files."""
+    url = "/api/dynamic_map/files"
+    name = "api:dynamic_map:files"
+    requires_auth = False
+
+    def __init__(self, hass):
+        self.hass = hass
+
+    async def get(self, request):
+        data_dir = self.hass.config.path(DOMAIN + "_data")
+        files = []
+        if os.path.exists(data_dir):
+            files = [f for f in os.listdir(data_dir) if f.endswith('.dxf') or f.endswith('.svg')]
+        return self.json({"success": True, "files": files})
+
+class DynamicMapRecomputeView(HomeAssistantView):
+    """View to handle recomputing the map from DXF/SVG."""
+    url = "/api/dynamic_map/recompute"
+    name = "api:dynamic_map:recompute"
+    requires_auth = False
+
+    def __init__(self, hass):
+        self.hass = hass
+
+    async def post(self, request):
+        try:
+            data = await request.json()
+            floor_num = data.get("floor_num")
+            svg_file = data.get("svg_file")
+            dxf_file = data.get("dxf_file")
+
+            if not floor_num:
+                return self.json({"success": False, "error": "Missing floor_num"})
+
+            data_dir = self.hass.config.path(DOMAIN + "_data")
+
+            def run_processor():
+                import sys
+                frontend_dir = self.hass.config.path("custom_components", DOMAIN, "frontend")
+                if frontend_dir not in sys.path:
+                    sys.path.append(frontend_dir)
+                    
+                import dxf_processor
+                dxf_processor.process_dxf(data_dir, floor_num, svg_file, dxf_file)
+
+            await self.hass.async_add_executor_job(run_processor)
+            return self.json({"success": True})
+            
+        except Exception as e:
+            _LOGGER.error(f"Failed to recompute dynamic map: {e}")
+            return self.json({"success": False, "error": str(e)})

@@ -9,59 +9,7 @@ from shapely.ops import unary_union
 import itertools
 import math
 
-# --- CLIP Zero-Shot Classification ---
-clip_model = None
-clip_processor = None
 
-def get_clip():
-    global clip_model, clip_processor
-    if clip_model is None:
-        print("\nLoading CLIP model for zero-shot room classification (this may take a moment)...")
-        from transformers import CLIPProcessor, CLIPModel
-        model_id = "openai/clip-vit-base-patch32"
-        clip_processor = CLIPProcessor.from_pretrained(model_id)
-        clip_model = CLIPModel.from_pretrained(model_id)
-    return clip_model, clip_processor
-
-ROOM_CATEGORIES = [
-    "a floorplan of a bedroom with a bed",
-    "a floorplan of a bathroom with a toilet and sink",
-    "a floorplan of a kitchen with a stove and sink",
-    "a floorplan of a living room with a sofa",
-    "a floorplan of an office study room with a desk",
-    "a floorplan of a dining room with a table",
-    "a floorplan of an empty hallway",
-    "an outdoor balcony or terrace"
-]
-
-def classify_room(image_np):
-    import torch
-    from PIL import Image
-    model, processor = get_clip()
-    
-    # Convert OpenCV BGR image to RGB PIL Image
-    image_rgb = cv2.cvtColor(image_np, cv2.COLOR_BGR2RGB)
-    pil_img = Image.fromarray(image_rgb)
-    
-    inputs = processor(text=ROOM_CATEGORIES, images=pil_img, return_tensors="pt", padding=True)
-    with torch.no_grad():
-        outputs = model(**inputs)
-        logits_per_image = outputs.logits_per_image
-        probs = logits_per_image.softmax(dim=1)
-        
-    best_idx = probs.argmax().item()
-    best_label = ROOM_CATEGORIES[best_idx]
-    
-    if "bedroom" in best_label: return "Bedroom"
-    elif "bathroom" in best_label: return "Bathroom"
-    elif "kitchen" in best_label: return "Kitchen"
-    elif "living room" in best_label: return "Living Room"
-    elif "office" in best_label: return "Study"
-    elif "hallway" in best_label: return "Hallway"
-    elif "dining" in best_label: return "Dining Room"
-    elif "balcony" in best_label: return "Balcony"
-    else: return "Room"
-# -------------------------------------
 
 def get_color(idx, total):
     import colorsys
@@ -69,8 +17,23 @@ def get_color(idx, total):
     rgb = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
     return (int(rgb[2]*255), int(rgb[1]*255), int(rgb[0]*255))
 
-def process_dxf(base_dir, floor_num):
-    dxf_path = os.path.join(base_dir, f"floor{floor_num}.dxf")
+def process_dxf(base_dir, floor_num, svg_filename=None, dxf_filename=None):
+    import shutil
+    
+    final_dxf_path = os.path.join(base_dir, f"floor{floor_num}.dxf")
+    final_svg_path = os.path.join(base_dir, f"floor{floor_num}.svg")
+    
+    if dxf_filename:
+        source_dxf = os.path.join(base_dir, dxf_filename)
+        if os.path.exists(source_dxf) and source_dxf != final_dxf_path:
+            shutil.copy2(source_dxf, final_dxf_path)
+            
+    if svg_filename:
+        source_svg = os.path.join(base_dir, svg_filename)
+        if os.path.exists(source_svg) and source_svg != final_svg_path:
+            shutil.copy2(source_svg, final_svg_path)
+            
+    dxf_path = final_dxf_path
     if not os.path.exists(dxf_path):
         return
 
@@ -80,7 +43,7 @@ def process_dxf(base_dir, floor_num):
     msp = doc.modelspace()
     
     # Get SVG details
-    svg_path = os.path.join(base_dir, f"floor{floor_num}.svg")
+    svg_path = final_svg_path
     bg_png_path = os.path.join(base_dir, f"bg_floor{floor_num}.png")
     
     debug_dir = os.path.join(base_dir, "debug")
@@ -459,32 +422,7 @@ def process_dxf(base_dir, floor_num):
             clean_px.append([int(p[0] * img_w / 100), int(p[1] * img_h / 100)])
         clean_approx = np.array(clean_px, np.int32).reshape((-1, 1, 2))
         
-        # --- ZERO-SHOT CLIP CLASSIFICATION ---
-        # 1. Mask out everything outside this room
-        room_mask = np.zeros((img_h, img_w), dtype=np.uint8)
-        cv2.fillPoly(room_mask, [clean_approx], 255)
-        masked_bg = svg_bg_img.copy()
-        masked_bg[room_mask == 0] = (255, 255, 255)
-        
-        # 2. Crop to bounding box with padding
-        x, y, w, h = cv2.boundingRect(clean_approx)
-        pad = 20
-        x1, y1 = max(0, x-pad), max(0, y-pad)
-        x2, y2 = min(img_w, x+w+pad), min(img_h, y+h+pad)
-        room_crop = masked_bg[y1:y2, x1:x2]
-        
-        # Save the crop for debugging/verification
-        crop_path = os.path.join(debug_dir, f"crop_floor{floor_num}_room{room_idx}.png")
-        cv2.imwrite(crop_path, room_crop)
-        
-        # 3. Predict Room Name
-        print(f"  [AI] Classifying room type using CLIP zero-shot...")
-        try:
-            detected_name = classify_room(room_crop)
-            print(f"  [AI] Predicted: {detected_name}")
-        except Exception as e:
-            print(f"  [AI] Error during classification: {e}")
-            detected_name = f"Auto Room {room_idx}"
+        detected_name = f"Room {room_idx + 1}"
             
         rooms.append({
             "id": f"room_{room_idx}",

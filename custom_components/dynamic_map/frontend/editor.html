@@ -122,6 +122,27 @@
             </div>
         </div>
 
+        <div class="control-group" id="recomputePanel" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <h3 style="margin-bottom: 10px; font-size: 14px; font-weight: bold;">Advanced: Recompute Floor</h3>
+            <label style="font-size: 11px; margin-bottom: 5px; display: block; color: var(--text-muted);">Ensure files are uploaded to /config/dynamic_map_data/ first.</label>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                    <label>Floor Num</label>
+                    <input type="number" id="reconFloor" value="3" min="1" max="10">
+                </div>
+            </div>
+            
+            <label>SVG Source File</label>
+            <select id="reconSvg" style="margin-bottom: 10px;"><option value="">Loading...</option></select>
+            
+            <label>DXF Source File</label>
+            <select id="reconDxf" style="margin-bottom: 10px;"><option value="">Loading...</option></select>
+            
+            <button id="recomputeBtn" class="primary" style="background: var(--accent); margin-top: 5px;">Recompute Map Geometry</button>
+            <div id="recomputeStatus" style="font-size: 11px; margin-top: 5px; color: var(--accent);"></div>
+        </div>
+
         <div style="flex-grow: 1;"></div>
 
         <div class="control-group">
@@ -1380,7 +1401,73 @@
             yamlOutput.value = yaml;
         });
 
+        // RECOMPUTE LOGIC
+        async function loadAvailableFiles() {
+            try {
+                const res = await fetch('/api/dynamic_map/files');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data.success && data.files) {
+                    const svgSelect = document.getElementById('reconSvg');
+                    const dxfSelect = document.getElementById('reconDxf');
+                    svgSelect.innerHTML = '<option value="">-- Optional (Select SVG) --</option>';
+                    dxfSelect.innerHTML = '<option value="">-- Optional (Select DXF) --</option>';
+                    
+                    data.files.forEach(f => {
+                        if (f.endsWith('.svg')) svgSelect.innerHTML += `<option value="${f}">${f}</option>`;
+                        if (f.endsWith('.dxf')) dxfSelect.innerHTML += `<option value="${f}">${f}</option>`;
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to load available files", err);
+            }
+        }
+
+        document.getElementById('recomputeBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('recomputeBtn');
+            const status = document.getElementById('recomputeStatus');
+            const floorNum = document.getElementById('reconFloor').value;
+            const svgFile = document.getElementById('reconSvg').value;
+            const dxfFile = document.getElementById('reconDxf').value;
+            
+            btn.disabled = true;
+            btn.textContent = "Processing... (This takes a few seconds)";
+            status.textContent = "Running OpenCV algorithms on Home Assistant server...";
+            
+            try {
+                const res = await fetch('/api/dynamic_map/recompute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        floor_num: parseInt(floorNum),
+                        svg_file: svgFile || null,
+                        dxf_file: dxfFile || null
+                    })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    status.textContent = "✅ Success! Refreshing Map...";
+                    status.style.color = "#10b981";
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    status.textContent = "❌ Error: " + data.error;
+                    status.style.color = "#ef4444";
+                    btn.disabled = false;
+                    btn.textContent = "Recompute Map Geometry";
+                }
+            } catch (err) {
+                status.textContent = "❌ Failed to connect to HA API.";
+                status.style.color = "#ef4444";
+                btn.disabled = false;
+                btn.textContent = "Recompute Map Geometry";
+            }
+        });
+
         // Init
+        loadAvailableFiles();
         loadFloor(2);
     </script>
 </body>
