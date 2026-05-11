@@ -123,6 +123,7 @@ class CustomSvgMap extends HTMLElement {
         switcher.style.borderRadius = '8px';
         switcher.style.overflow = 'hidden';
         switcher.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
+        switcher.style.border = '1px solid #e2e8f0';
 
         this.config.floors.forEach(f => {
             const btn = document.createElement('div');
@@ -158,9 +159,10 @@ class CustomSvgMap extends HTMLElement {
         const switcher = document.createElement('button');
         switcher.className = 'rotation-switcher';
         switcher.style.background = 'rgba(255, 255, 255, 0.9)';
-        switcher.style.border = 'none';
+        switcher.style.border = '1px solid #e2e8f0';
         switcher.style.borderRadius = '8px';
-        switcher.style.padding = '8px';
+        switcher.style.width = '42px';
+        switcher.style.padding = '0';
         switcher.style.cursor = 'pointer';
         switcher.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
         switcher.style.display = 'flex';
@@ -170,13 +172,13 @@ class CustomSvgMap extends HTMLElement {
 
         const updateIcon = () => {
             if (this.rotationMode === 'auto') {
-                switcher.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><text x="12" y="16" font-size="8" text-anchor="middle" font-family="sans-serif">AUTO</text></svg>`;
+                switcher.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><text x="12" y="16" font-size="10" font-family="sans-serif" text-anchor="middle" stroke="none" fill="currentColor">A</text></svg>`;
                 switcher.title = 'Rotation Mode: Auto';
             } else if (this.rotationMode === 'horizontal') {
-                switcher.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"></rect><path d="M12 12h.01"></path></svg>`;
+                switcher.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/></svg>`;
                 switcher.title = 'Rotation Mode: Horizontal';
             } else {
-                switcher.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2"></rect><path d="M12 12h.01"></path></svg>`;
+                switcher.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/></svg>`;
                 switcher.title = 'Rotation Mode: Vertical';
             }
         };
@@ -378,7 +380,7 @@ class CustomSvgMap extends HTMLElement {
         this.topLeftUI.style.left = '10px';
         this.topLeftUI.style.display = 'flex';
         this.topLeftUI.style.gap = '10px';
-        this.topLeftUI.style.alignItems = 'flex-start';
+        this.topLeftUI.style.alignItems = 'stretch';
         this.topLeftUI.style.zIndex = '10';
         if (this.renderRoot) this.renderRoot.appendChild(this.topLeftUI);
 
