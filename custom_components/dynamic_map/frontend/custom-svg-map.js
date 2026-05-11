@@ -656,15 +656,20 @@ class CustomSvgMap extends HTMLElement {
     }
 
     updateVacuumLogic(sc) {
+        console.log(`[Vacuum] Status: ${this.vacuumState.status}, Current Room Sensor: "${this.vacuumState.room}"`);
         if (this.vacuumState.status !== 'cleaning' && this.vacuumState.status !== 'error') {
+            console.log(`[Vacuum] Not cleaning/error. Snapping to dock.`);
             this.vacuumState.targetX = (sc.position[0] / 100) * this.imgW;
             this.vacuumState.targetY = (sc.position[1] / 100) * this.imgH;
             this.vacuumState.activePolygon = null;
         } else {
             let targetSvgRoomId = null;
+            console.log(`[Vacuum] Evaluating mapping:`, sc.room_mapping);
             for (const [roboRoomName, svgRoomId] of Object.entries(sc.room_mapping || {})) {
+                console.log(`[Vacuum] Checking if mapping key "${roboRoomName.toLowerCase()}" === sensor "${(this.vacuumState.room || '').toLowerCase()}"`);
                 if (roboRoomName.toLowerCase() === (this.vacuumState.room || '').toLowerCase()) {
                     targetSvgRoomId = svgRoomId;
+                    console.log(`[Vacuum] MATCH FOUND! Target SVG Room ID: ${targetSvgRoomId}`);
                     break;
                 }
             }
@@ -672,6 +677,7 @@ class CustomSvgMap extends HTMLElement {
             if (targetSvgRoomId) {
                 const targetRoom = this.rooms.find(r => r.id === targetSvgRoomId);
                 if (targetRoom) {
+                    console.log(`[Vacuum] Valid SVG Room Found: ${targetRoom.name}`);
                     if (this.vacuumState.status === 'error') {
                         this.vacuumState.activePolygon = targetRoom.polygon;
                         const center = this.getPolygonCenter(targetRoom.polygon);
@@ -679,14 +685,18 @@ class CustomSvgMap extends HTMLElement {
                         this.vacuumState.targetY = (center[1] / 100) * this.imgH;
                     } else if (this.vacuumState.status === 'cleaning') {
                         if (this.vacuumState.activePolygon !== targetRoom.polygon) {
+                            console.log(`[Vacuum] Moving to center of ${targetRoom.name}`);
                             this.vacuumState.activePolygon = targetRoom.polygon;
                             const center = this.getPolygonCenter(targetRoom.polygon);
                             this.vacuumState.targetX = (center[0] / 100) * this.imgW;
                             this.vacuumState.targetY = (center[1] / 100) * this.imgH;
                         }
                     }
+                } else {
+                    console.log(`[Vacuum] Error: Target SVG Room ID ${targetSvgRoomId} does not exist in this.rooms!`);
                 }
             } else {
+                console.log(`[Vacuum] No mapping matched. Snapping to dock.`);
                 this.vacuumState.targetX = (sc.position[0] / 100) * this.imgW;
                 this.vacuumState.targetY = (sc.position[1] / 100) * this.imgH;
                 this.vacuumState.activePolygon = null;
