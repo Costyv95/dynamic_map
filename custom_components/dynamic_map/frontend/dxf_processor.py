@@ -213,6 +213,7 @@ def _draw_geometry_mask(msp, wall_entities, best_rot_func, sx, sy, tx, ty, tx_sh
         
     bg_img = np.ones((img_h, img_w, 3), dtype=np.uint8) * 255
     debug_img = svg_bg_img.copy()
+    walls_img = np.ones((img_h, img_w, 3), dtype=np.uint8) * 255
     
     for entity in wall_entities:
         pts = [(p[0], p[1]) for p in entity.get_points('xy')]
@@ -222,9 +223,11 @@ def _draw_geometry_mask(msp, wall_entities, best_rot_func, sx, sy, tx, ty, tx_sh
         if entity.closed:
             cv2.fillPoly(bg_img, [pts_np], (0,0,0))
             cv2.fillPoly(debug_img, [pts_np], (0,0,0))
+            cv2.fillPoly(walls_img, [pts_np], (0,0,0))
         else:
             cv2.polylines(bg_img, [pts_np], False, (0,0,0), 6)
             cv2.polylines(debug_img, [pts_np], False, (0,0,0), 6)
+            cv2.polylines(walls_img, [pts_np], False, (0,0,0), 6)
 
     plug_layers = ['doors', 'windows']
     for entity in msp.query('INSERT'):
@@ -302,7 +305,7 @@ def _draw_geometry_mask(msp, wall_entities, best_rot_func, sx, sy, tx, ty, tx_sh
                             cv2.line(debug_img, pt1_box, pt2_box, (0, 0, 255), 4)
                         v_entity_index += 1
 
-    return bg_img, debug_img
+    return bg_img, debug_img, walls_img
 
 def _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h):
     """Extracts orthogonal room polygons from the geometry mask."""
@@ -371,8 +374,8 @@ def _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h):
             
     return rooms, debug_img, valid_px_polygons
 
-def _clean_background_with_mask(bg_png_path, bg_img, img_w, img_h, debug_dir, floor_num):
-    """Masks the original background image, turning everything outside the house exterior to pure white."""
+def _clean_background_with_mask(bg_png_path, bg_img, walls_img, img_w, img_h, debug_dir, floor_num):
+    """Masks the original background image, turning everything outside the house exterior to pure white, and overlays the strict walls."""
     original_bg = cv2.imread(bg_png_path)
     if original_bg is None:
         return
@@ -392,6 +395,10 @@ def _clean_background_with_mask(bg_png_path, bg_img, img_w, img_h, debug_dir, fl
             
     white_bg = np.ones((img_h, img_w, 3), dtype=np.uint8) * 255
     cleaned_bg = np.where(thresh[:, :, None] == 128, white_bg, original_bg)
+    
+    # Overlay strict walls as solid black
+    gray_walls = cv2.cvtColor(walls_img, cv2.COLOR_BGR2GRAY)
+    cleaned_bg = np.where(gray_walls[:, :, None] < 128, [0, 0, 0], cleaned_bg)
     
     cv2.imwrite(bg_png_path, cleaned_bg)
     cv2.imwrite(os.path.join(debug_dir, f"floodfill_debug_floor{floor_num}.png"), thresh)
@@ -441,19 +448,20 @@ def process_dxf(base_dir, floor_num, svg_filename=None, dxf_filename=None):
         return
 
     # 4. Draw Mathematical Mask (Walls + Doors/Windows)
-    bg_img, debug_img = _draw_geometry_mask(
+    bg_img, debug_img, walls_img = _draw_geometry_mask(
         doc.modelspace(), wall_entities, best_rot_func, 
         sx, sy, tx, ty, tx_shift, ty_shift, img_w, img_h, svg_bg_img
     )
     
     cv2.imwrite(os.path.join(debug_dir, f"raw_debug_floor{floor_num}.png"), debug_img)
     cv2.imwrite(os.path.join(debug_dir, f"cv2_mask_floor{floor_num}.png"), bg_img)
+    cv2.imwrite(os.path.join(debug_dir, f"walls_only_mask_floor{floor_num}.png"), walls_img)
 
     # 5. Extract Final Rooms from Mask
     rooms, final_debug_img, valid_px_polygons = _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h)
 
     # 6. Clean Background with Mask
-    _clean_background_with_mask(bg_png_path, bg_img, img_w, img_h, debug_dir, floor_num)
+    _clean_background_with_mask(bg_png_path, bg_img, walls_img, img_w, img_h, debug_dir, floor_num)
 
     json_path = os.path.join(base_dir, f"rooms_floor{floor_num}.json")
     with open(json_path, 'w') as f:
