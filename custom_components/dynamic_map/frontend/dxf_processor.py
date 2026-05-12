@@ -61,14 +61,8 @@ def process_dxf(base_dir, floor_num, svg_filename=None, dxf_filename=None):
     with open(svg_path, 'r', encoding='utf-8') as f:
         svg_content = f.read()
 
-    # Filter out text elements that DO NOT contain digits (removes "Study", disclaimers, etc)
-    def filter_text(match):
-        inner_text = match.group(1)
-        if not re.search(r'[0-9]', inner_text):
-            return '' # Remove if it has no numbers
-        return match.group(0) # Keep if it contains measurements
-
-    svg_content = re.sub(r'<text[^>]*>(.*?)</text>', filter_text, svg_content, flags=re.DOTALL)
+    # Remove all text elements from the SVG to ensure a clean background
+    svg_content = re.sub(r'<text[^>]*>.*?</text>', '', svg_content, flags=re.DOTALL)
     
     # Save the cleaned SVG to a temporary file for rendering
     clean_svg_path = svg_path.replace('.svg', '_clean.svg')
