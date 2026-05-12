@@ -332,6 +332,7 @@ def _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h):
             if extent < 0.5: continue
             valid_contours.append(contour)
     
+    valid_px_polygons = []
     for room_idx, contour in enumerate(valid_contours):
         color = get_color(room_idx, len(valid_contours))
         epsilon = 0.001 * cv2.arcLength(contour, True)
@@ -349,6 +350,7 @@ def _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h):
         for p in polygon_pct:
             clean_px.append([int(p[0] * img_w / 100), int(p[1] * img_h / 100)])
         clean_approx = np.array(clean_px, np.int32).reshape((-1, 1, 2))
+        valid_px_polygons.append(clean_approx)
         
         rooms.append({
             "id": f"room_{room_idx}",
@@ -364,7 +366,22 @@ def _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h):
             px, py = point
             cv2.circle(debug_img, (int(px * img_w / 100), int(py * img_h / 100)), 5, (0, 255, 255), -1)
             
-    return rooms, debug_img
+    return rooms, debug_img, valid_px_polygons
+
+def _clean_background_with_mask(bg_png_path, valid_px_polygons, img_w, img_h):
+    """Masks the original background image, turning everything outside the detected rooms to pure white."""
+    original_bg = cv2.imread(bg_png_path)
+    if original_bg is None:
+        return
+        
+    mask = np.zeros((img_h, img_w), dtype=np.uint8)
+    for poly in valid_px_polygons:
+        cv2.fillPoly(mask, [poly], 255)
+        
+    white_bg = np.ones((img_h, img_w, 3), dtype=np.uint8) * 255
+    cleaned_bg = np.where(mask[:, :, None] == 255, original_bg, white_bg)
+    
+    cv2.imwrite(bg_png_path, cleaned_bg)
 
 def process_dxf(base_dir, floor_num, svg_filename=None, dxf_filename=None):
     final_dxf_path = os.path.join(base_dir, f"floor{floor_num}.dxf")
@@ -420,7 +437,10 @@ def process_dxf(base_dir, floor_num, svg_filename=None, dxf_filename=None):
     cv2.imwrite(os.path.join(debug_dir, f"cv2_mask_floor{floor_num}.png"), bg_img)
 
     # 5. Extract Final Rooms from Mask
-    rooms, final_debug_img = _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h)
+    rooms, final_debug_img, valid_px_polygons = _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h)
+
+    # 6. Clean Background with Mask
+    _clean_background_with_mask(bg_png_path, valid_px_polygons, img_w, img_h)
 
     json_path = os.path.join(base_dir, f"rooms_floor{floor_num}.json")
     with open(json_path, 'w') as f:
