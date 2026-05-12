@@ -120,8 +120,13 @@ class DynamicMapFilesView(HomeAssistantView):
     async def get(self, request):
         data_dir = self.hass.config.path(DOMAIN + "_data")
         files = []
-        if os.path.exists(data_dir):
-            files = [f for f in os.listdir(data_dir) if f.endswith('.dxf') or f.endswith('.svg')]
+        
+        def get_files():
+            if os.path.exists(data_dir):
+                return [f for f in os.listdir(data_dir) if f.endswith('.dxf') or f.endswith('.svg')]
+            return []
+            
+        files = await self.hass.async_add_executor_job(get_files)
         return self.json({"success": True, "files": files})
 
 class DynamicMapRecomputeView(HomeAssistantView):
