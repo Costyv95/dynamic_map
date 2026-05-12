@@ -206,14 +206,16 @@
             if (historyIndex < history.length - 1) {
                 history = history.slice(0, historyIndex + 1);
             }
-            history.push(JSON.parse(JSON.stringify(rooms)));
+            history.push(JSON.parse(JSON.stringify({ rooms: rooms, shortcuts: shortcuts })));
             historyIndex++;
         }
 
         function undo() {
             if (historyIndex > 0) {
                 historyIndex--;
-                rooms = JSON.parse(JSON.stringify(history[historyIndex]));
+                const state = JSON.parse(JSON.stringify(history[historyIndex]));
+                rooms = state.rooms;
+                shortcuts = state.shortcuts;
                 selectedRooms = [];
                 updateSidebarUI();
                 draw();
@@ -223,7 +225,9 @@
         function redo() {
             if (historyIndex < history.length - 1) {
                 historyIndex++;
-                rooms = JSON.parse(JSON.stringify(history[historyIndex]));
+                const state = JSON.parse(JSON.stringify(history[historyIndex]));
+                rooms = state.rooms;
+                shortcuts = state.shortcuts;
                 selectedRooms = [];
                 updateSidebarUI();
                 draw();
@@ -903,12 +907,21 @@
             }
             
             let overScIdx = -1;
-            for (let i = 0; i < shortcuts.length; i++) {
-                const scX = (shortcuts[i].position[0]/100)*bgImage.width;
-                const scY = (shortcuts[i].position[1]/100)*bgImage.height;
-                // Use a wider hit radius for shortcuts
-                if (Math.hypot(dragStart.x - scX, dragStart.y - scY) < 25) {
-                    overScIdx = i; break;
+            for (let i = shortcuts.length - 1; i >= 0; i--) {
+                const sc = shortcuts[i];
+                const scX = (sc.position[0]/100)*bgImage.width;
+                const scY = (sc.position[1]/100)*bgImage.height;
+                const rx = 12 * (sc.scaleX || sc.scale || 1);
+                const ry = 12 * (sc.scaleY || sc.scale || 1);
+                
+                if (sc.shape === 'rect') {
+                    if (Math.abs(dragStart.x - scX) <= rx && Math.abs(dragStart.y - scY) <= ry) {
+                        overScIdx = i; break;
+                    }
+                } else {
+                    if (Math.hypot(dragStart.x - scX, dragStart.y - scY) <= Math.max(rx, ry)) {
+                        overScIdx = i; break;
+                    }
                 }
             }
 
@@ -984,11 +997,21 @@
                 }
 
                 if (cursorStyle === 'default') {
-                    for (let i = 0; i < shortcuts.length; i++) {
-                        const scX = (shortcuts[i].position[0]/100)*bgImage.width;
-                        const scY = (shortcuts[i].position[1]/100)*bgImage.height;
-                        if (Math.hypot(worldPos.x - scX, worldPos.y - scY) < 15) {
-                            overShortcut = true; break;
+                    for (let i = shortcuts.length - 1; i >= 0; i--) {
+                        const sc = shortcuts[i];
+                        const scX = (sc.position[0]/100)*bgImage.width;
+                        const scY = (sc.position[1]/100)*bgImage.height;
+                        const rx = 12 * (sc.scaleX || sc.scale || 1);
+                        const ry = 12 * (sc.scaleY || sc.scale || 1);
+                        
+                        if (sc.shape === 'rect') {
+                            if (Math.abs(worldPos.x - scX) <= rx && Math.abs(worldPos.y - scY) <= ry) {
+                                overShortcut = true; break;
+                            }
+                        } else {
+                            if (Math.hypot(worldPos.x - scX, worldPos.y - scY) <= Math.max(rx, ry)) {
+                                overShortcut = true; break;
+                            }
                         }
                     }
                     if (overShortcut) {
@@ -1156,6 +1179,10 @@
                 }
             }
 
+            if (isDragging) {
+                saveState();
+            }
+
             interactionState = 'NONE';
             isSplitting = false;
             splitStart = null;
@@ -1295,6 +1322,7 @@
                 shortcuts.push(newSc);
                 selectedShortcutIdx = shortcuts.length - 1;
                 selectedRooms = []; // Deselect room
+                saveState();
                 updateSidebarUI();
                 draw();
             }
@@ -1311,6 +1339,7 @@
         document.getElementById('scType').addEventListener('change', (e) => {
             if(selectedShortcutIdx !== -1) {
                 shortcuts[selectedShortcutIdx].type = e.target.value;
+                saveState();
                 updateSidebarUI();
                 draw();
             }
@@ -1321,16 +1350,19 @@
                 shortcuts[selectedShortcutIdx].name = e.target.value;
             }
         });
+        document.getElementById('scName').addEventListener('change', () => saveState());
 
         document.getElementById('scEntity').addEventListener('input', (e) => {
             if(selectedShortcutIdx !== -1) {
                 shortcuts[selectedShortcutIdx].entity_id = e.target.value;
             }
         });
+        document.getElementById('scEntity').addEventListener('change', () => saveState());
         
         document.getElementById('scShape').addEventListener('change', (e) => {
             if(selectedShortcutIdx !== -1) {
                 shortcuts[selectedShortcutIdx].shape = e.target.value;
+                saveState();
                 draw();
             }
         });
@@ -1342,10 +1374,12 @@
                 draw();
             }
         });
+        document.getElementById('scColor').addEventListener('change', () => saveState());
 
         document.getElementById('scTransparent').addEventListener('change', (e) => {
             if(selectedShortcutIdx !== -1) {
                 shortcuts[selectedShortcutIdx].transparent = e.target.checked;
+                saveState();
                 draw();
             }
         });
@@ -1354,6 +1388,7 @@
             if (selectedShortcutIdx !== -1) {
                 shortcuts.splice(selectedShortcutIdx, 1);
                 selectedShortcutIdx = -1;
+                saveState();
                 updateSidebarUI();
                 draw();
             }
