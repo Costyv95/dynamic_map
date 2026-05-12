@@ -15,3 +15,23 @@ services:
     ports:
       - "5000:5000"
     restart: unless-stopped
+
+  auto-updater:
+    image: alpine/git
+    container_name: map-auto-updater
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    entrypoint: >
+      /bin/sh -c "
+      apk add --no-cache docker-cli &&
+      while true; do
+        git fetch;
+        if [ \"$$(git rev-parse HEAD)\" != \"$$(git rev-parse @{u})\" ]; then
+          git pull && docker restart map-processor;
+        fi;
+        sleep 60;
+      done
+      "
+    restart: unless-stopped
