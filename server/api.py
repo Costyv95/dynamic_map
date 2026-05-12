@@ -11,8 +11,9 @@ def process():
     svg_file = data.get('svg_file')
     dxf_file = data.get('dxf_file')
     
-    # In the Docker container, the samba share is mounted to /data
-    base_dir = '/data'
+    # In the Docker container, the samba share (HA /config) is mounted to /data
+    # So the dynamic_map_data folder is at /data/dynamic_map_data
+    base_dir = '/data/dynamic_map_data'
     
     if not os.path.exists(base_dir):
         return jsonify({"success": False, "error": f"Base directory {base_dir} not found. Is the Samba share mounted?"}), 500
