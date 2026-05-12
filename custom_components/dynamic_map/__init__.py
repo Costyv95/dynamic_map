@@ -151,7 +151,11 @@ class DynamicMapRecomputeView(HomeAssistantView):
                     "svg_file": svg_file,
                     "dxf_file": dxf_file
                 }
-                async with session.post("http://192.168.1.202:5000/process", json=payload) as resp:
+                
+                # Fetch the sidecar URL from config, default to local docker instance
+                sidecar_url = self.hass.data.get(DOMAIN, {}).get("sidecar_url", "http://192.168.1.202:5000")
+                
+                async with session.post(f"{sidecar_url}/process", json=payload) as resp:
                     result = await resp.json()
                     if not result.get("success"):
                         return self.json({"success": False, "error": result.get("error", "Unknown error from Sidecar")})
