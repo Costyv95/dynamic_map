@@ -368,18 +368,27 @@ def _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h):
             
     return rooms, debug_img, valid_px_polygons
 
-def _clean_background_with_mask(bg_png_path, valid_px_polygons, img_w, img_h):
-    """Masks the original background image, turning everything outside the detected rooms to pure white."""
+def _clean_background_with_mask(bg_png_path, bg_img, img_w, img_h):
+    """Masks the original background image, turning everything outside the house exterior to pure white."""
     original_bg = cv2.imread(bg_png_path)
     if original_bg is None:
         return
         
-    mask = np.zeros((img_h, img_w), dtype=np.uint8)
-    for poly in valid_px_polygons:
-        cv2.fillPoly(mask, [poly], 255)
-        
+    gray = cv2.cvtColor(bg_img, cv2.COLOR_BGR2GRAY)
+    _, thresh = cv2.threshold(gray, 240, 255, cv2.THRESH_BINARY)
+    
+    kernel = np.ones((3,3), np.uint8)
+    thresh = cv2.erode(thresh, kernel, iterations=1)
+    thresh = cv2.dilate(thresh, kernel, iterations=1)
+    
+    mask = np.zeros((img_h + 2, img_w + 2), dtype=np.uint8)
+    corners = [(0,0), (img_w-1, 0), (0, img_h-1), (img_w-1, img_h-1)]
+    for pt in corners:
+        if thresh[pt[1], pt[0]] == 255:
+            cv2.floodFill(thresh, mask, pt, 128)
+            
     white_bg = np.ones((img_h, img_w, 3), dtype=np.uint8) * 255
-    cleaned_bg = np.where(mask[:, :, None] == 255, original_bg, white_bg)
+    cleaned_bg = np.where(thresh[:, :, None] == 128, white_bg, original_bg)
     
     cv2.imwrite(bg_png_path, cleaned_bg)
 
@@ -440,7 +449,7 @@ def process_dxf(base_dir, floor_num, svg_filename=None, dxf_filename=None):
     rooms, final_debug_img, valid_px_polygons = _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h)
 
     # 6. Clean Background with Mask
-    _clean_background_with_mask(bg_png_path, valid_px_polygons, img_w, img_h)
+    _clean_background_with_mask(bg_png_path, bg_img, img_w, img_h)
 
     json_path = os.path.join(base_dir, f"rooms_floor{floor_num}.json")
     with open(json_path, 'w') as f:
