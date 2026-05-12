@@ -11,7 +11,7 @@ services:
       - .:/app
     working_dir: /app
     command: >
-      bash -c "pip install --no-cache-dir ezdxf opencv-python-headless shapely cairosvg flask && python api.py"
+      bash -c "apt-get update && apt-get install -y libcairo2 && pip install --no-cache-dir ezdxf opencv-python-headless shapely cairosvg flask && python api.py"
     ports:
       - "5000:5000"
     restart: unless-stopped
