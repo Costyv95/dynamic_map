@@ -1,4 +1,4 @@
-> Auto-generated 2026-05-11 12:18. Regenerate with /map.
+> Auto-generated 2026-05-12 09:07. Regenerate with /map.
 
 # Dynamic Map Project
 
@@ -17,13 +17,14 @@ The web assets served to the HA frontend.
 - `editor.html`: The standalone visual Map Editor (HTML5 Canvas).
 - `custom-svg-map.js`: The Custom Lovelace Card providing live SVG rendering and vacuum animation tracking on the HA Dashboard.
 - `polybool.min.js`: Boolean geometry math library.
-- *Contains legacy development scripts (`test_*.py`, `dxf_processor.py`) flagged for removal.*
+- *Contains `dxf_processor.py` and `token_extractor.py` flagged for removal/migration.*
 
 ### `/docs`
 Documentation, architecture plans, and session handoffs.
 - `handoffs/`: Historical context and development logs.
 - `maintenance.md`: Technical debt tracker.
 - `project.md`: Project architecture.
+- `server.md`: Server deployment strategies.
 - `todo.md`: Outstanding tasks.
 
 ### `/ha_test`
@@ -39,4 +40,4 @@ A Docker-Compose based isolated Home Assistant environment for local integration
 ## Critical Hotspots
 - **Vacuum Tracking Logic (`custom-svg-map.js`)**: Highly complex coordinate interpolation, SVG path injection, and Home Assistant state synchronization (relying heavily on `binary_sensor.<vac>_charging`).
 - **Room Mapping Engine (`editor.html`)**: Real-time JSON manipulation and inverse data structure mapping between drawn SVGs and HA string enums.
-- **Frontend Python Clutter**: The `frontend/` directory currently contains 20+ development scripts that should be moved to a `scripts/` directory to minimize production payload.
+- **Frontend Python Migration**: The `frontend/` directory currently contains data processing scripts (`dxf_processor.py`, `token_extractor.py`) that should be moved to a `scripts/` directory to minimize production payload.
