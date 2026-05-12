@@ -76,7 +76,7 @@ class CustomSvgMap extends HTMLElement {
 
     async loadData() {
         const floor = this.activeFloor;
-        const bgUrl = `/dynamic_map_data/floor${floor}.png`;
+        const bgUrl = `/dynamic_map_data/bg_floor${floor}.png`;
         const roomsUrl = `/dynamic_map_data/rooms_floor${floor}.json`;
         const shortcutsUrl = `/dynamic_map_data/shortcuts_floor${floor}.json`;
 
