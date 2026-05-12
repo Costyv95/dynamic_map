@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  map-processor:
+    image: python:3.11-slim
+    container_name: map-processor
+    volumes:
+      # /data in the container is mapped to the LXC /data (which is the Samba share)
+      - /data:/data
+      # Mount the current directory (which has api.py and dxf_processor.py) into the app folder
+      - .:/app
+    working_dir: /app
+    command: >
+      bash -c "pip install --no-cache-dir ezdxf opencv-python-headless shapely cairosvg flask && python api.py"
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
