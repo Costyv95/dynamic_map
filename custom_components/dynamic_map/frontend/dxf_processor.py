@@ -30,6 +30,9 @@ def _prepare_svg_background(svg_path, bg_png_path):
     # Remove all text elements from the SVG to ensure a clean background
     svg_content = re.sub(r'<text[^>]*>.*?</text>', '', svg_content, flags=re.DOTALL)
     
+    # Remove any elements with stroke-dasharray (dotted/dashed lines)
+    svg_content = re.sub(r'<([a-zA-Z0-9]+)[^>]*stroke-dasharray[^>]*>.*?</\1>|<[a-zA-Z0-9]+[^>]*stroke-dasharray[^>]*/>', '', svg_content, flags=re.DOTALL)
+    
     clean_svg_path = svg_path.replace('.svg', '_clean.svg')
     with open(clean_svg_path, 'w', encoding='utf-8') as f:
         f.write(svg_content)
