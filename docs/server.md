@@ -23,7 +23,7 @@ Instead of manually configuring VMs, we use the community standard **tteck Helpe
 3. Click on **>_ Shell** in the top right to open the terminal.
 4. Run the following command to instantly create an official Home Assistant OS VM:
    ```bash
-   bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/vm/haos.sh)"
+   bash -c "$(wget -qLO - https://github.com/community-scripts/ProxmoxVE/raw/main/vm/haos-vm.sh)"
    ```
 5. Follow the prompts (using default settings is generally perfectly fine). 
 6. Once complete, start the VM. You can now access your brand new Home Assistant instance at `http://<NEW_HA_IP>:8123`.
@@ -45,7 +45,7 @@ Because Home Assistant OS cannot compile `opencv-python-headless`, we will deplo
 1. **Create a Docker LXC Container:**
    - Go back to your Proxmox Shell and run the Docker LXC script:
      ```bash
-     bash -c "$(wget -qLO - https://github.com/tteck/Proxmox/raw/main/ct/docker.sh)"
+     bash -c "$(wget -qLO - https://github.com/community-scripts/ProxmoxVE/raw/main/ct/docker.sh)"
      ```
    - This creates a lightweight Linux container running Docker.
 
