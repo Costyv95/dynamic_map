@@ -368,7 +368,7 @@ def _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h):
             
     return rooms, debug_img, valid_px_polygons
 
-def _clean_background_with_mask(bg_png_path, bg_img, img_w, img_h):
+def _clean_background_with_mask(bg_png_path, bg_img, img_w, img_h, debug_dir, floor_num):
     """Masks the original background image, turning everything outside the house exterior to pure white."""
     original_bg = cv2.imread(bg_png_path)
     if original_bg is None:
@@ -391,6 +391,7 @@ def _clean_background_with_mask(bg_png_path, bg_img, img_w, img_h):
     cleaned_bg = np.where(thresh[:, :, None] == 128, white_bg, original_bg)
     
     cv2.imwrite(bg_png_path, cleaned_bg)
+    cv2.imwrite(os.path.join(debug_dir, f"floodfill_debug_floor{floor_num}.png"), thresh)
 
 def process_dxf(base_dir, floor_num, svg_filename=None, dxf_filename=None):
     final_dxf_path = os.path.join(base_dir, f"floor{floor_num}.dxf")
@@ -449,7 +450,7 @@ def process_dxf(base_dir, floor_num, svg_filename=None, dxf_filename=None):
     rooms, final_debug_img, valid_px_polygons = _extract_rooms_from_mask(bg_img, debug_img, img_w, img_h)
 
     # 6. Clean Background with Mask
-    _clean_background_with_mask(bg_png_path, bg_img, img_w, img_h)
+    _clean_background_with_mask(bg_png_path, bg_img, img_w, img_h, debug_dir, floor_num)
 
     json_path = os.path.join(base_dir, f"rooms_floor{floor_num}.json")
     with open(json_path, 'w') as f:
