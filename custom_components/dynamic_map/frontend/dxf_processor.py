@@ -458,6 +458,15 @@ def process_dxf(base_dir, floor_num, svg_filename=None, dxf_filename=None):
     print(f"Exported {len(rooms)} strictly orthogonal rooms to JSON and Debug Images.")
 
 if __name__ == "__main__":
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    process_dxf(base_dir, 1)
-    process_dxf(base_dir, 2)
+    import argparse
+    parser = argparse.ArgumentParser(description="Process DXF and SVG files to generate map JSON.")
+    parser.add_argument("--base_dir", type=str, default=os.path.dirname(os.path.abspath(__file__)),
+                        help="Base directory containing the SVG and DXF files.")
+    parser.add_argument("--floor", type=int, action="append",
+                        help="Floor numbers to process (can specify multiple times). If not provided, defaults to 1 and 2.")
+    args = parser.parse_args()
+
+    floors = args.floor if args.floor else [1, 2]
+    
+    for floor in floors:
+        process_dxf(args.base_dir, floor)
