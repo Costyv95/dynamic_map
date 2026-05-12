@@ -143,18 +143,19 @@ class DynamicMapRecomputeView(HomeAssistantView):
             if not floor_num:
                 return self.json({"success": False, "error": "Missing floor_num"})
 
-            data_dir = self.hass.config.path(DOMAIN + "_data")
-
-            def run_processor():
-                import sys
-                frontend_dir = self.hass.config.path("custom_components", DOMAIN, "frontend")
-                if frontend_dir not in sys.path:
-                    sys.path.append(frontend_dir)
-                    
-                import dxf_processor
-                dxf_processor.process_dxf(data_dir, floor_num, svg_file, dxf_file)
-
-            await self.hass.async_add_executor_job(run_processor)
+            import aiohttp
+            
+            async with aiohttp.ClientSession() as session:
+                payload = {
+                    "floor": floor_num,
+                    "svg_file": svg_file,
+                    "dxf_file": dxf_file
+                }
+                async with session.post("http://192.168.1.202:5000/process", json=payload) as resp:
+                    result = await resp.json()
+                    if not result.get("success"):
+                        return self.json({"success": False, "error": result.get("error", "Unknown error from Sidecar")})
+                        
             return self.json({"success": True})
             
         except Exception as e:
