@@ -23,6 +23,10 @@
         .floor-btn:last-child { border-bottom: none; }
         .floor-btn:hover:not(.active) { background: var(--btn-hover); }
         .floor-btn.active { background: var(--accent); color: white; }
+        .expandable-header { transition: background 0.2s; border-radius: 4px; padding: 2px; margin: -2px; }
+        .expandable-header:hover { background: rgba(0, 0, 0, 0.05); }
+        .chevron { transition: transform 0.2s; font-size: 10px; opacity: 0.5; margin-right: 5px; display: inline-block; }
+        .chevron.collapsed { transform: rotate(-90deg); }
         #rotationModeBtn { background: white; border: 1px solid var(--input-border); border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; color: var(--text); }
         #rotationModeBtn:hover { background: var(--btn-hover); }
 

@@ -20,8 +20,11 @@ export function renderActionsAndStates(sc, onStateChange) {
         div.style.userSelect = 'none';
         
         div.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="act-header">
-                <strong style="font-size: 13px; color: var(--text);">${title}</strong>
+            <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="act-header expandable-header">
+                <div>
+                    <span class="chevron ${isExpanded ? '' : 'collapsed'}">▼</span>
+                    <strong style="font-size: 13px; color: var(--text);">${title}</strong>
+                </div>
                 <button class="del-act" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
             </div>
             <div class="act-body" style="display: ${isExpanded ? 'block' : 'none'}; margin-top: 10px; border-top: 1px solid var(--input-border); padding-top: 10px;">
@@ -50,6 +53,11 @@ export function renderActionsAndStates(sc, onStateChange) {
             if(e.target.tagName === 'BUTTON') return;
             act._expanded = act._expanded === false ? true : false;
             div.querySelector('.act-body').style.display = act._expanded ? 'block' : 'none';
+            const chevron = div.querySelector('.act-header .chevron');
+            if (chevron) {
+                if (act._expanded) chevron.classList.remove('collapsed');
+                else chevron.classList.add('collapsed');
+            }
         });
 
         div.querySelectorAll('.act-body input, .act-body select').forEach(el => {
@@ -83,8 +91,11 @@ export function renderActionsAndStates(sc, onStateChange) {
         div.style.userSelect = 'none';
         
         div.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="st-header">
-                <strong style="font-size: 13px; color: ${window.previewStateIdx === idx ? 'var(--accent)' : 'var(--text)'};">${title}</strong>
+            <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="st-header expandable-header">
+                <div>
+                    <span class="chevron ${isExpanded ? '' : 'collapsed'}">▼</span>
+                    <strong style="font-size: 13px; color: ${window.previewStateIdx === idx ? 'var(--accent)' : 'var(--text)'};">${title}</strong>
+                </div>
                 <div style="display: flex; gap: 5px;">
                     <button class="preview-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px; font-weight: bold; background: ${window.previewStateIdx === idx ? 'var(--accent)' : 'var(--btn-hover)'}; color: ${window.previewStateIdx === idx ? 'white' : 'var(--text)'}; border: 1px solid ${window.previewStateIdx === idx ? 'var(--accent)' : 'var(--input-border)'};">${window.previewStateIdx === idx ? '👁️ Previewing' : '👁️ Preview'}</button>
                     <button class="del-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
@@ -121,6 +132,11 @@ export function renderActionsAndStates(sc, onStateChange) {
             if(e.target.tagName === 'BUTTON') return;
             st._expanded = st._expanded === false ? true : false;
             div.querySelector('.st-body').style.display = st._expanded ? 'block' : 'none';
+            const chevron = div.querySelector('.st-header .chevron');
+            if (chevron) {
+                if (st._expanded) chevron.classList.remove('collapsed');
+                else chevron.classList.add('collapsed');
+            }
         });
 
         div.querySelectorAll('.st-body input, .st-body select').forEach(el => {
