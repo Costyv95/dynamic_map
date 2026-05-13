@@ -66,6 +66,7 @@
                 Build Mode
             </label>
             <div style="display: flex; gap: 5px;">
+                <button id="addShortcutBtn" class="primary" title="Add Shortcut Object" style="height: 36px; padding: 0 10px; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13px;">📍 Add Object</button>
                 <button id="undoBtn" title="Undo (Ctrl+Z)" style="width: 36px; height: 36px; padding: 0; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px;">↩</button>
                 <button id="redoBtn" title="Redo (Ctrl+Shift+Z)" style="width: 36px; height: 36px; padding: 0; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px;">↪</button>
             </div>
@@ -89,7 +90,6 @@
                 <button id="saveNameBtn" style="flex:2; margin:0;">💾 Save Room</button>
                 <button id="deleteBtn" class="danger" style="flex:1; margin:0;">🗑️ Del</button>
             </div>
-            <button id="addShortcutBtn" class="primary" style="margin-top: 10px;">📍 Add Object Here</button>
         </div>
         <div class="active-room-box" id="mergeUI" style="display: none; margin-top: 10px;">
             <button id="mergeBtn" class="primary">Merge Selected Rooms</button>
@@ -257,67 +257,36 @@
         // Resizer logic
         const resizer = document.getElementById('resizer');
         const sidebar = document.getElementById('sidebar');
-        let isResizingSidebar = false;
-        let resizeStartX, resizeStartY, resizeStartWidth, resizeStartHeight;
 
-        resizer.addEventListener('mousedown', (e) => {
-            isResizingSidebar = true;
-            resizeStartX = e.clientX;
-            resizeStartY = e.clientY;
-            resizeStartWidth = sidebar.getBoundingClientRect().width;
-            resizeStartHeight = sidebar.getBoundingClientRect().height;
+        resizer.addEventListener('pointerdown', (e) => {
+            resizer.setPointerCapture(e.pointerId);
             resizer.classList.add('resizing');
             document.body.style.cursor = window.innerWidth <= 768 ? 'row-resize' : 'col-resize';
+            e.preventDefault();
         });
 
-        resizer.addEventListener('touchstart', (e) => {
-            if (e.touches.length !== 1) return;
-            isResizingSidebar = true;
-            resizeStartX = e.touches[0].clientX;
-            resizeStartY = e.touches[0].clientY;
-            resizeStartWidth = sidebar.getBoundingClientRect().width;
-            resizeStartHeight = sidebar.getBoundingClientRect().height;
-            resizer.classList.add('resizing');
-            e.preventDefault(); // Prevent scrolling
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (!isResizingSidebar) return;
-            handleResizerMove(e.clientX, e.clientY);
-        });
-
-        window.addEventListener('touchmove', (e) => {
-            if (!isResizingSidebar) return;
-            handleResizerMove(e.touches[0].clientX, e.touches[0].clientY);
-        });
-
-        function handleResizerMove(clientX, clientY) {
+        resizer.addEventListener('pointermove', (e) => {
+            if (!resizer.hasPointerCapture(e.pointerId)) return;
+            
             if (window.innerWidth <= 768) {
-                const dy = clientY - resizeStartY;
-                const newHeight = Math.max(100, Math.min(window.innerHeight - 100, resizeStartHeight + dy));
+                const newHeight = Math.max(100, Math.min(window.innerHeight - 100, e.clientY));
                 sidebar.style.height = `${newHeight}px`;
                 sidebar.style.maxHeight = 'none';
             } else {
-                const dx = clientX - resizeStartX;
-                const newWidth = Math.max(200, Math.min(window.innerWidth - 200, resizeStartWidth + dx));
+                const newWidth = Math.max(200, Math.min(window.innerWidth - 200, e.clientX));
                 sidebar.style.width = `${newWidth}px`;
             }
             resizeCanvas();
             draw();
-        }
+        });
 
-        const stopResizing = () => {
-            if (isResizingSidebar) {
-                isResizingSidebar = false;
-                resizer.classList.remove('resizing');
-                document.body.style.cursor = '';
-                resizeCanvas();
-                draw();
-            }
-        };
-
-        window.addEventListener('mouseup', stopResizing);
-        window.addEventListener('touchend', stopResizing);
+        resizer.addEventListener('pointerup', (e) => {
+            resizer.releasePointerCapture(e.pointerId);
+            resizer.classList.remove('resizing');
+            document.body.style.cursor = '';
+            resizeCanvas();
+            draw();
+        });
 
         function redo() {
             if (historyIndex < history.length - 1) {
@@ -378,9 +347,9 @@
                 });
                 scParentSelect.value = sc.parent || 'home';
 
-                document.getElementById('scShape').value = sc.shape || 'circle';
-                document.getElementById('scColor').value = sc.color || '#0ea5e9';
-                document.getElementById('scTransparent').checked = sc.transparent || false;
+                document.getElementById('scShape').value = sc.config?.shape || 'circle';
+                document.getElementById('scColor').value = sc.config?.color || '#0ea5e9';
+                document.getElementById('scTransparent').checked = sc.config?.transparent || false;
                 
                 if (sc.type === 'vacuum') {
                     document.getElementById('vacuumOptions').style.display = 'block';
@@ -404,15 +373,16 @@
         function renderVacuumRoomMapping(sc) {
             const container = document.getElementById('roomMappingsList');
             container.innerHTML = '';
-            if (!sc.room_mapping) sc.room_mapping = {};
+            if (!sc.config) sc.config = {};
+            if (!sc.config.room_mapping) sc.config.room_mapping = {};
             
             // Clean up legacy inverted mapping IDs (drawn rooms starting with room_)
-            Object.keys(sc.room_mapping).forEach(id => {
-                if (id.startsWith('room_')) delete sc.room_mapping[id];
+            Object.keys(sc.config.room_mapping).forEach(id => {
+                if (id.startsWith('room_')) delete sc.config.room_mapping[id];
             });
             
             // Collect all known Roborock IDs from previous mappings and fetched options
-            let roboRoomIds = new Set(Object.keys(sc.room_mapping));
+            let roboRoomIds = new Set(Object.keys(sc.config.room_mapping));
             let optNames = {};
             if (lastFetchedVacuumOptions) {
                 lastFetchedVacuumOptions.forEach(opt => {
@@ -427,7 +397,7 @@
             }
             
             roboRoomIds.forEach(roboId => {
-                let val = sc.room_mapping[roboId] || '';
+                let val = sc.config.room_mapping[roboId] || '';
                 let name = optNames[roboId] || `Room ID ${roboId}`;
                 let div = document.createElement('div');
                 div.style.marginBottom = '5px';
@@ -449,10 +419,12 @@
             container.querySelectorAll('.room-map-input').forEach(input => {
                 input.addEventListener('change', (e) => {
                     const rId = e.target.dataset.roboroomid;
+                    if (!sc.config) sc.config = {};
+                    if (!sc.config.room_mapping) sc.config.room_mapping = {};
                     if (e.target.value === "") {
-                        delete sc.room_mapping[rId];
+                        delete sc.config.room_mapping[rId];
                     } else {
-                        sc.room_mapping[rId] = e.target.value;
+                        sc.config.room_mapping[rId] = e.target.value;
                     }
                 });
             });
@@ -1430,20 +1402,31 @@
         });
 
         document.getElementById('addShortcutBtn').addEventListener('click', () => {
+            const center = [50, 50]; // Default to center of screen
+            
+            // If a room is selected, default to its center
             if (selectedRooms.length === 1) {
-                const room = rooms[selectedRooms[0]];
-                const center = getPolygonCenter(room.polygon);
-                const newSc = {
-                    id: `sc_${Date.now()}`, name: "New Shortcut", type: "generic",
-                    entity_id: "", position: center, room_mapping: {}
-                };
-                shortcuts.push(newSc);
-                selectedShortcutIdx = shortcuts.length - 1;
-                selectedRooms = []; // Deselect room
-                saveState();
-                updateSidebarUI();
-                draw();
+                const roomCenter = getPolygonCenter(rooms[selectedRooms[0]].polygon);
+                center[0] = roomCenter[0];
+                center[1] = roomCenter[1];
             }
+            
+            const newSc = {
+                id: `sc_${Date.now()}`, name: "New Object", type: "generic",
+                entity_id: "", position: center, parent: "home",
+                config: {
+                    shape: "circle",
+                    color: "#0ea5e9",
+                    transparent: false,
+                    room_mapping: {}
+                }
+            };
+            shortcuts.push(newSc);
+            selectedShortcutIdx = shortcuts.length - 1;
+            selectedRooms = []; // Deselect room
+            saveState();
+            updateSidebarUI();
+            draw();
         });
 
         // Shortcut Save & Delete
@@ -1488,7 +1471,9 @@
         
         document.getElementById('scShape').addEventListener('change', (e) => {
             if(selectedShortcutIdx !== -1) {
-                shortcuts[selectedShortcutIdx].shape = e.target.value;
+                const sc = shortcuts[selectedShortcutIdx];
+                if (!sc.config) sc.config = {};
+                sc.config.shape = e.target.value;
                 saveState();
                 draw();
             }
@@ -1497,15 +1482,19 @@
 
         document.getElementById('scColor').addEventListener('input', (e) => {
             if(selectedShortcutIdx !== -1) {
-                shortcuts[selectedShortcutIdx].color = e.target.value;
+                const sc = shortcuts[selectedShortcutIdx];
+                if (!sc.config) sc.config = {};
+                sc.config.color = e.target.value;
                 draw();
             }
         });
-        document.getElementById('scColor').addEventListener('change', () => saveState());
+        document.getElementById('scColor').addEventListener('change', () => { saveState(); saveToHA(); });
 
         document.getElementById('scTransparent').addEventListener('change', (e) => {
             if(selectedShortcutIdx !== -1) {
-                shortcuts[selectedShortcutIdx].transparent = e.target.checked;
+                const sc = shortcuts[selectedShortcutIdx];
+                if (!sc.config) sc.config = {};
+                sc.config.transparent = e.target.checked;
                 saveState();
                 draw();
             }
