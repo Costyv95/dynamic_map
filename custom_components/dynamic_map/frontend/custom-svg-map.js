@@ -1,261 +1,4 @@
-// --- Shortcut Framework ---
-class MapShortcut {
-    constructor(scData, svgNS, imgW, imgH, mapContext) {
-        this.sc = scData;
-        this.svgNS = svgNS;
-        this.imgW = imgW;
-        this.imgH = imgH;
-        this.mapContext = mapContext;
-        this.group = document.createElementNS(svgNS, 'g');
-        
-        // Base positioning
-        this.px = (scData.position[0] / 100) * imgW;
-        this.py = (scData.position[1] / 100) * imgH;
-        this.group.scX = this.px;
-        this.group.scY = this.py;
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py})`);
-        
-        this.scaleX = scData.scaleX || scData.scale || 1;
-        this.scaleY = scData.scaleY || scData.scale || 1;
-        this.rx = 12 * this.scaleX;
-        this.ry = 12 * this.scaleY;
-        
-        // Configuration
-        this.config = scData.config || {};
-        
-        // State badge for overlays
-        this.stateBadge = document.createElementNS(svgNS, 'text');
-        this.stateBadge.setAttribute('text-anchor', 'middle');
-        this.stateBadge.setAttribute('dominant-baseline', 'central');
-        this.stateBadge.setAttribute('font-size', 12);
-        this.stateBadge.setAttribute('y', Math.max(this.rx, this.ry) + 14);
-        this.stateBadge.setAttribute('fill', '#1e293b');
-        this.stateBadge.style.textShadow = '0px 0px 2px white';
-        
-        this.group.classList.add('shortcut-group');
-        this.setupInteractions();
-    }
-    
-    setupInteractions() {
-        this.group.style.cursor = 'pointer';
-        this.group.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.onClick();
-        });
-    }
-
-    render() {
-        this.group.appendChild(this.stateBadge);
-        return this.group;
-    }
-    
-    updateState(hass) {
-        this.activeState = this.evaluateStates(hass);
-    }
-    
-    evaluateStates(hass) {
-        if (!this.config.states || !this.config.states.length) return null;
-        for (const st of this.config.states) {
-            if (!st.condition_entity || !hass.states[st.condition_entity]) continue;
-            const actualVal = hass.states[st.condition_entity].state;
-            const targetVal = st.value;
-            let matched = false;
-            if (st.operator === '==') matched = (actualVal == targetVal);
-            if (st.operator === '!=') matched = (actualVal != targetVal);
-            if (matched) return st;
-        }
-        return null;
-    }
-    
-    onClick() {
-        if (this.config.actions && this.config.actions.length > 0) {
-            const tapActions = this.config.actions.filter(a => a.trigger === 'tap');
-            if (tapActions.length > 0) {
-                tapActions.forEach(act => {
-                    const target = act.target || this.sc.entity_id;
-                    if (!target || !this.mapContext._hass) return;
-                    if (act.type === 'CALL_SERVICE' && act.service) {
-                        const parts = act.service.split('.');
-                        if (parts.length === 2) {
-                            this.mapContext._hass.callService(parts[0], parts[1], { entity_id: target });
-                        }
-                    } else if (act.type && act.type.startsWith('TOGGLE')) {
-                        const domain = target.split('.')[0];
-                        const service = act.type === 'TOGGLE_ON' ? 'turn_on' : (act.type === 'TOGGLE_OFF' ? 'turn_off' : 'toggle');
-                        this.mapContext._hass.callService(domain, service, { entity_id: target });
-                    }
-                });
-                return;
-            }
-        }
-        // Fallback default action
-        if (this.sc.entity_id && this.mapContext._hass) {
-            const domain = this.sc.entity_id.split('.')[0];
-            this.mapContext._hass.callService(domain, 'toggle', { entity_id: this.sc.entity_id });
-        }
-    }
-}
-
-class GenericShortcut extends MapShortcut {
-    render() {
-        const shapeType = this.config.shape === 'rect' ? 'rect' : 'circle';
-        this.shape = document.createElementNS(this.svgNS, shapeType);
-        
-        if (shapeType === 'rect') {
-            this.shape.setAttribute('x', -this.rx);
-            this.shape.setAttribute('y', -this.ry);
-            this.shape.setAttribute('width', this.rx * 2);
-            this.shape.setAttribute('height', this.ry * 2);
-            this.shape.setAttribute('rx', 2);
-        } else {
-            this.shape.setAttribute('r', this.rx);
-        }
-        
-        this.shape.setAttribute('fill', this.config.transparent ? 'rgba(0,0,0,0)' : (this.config.color || '#0ea5e9'));
-        this.shape.setAttribute('stroke', 'white');
-        this.shape.setAttribute('stroke-width', 2);
-        this.group.appendChild(this.shape);
-        
-        this.iconText = document.createElementNS(this.svgNS, 'text');
-        this.iconText.setAttribute('text-anchor', 'middle');
-        this.iconText.setAttribute('dominant-baseline', 'central');
-        this.iconText.setAttribute('font-size', 14 * Math.min(this.scaleX, this.scaleY));
-        this.iconText.textContent = '💡';
-        this.group.appendChild(this.iconText);
-        
-        super.render();
-        return this.group;
-    }
-    
-    updateState(hass) {
-        super.updateState(hass);
-        
-        let color = this.config.color || '#0ea5e9';
-        let icon = '💡';
-        
-        if (this.activeState) {
-            if (this.activeState.color) color = this.activeState.color;
-            if (this.activeState.icon) icon = this.activeState.icon;
-        } else if (this.sc.entity_id && hass.states[this.sc.entity_id]) {
-            // Legacy default toggle state logic if no states defined
-            const stateObj = hass.states[this.sc.entity_id];
-            if (stateObj.state === 'on') color = '#00ff00';
-            else color = '#ffaa00';
-        }
-        
-        if (!this.config.transparent) {
-            this.shape.setAttribute('fill', color);
-        }
-        this.iconText.textContent = icon;
-    }
-}
-
-class VacuumShortcut extends MapShortcut {
-    render() {
-        const shapeType = this.config.shape === 'rect' ? 'rect' : 'circle';
-        const maxR = shapeType === 'rect' ? Math.min(this.rx, this.ry) : this.rx;
-        
-        this.inner1 = document.createElementNS(this.svgNS, 'circle');
-        this.inner1.setAttribute('r', maxR * 0.8);
-        this.inner1.setAttribute('fill', '#334155');
-        
-        this.inner2 = document.createElementNS(this.svgNS, 'circle');
-        this.inner2.setAttribute('r', maxR * 0.4);
-        this.inner2.setAttribute('fill', '#0ea5e9');
-        
-        this.inner3 = document.createElementNS(this.svgNS, 'circle');
-        this.inner3.setAttribute('cx', maxR * 0.5);
-        this.inner3.setAttribute('r', maxR * 0.15);
-        this.inner3.setAttribute('fill', '#10b981');
-        
-        this.group.appendChild(this.inner1);
-        this.group.appendChild(this.inner2);
-        this.group.appendChild(this.inner3);
-        
-        super.render();
-        return this.group;
-    }
-    
-    updateState(hass) {
-        super.updateState(hass);
-        const entityId = this.sc.entity_id;
-        if (!entityId) return;
-        
-        const baseName = entityId.replace('vacuum.', '');
-        const statusState = hass.states[`sensor.${baseName}_status`] || hass.states[entityId];
-        const roomState = hass.states[`sensor.${baseName}_current_room`];
-        const chargingState = hass.states[`binary_sensor.${baseName}_charging`];
-
-        this.mapContext.vacuumState.status = statusState ? statusState.state : 'unknown';
-        this.mapContext.vacuumState.room = roomState ? roomState.state : 'unknown';
-        this.mapContext.vacuumState.isCharging = chargingState ? (chargingState.state === 'on') : ['charging', 'docked', 'charging_complete'].includes(this.mapContext.vacuumState.status);
-
-        if (this.activeState && this.activeState.icon) {
-            this.stateBadge.textContent = this.activeState.icon;
-        } else {
-            // Default fallback logic
-            if (this.mapContext.vacuumState.isCharging) this.stateBadge.textContent = '⚡';
-            else if (this.mapContext.vacuumState.status === 'error') this.stateBadge.textContent = '❌';
-            else if (this.mapContext.vacuumState.status.includes('clean') || this.mapContext.vacuumState.status === 'returning') this.stateBadge.textContent = '🧹';
-            else this.stateBadge.textContent = '';
-        }
-        
-        this.mapContext.updateVacuumLogic(this.sc);
-    }
-    
-    animate(deltaTime) {
-        const isOffline = ['unknown', 'device_offline'].includes((this.mapContext.vacuumState.status || '').toLowerCase());
-        const isTrackingRoom = !this.mapContext.vacuumState.isCharging && !isOffline;
-
-        if (isTrackingRoom && this.mapContext.vacuumState.activePolygon) {
-            const distToTarget = Math.hypot(this.mapContext.vacuumState.targetX - this.mapContext.vacuumState.x, this.mapContext.vacuumState.targetY - this.mapContext.vacuumState.y);
-            if (distToTarget < (this.imgW * 0.01)) {
-                const newTarget = this.mapContext.getRandomPointInPolygon(this.mapContext.vacuumState.activePolygon);
-                this.mapContext.vacuumState.targetX = (newTarget[0] / 100) * this.imgW;
-                this.mapContext.vacuumState.targetY = (newTarget[1] / 100) * this.imgH;
-            }
-        }
-
-        const dx = this.mapContext.vacuumState.targetX - this.mapContext.vacuumState.x;
-        const dy = this.mapContext.vacuumState.targetY - this.mapContext.vacuumState.y;
-        const dist = Math.hypot(dx, dy);
-
-        const baseSpeed = (this.imgW + this.imgH) / 2;
-        const speed = (isTrackingRoom) ? baseSpeed * 0.03 : baseSpeed * 0.15;
-
-        if (dist > (this.imgW * 0.001)) {
-            const moveAmt = Math.min(dist, speed * deltaTime);
-            this.mapContext.vacuumState.x += (dx / dist) * moveAmt;
-            this.mapContext.vacuumState.y += (dy / dist) * moveAmt;
-
-            if (isNaN(this.mapContext.vacuumState.x) || isNaN(this.mapContext.vacuumState.y)) {
-                this.mapContext.vacuumState.x = this.px;
-                this.mapContext.vacuumState.y = this.py;
-            }
-
-            this.group.setAttribute('transform', `translate(${this.mapContext.vacuumState.x}, ${this.mapContext.vacuumState.y})`);
-        }
-    }
-}
-
-class ShortcutFactory {
-    static create(scData, svgNS, imgW, imgH, mapContext) {
-        // Legacy fallback
-        if (!scData.config) {
-            scData.config = {
-                shape: scData.shape || 'circle',
-                color: scData.color || '#0ea5e9',
-                transparent: scData.transparent || false,
-                room_mapping: scData.room_mapping || {}
-            };
-        }
-        switch (scData.type) {
-            case 'vacuum': return new VacuumShortcut(scData, svgNS, imgW, imgH, mapContext);
-            default: return new GenericShortcut(scData, svgNS, imgW, imgH, mapContext);
-        }
-    }
-}
-// --- End Shortcut Framework ---
+import { ShortcutFactory } from './shortcuts/ShortcutFactory.js';
 
 class CustomSvgMap extends HTMLElement {
     constructor() {
@@ -281,6 +24,7 @@ class CustomSvgMap extends HTMLElement {
         this.lastTime = 0;
         this.selectedRoomId = null;
         this.rotationMode = 'auto';
+        this.activeOverlay = null;
 
         // renderRoot fills the host perfectly
         this.renderRoot = document.createElement('div');
@@ -981,6 +725,86 @@ class CustomSvgMap extends HTMLElement {
             }
         }
         return this.getPolygonCenter(polygon);
+    }
+
+    showOverlay(shortcut, actions, event) {
+        if (this.activeOverlay) {
+            this.activeOverlay.remove();
+        }
+        
+        // Ensure we capture clicks outside to close the overlay
+        const outsideClickListener = (e) => {
+            if (this.activeOverlay && !this.activeOverlay.contains(e.composedPath()[0])) {
+                this.activeOverlay.remove();
+                this.activeOverlay = null;
+                document.removeEventListener('pointerdown', outsideClickListener);
+            }
+        };
+        setTimeout(() => document.addEventListener('pointerdown', outsideClickListener), 50);
+
+        this.activeOverlay = document.createElement('div');
+        this.activeOverlay.style.position = 'absolute';
+        
+        // Calculate position relative to renderRoot
+        const rect = this.renderRoot.getBoundingClientRect();
+        let posX = event.clientX - rect.left;
+        let posY = event.clientY - rect.top;
+        
+        this.activeOverlay.style.left = `${posX}px`;
+        this.activeOverlay.style.top = `${posY}px`;
+        this.activeOverlay.style.transform = 'translate(-50%, -100%) translateY(-20px)';
+        this.activeOverlay.style.background = 'rgba(30, 41, 59, 0.9)';
+        this.activeOverlay.style.backdropFilter = 'blur(10px)';
+        this.activeOverlay.style.borderRadius = '12px';
+        this.activeOverlay.style.padding = '10px';
+        this.activeOverlay.style.display = 'flex';
+        this.activeOverlay.style.flexDirection = 'column';
+        this.activeOverlay.style.gap = '10px';
+        this.activeOverlay.style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.5)';
+        this.activeOverlay.style.zIndex = '1000';
+        this.activeOverlay.style.color = '#fff';
+
+        actions.forEach(act => {
+            if (act.type === 'SLIDER') {
+                const target = act.target || shortcut.sc.entity_id;
+                const container = document.createElement('div');
+                container.style.display = 'flex';
+                container.style.flexDirection = 'column';
+                container.style.gap = '5px';
+                
+                const label = document.createElement('span');
+                label.textContent = act.name || 'Brightness';
+                label.style.fontSize = '12px';
+                label.style.fontWeight = 'bold';
+                
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.min = '1';
+                slider.max = '100';
+                
+                // Get current brightness if available
+                if (this._hass && this._hass.states[target] && this._hass.states[target].attributes.brightness) {
+                    slider.value = Math.round((this._hass.states[target].attributes.brightness / 255) * 100);
+                } else {
+                    slider.value = '50';
+                }
+                
+                slider.style.width = '150px';
+                slider.addEventListener('change', (e) => {
+                    if (!this._hass) return;
+                    this._hass.callService(target.split('.')[0], 'turn_on', {
+                        entity_id: target,
+                        brightness_pct: parseInt(e.target.value)
+                    });
+                });
+                
+                container.appendChild(label);
+                container.appendChild(slider);
+                this.activeOverlay.appendChild(container);
+            }
+        });
+        
+        this.renderRoot.appendChild(this.activeOverlay);
     }
 
     getCardSize() { return 3; }

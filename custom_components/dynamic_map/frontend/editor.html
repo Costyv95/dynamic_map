@@ -107,6 +107,7 @@
             <select id="scType">
                 <option value="generic">Generic Device</option>
                 <option value="vacuum">Roborock Vacuum</option>
+                <option value="light">Light Bulb</option>
             </select>
             <div style="display: flex; gap: 5px; margin-top: 5px;">
                 <div style="flex: 1;">
@@ -423,6 +424,7 @@
                         <select class="act-type" style="margin: 0; padding: 4px;">
                             <option value="TOGGLE" ${act.type === 'TOGGLE' ? 'selected' : ''}>Toggle</option>
                             <option value="CALL_SERVICE" ${act.type === 'CALL_SERVICE' ? 'selected' : ''}>Call Service</option>
+                            <option value="SLIDER" ${act.type === 'SLIDER' ? 'selected' : ''}>Slider (Brightness)</option>
                         </select>
                     </div>
                     <div style="display: flex; gap: 5px;">
@@ -1612,6 +1614,20 @@
                             { id: `st_${Date.now()}_2`, condition_entity: `binary_sensor.${baseName}_charging`, operator: '==', value: 'on', color: '#334155', icon: '⚡' },
                             { id: `st_${Date.now()}_3`, condition_entity: `sensor.${baseName}_status`, operator: '==', value: 'returning', color: '#0ea5e9', icon: '🧹' },
                             { id: `st_${Date.now()}_4`, condition_entity: `sensor.${baseName}_status`, operator: '==', value: 'error', color: '#ef4444', icon: '❌' }
+                        ];
+                    }
+                } else if (sc.type === 'light') {
+                    if (!sc.config) sc.config = {};
+                    if (!sc.config.states || sc.config.states.length === 0) {
+                        sc.config.states = [
+                            { id: `st_${Date.now()}_1`, condition_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#fbbf24', icon: '💡' },
+                            { id: `st_${Date.now()}_2`, condition_entity: sc.entity_id || '', operator: '==', value: 'off', color: '#475569', icon: '💡' }
+                        ];
+                    }
+                    if (!sc.config.actions || sc.config.actions.length === 0) {
+                        sc.config.actions = [
+                            { id: `act_${Date.now()}_1`, type: 'TOGGLE', trigger: 'tap', target: sc.entity_id || '' },
+                            { id: `act_${Date.now()}_2`, type: 'SLIDER', trigger: 'overlay', target: sc.entity_id || '' }
                         ];
                     }
                 }
