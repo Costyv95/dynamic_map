@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.55';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.55';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.56';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.56';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -1160,13 +1160,18 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 room.color = document.getElementById('roomColor').value;
                 saveState();
                 draw(); // Redraw to update text on canvas
-                saveToHA(); // Auto-save to JSON
             }
         }
 
-        document.getElementById('saveNameBtn').addEventListener('click', saveRoomName);
+        document.getElementById('saveNameBtn').addEventListener('click', () => {
+            saveRoomName();
+            saveToHA();
+        });
         document.getElementById('roomName').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') saveRoomName();
+            if (e.key === 'Enter') {
+                saveRoomName();
+                saveToHA();
+            }
         });
 
         document.getElementById('roomColor').addEventListener('input', (e) => {
