@@ -766,7 +766,7 @@ class CustomSvgMap extends HTMLElement {
 
         actions.forEach(act => {
             if (act.type === 'SLIDER') {
-                const target = act.target || shortcut.sc.entity_id;
+                const target = act.action_entity || act.target || shortcut.sc.entity_id;
                 const container = document.createElement('div');
                 container.style.display = 'flex';
                 container.style.flexDirection = 'column';

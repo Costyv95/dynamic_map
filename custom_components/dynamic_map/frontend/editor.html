@@ -431,7 +431,7 @@
                         </select>
                     </div>
                     <div style="display: flex; gap: 5px;">
-                        <input type="text" class="act-target" value="${act.target || ''}" placeholder="Target Entity" style="flex: 1; margin: 0; padding: 4px;">
+                        <input type="text" class="act-target" list="entityList" value="${act.action_entity || act.target || ''}" placeholder="Action Entity" style="flex: 1; margin: 0; padding: 4px;">
                         <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Icon/Emoji" style="width: 40px; margin: 0; padding: 4px; text-align: center;">
                     </div>
                     ${act.type === 'CALL_SERVICE' ? `<input type="text" class="act-service" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="width: 100%; margin-top: 5px; padding: 4px;">` : ''}
@@ -443,7 +443,7 @@
                         act.name = div.querySelector('.act-name').value;
                         act.trigger = div.querySelector('.act-trigger').value;
                         act.type = div.querySelector('.act-type').value;
-                        act.target = div.querySelector('.act-target').value;
+                        act.action_entity = div.querySelector('.act-target').value;
                         act.icon = div.querySelector('.act-icon').value;
                         if (act.type === 'CALL_SERVICE' && div.querySelector('.act-service')) {
                             act.service = div.querySelector('.act-service').value;
@@ -465,7 +465,7 @@
                 div.style.border = '1px solid var(--input-border)';
                 div.innerHTML = `
                     <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <input type="text" class="st-entity" value="${st.condition_entity || ''}" placeholder="Entity ID" style="width: 80%; margin: 0; padding: 4px;">
+                        <input type="text" class="st-entity" list="entityList" value="${st.state_entity || st.condition_entity || ''}" placeholder="State Entity ID" style="width: 80%; margin: 0; padding: 4px;">
                         <button class="del-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
                     </div>
                     <div style="display: flex; gap: 5px; margin-bottom: 5px;">
@@ -484,7 +484,7 @@
                 
                 div.querySelectorAll('input, select').forEach(el => {
                     el.addEventListener('change', () => {
-                        st.condition_entity = div.querySelector('.st-entity').value;
+                        st.state_entity = div.querySelector('.st-entity').value;
                         st.operator = div.querySelector('.st-op').value;
                         st.value = div.querySelector('.st-val').value;
                         st.color = div.querySelector('.st-color').value;
@@ -1588,7 +1588,7 @@
                 const sc = shortcuts[selectedShortcutIdx];
                 if (!sc.config) sc.config = {};
                 if (!sc.config.actions) sc.config.actions = [];
-                sc.config.actions.push({ id: `act_${Date.now()}`, type: 'TOGGLE', trigger: 'tap', target: sc.entity_id || '' });
+                sc.config.actions.push({ id: `act_${Date.now()}`, type: 'TOGGLE', trigger: 'tap', action_entity: sc.entity_id || '' });
                 renderActionsAndStates(sc);
                 saveState();
             }
@@ -1599,7 +1599,7 @@
                 const sc = shortcuts[selectedShortcutIdx];
                 if (!sc.config) sc.config = {};
                 if (!sc.config.states) sc.config.states = [];
-                sc.config.states.push({ id: `st_${Date.now()}`, condition_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#10b981' });
+                sc.config.states.push({ id: `st_${Date.now()}`, state_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#10b981' });
                 renderActionsAndStates(sc);
                 saveState();
             }
@@ -1615,24 +1615,24 @@
                     if (!sc.config.states || sc.config.states.length === 0) {
                         const baseName = (sc.entity_id || 'vacuum.roborock').replace('vacuum.', '');
                         sc.config.states = [
-                            { id: `st_${Date.now()}_1`, condition_entity: `sensor.${baseName}_status`, operator: '==', value: 'cleaning', color: '#10b981', icon: '🧹' },
-                            { id: `st_${Date.now()}_2`, condition_entity: `binary_sensor.${baseName}_charging`, operator: '==', value: 'on', color: '#334155', icon: '⚡' },
-                            { id: `st_${Date.now()}_3`, condition_entity: `sensor.${baseName}_status`, operator: '==', value: 'returning', color: '#0ea5e9', icon: '🧹' },
-                            { id: `st_${Date.now()}_4`, condition_entity: `sensor.${baseName}_status`, operator: '==', value: 'error', color: '#ef4444', icon: '❌' }
+                            { id: `st_${Date.now()}_1`, state_entity: `sensor.${baseName}_status`, operator: '==', value: 'cleaning', color: '#10b981', icon: '🧹' },
+                            { id: `st_${Date.now()}_2`, state_entity: `binary_sensor.${baseName}_charging`, operator: '==', value: 'on', color: '#334155', icon: '⚡' },
+                            { id: `st_${Date.now()}_3`, state_entity: `sensor.${baseName}_status`, operator: '==', value: 'returning', color: '#0ea5e9', icon: '🧹' },
+                            { id: `st_${Date.now()}_4`, state_entity: `sensor.${baseName}_status`, operator: '==', value: 'error', color: '#ef4444', icon: '❌' }
                         ];
                     }
                 } else if (sc.type === 'light') {
                     if (!sc.config) sc.config = {};
                     if (!sc.config.states || sc.config.states.length === 0) {
                         sc.config.states = [
-                            { id: `st_${Date.now()}_1`, condition_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#fbbf24', icon: '💡' },
-                            { id: `st_${Date.now()}_2`, condition_entity: sc.entity_id || '', operator: '==', value: 'off', color: '#475569', icon: '💡' }
+                            { id: `st_${Date.now()}_1`, state_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#fbbf24', icon: '💡' },
+                            { id: `st_${Date.now()}_2`, state_entity: sc.entity_id || '', operator: '==', value: 'off', color: '#475569', icon: '💡' }
                         ];
                     }
                     if (!sc.config.actions || sc.config.actions.length === 0) {
                         sc.config.actions = [
-                            { id: `act_${Date.now()}_1`, type: 'TOGGLE', trigger: 'tap', target: sc.entity_id || '' },
-                            { id: `act_${Date.now()}_2`, type: 'SLIDER', trigger: 'overlay', target: sc.entity_id || '' }
+                            { id: `act_${Date.now()}_1`, type: 'TOGGLE', trigger: 'tap', action_entity: sc.entity_id || '' },
+                            { id: `act_${Date.now()}_2`, type: 'SLIDER', trigger: 'overlay', action_entity: sc.entity_id || '' }
                         ];
                     }
                 }
