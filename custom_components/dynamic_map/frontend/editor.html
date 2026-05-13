@@ -257,8 +257,13 @@
         // Resizer logic
         const resizer = document.getElementById('resizer');
         const sidebar = document.getElementById('sidebar');
+        let resizerOffsetX = 0;
+        let resizerOffsetY = 0;
 
         resizer.addEventListener('pointerdown', (e) => {
+            const rect = resizer.getBoundingClientRect();
+            resizerOffsetX = e.clientX - rect.left;
+            resizerOffsetY = e.clientY - rect.top;
             resizer.setPointerCapture(e.pointerId);
             resizer.classList.add('resizing');
             document.body.style.cursor = window.innerWidth <= 768 ? 'row-resize' : 'col-resize';
@@ -269,11 +274,11 @@
             if (!resizer.hasPointerCapture(e.pointerId)) return;
             
             if (window.innerWidth <= 768) {
-                const newHeight = Math.max(100, Math.min(window.innerHeight - 100, e.clientY));
+                const newHeight = Math.max(100, Math.min(window.innerHeight - 100, e.clientY - resizerOffsetY));
                 sidebar.style.height = `${newHeight}px`;
                 sidebar.style.maxHeight = 'none';
             } else {
-                const newWidth = Math.max(200, Math.min(window.innerWidth - 200, e.clientX));
+                const newWidth = Math.max(200, Math.min(window.innerWidth - 200, e.clientX - resizerOffsetX));
                 sidebar.style.width = `${newWidth}px`;
             }
             resizeCanvas();
