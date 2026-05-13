@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:,">
     <title>Dynamic Map Editor</title>
-    <link rel="stylesheet" href="editor.css?v=2.37">
+    <link rel="stylesheet" href="editor.css?v=2.38">
     <script src="polybool.min.js"></script>
 </head>
 <body>
@@ -171,6 +171,25 @@
     <!-- Datalist for HA Entities -->
     <datalist id="entityList"></datalist>
 
+    <!-- Datalist for Common HA Services -->
+    <datalist id="serviceList">
+        <option value="light.turn_on">light.turn_on</option>
+        <option value="light.turn_off">light.turn_off</option>
+        <option value="light.toggle">light.toggle</option>
+        <option value="switch.turn_on">switch.turn_on</option>
+        <option value="switch.turn_off">switch.turn_off</option>
+        <option value="switch.toggle">switch.toggle</option>
+        <option value="script.turn_on">script.turn_on</option>
+        <option value="scene.turn_on">scene.turn_on</option>
+        <option value="fan.turn_on">fan.turn_on</option>
+        <option value="fan.turn_off">fan.turn_off</option>
+        <option value="cover.open_cover">cover.open_cover</option>
+        <option value="cover.close_cover">cover.close_cover</option>
+        <option value="cover.stop_cover">cover.stop_cover</option>
+        <option value="climate.set_temperature">climate.set_temperature</option>
+        <option value="media_player.media_play_pause">media_player.media_play_pause</option>
+    </datalist>
+
     <div id="canvas-container">
         <canvas id="mapCanvas"></canvas>
         <div style="position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 10;" id="floorSwitcherContainer">
@@ -188,7 +207,6 @@
         </div>
     </div>
 
-    
-    <script type="module" src="editor.js?v=2.37"></script>
+    <script type="module" src="editor.js?v=2.38"></script>
 </body>
 </html>

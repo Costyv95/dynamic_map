@@ -784,8 +784,9 @@ class CustomSvgMap extends HTMLElement {
         this.activeOverlay.style.color = '#fff';
 
         actions.forEach(act => {
+            const target = act.action_entity || shortcut.sc.entity_id;
+            
             if (act.type === 'SLIDER') {
-                const target = act.action_entity || shortcut.sc.entity_id;
                 const container = document.createElement('div');
                 container.style.display = 'flex';
                 container.style.flexDirection = 'column';
@@ -820,6 +821,59 @@ class CustomSvgMap extends HTMLElement {
                 container.appendChild(label);
                 container.appendChild(slider);
                 this.activeOverlay.appendChild(container);
+            } else if (act.type && (act.type.startsWith('TOGGLE') || act.type === 'CALL_SERVICE')) {
+                const btn = document.createElement('button');
+                btn.style.background = 'rgba(255,255,255,0.1)';
+                btn.style.border = '1px solid rgba(255,255,255,0.2)';
+                btn.style.borderRadius = '6px';
+                btn.style.padding = '8px';
+                btn.style.color = '#fff';
+                btn.style.cursor = 'pointer';
+                btn.style.fontSize = '13px';
+                btn.style.display = 'flex';
+                btn.style.alignItems = 'center';
+                btn.style.gap = '8px';
+                
+                let iconHtml = '';
+                if (act.icon) {
+                    iconHtml = `<span>${act.icon}</span>`;
+                }
+                
+                let defaultName = act.type;
+                if (act.type === 'TOGGLE') defaultName = 'Toggle State';
+                if (act.type === 'TOGGLE_ON') defaultName = 'Turn On';
+                if (act.type === 'TOGGLE_OFF') defaultName = 'Turn Off';
+                if (act.type === 'CALL_SERVICE') defaultName = 'Run Action';
+                
+                btn.innerHTML = `${iconHtml}<span>${act.name || defaultName}</span>`;
+                
+                // Add hover effect
+                btn.onmouseenter = () => btn.style.background = 'rgba(255,255,255,0.2)';
+                btn.onmouseleave = () => btn.style.background = 'rgba(255,255,255,0.1)';
+                
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this._hass || !target) return;
+                    
+                    if (act.type === 'CALL_SERVICE' && act.service) {
+                        const parts = act.service.split('.');
+                        if (parts.length === 2) {
+                            this._hass.callService(parts[0], parts[1], { entity_id: target });
+                        }
+                    } else if (act.type.startsWith('TOGGLE')) {
+                        const domain = target.split('.')[0];
+                        const service = act.type === 'TOGGLE_ON' ? 'turn_on' : (act.type === 'TOGGLE_OFF' ? 'turn_off' : 'toggle');
+                        this._hass.callService(domain, service, { entity_id: target });
+                    }
+                    
+                    // Close overlay on click
+                    if (this.activeOverlay) {
+                        this.activeOverlay.remove();
+                        this.activeOverlay = null;
+                    }
+                });
+                
+                this.activeOverlay.appendChild(btn);
             }
         });
         

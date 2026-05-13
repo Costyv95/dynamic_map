@@ -32,19 +32,21 @@ export function renderActionsAndStates(sc, onStateChange) {
                 <div style="display: flex; gap: 5px; margin-bottom: 5px;">
                     <select class="act-trigger" style="margin: 0; padding: 4px;">
                         <option value="tap" ${act.trigger === 'tap' ? 'selected' : ''}>Tap</option>
-                        <option value="overlay" ${act.trigger === 'overlay' ? 'selected' : ''}>Overlay Button</option>
+                        <option value="long_press" ${act.trigger === 'long_press' || act.trigger === 'overlay' ? 'selected' : ''}>Long Press</option>
                     </select>
                     <select class="act-type" style="margin: 0; padding: 4px;">
-                        <option value="TOGGLE" ${act.type === 'TOGGLE' ? 'selected' : ''}>Toggle</option>
+                        <option value="TOGGLE" ${act.type === 'TOGGLE' ? 'selected' : ''}>Toggle State</option>
+                        <option value="TOGGLE_ON" ${act.type === 'TOGGLE_ON' ? 'selected' : ''}>Turn On (Enable)</option>
+                        <option value="TOGGLE_OFF" ${act.type === 'TOGGLE_OFF' ? 'selected' : ''}>Turn Off (Disable)</option>
                         <option value="CALL_SERVICE" ${act.type === 'CALL_SERVICE' ? 'selected' : ''}>Call Service</option>
                         <option value="SLIDER" ${act.type === 'SLIDER' ? 'selected' : ''}>Slider (Brightness)</option>
                     </select>
                 </div>
                 <div style="display: flex; gap: 5px; margin-bottom: 5px;">
                     <input type="text" class="act-target" list="entityList" value="${act.action_entity || ''}" placeholder="Action Entity" style="flex: 2; margin: 0; padding: 4px;">
-                    <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Overlay Icon (for Overlay Trigger)" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
+                    <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Menu Icon (Optional)" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
                 </div>
-                ${act.type === 'CALL_SERVICE' ? `<input type="text" class="act-service" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="width: 100%; margin-top: 5px; padding: 4px;">` : ''}
+                ${act.type === 'CALL_SERVICE' ? `<input type="text" class="act-service" list="serviceList" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="width: 100%; margin-top: 5px; padding: 4px;">` : ''}
             </div>
         `;
         actionsList.appendChild(div);

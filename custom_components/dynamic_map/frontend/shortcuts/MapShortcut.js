@@ -124,7 +124,7 @@ export class MapShortcut {
 
     onLongPress(e) {
         if (!this.config.actions) return;
-        const overlayActions = this.config.actions.filter(a => a.trigger === 'overlay');
+        const overlayActions = this.config.actions.filter(a => a.trigger === 'overlay' || a.trigger === 'long_press');
         if (overlayActions.length > 0 && this.mapContext.showOverlay) {
             this.mapContext.showOverlay(this, overlayActions, e);
         } else {
