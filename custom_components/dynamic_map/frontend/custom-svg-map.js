@@ -733,17 +733,40 @@ class CustomSvgMap extends HTMLElement {
                 if (stateObj && stateObj.state === 'on') isOn = true;
             }
 
+            let rgb = null;
+            if (room.color) {
+                const hex = room.color.replace('#', '');
+                if (hex.length === 6) {
+                    rgb = {
+                        r: parseInt(hex.substring(0, 2), 16),
+                        g: parseInt(hex.substring(2, 4), 16),
+                        b: parseInt(hex.substring(4, 6), 16)
+                    };
+                }
+            }
+
             if (isSelected) {
-                poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.5)`);
+                if (rgb) poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
+                else poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.5)`);
                 poly.setAttribute('stroke', '#00ffff');
                 poly.style.filter = 'drop-shadow(0px 0px 5px #00ffff)';
             } else if (isOn) {
-                poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.4)`);
-                poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 1)`);
+                if (rgb) {
+                    poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
+                    poly.setAttribute('stroke', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
+                } else {
+                    poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.4)`);
+                    poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 1)`);
+                }
                 poly.style.filter = 'drop-shadow(0px 0px 8px yellow)';
             } else {
-                poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.3)`);
-                poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 0.8)`);
+                if (rgb) {
+                    poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`);
+                    poly.setAttribute('stroke', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
+                } else {
+                    poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.15)`);
+                    poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 0.8)`);
+                }
                 poly.style.filter = 'none';
             }
         });

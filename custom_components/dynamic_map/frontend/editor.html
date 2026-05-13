@@ -61,16 +61,17 @@
         </div>
 
         <div class="active-room-box" id="activeRoomUI" style="display: none;">
-            <label>Room Name</label>
-            <input type="text" id="roomName" placeholder="e.g. Living Room">
-            <label style="margin-top: 10px; display:block;">Entity ID (Optional)</label>
+            <label>Link to HA Area</label>
+            <select id="roomArea"><option value="">-- Unmapped --</option></select>
+            <label style="margin-top: 10px; display:block;">Entity ID (Optional Light)</label>
             <input type="text" id="roomEntity" placeholder="e.g. light.living_room">
-            <div class="header-actions" style="margin-top: 10px; margin-bottom: 5px;">
-                <button id="saveNameBtn">Save Name</button>
-                <button id="deleteBtn" class="danger">Delete</button>
+            <label style="margin-top: 10px; display:block;">Room Base Color</label>
+            <input type="color" id="roomColor" value="#333333" style="width:100%; height:30px; padding:0; border:1px solid var(--input-border); border-radius:4px; margin-top:5px; cursor:pointer;">
+            <div class="header-actions" style="margin-top: 10px; margin-bottom: 5px; display: flex; gap: 5px;">
+                <button id="saveNameBtn" style="flex:2; margin:0;">💾 Save Room</button>
+                <button id="deleteBtn" class="danger" style="flex:1; margin:0;">🗑️ Del</button>
             </div>
             <button id="addShortcutBtn" class="primary" style="margin-top: 10px;">📍 Add Object Here</button>
-
         </div>
         <div class="active-room-box" id="mergeUI" style="display: none; margin-top: 10px;">
             <button id="mergeBtn" class="primary">Merge Selected Rooms</button>
@@ -182,9 +183,11 @@
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
         const activeRoomUI = document.getElementById('activeRoomUI');
-        const roomNameInput = document.getElementById('roomName');
+        const roomAreaSelect = document.getElementById('roomArea');
         const yamlOutput = document.getElementById('yamlOutput');
 
+        let haAreas = [];
+        let haFloors = [];
         let bgImage = new Image();
         let rooms = [];
         let selectedRooms = [];
@@ -303,8 +306,10 @@
                 }
             } else if (selectedRooms.length === 1) {
                 activeRoomUI.style.display = 'block';
-                roomNameInput.value = rooms[selectedRooms[0]].name || '';
-                document.getElementById('roomEntity').value = rooms[selectedRooms[0]].entity_id || '';
+                const room = rooms[selectedRooms[0]];
+                document.getElementById('roomArea').value = room.area_id || '';
+                document.getElementById('roomEntity').value = room.entity_id || '';
+                document.getElementById('roomColor').value = room.color || '#333333';
             } else if (selectedRooms.length === 2) {
                 document.getElementById('mergeUI').style.display = 'block';
             }
@@ -1291,22 +1296,23 @@
         // UI Listeners
         function saveRoomName() {
             if(selectedRooms.length === 1) {
-                rooms[selectedRooms[0]].name = roomNameInput.value;
-                rooms[selectedRooms[0]].entity_id = document.getElementById('roomEntity').value;
+                const room = rooms[selectedRooms[0]];
+                const areaId = document.getElementById('roomArea').value;
+                room.area_id = areaId;
+                if (areaId) {
+                    const area = haAreas.find(a => a.id === areaId);
+                    if (area) room.name = area.name;
+                } else {
+                    room.name = "Unmapped Room";
+                }
+                room.entity_id = document.getElementById('roomEntity').value;
+                room.color = document.getElementById('roomColor').value;
                 saveState();
                 draw(); // Redraw to update text on canvas
             }
         }
 
         document.getElementById('saveNameBtn').addEventListener('click', saveRoomName);
-        
-        roomNameInput.addEventListener('keydown', (e) => {
-            if(e.key === 'Enter') {
-                e.preventDefault();
-                saveRoomName();
-                roomNameInput.blur();
-            }
-        });
 
         document.getElementById('deleteBtn').addEventListener('click', () => {
             if(selectedRooms.length === 1) {
@@ -1548,6 +1554,37 @@
             }
         });
 
+        // Registry logic
+        async function loadRegistry() {
+            try {
+                const res = await fetch('/api/dynamic_map/registry');
+                const data = await res.json();
+                if (data.success) {
+                    haAreas = data.areas;
+                    haFloors = data.floors;
+                    
+                    roomAreaSelect.innerHTML = '<option value="">-- Unmapped --</option>';
+                    haAreas.forEach(a => {
+                        roomAreaSelect.innerHTML += `<option value="${a.id}">${a.name}</option>`;
+                    });
+                }
+            } catch (err) {
+                console.error("Failed to load HA registry", err);
+            }
+        }
+
+        roomAreaSelect.addEventListener('change', (e) => {
+            const areaId = e.target.value;
+            const area = haAreas.find(a => a.id === areaId);
+            if (area && area.default_light) {
+                // Only autofill if entity box is currently empty
+                const entInput = document.getElementById('roomEntity');
+                if (!entInput.value) {
+                    entInput.value = area.default_light;
+                }
+            }
+        });
+
         // Background Color logic
         const bgPicker = document.getElementById('editorBgColor');
         const canvasContainer = document.getElementById('canvas-container');
@@ -1567,6 +1604,7 @@
         }
 
         // Init
+        loadRegistry();
         loadAvailableFiles();
         loadFloor(2);
     </script>
