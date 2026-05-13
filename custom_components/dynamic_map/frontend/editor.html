@@ -31,12 +31,21 @@
         .floor-btn.active { background: var(--accent); color: white; }
         #rotationModeBtn { background: white; border: 1px solid var(--input-border); border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; color: var(--text); }
         #rotationModeBtn:hover { background: var(--btn-hover); }
+
+        @media (max-width: 768px) and (orientation: portrait) {
+            body { flex-direction: column; }
+            #sidebar { width: 100%; height: 40vh; max-height: 40vh; overflow-y: auto; border-right: none; border-bottom: 1px solid var(--input-border); }
+            #canvas-container { flex-grow: 1; height: 60vh; }
+        }
     </style>
     <script src="polybool.min.js"></script>
 </head>
 <body>
     <div id="sidebar">
-        <h1>Map Editor</h1>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h1 style="margin: 0;">Map Editor</h1>
+            <input type="color" id="editorBgColor" value="#ffffff" title="Canvas Background Color" style="width: 30px; height: 30px; padding: 0; border: 1px solid var(--input-border); border-radius: 4px; cursor: pointer;">
+        </div>
         
         <div style="display: flex; gap: 5px; margin-bottom: 10px;">
             <button id="editModeBtn" style="background: var(--input-bg); color: var(--text);">🔒 View Mode</button>
@@ -122,10 +131,10 @@
             </div>
         </div>
 
-        <div class="control-group" id="recomputePanel" style="display: none; margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px; position: relative;">
-            <button id="closeRecomputeBtn" style="position: absolute; top: 10px; right: 0; width: 24px; height: 24px; padding: 0; background: transparent; color: var(--text-muted); border: none; font-size: 16px; cursor: pointer;">×</button>
-            <h3 style="margin-bottom: 10px; font-size: 14px; font-weight: bold;">Advanced: Recompute Floor</h3>
-            <label style="font-size: 11px; margin-bottom: 5px; display: block; color: var(--text-muted);">Ensure files are uploaded to /config/dynamic_map_data/ first.</label>
+        <div class="control-group" id="recomputePanel" style="display: none; margin-top: 15px; border-top: 1px solid var(--input-border); padding-top: 15px; position: relative;">
+            <button id="closeRecomputeBtn" style="position: absolute; top: 10px; right: 0; width: 24px; height: 24px; padding: 0; background: transparent; color: #64748b; border: none; font-size: 16px; cursor: pointer;">×</button>
+            <h3 style="margin-bottom: 10px; font-size: 14px; font-weight: bold; margin-top: 0;">Advanced: Recompute Floor</h3>
+            <label style="font-size: 11px; margin-bottom: 5px; display: block; color: #64748b;">Ensure files are uploaded to /config/dynamic_map_data/ first.</label>
             
             <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                 <div style="flex: 1;">
@@ -140,7 +149,10 @@
             <label>DXF Source File</label>
             <select id="reconDxf" style="margin-bottom: 10px;"><option value="">Loading...</option></select>
             
-            <button id="recomputeBtn" class="primary" style="background: var(--accent); margin-top: 5px;">Recompute Map Geometry</button>
+            <div style="display: flex; gap: 5px; margin-top: 5px;">
+                <button id="recomputeBtn" class="primary" style="background: var(--accent); color: white; flex: 2;">Recompute Map Geometry</button>
+                <button id="deleteFloorBtn" class="danger" style="flex: 1; padding: 5px;" title="Delete Floor Files">🗑️ Delete</button>
+            </div>
             <div id="recomputeStatus" style="font-size: 11px; margin-top: 5px; color: var(--accent);"></div>
         </div>
 
@@ -156,7 +168,7 @@
 
     <div id="canvas-container">
         <canvas id="mapCanvas"></canvas>
-        <div style="position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 10;">
+        <div style="position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 10;" id="floorSwitcherContainer">
             <!-- Floor Selector -->
             <div style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                 <div class="floor-btn active" data-floor="2">Floor 2</div>
@@ -1462,11 +1474,39 @@
 
         document.getElementById('toggleRecomputeBtn').addEventListener('click', () => {
             const panel = document.getElementById('recomputePanel');
-            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            const isHidden = panel.style.display === 'none';
+            panel.style.display = isHidden ? 'block' : 'none';
+            sessionStorage.setItem('recomputeOpen', isHidden ? 'true' : 'false');
         });
 
         document.getElementById('closeRecomputeBtn').addEventListener('click', () => {
             document.getElementById('recomputePanel').style.display = 'none';
+            sessionStorage.setItem('recomputeOpen', 'false');
+        });
+        
+        document.getElementById('deleteFloorBtn').addEventListener('click', async () => {
+            const floorNum = document.getElementById('reconFloor').value;
+            if (!confirm(`Are you sure you want to permanently delete Floor ${floorNum} and all its rooms/shortcuts?`)) return;
+            
+            const status = document.getElementById('recomputeStatus');
+            status.textContent = "Deleting floor files...";
+            try {
+                const res = await fetch('/api/dynamic_map/delete_floor', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ floor_num: parseInt(floorNum) })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    status.textContent = "✅ Floor deleted! Refreshing...";
+                    sessionStorage.setItem('recomputeOpen', 'true');
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    status.textContent = "❌ Error: " + data.error;
+                }
+            } catch (e) {
+                status.textContent = "❌ Failed to connect to HA API.";
+            }
         });
 
         document.getElementById('recomputeBtn').addEventListener('click', async () => {
@@ -1495,6 +1535,7 @@
                 if (data.success) {
                     status.textContent = "✅ Success! Refreshing Map...";
                     status.style.color = "#10b981";
+                    sessionStorage.setItem('recomputeOpen', 'true');
                     setTimeout(() => {
                         window.location.reload();
                     }, 1500);
@@ -1511,6 +1552,24 @@
                 btn.textContent = "Recompute Map Geometry";
             }
         });
+
+        // Background Color logic
+        const bgPicker = document.getElementById('editorBgColor');
+        const canvasContainer = document.getElementById('canvas-container');
+        const savedBg = localStorage.getItem('dynamicMapEditorBg');
+        if (savedBg) {
+            bgPicker.value = savedBg;
+            canvasContainer.style.background = savedBg;
+        }
+        bgPicker.addEventListener('input', (e) => {
+            canvasContainer.style.background = e.target.value;
+            localStorage.setItem('dynamicMapEditorBg', e.target.value);
+        });
+
+        // Restore recompute panel state
+        if (sessionStorage.getItem('recomputeOpen') === 'true') {
+            document.getElementById('recomputePanel').style.display = 'block';
+        }
 
         // Init
         loadAvailableFiles();

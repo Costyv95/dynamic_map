@@ -17,6 +17,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
     hass.http.register_view(DynamicMapStateView(hass))
     hass.http.register_view(DynamicMapFilesView(hass))
     hass.http.register_view(DynamicMapRecomputeView(hass))
+    hass.http.register_view(DynamicMapDeleteFloorView(hass))
     
     # Expose the frontend folder statically
     frontend_dir = hass.config.path("custom_components", DOMAIN, "frontend")
@@ -169,4 +170,74 @@ class DynamicMapRecomputeView(HomeAssistantView):
             
         except Exception as e:
             _LOGGER.error(f"Failed to recompute dynamic map: {e}")
+            return self.json({"success": False, "error": str(e)})
+
+class DynamicMapDeleteFloorView(HomeAssistantView):
+    """View to delete floor files."""
+    url = "/api/dynamic_map/delete_floor"
+    name = "api:dynamic_map:delete_floor"
+    requires_auth = False
+
+    def __init__(self, hass):
+        self.hass = hass
+
+    async def post(self, request):
+        try:
+            data = await request.json()
+            floor_num = data.get("floor_num")
+            if not floor_num:
+                return self.json({"success": False, "error": "Missing floor_num"})
+                
+            data_dir = self.hass.config.path(DOMAIN + "_data")
+            
+            def delete_files():
+                deleted = False
+                for filename in [f"bg_floor{floor_num}.png", f"rooms_floor{floor_num}.json", f"shortcuts_floor{floor_num}.json"]:
+                    file_path = os.path.join(data_dir, filename)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        deleted = True
+                return deleted
+                
+            deleted = await self.hass.async_add_executor_job(delete_files)
+            if deleted:
+                return self.json({"success": True, "message": f"Floor {floor_num} deleted."})
+            else:
+                return self.json({"success": False, "error": f"No files found for Floor {floor_num}."})
+        except Exception as e:
+            return self.json({"success": False, "error": str(e)})
+
+class DynamicMapDeleteFloorView(HomeAssistantView):
+    """View to delete floor files."""
+    url = "/api/dynamic_map/delete_floor"
+    name = "api:dynamic_map:delete_floor"
+    requires_auth = False
+
+    def __init__(self, hass):
+        self.hass = hass
+
+    async def post(self, request):
+        try:
+            data = await request.json()
+            floor_num = data.get("floor_num")
+            if not floor_num:
+                return self.json({"success": False, "error": "Missing floor_num"})
+                
+            data_dir = self.hass.config.path(DOMAIN + "_data")
+            
+            def delete_files():
+                deleted = False
+                for filename in [f"bg_floor{floor_num}.png", f"rooms_floor{floor_num}.json", f"shortcuts_floor{floor_num}.json"]:
+                    file_path = os.path.join(data_dir, filename)
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                        deleted = True
+                return deleted
+                
+            deleted = await self.hass.async_add_executor_job(delete_files)
+            if deleted:
+                return self.json({"success": True, "message": f"Floor {floor_num} deleted."})
+            else:
+                return self.json({"success": False, "error": f"No files found for Floor {floor_num}."})
+        except Exception as e:
             return self.json({"success": False, "error": str(e)})
