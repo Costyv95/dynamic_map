@@ -362,8 +362,45 @@ export function openMenuEditor(sc, onStateChange) {
         el.style.boxSizing = 'border-box';
         el.style.cursor = 'grab';
         
+        if (act.rotation === undefined) act.rotation = 0;
+        el.style.transform = `rotate(${act.rotation}deg)`;
+        
         let label = act.name || act.type;
-        el.innerHTML = `<span style="pointer-events:none; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${act.icon || ''} ${label}</span>`;
+        let iconHtml = act.icon ? `<span style="margin-right:5px;">${act.icon}</span>` : '';
+        
+        if (act.type === 'SLIDER') {
+            el.innerHTML = `
+                <div style="pointer-events:none; display:flex; align-items:center; width:100%; height:100%; padding: 0 5px; gap: 5px;">
+                    ${iconHtml}<span style="white-space:nowrap; font-size:12px;">${label}</span>
+                    <input type="range" value="50" style="flex:1; width:100%; margin:0;">
+                </div>
+            `;
+            el.style.background = 'transparent';
+            el.style.border = '1px dashed rgba(255,255,255,0.3)';
+        } else if (act.type === 'TOGGLE') {
+            el.innerHTML = `
+                <div style="pointer-events:none; display:flex; justify-content:space-between; align-items:center; width:100%; height:100%; padding:0 8px;">
+                    <div style="display:flex; align-items:center; font-size:13px; gap:6px;">${iconHtml}<span>${label}</span></div>
+                    <div style="width:36px; height:20px; background:#10b981; border-radius:10px; position:relative;">
+                        <div style="width:16px; height:16px; background:#fff; border-radius:50%; position:absolute; top:2px; left:18px;"></div>
+                    </div>
+                </div>
+            `;
+        } else if (act.type === 'TOGGLE_ON' || act.type === 'TOGGLE_OFF' || act.type === 'CALL_SERVICE') {
+            let btnColor = act.type === 'TOGGLE_ON' ? '#10b981' : (act.type === 'TOGGLE_OFF' ? '#ef4444' : '#fff');
+            let borderColor = act.type === 'TOGGLE_ON' ? 'rgba(16, 185, 129, 0.4)' : (act.type === 'TOGGLE_OFF' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.2)');
+            el.innerHTML = `
+                <div style="pointer-events:none; display:flex; justify-content:center; align-items:center; width:100%; height:100%; background:rgba(255,255,255,0.1); border:1px solid ${borderColor}; border-radius:6px; color:${btnColor}; gap:8px;">
+                    ${iconHtml}<span>${label}</span>
+                </div>
+            `;
+            el.style.background = 'transparent';
+            el.style.border = 'none';
+        } else {
+            el.innerHTML = `<span style="pointer-events:none; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${act.icon || ''} ${label}</span>`;
+        }
+        
+        el.title = "Drag to move. Drag bottom-right corner to resize. Scroll wheel to rotate.";
         
         const resizer = document.createElement('div');
         resizer.style.position = 'absolute';
@@ -425,6 +462,14 @@ export function openMenuEditor(sc, onStateChange) {
                 el.releasePointerCapture(e.pointerId);
                 if (onStateChange) onStateChange();
             }
+        });
+        
+        el.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            act.rotation = ((act.rotation || 0) + (e.deltaY > 0 ? 15 : -15)) % 360;
+            if (act.rotation < 0) act.rotation += 360;
+            el.style.transform = `rotate(${act.rotation}deg)`;
+            if (onStateChange) onStateChange();
         });
         
         area.appendChild(el);

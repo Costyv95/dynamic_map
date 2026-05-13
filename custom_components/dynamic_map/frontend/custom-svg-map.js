@@ -846,6 +846,7 @@ class CustomSvgMap extends HTMLElement {
                     container.style.margin = '0';
                     container.style.justifyContent = 'center';
                     if (!displayName) container.style.alignItems = 'center';
+                    if (act.rotation) container.style.transform = `rotate(${act.rotation}deg)`;
                 }
                 
                 if (displayName) {
@@ -925,6 +926,7 @@ class CustomSvgMap extends HTMLElement {
                     container.style.width = act.width + 'px';
                     container.style.height = act.height + 'px';
                     container.style.margin = '0';
+                    if (act.rotation) container.style.transform = `rotate(${act.rotation}deg)`;
                 }
                 
                 this.activeOverlay.appendChild(container);
@@ -999,6 +1001,7 @@ class CustomSvgMap extends HTMLElement {
                     btn.style.width = act.width + 'px';
                     btn.style.height = act.height + 'px';
                     btn.style.margin = '0';
+                    if (act.rotation) btn.style.transform = `rotate(${act.rotation}deg)`;
                 }
                 
                 this.activeOverlay.appendChild(btn);
