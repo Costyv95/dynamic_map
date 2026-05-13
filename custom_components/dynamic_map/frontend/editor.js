@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.29';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.29';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.30';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.30';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -18,6 +18,17 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         let isSplitting = false;
         let splitStart = null;
         let splitEnd = null;
+        let previewStateIdx = -1;
+        
+        window.togglePreviewState = function(idx) {
+            if (previewStateIdx === idx) {
+                previewStateIdx = -1; // toggle off
+            } else {
+                previewStateIdx = idx; // toggle on
+            }
+            draw();
+            return previewStateIdx;
+        };
         
         let history = [];
         let historyIndex = -1;
@@ -146,6 +157,9 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
             if (selectedShortcutIdx !== -1 && shortcuts[selectedShortcutIdx]) {
                 document.getElementById('shortcutUI').style.display = 'block';
                 const sc = shortcuts[selectedShortcutIdx];
+                if (!sc.config.states || previewStateIdx >= sc.config.states.length) {
+                    previewStateIdx = -1;
+                }
                 document.getElementById('scName').value = sc.name || '';
                 document.getElementById('scEntity').value = sc.entity_id || '';
                 document.getElementById('scType').value = sc.type || 'generic';
@@ -160,6 +174,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 document.getElementById('scShape').value = sc.config?.shape || 'circle';
                 document.getElementById('scColor').value = sc.config?.color || '#0ea5e9';
                 document.getElementById('scIcon').value = sc.config?.icon || '';
+                document.getElementById('scImage').value = sc.config?.image || '';
                 document.getElementById('scHasBackground').checked = !(sc.config?.transparent);
                 
                 if (sc.type === 'vacuum') {
@@ -501,9 +516,20 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 
                 const scaleX = sc.scaleX || sc.scale || 1;
                 const scaleY = sc.scaleY || sc.scale || 1;
-                const shape = sc.config?.shape || sc.shape || 'circle';
-                const color = sc.config?.color || sc.color || '#0ea5e9';
-                const isTrans = sc.config?.transparent || sc.transparent || false;
+                
+                let shape = sc.config?.shape || sc.shape || 'circle';
+                let color = sc.config?.color || sc.color || '#0ea5e9';
+                let isTrans = sc.config?.transparent || sc.transparent || false;
+                let icon = sc.config?.icon || '💡';
+                let image = sc.config?.image || '';
+
+                if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
+                    const st = sc.config.states[previewStateIdx];
+                    if (st.color) color = st.color;
+                    if (st.icon) icon = st.icon;
+                    if (st.image) image = st.image;
+                }
+
                 const rx = 12 * scaleX;
                 const ry = 12 * scaleY;
                 const r = Math.max(rx, ry);
@@ -564,9 +590,33 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     ctx.save();
                     ctx.translate(x, y);
                     if (isRotated) ctx.rotate(-Math.PI / 2);
-                    ctx.font = `${14 * Math.min(scaleX, scaleY)}px sans-serif`;
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText('💡', 0, 0);
+                    
+                    if (image) {
+                        // Draw image
+                        // Need to cache images so we don't load them every frame
+                        if (!sc._imgCache) sc._imgCache = {};
+                        if (!sc._imgCache[image]) {
+                            const img = new Image();
+                            img.src = image;
+                            sc._imgCache[image] = img;
+                        }
+                        const img = sc._imgCache[image];
+                        if (img.complete && img.naturalWidth > 0) {
+                            const dim = 20 * Math.min(scaleX, scaleY);
+                            ctx.drawImage(img, -dim/2, -dim/2, dim, dim);
+                        } else {
+                            // Fallback to icon while loading
+                            ctx.font = `${14 * Math.min(scaleX, scaleY)}px sans-serif`;
+                            ctx.textBaseline = 'middle';
+                            ctx.textAlign = 'center';
+                            ctx.fillText(icon, 0, 0);
+                        }
+                    } else {
+                        ctx.font = `${14 * Math.min(scaleX, scaleY)}px sans-serif`;
+                        ctx.textBaseline = 'middle';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(icon, 0, 0);
+                    }
                     ctx.restore();
                 }
 
@@ -1286,6 +1336,16 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 const sc = shortcuts[selectedShortcutIdx];
                 if (!sc.config) sc.config = {};
                 sc.config.icon = e.target.value;
+                saveState();
+                draw();
+            }
+        });
+
+        document.getElementById('scImage').addEventListener('input', (e) => {
+            if(selectedShortcutIdx !== -1) {
+                const sc = shortcuts[selectedShortcutIdx];
+                if (!sc.config) sc.config = {};
+                sc.config.image = e.target.value;
                 saveState();
                 draw();
             }

@@ -89,6 +89,7 @@ export function renderActionsAndStates(sc, onStateChange) {
             <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="st-header">
                 <strong style="font-size: 13px; color: var(--text);">${title}</strong>
                 <div style="display: flex; gap: 5px;">
+                    <button class="preview-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="primary">👁️</button>
                     <span style="font-size: 10px; opacity: 0.5;">${isExpanded ? '▼' : '▶'}</span>
                     <button class="del-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
                 </div>
@@ -103,14 +104,29 @@ export function renderActionsAndStates(sc, onStateChange) {
                     </select>
                     <input type="text" class="st-val" value="${st.value || ''}" placeholder="Value" style="flex: 2; margin: 0; padding: 4px;">
                 </div>
-                <div style="display: flex; gap: 5px; align-items: center;">
+                <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 5px;">
                     <input type="color" class="st-color" value="${st.color || '#ffffff'}" style="width: 30px; height: 24px; padding: 0; margin: 0; border: none;">
                     <input type="text" class="st-icon" value="${st.icon || ''}" placeholder="Icon/Emoji" style="flex: 1; margin: 0; padding: 4px;">
                 </div>
+                <input type="text" class="st-image" value="${st.image || ''}" placeholder="Image URL (e.g. /local/img.png)" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
             </div>
         `;
         statesList.appendChild(div);
         
+        // Let's set the preview button active state if it is currently being previewed
+        if (window.previewStateIdx === idx) {
+            div.querySelector('.preview-st').style.background = 'var(--accent)';
+            div.querySelector('.preview-st').style.color = 'white';
+        }
+
+        div.querySelector('.preview-st').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.togglePreviewState) {
+                window.togglePreviewState(idx);
+                onStateChange(); // Force a re-render of the UI to highlight the button
+            }
+        });
+
         div.querySelector('.st-header').addEventListener('click', (e) => {
             if(e.target.tagName === 'BUTTON') return;
             st._expanded = !isExpanded;
@@ -125,6 +141,7 @@ export function renderActionsAndStates(sc, onStateChange) {
                 st.value = div.querySelector('.st-val').value;
                 st.color = div.querySelector('.st-color').value;
                 st.icon = div.querySelector('.st-icon').value;
+                st.image = div.querySelector('.st-image').value;
             });
         });
         div.querySelector('.del-st').addEventListener('click', () => {
