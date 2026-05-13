@@ -54,6 +54,7 @@ export function renderActionsAndStates(sc, onStateChange) {
                         <option value="TOGGLE_OFF" ${act.type === 'TOGGLE_OFF' ? 'selected' : ''}>Turn Off (Disable)</option>
                         <option value="CALL_SERVICE" ${act.type === 'CALL_SERVICE' ? 'selected' : ''}>Call Service</option>
                         <option value="SLIDER" ${act.type === 'SLIDER' ? 'selected' : ''}>Slider (Brightness)</option>
+                        <option value="ROOM_SELECTOR" ${act.type === 'ROOM_SELECTOR' ? 'selected' : ''}>Select Rooms on Map</option>
                     </select>
                 </div>
                 <div style="display: flex; gap: 5px; margin-bottom: 5px;">
@@ -61,7 +62,12 @@ export function renderActionsAndStates(sc, onStateChange) {
                     <input type="text" class="act-icon" list="iconList" value="${act.icon || ''}" placeholder="Menu Icon" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
                     <input type="text" class="act-width" value="${act.width || ''}" placeholder="Width (e.g. 150px)" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
                 </div>
-                ${act.type === 'CALL_SERVICE' ? `<input type="text" class="act-service" list="serviceList" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="width: 100%; margin-top: 5px; padding: 4px;">` : ''}
+                ${act.type === 'CALL_SERVICE' ? `
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        <input type="text" class="act-service" list="serviceList" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="flex: 1; padding: 4px;">
+                        <input type="text" class="act-payload" value='${act.payload || ''}' placeholder='Payload JSON e.g. {"repeat": 2}' style="flex: 1; padding: 4px;">
+                    </div>
+                ` : ''}
             </div>
         `;
         actionsList.appendChild(div);
@@ -95,8 +101,11 @@ export function renderActionsAndStates(sc, onStateChange) {
                 act.action_entity = div.querySelector('.act-target').value;
                 act.icon = div.querySelector('.act-icon').value;
                 act.width = div.querySelector('.act-width').value;
-                if (act.type === 'CALL_SERVICE' && div.querySelector('.act-service')) {
-                    act.service = div.querySelector('.act-service').value;
+                if (act.type === 'CALL_SERVICE') {
+                    const srv = div.querySelector('.act-service');
+                    if (srv) act.service = srv.value;
+                    const pld = div.querySelector('.act-payload');
+                    if (pld) act.payload = pld.value;
                 }
                 if (onStateChange) onStateChange();
             });
@@ -386,9 +395,10 @@ export function openMenuEditor(sc, onStateChange) {
                     </div>
                 </div>
             `;
-        } else if (act.type === 'TOGGLE_ON' || act.type === 'TOGGLE_OFF' || act.type === 'CALL_SERVICE') {
+        } else if (act.type === 'TOGGLE_ON' || act.type === 'TOGGLE_OFF' || act.type === 'CALL_SERVICE' || act.type === 'ROOM_SELECTOR') {
             let btnColor = act.type === 'TOGGLE_ON' ? '#10b981' : (act.type === 'TOGGLE_OFF' ? '#ef4444' : '#fff');
             let borderColor = act.type === 'TOGGLE_ON' ? 'rgba(16, 185, 129, 0.4)' : (act.type === 'TOGGLE_OFF' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(255,255,255,0.2)');
+            if (act.type === 'ROOM_SELECTOR') { btnColor = '#0ea5e9'; borderColor = 'rgba(14, 165, 233, 0.4)'; }
             el.innerHTML = `
                 <div style="pointer-events:none; display:flex; justify-content:center; align-items:center; width:100%; height:100%; background:rgba(255,255,255,0.1); border:1px solid ${borderColor}; border-radius:6px; color:${btnColor}; gap:8px;">
                     ${iconHtml}<span>${label}</span>

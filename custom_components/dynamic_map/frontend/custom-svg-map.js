@@ -274,6 +274,17 @@ class CustomSvgMap extends HTMLElement {
 
             polygon.addEventListener('click', (e) => {
                 e.stopPropagation();
+                
+                if (this.isSelectingRooms) {
+                    if (this.selectedRoomIds.includes(room.id)) {
+                        this.selectedRoomIds = this.selectedRoomIds.filter(id => id !== room.id);
+                    } else {
+                        this.selectedRoomIds.push(room.id);
+                    }
+                    this.updateRoomStyles();
+                    return;
+                }
+
                 this.selectedRoomId = (this.selectedRoomId === room.id) ? null : room.id;
                 this.updateRoomStyles();
 
@@ -668,6 +679,20 @@ class CustomSvgMap extends HTMLElement {
                 }
             }
 
+            if (this.isSelectingRooms) {
+                if (this.selectedRoomIds && this.selectedRoomIds.includes(room.id)) {
+                    if (rgb) poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`);
+                    else poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.6)`);
+                    poly.setAttribute('stroke', '#10b981');
+                    poly.style.filter = 'drop-shadow(0px 0px 6px #10b981)';
+                } else {
+                    poly.setAttribute('fill', 'rgba(0,0,0,0.4)');
+                    poly.setAttribute('stroke', 'rgba(255,255,255,0.2)');
+                    poly.style.filter = 'none';
+                }
+                return;
+            }
+
             if (isSelected) {
                 if (rgb) poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
                 else poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.5)`);
@@ -931,7 +956,7 @@ class CustomSvgMap extends HTMLElement {
                 
                 this.activeOverlay.appendChild(container);
 
-            } else if (act.type && (act.type === 'TOGGLE_ON' || act.type === 'TOGGLE_OFF' || act.type === 'CALL_SERVICE')) {
+            } else if (act.type && (act.type === 'TOGGLE_ON' || act.type === 'TOGGLE_OFF' || act.type === 'CALL_SERVICE' || act.type === 'ROOM_SELECTOR')) {
                 const btn = document.createElement('button');
                 btn.style.background = 'rgba(255,255,255,0.1)';
                 btn.style.border = '1px solid rgba(255,255,255,0.2)';
@@ -952,6 +977,9 @@ class CustomSvgMap extends HTMLElement {
                 } else if (act.type === 'TOGGLE_OFF') {
                     btn.style.color = '#ef4444';
                     btn.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                } else if (act.type === 'ROOM_SELECTOR') {
+                    btn.style.color = '#0ea5e9';
+                    btn.style.border = '1px solid rgba(14, 165, 233, 0.4)';
                 }
                 
                 let iconHtml = '';
@@ -963,6 +991,7 @@ class CustomSvgMap extends HTMLElement {
                 if (act.type === 'TOGGLE_ON') defaultName = 'Turn On';
                 if (act.type === 'TOGGLE_OFF') defaultName = 'Turn Off';
                 if (act.type === 'CALL_SERVICE') defaultName = 'Run Action';
+                if (act.type === 'ROOM_SELECTOR') defaultName = 'Select Rooms';
                 
                 const displayName = act.name !== undefined ? act.name : defaultName;
                 const textHtml = displayName ? `<span>${displayName}</span>` : '';
@@ -977,10 +1006,29 @@ class CustomSvgMap extends HTMLElement {
                     e.stopPropagation();
                     if (!this._hass || !target) return;
                     
+                    if (act.type === 'ROOM_SELECTOR') {
+                        this.closeOverlay();
+                        this.isSelectingRooms = true;
+                        this.selectedRoomIds = [];
+                        this.selectionVacuumTarget = target;
+                        this.updateRoomStyles();
+                        this.showRoomSelectionUI();
+                        return;
+                    }
+                    
                     if (act.type === 'CALL_SERVICE' && act.service) {
                         const parts = act.service.split('.');
                         if (parts.length === 2) {
-                            this._hass.callService(parts[0], parts[1], { entity_id: target });
+                            let payload = { entity_id: target };
+                            if (act.payload) {
+                                try {
+                                    const parsed = JSON.parse(act.payload);
+                                    payload = { ...payload, ...parsed };
+                                } catch (e) {
+                                    console.error("[DynamicMap] Failed to parse action payload:", e);
+                                }
+                            }
+                            this._hass.callService(parts[0], parts[1], payload);
                         }
                     } else if (act.type.startsWith('TOGGLE')) {
                         const domain = target.split('.')[0];
@@ -1009,6 +1057,154 @@ class CustomSvgMap extends HTMLElement {
         });
         
         this.renderRoot.appendChild(this.activeOverlay);
+    }
+
+    showRoomSelectionUI() {
+        if (this.roomSelectionUI) this.roomSelectionUI.remove();
+        
+        this.roomSelectionUI = document.createElement('div');
+        this.roomSelectionUI.style.position = 'absolute';
+        this.roomSelectionUI.style.bottom = '20px';
+        this.roomSelectionUI.style.left = '50%';
+        this.roomSelectionUI.style.transform = 'translateX(-50%)';
+        this.roomSelectionUI.style.background = 'rgba(15, 23, 42, 0.95)';
+        this.roomSelectionUI.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+        this.roomSelectionUI.style.borderRadius = '12px';
+        this.roomSelectionUI.style.padding = '15px';
+        this.roomSelectionUI.style.color = '#fff';
+        this.roomSelectionUI.style.display = 'flex';
+        this.roomSelectionUI.style.flexDirection = 'column';
+        this.roomSelectionUI.style.gap = '15px';
+        this.roomSelectionUI.style.backdropFilter = 'blur(10px)';
+        this.roomSelectionUI.style.boxShadow = '0px 10px 30px rgba(0,0,0,0.5)';
+        this.roomSelectionUI.style.zIndex = '1001';
+        
+        const header = document.createElement('div');
+        header.style.textAlign = 'center';
+        header.style.fontWeight = 'bold';
+        header.style.fontSize = '14px';
+        header.innerText = 'Select Rooms on Map to Clean';
+        
+        const controls = document.createElement('div');
+        controls.style.display = 'flex';
+        controls.style.gap = '10px';
+        controls.style.justifyContent = 'center';
+        
+        const repeats = document.createElement('select');
+        repeats.innerHTML = '<option value="1">1x (Default)</option><option value="2">2x (Deep)</option><option value="3">3x (Max)</option>';
+        repeats.style.background = 'rgba(0,0,0,0.5)';
+        repeats.style.color = '#fff';
+        repeats.style.border = '1px solid rgba(255,255,255,0.2)';
+        repeats.style.borderRadius = '6px';
+        repeats.style.padding = '8px';
+        
+        const mode = document.createElement('select');
+        mode.innerHTML = '<option value="vac_mop">Vac & Mop</option><option value="vacuum">Vacuum Only</option><option value="mop">Mop Only</option>';
+        mode.style.background = 'rgba(0,0,0,0.5)';
+        mode.style.color = '#fff';
+        mode.style.border = '1px solid rgba(255,255,255,0.2)';
+        mode.style.borderRadius = '6px';
+        mode.style.padding = '8px';
+        
+        controls.appendChild(repeats);
+        controls.appendChild(mode);
+        
+        const buttons = document.createElement('div');
+        buttons.style.display = 'flex';
+        buttons.style.gap = '10px';
+        
+        const cancelBtn = document.createElement('button');
+        cancelBtn.innerText = 'Cancel';
+        cancelBtn.style.flex = '1';
+        cancelBtn.style.padding = '10px';
+        cancelBtn.style.background = 'rgba(255,255,255,0.1)';
+        cancelBtn.style.color = '#fff';
+        cancelBtn.style.border = '1px solid rgba(255,255,255,0.2)';
+        cancelBtn.style.borderRadius = '6px';
+        cancelBtn.style.cursor = 'pointer';
+        cancelBtn.onclick = () => {
+            this.isSelectingRooms = false;
+            this.roomSelectionUI.remove();
+            this.updateRoomStyles();
+            if (this.selectionInterval) clearInterval(this.selectionInterval);
+        };
+        
+        const startBtn = document.createElement('button');
+        startBtn.innerText = 'Start Cleaning (0)';
+        startBtn.style.flex = '2';
+        startBtn.style.padding = '10px';
+        startBtn.style.background = '#475569';
+        startBtn.style.color = '#fff';
+        startBtn.style.border = 'none';
+        startBtn.style.borderRadius = '6px';
+        startBtn.style.cursor = 'pointer';
+        startBtn.style.fontWeight = 'bold';
+        startBtn.onclick = () => {
+            if (!this.selectedRoomIds || this.selectedRoomIds.length === 0) return;
+            
+            let scConfig = null;
+            Object.values(this.shortcutElements).forEach(scEl => {
+                if (scEl.sc && scEl.sc.entity_id === this.selectionVacuumTarget) {
+                    scConfig = scEl.sc.config;
+                }
+            });
+            
+            let segments = [];
+            if (scConfig && scConfig.room_mapping) {
+                this.selectedRoomIds.forEach(id => {
+                    const mappedId = scConfig.room_mapping[id];
+                    if (mappedId) segments.push(parseInt(mappedId));
+                });
+            }
+            
+            if (segments.length === 0) {
+                console.warn('[DynamicMap] No mapped room segments found for selection!');
+                return;
+            }
+            
+            // For Roborock specific mop modes (optional/best effort if domain is roborock)
+            const domain = this.selectionVacuumTarget.split('.')[0];
+            if (domain === 'roborock') {
+                if (mode.value === 'vacuum') {
+                    this._hass.callService('roborock', 'vacuum_set_mop_mode', { entity_id: this.selectionVacuumTarget, mop_mode: 'off' }).catch(e => {});
+                } else if (mode.value === 'mop') {
+                    this._hass.callService('roborock', 'vacuum_set_mop_mode', { entity_id: this.selectionVacuumTarget, mop_mode: 'standard' }).catch(e => {});
+                    this._hass.callService('vacuum', 'set_fan_speed', { entity_id: this.selectionVacuumTarget, fan_speed: 'off' }).catch(e => {});
+                } else {
+                    this._hass.callService('roborock', 'vacuum_set_mop_mode', { entity_id: this.selectionVacuumTarget, mop_mode: 'standard' }).catch(e => {});
+                    this._hass.callService('vacuum', 'set_fan_speed', { entity_id: this.selectionVacuumTarget, fan_speed: 'balanced' }).catch(e => {});
+                }
+            }
+            
+            this._hass.callService('vacuum', 'send_command', {
+                entity_id: this.selectionVacuumTarget,
+                command: 'app_segment_clean',
+                params: [{ segments: segments, repeat: parseInt(repeats.value) }]
+            });
+            
+            this.isSelectingRooms = false;
+            this.roomSelectionUI.remove();
+            this.updateRoomStyles();
+            if (this.selectionInterval) clearInterval(this.selectionInterval);
+        };
+        
+        this.selectionInterval = setInterval(() => {
+            if (!this.isSelectingRooms) {
+                clearInterval(this.selectionInterval);
+                return;
+            }
+            startBtn.innerText = `Start Cleaning (${this.selectedRoomIds.length})`;
+            startBtn.style.background = this.selectedRoomIds.length > 0 ? '#10b981' : '#475569';
+        }, 200);
+        
+        buttons.appendChild(cancelBtn);
+        buttons.appendChild(startBtn);
+        
+        this.roomSelectionUI.appendChild(header);
+        this.roomSelectionUI.appendChild(controls);
+        this.roomSelectionUI.appendChild(buttons);
+        
+        this.renderRoot.appendChild(this.roomSelectionUI);
     }
 
     getCardSize() { return 3; }
