@@ -282,7 +282,7 @@ export function renderVacuumRoomMapping(sc, rooms, lastFetchedVacuumOptions, onS
     
     roboRoomIds.forEach(roboId => {
         let val = sc.config.room_mapping[roboId] || '';
-        let name = optNames[roboId] || `Room ID ${roboId}`;
+        let name = optNames[roboId] ? `${optNames[roboId]} (${roboId})` : `Room ID ${roboId}`;
         let div = document.createElement('div');
         div.style.marginBottom = '5px';
         

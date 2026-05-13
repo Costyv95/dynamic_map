@@ -1023,6 +1023,40 @@ class CustomSvgMap extends HTMLElement {
                             if (act.payload) {
                                 try {
                                     const parsed = JSON.parse(act.payload);
+                                    
+                                    // Build mapping dictionary: Room Name -> Roborock ID
+                                    let nameToRoboId = {};
+                                    let scConfig = null;
+                                    Object.values(this.shortcutElements).forEach(scEl => {
+                                        if (scEl.sc && scEl.sc.entity_id === target) scConfig = scEl.sc.config;
+                                    });
+                                    if (scConfig && scConfig.room_mapping && this.rooms) {
+                                        for (const [roboId, svgRoomId] of Object.entries(scConfig.room_mapping)) {
+                                            const roomDef = this.rooms.find(r => r.id === svgRoomId);
+                                            if (roomDef && roomDef.name) {
+                                                nameToRoboId[roomDef.name] = parseInt(roboId);
+                                            }
+                                        }
+                                    }
+                                    
+                                    const replaceNamesWithIds = (obj) => {
+                                        if (Array.isArray(obj)) {
+                                            for (let i = 0; i < obj.length; i++) {
+                                                if (typeof obj[i] === 'string' && nameToRoboId[obj[i]] !== undefined) obj[i] = nameToRoboId[obj[i]];
+                                                else if (typeof obj[i] === 'object' && obj[i] !== null) replaceNamesWithIds(obj[i]);
+                                            }
+                                        } else if (typeof obj === 'object' && obj !== null) {
+                                            for (const key in obj) {
+                                                if (typeof obj[key] === 'string' && nameToRoboId[obj[key]] !== undefined) obj[key] = nameToRoboId[obj[key]];
+                                                else if (typeof obj[key] === 'object' && obj[key] !== null) replaceNamesWithIds(obj[key]);
+                                            }
+                                        }
+                                    };
+                                    
+                                    if (Object.keys(nameToRoboId).length > 0) {
+                                        replaceNamesWithIds(parsed);
+                                    }
+                                    
                                     payload = { ...payload, ...parsed };
                                 } catch (e) {
                                     console.error("[DynamicMap] Failed to parse action payload:", e);
