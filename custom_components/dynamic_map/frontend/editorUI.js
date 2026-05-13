@@ -7,6 +7,16 @@ export function renderActionsAndStates(sc, onStateChange) {
     if (!sc.config) sc.config = {};
     if (!sc.config.actions) sc.config.actions = [];
     if (!sc.config.states) sc.config.states = [];
+    const hasLongPress = sc.config.actions.some(a => a.trigger === 'long_press' || a.trigger === 'overlay');
+    if (hasLongPress) {
+        const layoutBtn = document.createElement('button');
+        layoutBtn.textContent = '📐 Visual Menu Layout';
+        layoutBtn.style.width = '100%';
+        layoutBtn.style.marginBottom = '10px';
+        layoutBtn.style.background = 'var(--accent)';
+        layoutBtn.addEventListener('click', () => openMenuEditor(sc, onStateChange));
+        actionsList.appendChild(layoutBtn);
+    }
     
     sc.config.actions.forEach((act, idx) => {
         const isExpanded = act._expanded !== false; // expanded by default
@@ -294,4 +304,130 @@ export function renderVacuumRoomMapping(sc, rooms, lastFetchedVacuumOptions, onS
             if (onStateChange) onStateChange();
         });
     });
+}
+
+export function openMenuEditor(sc, onStateChange) {
+    const modal = document.getElementById('menuEditorModal');
+    const area = document.getElementById('menuCanvasArea');
+    const wInput = document.getElementById('menuCanvasW');
+    const hInput = document.getElementById('menuCanvasH');
+    const closeBtn = document.getElementById('closeMenuEditorBtn');
+    
+    if (!sc.config.menuWidth) sc.config.menuWidth = 200;
+    if (!sc.config.menuHeight) sc.config.menuHeight = 250;
+    
+    wInput.value = sc.config.menuWidth;
+    hInput.value = sc.config.menuHeight;
+    
+    area.style.width = sc.config.menuWidth + 'px';
+    area.style.height = sc.config.menuHeight + 'px';
+    
+    wInput.onchange = () => {
+        sc.config.menuWidth = parseInt(wInput.value) || 200;
+        area.style.width = sc.config.menuWidth + 'px';
+        if (onStateChange) onStateChange();
+    };
+    hInput.onchange = () => {
+        sc.config.menuHeight = parseInt(hInput.value) || 250;
+        area.style.height = sc.config.menuHeight + 'px';
+        if (onStateChange) onStateChange();
+    };
+    
+    // Clear area
+    area.innerHTML = '';
+    
+    const longPressActions = sc.config.actions.filter(a => a.trigger === 'long_press' || a.trigger === 'overlay');
+    
+    longPressActions.forEach((act, idx) => {
+        if (act.pos_x === undefined) act.pos_x = 10;
+        if (act.pos_y === undefined) act.pos_y = 10 + (idx * 45);
+        if (act.width === undefined) act.width = 180;
+        if (act.height === undefined) act.height = 35;
+        
+        const el = document.createElement('div');
+        el.style.position = 'absolute';
+        el.style.left = act.pos_x + 'px';
+        el.style.top = act.pos_y + 'px';
+        el.style.width = act.width + 'px';
+        el.style.height = act.height + 'px';
+        el.style.background = 'rgba(255,255,255,0.1)';
+        el.style.border = '1px solid rgba(255,255,255,0.3)';
+        el.style.borderRadius = '6px';
+        el.style.color = '#fff';
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'center';
+        el.style.fontSize = '12px';
+        el.style.userSelect = 'none';
+        el.style.boxSizing = 'border-box';
+        
+        let label = act.name || act.type;
+        el.innerHTML = `<span style="pointer-events:none; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${act.icon || ''} ${label}</span>`;
+        
+        const resizer = document.createElement('div');
+        resizer.style.position = 'absolute';
+        resizer.style.right = '0';
+        resizer.style.bottom = '0';
+        resizer.style.width = '10px';
+        resizer.style.height = '10px';
+        resizer.style.background = 'rgba(255,255,255,0.5)';
+        resizer.style.cursor = 'se-resize';
+        el.appendChild(resizer);
+        
+        let isDragging = false;
+        let isResizing = false;
+        let startX, startY, startPosX, startPosY, startW, startH;
+        
+        el.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            if (e.target === resizer) {
+                isResizing = true;
+                startW = act.width;
+                startH = act.height;
+            } else {
+                isDragging = true;
+                startPosX = act.pos_x;
+                startPosY = act.pos_y;
+            }
+            el.setPointerCapture(e.pointerId);
+        });
+        
+        el.addEventListener('pointermove', (e) => {
+            if (isDragging) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                act.pos_x = Math.round(startPosX + dx);
+                act.pos_y = Math.round(startPosY + dy);
+                el.style.left = act.pos_x + 'px';
+                el.style.top = act.pos_y + 'px';
+            } else if (isResizing) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                act.width = Math.max(20, Math.round(startW + dx));
+                act.height = Math.max(20, Math.round(startH + dy));
+                el.style.width = act.width + 'px';
+                el.style.height = act.height + 'px';
+            }
+        });
+        
+        el.addEventListener('pointerup', (e) => {
+            if (isDragging || isResizing) {
+                isDragging = false;
+                isResizing = false;
+                el.releasePointerCapture(e.pointerId);
+                if (onStateChange) onStateChange();
+            }
+        });
+        
+        area.appendChild(el);
+    });
+    
+    modal.style.display = 'flex';
+    
+    closeBtn.onclick = () => {
+        modal.style.display = 'none';
+    };
 }

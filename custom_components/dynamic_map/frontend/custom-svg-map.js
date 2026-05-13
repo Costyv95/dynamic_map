@@ -775,13 +775,23 @@ class CustomSvgMap extends HTMLElement {
         this.activeOverlay.style.background = 'rgba(30, 41, 59, 0.9)';
         this.activeOverlay.style.backdropFilter = 'blur(10px)';
         this.activeOverlay.style.borderRadius = '12px';
-        this.activeOverlay.style.padding = '10px';
-        this.activeOverlay.style.display = 'flex';
-        this.activeOverlay.style.flexDirection = 'column';
-        this.activeOverlay.style.gap = '10px';
         this.activeOverlay.style.boxShadow = '0 10px 25px -5px rgba(0,0,0,0.5)';
         this.activeOverlay.style.zIndex = '1000';
         this.activeOverlay.style.color = '#fff';
+        
+        const isVisual = shortcut.sc && shortcut.sc.config && shortcut.sc.config.menuWidth;
+        if (isVisual) {
+            this.activeOverlay.style.width = shortcut.sc.config.menuWidth + 'px';
+            this.activeOverlay.style.height = shortcut.sc.config.menuHeight + 'px';
+            this.activeOverlay.style.display = 'block';
+            this.activeOverlay.style.padding = '0';
+            this.activeOverlay.style.overflow = 'hidden';
+        } else {
+            this.activeOverlay.style.padding = '10px';
+            this.activeOverlay.style.display = 'flex';
+            this.activeOverlay.style.flexDirection = 'column';
+            this.activeOverlay.style.gap = '10px';
+        }
 
         actions.forEach(act => {
             const target = act.action_entity || shortcut.sc.entity_id;
@@ -826,11 +836,28 @@ class CustomSvgMap extends HTMLElement {
                     });
                 });
                 
+                if (isVisual && act.pos_x !== undefined) {
+                    container.style.position = 'absolute';
+                    container.style.left = act.pos_x + 'px';
+                    container.style.top = act.pos_y + 'px';
+                    container.style.width = act.width + 'px';
+                    container.style.height = act.height + 'px';
+                    slider.style.width = '100%';
+                    container.style.margin = '0';
+                    container.style.justifyContent = 'center';
+                    if (!displayName) container.style.alignItems = 'center';
+                }
+                
                 if (displayName) {
                     container.appendChild(slider);
                     this.activeOverlay.appendChild(container);
                 } else {
-                    this.activeOverlay.appendChild(slider);
+                    if (isVisual && act.pos_x !== undefined) {
+                        container.appendChild(slider);
+                        this.activeOverlay.appendChild(container);
+                    } else {
+                        this.activeOverlay.appendChild(slider);
+                    }
                 }
             } else if (act.type === 'TOGGLE') {
                 const container = document.createElement('div');
@@ -888,6 +915,16 @@ class CustomSvgMap extends HTMLElement {
                 
                 container.appendChild(label);
                 container.appendChild(switchWrap);
+                
+                if (isVisual && act.pos_x !== undefined) {
+                    container.style.position = 'absolute';
+                    container.style.left = act.pos_x + 'px';
+                    container.style.top = act.pos_y + 'px';
+                    container.style.width = act.width + 'px';
+                    container.style.height = act.height + 'px';
+                    container.style.margin = '0';
+                }
+                
                 this.activeOverlay.appendChild(container);
 
             } else if (act.type && (act.type === 'TOGGLE_ON' || act.type === 'TOGGLE_OFF' || act.type === 'CALL_SERVICE')) {
@@ -947,6 +984,14 @@ class CustomSvgMap extends HTMLElement {
                         this._hass.callService(domain, service, { entity_id: target });
                     }
                 });
+                if (isVisual && act.pos_x !== undefined) {
+                    btn.style.position = 'absolute';
+                    btn.style.left = act.pos_x + 'px';
+                    btn.style.top = act.pos_y + 'px';
+                    btn.style.width = act.width + 'px';
+                    btn.style.height = act.height + 'px';
+                    btn.style.margin = '0';
+                }
                 
                 this.activeOverlay.appendChild(btn);
             }
