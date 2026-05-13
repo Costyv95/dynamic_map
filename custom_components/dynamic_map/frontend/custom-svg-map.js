@@ -394,16 +394,31 @@ class CustomSvgMap extends HTMLElement {
         if (shouldRotate) {
             this.isRotated = true;
             this.mapRoot.setAttribute('transform', `rotate(90, ${cx}, ${cy})`);
+            
+            this.mapRoot.querySelectorAll('.room-label').forEach(label => {
+                label.setAttribute('transform', `rotate(-90, ${label.rawCx}, ${label.rawCy})`);
+            });
+            if (this.shortcutElements) {
+                Object.values(this.shortcutElements).forEach(scObj => {
+                    if (scObj.setRotation) scObj.setRotation(-90);
+                });
+            }
 
             // Content rotated, swap target dimensions
             const temp = targetW;
             targetW = targetH;
             targetH = temp;
 
-
         } else {
             this.mapRoot.removeAttribute('transform');
-
+            this.mapRoot.querySelectorAll('.room-label').forEach(label => {
+                label.removeAttribute('transform');
+            });
+            if (this.shortcutElements) {
+                Object.values(this.shortcutElements).forEach(scObj => {
+                    if (scObj.setRotation) scObj.setRotation(0);
+                });
+            }
         }
 
         // (rect calculation moved up)
