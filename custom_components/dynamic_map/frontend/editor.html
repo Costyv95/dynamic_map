@@ -98,7 +98,9 @@
             <input type="text" id="scName" placeholder="e.g. Silvester Vacuum">
             <label>Entity ID</label>
             <input type="text" id="scEntity" placeholder="e.g. vacuum.silvester">
-            <label>Type</label>
+            <label>Parent Context</label>
+            <select id="scParent"></select>
+            <label style="margin-top: 5px; display:block;">Type</label>
             <select id="scType">
                 <option value="generic">Generic Device</option>
                 <option value="vacuum">Roborock Vacuum</option>
@@ -299,6 +301,13 @@
                 document.getElementById('scEntity').value = sc.entity_id || '';
                 document.getElementById('scType').value = sc.type || 'generic';
                 
+                const scParentSelect = document.getElementById('scParent');
+                scParentSelect.innerHTML = `<option value="home">Home (Global)</option><option value="floor_${activeFloor}">Current Floor (Floor ${activeFloor})</option>`;
+                rooms.forEach(r => {
+                    scParentSelect.innerHTML += `<option value="${r.id}">Room: ${r.name || 'Unnamed'}</option>`;
+                });
+                scParentSelect.value = sc.parent || 'home';
+
                 document.getElementById('scShape').value = sc.shape || 'circle';
                 document.getElementById('scColor').value = sc.color || '#0ea5e9';
                 document.getElementById('scTransparent').checked = sc.transparent || false;
@@ -1398,6 +1407,14 @@
             }
         });
         document.getElementById('scEntity').addEventListener('change', () => saveState());
+        
+        document.getElementById('scParent').addEventListener('change', (e) => {
+            if(selectedShortcutIdx !== -1) {
+                shortcuts[selectedShortcutIdx].parent = e.target.value;
+                saveState();
+                saveToHA();
+            }
+        });
         
         document.getElementById('scShape').addEventListener('change', (e) => {
             if(selectedShortcutIdx !== -1) {
