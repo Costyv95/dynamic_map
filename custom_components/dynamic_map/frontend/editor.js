@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.59';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.59';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.60';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.60';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -1649,12 +1649,13 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
             inputElement.addEventListener('input', (e) => {
                 const val = e.target.value.toLowerCase();
                 dropdown.innerHTML = '';
-                if (!val) {
-                    dropdown.style.display = 'none';
-                    return;
-                }
                 
-                const filtered = allEntities.filter(ent => ent.toLowerCase().includes(val)).slice(0, 100);
+                let filtered = allEntities;
+                if (val) {
+                    filtered = allEntities.filter(ent => ent.toLowerCase().includes(val));
+                }
+                filtered = filtered.slice(0, 100);
+                
                 if (filtered.length === 0) {
                     dropdown.style.display = 'none';
                     return;
@@ -1667,6 +1668,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     item.style.cursor = 'pointer';
                     item.style.borderBottom = '1px solid var(--border, #334155)';
                     item.style.fontSize = '12px';
+                    item.style.color = 'var(--text, #f1f5f9)';
                     
                     item.addEventListener('mouseover', () => item.style.background = 'var(--accent, #3b82f6)');
                     item.addEventListener('mouseout', () => item.style.background = 'transparent');
