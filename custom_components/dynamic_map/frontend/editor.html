@@ -1727,11 +1727,21 @@
         });
         document.getElementById('scColor').addEventListener('change', () => { saveState(); saveToHA(); });
 
-        document.getElementById('scTransparent').addEventListener('change', (e) => {
+        document.getElementById('scHasBackground').addEventListener('change', (e) => {
             if(selectedShortcutIdx !== -1) {
                 const sc = shortcuts[selectedShortcutIdx];
                 if (!sc.config) sc.config = {};
-                sc.config.transparent = e.target.checked;
+                sc.config.transparent = !e.target.checked;
+                saveState();
+                draw();
+            }
+        });
+        
+        document.getElementById('scIcon').addEventListener('input', (e) => {
+            if(selectedShortcutIdx !== -1) {
+                const sc = shortcuts[selectedShortcutIdx];
+                if (!sc.config) sc.config = {};
+                sc.config.icon = e.target.value;
                 saveState();
                 draw();
             }
