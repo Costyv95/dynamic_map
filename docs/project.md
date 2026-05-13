@@ -12,17 +12,17 @@ The system is divided into two primary components:
 A native `custom_component` that runs inside the Home Assistant Core. 
 - **API**: It securely exposes two REST endpoints (`requires_auth = True`):
   - `POST /api/dynamic_map/save`: Saves map configurations.
-  - `GET /api/dynamic_map/state`: Fetches HA entity states and attributes (e.g., for Roborock vacuum room mappings).
+  - `GET /api/dynamic_map/state`: Fetches HA entity states and attributes.
+  - `GET /api/dynamic_map/entities`: Returns a full list of HA entities for the frontend autocomplete dropdown.
 - **File System Access**: It writes configuration files (`rooms.json`, `shortcuts.json`) directly to the integration's frontend directory.
-- **Panel Registration**: It automatically injects an iframe into the Home Assistant sidebar to serve the frontend editor.
+- **Sidecar Delegation**: Heavy geometric math (DXF to SVG conversions) is delegated to an external OpenCV Microservice to prevent blocking the Home Assistant event loop.
 
 ### 2. The Frontend Editor (HTML5/Canvas)
 A standalone vanilla JavaScript single-page application (`editor.html`).
 - **Unified State**: Operates in either `View Mode` or `Edit Mode`.
 - **Canvas Interaction**: Features a dynamic panning, zooming, and automated orientation engine.
-- **Object Manipulation**: Supports interactive dragging, point-and-click room definitions, Polygon merging/splitting, and shape manipulation (independent X/Y scaling for shortcuts).
-- **Smart Device Integration**: Dynamically fetches and maps Roborock vacuum room configurations directly from Home Assistant entities. Utilizes `binary_sensor.<vac>_charging` for precise dock-snapping, and features advanced `requestAnimationFrame` SVG boundary-wandering for live tracking.
-- **HA Exporter**: Automatically generates the required YAML `picture-elements` card code to deploy the live view.
+- **Object Manipulation**: Supports interactive dragging, point-and-click room definitions, Polygon merging/splitting, and shape manipulation. Includes robust entity search via a custom autocomplete dropdown (replacing standard datalists).
+- **Smart Device Integration**: Dynamically fetches and maps Roborock vacuum room configurations directly from Home Assistant entities. Utilizes `binary_sensor.<vac>_charging` for precise dock-snapping, and features advanced `requestAnimationFrame` SVG boundary-wandering for live tracking. Handles both numerical IDs and string-based room naming natively.
 
 ## Core Dependencies
 - **Home Assistant**: Tested with HA Core. Requires `http` and `frontend` integrations.
