@@ -48,8 +48,8 @@ export function renderActionsAndStates(sc, onStateChange) {
         
         div.querySelector('.act-header').addEventListener('click', (e) => {
             if(e.target.tagName === 'BUTTON') return;
-            act._expanded = !isExpanded;
-            if (onStateChange) onStateChange();
+            act._expanded = act._expanded === false ? true : false;
+            div.querySelector('.act-body').style.display = act._expanded ? 'block' : 'none';
         });
 
         div.querySelectorAll('.act-body input, .act-body select').forEach(el => {
@@ -119,8 +119,8 @@ export function renderActionsAndStates(sc, onStateChange) {
 
         div.querySelector('.st-header').addEventListener('click', (e) => {
             if(e.target.tagName === 'BUTTON') return;
-            st._expanded = !isExpanded;
-            if (onStateChange) onStateChange();
+            st._expanded = st._expanded === false ? true : false;
+            div.querySelector('.st-body').style.display = st._expanded ? 'block' : 'none';
         });
 
         div.querySelectorAll('.st-body input, .st-body select').forEach(el => {
