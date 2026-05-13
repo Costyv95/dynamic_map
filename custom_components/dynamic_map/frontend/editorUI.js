@@ -51,12 +51,22 @@ export function renderActionsAndStates(sc, onStateChange) {
         
         div.querySelector('.act-header').addEventListener('click', (e) => {
             if(e.target.tagName === 'BUTTON') return;
+            
+            const headerElement = e.currentTarget;
+            const sidebar = document.getElementById('sidebar');
+            const rectBefore = headerElement.getBoundingClientRect();
+            
             act._expanded = act._expanded === false ? true : false;
             div.querySelector('.act-body').style.display = act._expanded ? 'block' : 'none';
             const chevron = div.querySelector('.act-header .chevron');
             if (chevron) {
                 if (act._expanded) chevron.classList.remove('collapsed');
                 else chevron.classList.add('collapsed');
+            }
+            
+            const rectAfter = headerElement.getBoundingClientRect();
+            if (rectAfter.top !== rectBefore.top && sidebar) {
+                sidebar.scrollTop += (rectAfter.top - rectBefore.top);
             }
         });
 
@@ -130,12 +140,22 @@ export function renderActionsAndStates(sc, onStateChange) {
 
         div.querySelector('.st-header').addEventListener('click', (e) => {
             if(e.target.tagName === 'BUTTON') return;
+            
+            const headerElement = e.currentTarget;
+            const sidebar = document.getElementById('sidebar');
+            const rectBefore = headerElement.getBoundingClientRect();
+            
             st._expanded = st._expanded === false ? true : false;
             div.querySelector('.st-body').style.display = st._expanded ? 'block' : 'none';
             const chevron = div.querySelector('.st-header .chevron');
             if (chevron) {
                 if (st._expanded) chevron.classList.remove('collapsed');
                 else chevron.classList.add('collapsed');
+            }
+            
+            const rectAfter = headerElement.getBoundingClientRect();
+            if (rectAfter.top !== rectBefore.top && sidebar) {
+                sidebar.scrollTop += (rectAfter.top - rectBefore.top);
             }
         });
 
