@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.57';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.57';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.58';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.58';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -192,6 +192,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 document.getElementById('roomArea').value = room.area_id || '';
                 document.getElementById('roomEntity').value = room.entity_id || '';
                 document.getElementById('roomColor').value = room.color || '#333333';
+                document.getElementById('roomColor').dataset.changed = 'false';
             } else if (selectedRooms.length === 2) {
                 document.getElementById('mergeUI').style.display = 'block';
             }
@@ -1157,7 +1158,9 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     room.name = "Unmapped Room";
                 }
                 room.entity_id = document.getElementById('roomEntity').value;
-                room.color = document.getElementById('roomColor').value;
+                if (document.getElementById('roomColor').dataset.changed === 'true' || room.color) {
+                    room.color = document.getElementById('roomColor').value;
+                }
                 saveState();
                 draw(); // Redraw to update text on canvas
             }
@@ -1175,8 +1178,18 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         });
 
         document.getElementById('roomColor').addEventListener('input', (e) => {
+            document.getElementById('roomColor').dataset.changed = 'true';
             if(selectedRooms.length === 1) {
                 rooms[selectedRooms[0]].color = e.target.value;
+                draw();
+            }
+        });
+
+        document.getElementById('resetColorBtn').addEventListener('click', () => {
+            if (selectedRooms.length === 1) {
+                delete rooms[selectedRooms[0]].color;
+                document.getElementById('roomColor').value = '#333333';
+                document.getElementById('roomColor').dataset.changed = 'false';
                 draw();
             }
         });
