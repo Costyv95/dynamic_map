@@ -920,7 +920,7 @@
                     drawHandle(x, y + ry); // S
                     drawHandle(x - rx, y); // W
                     drawHandle(x + rx, y); // E
-                    if (shape === 'rect') {
+                    if (true) { // Always show corner handles for better UX
                         drawHandle(x - rx, y - ry); // NW
                         drawHandle(x + rx, y - ry); // NE
                         drawHandle(x - rx, y + ry); // SW
@@ -1100,12 +1100,11 @@
                 const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
 
                 const shape = sc.config?.shape || sc.shape || 'circle';
-                if (shape === 'rect') {
-                    if (hitTest(dragStart.x, dragStart.y, scX - rx, scY - ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'NW'; return; }
-                    if (hitTest(dragStart.x, dragStart.y, scX + rx, scY - ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'NE'; return; }
-                    if (hitTest(dragStart.x, dragStart.y, scX - rx, scY + ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'SW'; return; }
-                    if (hitTest(dragStart.x, dragStart.y, scX + rx, scY + ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'SE'; return; }
-                }
+                // Always allow corner dragging for both circles and rects
+                if (hitTest(dragStart.x, dragStart.y, scX - rx, scY - ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'NW'; return; }
+                if (hitTest(dragStart.x, dragStart.y, scX + rx, scY - ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'NE'; return; }
+                if (hitTest(dragStart.x, dragStart.y, scX - rx, scY + ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'SW'; return; }
+                if (hitTest(dragStart.x, dragStart.y, scX + rx, scY + ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'SE'; return; }
                 if (hitTest(dragStart.x, dragStart.y, scX, scY - ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'N'; return; }
                 if (hitTest(dragStart.x, dragStart.y, scX, scY + ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'S'; return; }
                 if (hitTest(dragStart.x, dragStart.y, scX - rx, scY)) { interactionState = 'RESIZE_SC'; resizeHandle = 'W'; return; }
@@ -1196,10 +1195,9 @@
 
                     const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
                     const shape = sc.config?.shape || sc.shape || 'circle';
-                    const isRect = shape === 'rect';
-
-                    if (isRect && (hitTest(worldPos.x, worldPos.y, scX - rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX + rx, scY + ry))) cursorStyle = 'nwse-resize';
-                    else if (isRect && (hitTest(worldPos.x, worldPos.y, scX + rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX - rx, scY + ry))) cursorStyle = 'nesw-resize';
+                    
+                    if (hitTest(worldPos.x, worldPos.y, scX - rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX + rx, scY + ry)) cursorStyle = 'nwse-resize';
+                    else if (hitTest(worldPos.x, worldPos.y, scX + rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX - rx, scY + ry)) cursorStyle = 'nesw-resize';
                     else if (hitTest(worldPos.x, worldPos.y, scX, scY - ry) || hitTest(worldPos.x, worldPos.y, scX, scY + ry)) cursorStyle = 'ns-resize';
                     else if (hitTest(worldPos.x, worldPos.y, scX - rx, scY) || hitTest(worldPos.x, worldPos.y, scX + rx, scY)) cursorStyle = 'ew-resize';
                 }
@@ -1261,10 +1259,19 @@
 
                 const shape = sc.config?.shape || sc.shape || 'circle';
                 if (shape !== 'rect') {
-                    // circle locks aspect ratio
-                    const maxR = Math.max(Math.abs(newRx), Math.abs(newRy));
-                    newRx = Math.max(5, maxR);
-                    newRy = Math.max(5, maxR);
+                    // circle locks aspect ratio, use the axis that was dragged
+                    if (['E', 'W'].includes(resizeHandle)) {
+                        newRy = Math.abs(newRx);
+                    } else if (['N', 'S'].includes(resizeHandle)) {
+                        newRx = Math.abs(newRy);
+                    } else {
+                        // Corner drag, use max of both to keep it a clean circle bounding box
+                        const maxR = Math.max(Math.abs(newRx), Math.abs(newRy));
+                        newRx = maxR;
+                        newRy = maxR;
+                    }
+                    newRx = Math.max(5, Math.abs(newRx));
+                    newRy = Math.max(5, Math.abs(newRy));
                 } else {
                     newRx = Math.max(5, Math.abs(newRx));
                     newRy = Math.max(5, Math.abs(newRy));
@@ -1593,7 +1600,22 @@
 
         document.getElementById('scType').addEventListener('change', (e) => {
             if(selectedShortcutIdx !== -1) {
-                shortcuts[selectedShortcutIdx].type = e.target.value;
+                const sc = shortcuts[selectedShortcutIdx];
+                sc.type = e.target.value;
+                
+                if (sc.type === 'vacuum') {
+                    if (!sc.config) sc.config = {};
+                    if (!sc.config.states || sc.config.states.length === 0) {
+                        const baseName = (sc.entity_id || 'vacuum.roborock').replace('vacuum.', '');
+                        sc.config.states = [
+                            { id: `st_${Date.now()}_1`, condition_entity: `sensor.${baseName}_status`, operator: '==', value: 'cleaning', color: '#10b981', icon: '🧹' },
+                            { id: `st_${Date.now()}_2`, condition_entity: `binary_sensor.${baseName}_charging`, operator: '==', value: 'on', color: '#334155', icon: '⚡' },
+                            { id: `st_${Date.now()}_3`, condition_entity: `sensor.${baseName}_status`, operator: '==', value: 'returning', color: '#0ea5e9', icon: '🧹' },
+                            { id: `st_${Date.now()}_4`, condition_entity: `sensor.${baseName}_status`, operator: '==', value: 'error', color: '#ef4444', icon: '❌' }
+                        ];
+                    }
+                }
+                
                 saveState();
                 updateSidebarUI();
                 draw();
