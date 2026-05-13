@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.26';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.26';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.27';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.27';
 
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -57,43 +57,45 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         const sidebar = document.getElementById('sidebar');
         let resizeStartX, resizeStartY, resizeStartWidth, resizeStartHeight;
 
-        resizer.addEventListener('pointerdown', (e) => {
-            const rect = sidebar.getBoundingClientRect();
-            resizeStartWidth = rect.width;
-            resizeStartHeight = rect.height;
-            resizeStartX = e.clientX;
-            resizeStartY = e.clientY;
-            
-            resizer.setPointerCapture(e.pointerId);
-            resizer.classList.add('resizing');
-            document.body.style.cursor = window.innerWidth <= 768 ? 'row-resize' : 'col-resize';
-            e.preventDefault();
-        });
+        if (resizer) {
+            resizer.addEventListener('pointerdown', (e) => {
+                const rect = sidebar.getBoundingClientRect();
+                resizeStartWidth = rect.width;
+                resizeStartHeight = rect.height;
+                resizeStartX = e.clientX;
+                resizeStartY = e.clientY;
+                
+                resizer.setPointerCapture(e.pointerId);
+                resizer.classList.add('resizing');
+                document.body.style.cursor = window.innerWidth <= 768 ? 'row-resize' : 'col-resize';
+                e.preventDefault();
+            });
 
-        resizer.addEventListener('pointermove', (e) => {
-            if (!resizer.hasPointerCapture(e.pointerId)) return;
-            
-            if (window.innerWidth <= 768) {
-                const dy = e.clientY - resizeStartY;
-                const newHeight = Math.max(100, Math.min(window.innerHeight - 100, resizeStartHeight + dy));
-                sidebar.style.height = `${newHeight}px`;
-                sidebar.style.maxHeight = 'none';
-            } else {
-                const dx = e.clientX - resizeStartX;
-                const newWidth = Math.max(200, Math.min(window.innerWidth - 200, resizeStartWidth + dx));
-                sidebar.style.width = `${newWidth}px`;
-            }
-            resizeCanvas();
-            draw();
-        });
+            resizer.addEventListener('pointermove', (e) => {
+                if (!resizer.hasPointerCapture(e.pointerId)) return;
+                
+                if (window.innerWidth <= 768) {
+                    const dy = e.clientY - resizeStartY;
+                    const newHeight = Math.max(100, Math.min(window.innerHeight - 100, resizeStartHeight + dy));
+                    sidebar.style.height = `${newHeight}px`;
+                    sidebar.style.maxHeight = 'none';
+                } else {
+                    const dx = e.clientX - resizeStartX;
+                    const newWidth = Math.max(200, Math.min(window.innerWidth - 200, resizeStartWidth + dx));
+                    sidebar.style.width = `${newWidth}px`;
+                }
+                resizeCanvas();
+                draw();
+            });
 
-        resizer.addEventListener('pointerup', (e) => {
-            resizer.releasePointerCapture(e.pointerId);
-            resizer.classList.remove('resizing');
-            document.body.style.cursor = '';
-            resizeCanvas();
-            draw();
-        });
+            resizer.addEventListener('pointerup', (e) => {
+                resizer.releasePointerCapture(e.pointerId);
+                resizer.classList.remove('resizing');
+                document.body.style.cursor = '';
+                resizeCanvas();
+                draw();
+            });
+        }
 
         function redo() {
             if (historyIndex < history.length - 1) {
