@@ -8,7 +8,7 @@
     <style>
         :root { --bg: #f4f4f5; --panel: #ffffff; --accent: #0ea5e9; --text: #1e293b; --input-bg: #f8fafc; --input-border: #e2e8f0; --btn-hover: #f1f5f9; }
         body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        #sidebar { width: 350px; background: var(--panel); padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 10; border-right: 1px solid var(--input-border); }
+        #sidebar { box-sizing: border-box; flex-shrink: 0; width: 350px; background: var(--panel); padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 10; border-right: 1px solid var(--input-border); }
         #resizer { width: 6px; background: var(--input-border); cursor: col-resize; flex-shrink: 0; transition: background 0.2s; z-index: 100; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
         #resizer:hover, #resizer.resizing { background: var(--accent); }
         h1 { font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; color: var(--accent); }
@@ -257,13 +257,15 @@
         // Resizer logic
         const resizer = document.getElementById('resizer');
         const sidebar = document.getElementById('sidebar');
-        let resizerOffsetX = 0;
-        let resizerOffsetY = 0;
+        let resizeStartX, resizeStartY, resizeStartWidth, resizeStartHeight;
 
         resizer.addEventListener('pointerdown', (e) => {
-            const rect = resizer.getBoundingClientRect();
-            resizerOffsetX = e.clientX - rect.left;
-            resizerOffsetY = e.clientY - rect.top;
+            const rect = sidebar.getBoundingClientRect();
+            resizeStartWidth = rect.width;
+            resizeStartHeight = rect.height;
+            resizeStartX = e.clientX;
+            resizeStartY = e.clientY;
+            
             resizer.setPointerCapture(e.pointerId);
             resizer.classList.add('resizing');
             document.body.style.cursor = window.innerWidth <= 768 ? 'row-resize' : 'col-resize';
@@ -274,11 +276,13 @@
             if (!resizer.hasPointerCapture(e.pointerId)) return;
             
             if (window.innerWidth <= 768) {
-                const newHeight = Math.max(100, Math.min(window.innerHeight - 100, e.clientY - resizerOffsetY));
+                const dy = e.clientY - resizeStartY;
+                const newHeight = Math.max(100, Math.min(window.innerHeight - 100, resizeStartHeight + dy));
                 sidebar.style.height = `${newHeight}px`;
                 sidebar.style.maxHeight = 'none';
             } else {
-                const newWidth = Math.max(200, Math.min(window.innerWidth - 200, e.clientX - resizerOffsetX));
+                const dx = e.clientX - resizeStartX;
+                const newWidth = Math.max(200, Math.min(window.innerWidth - 200, resizeStartWidth + dx));
                 sidebar.style.width = `${newWidth}px`;
             }
             resizeCanvas();
