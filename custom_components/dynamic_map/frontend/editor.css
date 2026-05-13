@@ -1,0 +1,42 @@
+        :root { --bg: #f4f4f5; --panel: #ffffff; --accent: #0ea5e9; --text: #1e293b; --input-bg: #f8fafc; --input-border: #e2e8f0; --btn-hover: #f1f5f9; }
+        body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { box-sizing: border-box; flex-shrink: 0; width: 350px; background: var(--panel); padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 10; border-right: 1px solid var(--input-border); overflow-y: auto; }
+        #resizer { width: 6px; background: var(--input-border); cursor: col-resize; flex-shrink: 0; transition: background 0.2s; z-index: 100; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
+        #resizer:hover, #resizer.resizing { background: var(--accent); }
+        h1 { font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; color: var(--accent); }
+        .control-group { margin-bottom: 20px; }
+        select, button, input { box-sizing: border-box; width: 100%; padding: 8px; margin-top: 5px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 6px; cursor: pointer; transition: 0.2s; font-family: inherit; font-size: 13px;}
+        button:hover { background: var(--btn-hover); border-color: var(--accent); }
+        button.primary { background: rgba(14, 165, 233, 0.1); color: var(--accent); border: 1px solid var(--accent); font-weight: 600; }
+        button.primary:hover { background: rgba(14, 165, 233, 0.2); box-shadow: 0 0 10px rgba(14,165,233,0.2); }
+        button.danger { border-color: #ef4444; color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        #canvas-container { flex-grow: 1; position: relative; overflow: hidden; background: #ffffff; display: flex; justify-content: center; align-items: center;}
+        canvas { box-shadow: 0 0 40px rgba(0,0,0,0.1); cursor: crosshair; max-width: 100%; max-height: 100%; object-fit: contain;}
+        
+        /* Modern output box */
+        textarea { width: 100%; height: 150px; background: #1e293b; color: #10b981; font-family: monospace; border: 1px solid var(--input-border); border-radius: 6px; padding: 10px; resize: none; margin-top: 5px; box-sizing: border-box;}
+        
+        .instructions { font-size: 13px; color: #64748b; margin-bottom: 10px; line-height: 1.4; }
+        .active-room-box { background: rgba(241,245,249,0.8); padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1; margin-top: 10px;}
+        
+        .floor-btn { padding: 10px 15px; font-weight: 600; cursor: pointer; text-align: center; font-size: 14px; background: white; color: var(--text); border-bottom: 1px solid var(--input-border); transition: 0.2s; }
+        .floor-btn:last-child { border-bottom: none; }
+        .floor-btn:hover:not(.active) { background: var(--btn-hover); }
+        .floor-btn.active { background: var(--accent); color: white; }
+        #rotationModeBtn { background: white; border: 1px solid var(--input-border); border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 42px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; color: var(--text); }
+        #rotationModeBtn:hover { background: var(--btn-hover); }
+
+        @media (max-width: 768px) and (orientation: portrait) {
+            body { flex-direction: column; }
+            #sidebar { width: 100%; height: 40vh; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--input-border); }
+            #resizer { width: 100%; height: 6px; cursor: row-resize; }
+            #canvas-container { flex-grow: 1; height: auto; }
+        }
+
+        /* Toggle Switch CSS */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--input-border); transition: .2s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
