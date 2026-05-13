@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.62';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.62';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.63';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.63';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -1652,7 +1652,10 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 
                 let filtered = allEntities;
                 if (val) {
-                    filtered = allEntities.filter(ent => ent.toLowerCase().includes(val));
+                    filtered = allEntities.filter(ent => 
+                        ent.id.toLowerCase().includes(val) || 
+                        ent.name.toLowerCase().includes(val)
+                    );
                 }
                 filtered = filtered.slice(0, 100);
                 
@@ -1663,7 +1666,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 
                 filtered.forEach(ent => {
                     const item = document.createElement('div');
-                    item.textContent = ent;
+                    item.textContent = ent.name !== ent.id ? `${ent.name} (${ent.id})` : ent.id;
                     item.style.padding = '8px 12px';
                     item.style.cursor = 'pointer';
                     item.style.borderBottom = '1px solid #f1f5f9';
@@ -1680,7 +1683,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                         item.style.color = '#000000';
                     });
                     item.addEventListener('click', () => {
-                        inputElement.value = ent;
+                        inputElement.value = ent.id;
                         dropdown.style.display = 'none';
                         const event = new Event('input', { bubbles: true });
                         inputElement.dispatchEvent(event);

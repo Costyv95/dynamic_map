@@ -41,7 +41,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
         sidebar_title="Map Editor",
         sidebar_icon="mdi:map-search-outline",
         frontend_url_path="dynamic_map_editor",
-        config={"url": "/dynamic_map_ui/editor.html?v=2.62"},
+        config={"url": "/dynamic_map_ui/editor.html?v=2.63"},
         require_admin=True,
     )
     
@@ -122,7 +122,14 @@ class DynamicMapEntitiesView(HomeAssistantView):
 
     async def get(self, request):
         """Handle GET request to fetch all entities."""
-        entities = [state.entity_id for state in self.hass.states.async_all()]
+        entities = []
+        for state in self.hass.states.async_all():
+            friendly_name = state.attributes.get("friendly_name", "")
+            entities.append({
+                "id": state.entity_id,
+                "name": friendly_name if friendly_name else state.entity_id
+            })
+
         return self.json({
             "success": True,
             "entities": entities
