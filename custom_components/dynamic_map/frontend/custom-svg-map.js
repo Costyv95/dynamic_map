@@ -793,9 +793,13 @@ class CustomSvgMap extends HTMLElement {
                 container.style.gap = '5px';
                 
                 const label = document.createElement('span');
-                label.textContent = act.name || 'Brightness';
-                label.style.fontSize = '12px';
-                label.style.fontWeight = 'bold';
+                const displayName = act.name !== undefined ? act.name : 'Brightness';
+                if (displayName) {
+                    label.textContent = displayName;
+                    label.style.fontSize = '12px';
+                    label.style.fontWeight = 'bold';
+                    container.appendChild(label);
+                }
                 
                 const slider = document.createElement('input');
                 slider.type = 'range';
@@ -818,9 +822,12 @@ class CustomSvgMap extends HTMLElement {
                     });
                 });
                 
-                container.appendChild(label);
-                container.appendChild(slider);
-                this.activeOverlay.appendChild(container);
+                if (displayName) {
+                    container.appendChild(slider);
+                    this.activeOverlay.appendChild(container);
+                } else {
+                    this.activeOverlay.appendChild(slider);
+                }
             } else if (act.type && (act.type.startsWith('TOGGLE') || act.type === 'CALL_SERVICE')) {
                 const btn = document.createElement('button');
                 btn.style.background = 'rgba(255,255,255,0.1)';
@@ -845,7 +852,10 @@ class CustomSvgMap extends HTMLElement {
                 if (act.type === 'TOGGLE_OFF') defaultName = 'Turn Off';
                 if (act.type === 'CALL_SERVICE') defaultName = 'Run Action';
                 
-                btn.innerHTML = `${iconHtml}<span>${act.name || defaultName}</span>`;
+                const displayName = act.name !== undefined ? act.name : defaultName;
+                const textHtml = displayName ? `<span>${displayName}</span>` : '';
+                
+                btn.innerHTML = `${iconHtml}${textHtml}`;
                 
                 // Add hover effect
                 btn.onmouseenter = () => btn.style.background = 'rgba(255,255,255,0.2)';
