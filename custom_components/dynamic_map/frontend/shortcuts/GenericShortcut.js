@@ -35,6 +35,9 @@ export class GenericShortcut extends MapShortcut {
         this.iconImage.setAttribute('y', -imgSize / 2);
         this.iconImage.style.pointerEvents = 'none';
         this.iconImage.style.display = 'none';
+        this.iconImage.onerror = () => {
+            this.iconImage.style.display = 'none';
+        };
         this.group.appendChild(this.iconImage);
         
         super.render();
@@ -46,10 +49,12 @@ export class GenericShortcut extends MapShortcut {
         
         let color = this.config.color || '#0ea5e9';
         let icon = this.config.icon || '';
+        let image = this.config.image || '';
         
         if (this.activeState) {
             if (this.activeState.color) color = this.activeState.color;
             if (this.activeState.icon) icon = this.activeState.icon;
+            if (this.activeState.image) image = this.activeState.image;
         }
         
         if (!this.config.transparent) {
@@ -58,9 +63,11 @@ export class GenericShortcut extends MapShortcut {
             this.shape.setAttribute('fill', 'rgba(0,0,0,0)');
         }
         
-        if (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) {
+        const finalImage = image || (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) ? icon : '');
+        
+        if (finalImage) {
             this.iconText.textContent = '';
-            this.iconImage.setAttribute('href', icon);
+            this.iconImage.setAttribute('href', finalImage);
             this.iconImage.style.display = 'block';
         } else {
             this.iconText.textContent = icon;

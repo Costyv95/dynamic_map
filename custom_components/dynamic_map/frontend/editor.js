@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.44';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.44';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.45';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.45';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -1261,8 +1261,8 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     if (!sc.config) sc.config = {};
                     if (!sc.config.states || sc.config.states.length === 0) {
                         sc.config.states = [
-                            { id: `st_${Date.now()}_1`, name: 'On', state_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#fbbf24', icon: '💡' },
-                            { id: `st_${Date.now()}_2`, name: 'Off', state_entity: sc.entity_id || '', operator: '==', value: 'off', color: '#475569', icon: '💡' }
+                            { id: `st_${Date.now()}_1`, name: 'On', state_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#fbbf24', icon: '💡', image: '/dynamic_map_data/icons/light_on.svg' },
+                            { id: `st_${Date.now()}_2`, name: 'Off', state_entity: sc.entity_id || '', operator: '==', value: 'off', color: '#475569', icon: '💡', image: '/dynamic_map_data/icons/light_off.svg' }
                         ];
                     }
                     if (!sc.config.actions || sc.config.actions.length === 0) {
@@ -1286,9 +1286,35 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         });
         document.getElementById('scName').addEventListener('change', () => saveState());
 
+        let oldEntityId = '';
+        document.getElementById('scEntity').addEventListener('focus', (e) => {
+            oldEntityId = e.target.value;
+        });
+
         document.getElementById('scEntity').addEventListener('input', (e) => {
             if(selectedShortcutIdx !== -1) {
-                shortcuts[selectedShortcutIdx].entity_id = e.target.value;
+                const sc = shortcuts[selectedShortcutIdx];
+                const newEntityId = e.target.value;
+                sc.entity_id = newEntityId;
+                
+                if (sc.config) {
+                    if (sc.config.states) {
+                        sc.config.states.forEach(st => {
+                            if (!st.state_entity || st.state_entity === oldEntityId) {
+                                st.state_entity = newEntityId;
+                            }
+                        });
+                    }
+                    if (sc.config.actions) {
+                        sc.config.actions.forEach(act => {
+                            if (!act.action_entity || act.action_entity === oldEntityId) {
+                                act.action_entity = newEntityId;
+                            }
+                        });
+                    }
+                    renderActionsAndStates(sc);
+                }
+                oldEntityId = newEntityId;
             }
         });
         document.getElementById('scEntity').addEventListener('change', () => saveState());
