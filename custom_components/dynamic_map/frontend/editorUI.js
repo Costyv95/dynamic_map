@@ -360,6 +360,7 @@ export function openMenuEditor(sc, onStateChange) {
         el.style.fontSize = '12px';
         el.style.userSelect = 'none';
         el.style.boxSizing = 'border-box';
+        el.style.cursor = 'grab';
         
         let label = act.name || act.type;
         el.innerHTML = `<span style="pointer-events:none; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${act.icon || ''} ${label}</span>`;
@@ -368,9 +369,11 @@ export function openMenuEditor(sc, onStateChange) {
         resizer.style.position = 'absolute';
         resizer.style.right = '0';
         resizer.style.bottom = '0';
-        resizer.style.width = '10px';
-        resizer.style.height = '10px';
-        resizer.style.background = 'rgba(255,255,255,0.5)';
+        resizer.style.width = '0';
+        resizer.style.height = '0';
+        resizer.style.borderLeft = '8px solid transparent';
+        resizer.style.borderBottom = '8px solid rgba(255,255,255,0.8)';
+        resizer.style.background = 'transparent';
         resizer.style.cursor = 'se-resize';
         el.appendChild(resizer);
         
@@ -391,6 +394,7 @@ export function openMenuEditor(sc, onStateChange) {
                 isDragging = true;
                 startPosX = act.pos_x;
                 startPosY = act.pos_y;
+                el.style.cursor = 'grabbing';
             }
             el.setPointerCapture(e.pointerId);
         });
@@ -415,6 +419,7 @@ export function openMenuEditor(sc, onStateChange) {
         
         el.addEventListener('pointerup', (e) => {
             if (isDragging || isResizing) {
+                if (isDragging) el.style.cursor = 'grab';
                 isDragging = false;
                 isResizing = false;
                 el.releasePointerCapture(e.pointerId);

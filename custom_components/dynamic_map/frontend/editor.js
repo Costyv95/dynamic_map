@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.41';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.41';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.42';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.42';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
