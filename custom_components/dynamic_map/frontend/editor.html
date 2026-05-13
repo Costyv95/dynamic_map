@@ -8,7 +8,7 @@
     <style>
         :root { --bg: #f4f4f5; --panel: #ffffff; --accent: #0ea5e9; --text: #1e293b; --input-bg: #f8fafc; --input-border: #e2e8f0; --btn-hover: #f1f5f9; }
         body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
-        #sidebar { box-sizing: border-box; flex-shrink: 0; width: 350px; background: var(--panel); padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 10; border-right: 1px solid var(--input-border); }
+        #sidebar { box-sizing: border-box; flex-shrink: 0; width: 350px; background: var(--panel); padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 10; border-right: 1px solid var(--input-border); overflow-y: auto; }
         #resizer { width: 6px; background: var(--input-border); cursor: col-resize; flex-shrink: 0; transition: background 0.2s; z-index: 100; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
         #resizer:hover, #resizer.resizing { background: var(--accent); }
         h1 { font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; color: var(--accent); }
@@ -408,37 +408,52 @@
             if (!sc.config.actions) sc.config.actions = [];
             if (!sc.config.states) sc.config.states = [];
             
-            sc.config.actions.forEach((act, idx) => {
+                const title = act.name || act.action_entity || 'New Action';
+                
                 const div = document.createElement('div');
                 div.style.background = 'var(--input-bg)';
                 div.style.padding = '8px';
                 div.style.borderRadius = '6px';
                 div.style.border = '1px solid var(--input-border)';
+                div.style.userSelect = 'none';
+                
                 div.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <input type="text" class="act-name" value="${act.name || ''}" placeholder="Action Name" style="width: 60%; margin: 0; padding: 4px;">
-                        <button class="del-act" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="act-header">
+                        <strong style="font-size: 13px; color: var(--text);">${title}</strong>
+                        <div style="display: flex; gap: 5px;">
+                            <span style="font-size: 10px; opacity: 0.5;">${isExpanded ? '▼' : '▶'}</span>
+                            <button class="del-act" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
+                        </div>
                     </div>
-                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
-                        <select class="act-trigger" style="margin: 0; padding: 4px;">
-                            <option value="tap" ${act.trigger === 'tap' ? 'selected' : ''}>Tap</option>
-                            <option value="overlay" ${act.trigger === 'overlay' ? 'selected' : ''}>Overlay Button</option>
-                        </select>
-                        <select class="act-type" style="margin: 0; padding: 4px;">
-                            <option value="TOGGLE" ${act.type === 'TOGGLE' ? 'selected' : ''}>Toggle</option>
-                            <option value="CALL_SERVICE" ${act.type === 'CALL_SERVICE' ? 'selected' : ''}>Call Service</option>
-                            <option value="SLIDER" ${act.type === 'SLIDER' ? 'selected' : ''}>Slider (Brightness)</option>
-                        </select>
+                    <div class="act-body" style="display: ${isExpanded ? 'block' : 'none'}; margin-top: 10px; border-top: 1px solid var(--input-border); padding-top: 10px;">
+                        <input type="text" class="act-name" value="${act.name || ''}" placeholder="Action Name" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
+                        <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                            <select class="act-trigger" style="margin: 0; padding: 4px;">
+                                <option value="tap" ${act.trigger === 'tap' ? 'selected' : ''}>Tap</option>
+                                <option value="overlay" ${act.trigger === 'overlay' ? 'selected' : ''}>Overlay Button</option>
+                            </select>
+                            <select class="act-type" style="margin: 0; padding: 4px;">
+                                <option value="TOGGLE" ${act.type === 'TOGGLE' ? 'selected' : ''}>Toggle</option>
+                                <option value="CALL_SERVICE" ${act.type === 'CALL_SERVICE' ? 'selected' : ''}>Call Service</option>
+                                <option value="SLIDER" ${act.type === 'SLIDER' ? 'selected' : ''}>Slider (Brightness)</option>
+                            </select>
+                        </div>
+                        <div style="display: flex; gap: 5px;">
+                            <input type="text" class="act-target" list="entityList" value="${act.action_entity || ''}" placeholder="Action Entity" style="flex: 1; margin: 0; padding: 4px;">
+                            <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Icon/Emoji" style="width: 40px; margin: 0; padding: 4px; text-align: center;">
+                        </div>
+                        ${act.type === 'CALL_SERVICE' ? `<input type="text" class="act-service" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="width: 100%; margin-top: 5px; padding: 4px;">` : ''}
                     </div>
-                    <div style="display: flex; gap: 5px;">
-                        <input type="text" class="act-target" list="entityList" value="${act.action_entity || act.target || ''}" placeholder="Action Entity" style="flex: 1; margin: 0; padding: 4px;">
-                        <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Icon/Emoji" style="width: 40px; margin: 0; padding: 4px; text-align: center;">
-                    </div>
-                    ${act.type === 'CALL_SERVICE' ? `<input type="text" class="act-service" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="width: 100%; margin-top: 5px; padding: 4px;">` : ''}
                 `;
                 actionsList.appendChild(div);
                 
-                div.querySelectorAll('input, select').forEach(el => {
+                div.querySelector('.act-header').addEventListener('click', (e) => {
+                    if(e.target.tagName === 'BUTTON') return;
+                    act._expanded = !isExpanded;
+                    renderActionsAndStates(sc);
+                });
+
+                div.querySelectorAll('.act-body input, .act-body select').forEach(el => {
                     el.addEventListener('change', () => {
                         act.name = div.querySelector('.act-name').value;
                         act.trigger = div.querySelector('.act-trigger').value;
@@ -458,32 +473,51 @@
             });
             
             sc.config.states.forEach((st, idx) => {
+                const isExpanded = st._expanded !== false; // expanded by default
+                const title = st.name || st.state_entity || 'New State';
+                
                 const div = document.createElement('div');
                 div.style.background = 'var(--input-bg)';
                 div.style.padding = '8px';
                 div.style.borderRadius = '6px';
                 div.style.border = '1px solid var(--input-border)';
+                div.style.userSelect = 'none';
+                
                 div.innerHTML = `
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                        <input type="text" class="st-entity" list="entityList" value="${st.state_entity || st.condition_entity || ''}" placeholder="State Entity ID" style="width: 80%; margin: 0; padding: 4px;">
-                        <button class="del-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="st-header">
+                        <strong style="font-size: 13px; color: var(--text);">${title}</strong>
+                        <div style="display: flex; gap: 5px;">
+                            <span style="font-size: 10px; opacity: 0.5;">${isExpanded ? '▼' : '▶'}</span>
+                            <button class="del-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
+                        </div>
                     </div>
-                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
-                        <select class="st-op" style="margin: 0; padding: 4px; flex: 1;">
-                            <option value="==" ${st.operator === '==' ? 'selected' : ''}>==</option>
-                            <option value="!=" ${st.operator === '!=' ? 'selected' : ''}>!=</option>
-                        </select>
-                        <input type="text" class="st-val" value="${st.value || ''}" placeholder="Value" style="flex: 2; margin: 0; padding: 4px;">
-                    </div>
-                    <div style="display: flex; gap: 5px; align-items: center;">
-                        <input type="color" class="st-color" value="${st.color || '#ffffff'}" style="width: 30px; height: 24px; padding: 0; margin: 0; border: none;">
-                        <input type="text" class="st-icon" value="${st.icon || ''}" placeholder="Icon/Emoji" style="flex: 1; margin: 0; padding: 4px;">
+                    <div class="st-body" style="display: ${isExpanded ? 'block' : 'none'}; margin-top: 10px; border-top: 1px solid var(--input-border); padding-top: 10px;">
+                        <input type="text" class="st-name" value="${st.name || ''}" placeholder="State Name" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
+                        <input type="text" class="st-entity" list="entityList" value="${st.state_entity || ''}" placeholder="State Entity ID" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
+                        <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                            <select class="st-op" style="margin: 0; padding: 4px; flex: 1;">
+                                <option value="==" ${st.operator === '==' ? 'selected' : ''}>==</option>
+                                <option value="!=" ${st.operator === '!=' ? 'selected' : ''}>!=</option>
+                            </select>
+                            <input type="text" class="st-val" value="${st.value || ''}" placeholder="Value" style="flex: 2; margin: 0; padding: 4px;">
+                        </div>
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            <input type="color" class="st-color" value="${st.color || '#ffffff'}" style="width: 30px; height: 24px; padding: 0; margin: 0; border: none;">
+                            <input type="text" class="st-icon" value="${st.icon || ''}" placeholder="Icon/Emoji" style="flex: 1; margin: 0; padding: 4px;">
+                        </div>
                     </div>
                 `;
                 statesList.appendChild(div);
                 
-                div.querySelectorAll('input, select').forEach(el => {
+                div.querySelector('.st-header').addEventListener('click', (e) => {
+                    if(e.target.tagName === 'BUTTON') return;
+                    st._expanded = !isExpanded;
+                    renderActionsAndStates(sc);
+                });
+
+                div.querySelectorAll('.st-body input, .st-body select').forEach(el => {
                     el.addEventListener('change', () => {
+                        st.name = div.querySelector('.st-name').value;
                         st.state_entity = div.querySelector('.st-entity').value;
                         st.operator = div.querySelector('.st-op').value;
                         st.value = div.querySelector('.st-val').value;
@@ -1599,7 +1633,7 @@
                 const sc = shortcuts[selectedShortcutIdx];
                 if (!sc.config) sc.config = {};
                 if (!sc.config.states) sc.config.states = [];
-                sc.config.states.push({ id: `st_${Date.now()}`, state_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#10b981' });
+                sc.config.states.push({ id: `st_${Date.now()}`, name: 'On', state_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#10b981' });
                 renderActionsAndStates(sc);
                 saveState();
             }
@@ -1615,18 +1649,18 @@
                     if (!sc.config.states || sc.config.states.length === 0) {
                         const baseName = (sc.entity_id || 'vacuum.roborock').replace('vacuum.', '');
                         sc.config.states = [
-                            { id: `st_${Date.now()}_1`, state_entity: `sensor.${baseName}_status`, operator: '==', value: 'cleaning', color: '#10b981', icon: '🧹' },
-                            { id: `st_${Date.now()}_2`, state_entity: `binary_sensor.${baseName}_charging`, operator: '==', value: 'on', color: '#334155', icon: '⚡' },
-                            { id: `st_${Date.now()}_3`, state_entity: `sensor.${baseName}_status`, operator: '==', value: 'returning', color: '#0ea5e9', icon: '🧹' },
-                            { id: `st_${Date.now()}_4`, state_entity: `sensor.${baseName}_status`, operator: '==', value: 'error', color: '#ef4444', icon: '❌' }
+                            { id: `st_${Date.now()}_1`, name: 'Cleaning', state_entity: `sensor.${baseName}_status`, operator: '==', value: 'cleaning', color: '#10b981', icon: '🧹' },
+                            { id: `st_${Date.now()}_2`, name: 'Charging', state_entity: `binary_sensor.${baseName}_charging`, operator: '==', value: 'on', color: '#334155', icon: '⚡' },
+                            { id: `st_${Date.now()}_3`, name: 'Returning', state_entity: `sensor.${baseName}_status`, operator: '==', value: 'returning', color: '#0ea5e9', icon: '🧹' },
+                            { id: `st_${Date.now()}_4`, name: 'Error', state_entity: `sensor.${baseName}_status`, operator: '==', value: 'error', color: '#ef4444', icon: '❌' }
                         ];
                     }
                 } else if (sc.type === 'light') {
                     if (!sc.config) sc.config = {};
                     if (!sc.config.states || sc.config.states.length === 0) {
                         sc.config.states = [
-                            { id: `st_${Date.now()}_1`, state_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#fbbf24', icon: '💡' },
-                            { id: `st_${Date.now()}_2`, state_entity: sc.entity_id || '', operator: '==', value: 'off', color: '#475569', icon: '💡' }
+                            { id: `st_${Date.now()}_1`, name: 'On', state_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#fbbf24', icon: '💡' },
+                            { id: `st_${Date.now()}_2`, name: 'Off', state_entity: sc.entity_id || '', operator: '==', value: 'off', color: '#475569', icon: '💡' }
                         ];
                     }
                     if (!sc.config.actions || sc.config.actions.length === 0) {

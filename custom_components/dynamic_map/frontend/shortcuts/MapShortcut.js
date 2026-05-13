@@ -74,7 +74,7 @@ export class MapShortcut {
     evaluateStates(hass) {
         if (!this.config.states || !this.config.states.length) return null;
         for (const st of this.config.states) {
-            const entity = st.state_entity || st.condition_entity;
+            const entity = st.state_entity;
             if (!entity || !hass.states[entity]) continue;
             const actualVal = hass.states[entity].state;
             const targetVal = st.value;
@@ -91,7 +91,7 @@ export class MapShortcut {
             const tapActions = this.config.actions.filter(a => a.trigger === 'tap');
             if (tapActions.length > 0) {
                 tapActions.forEach(act => {
-                    const target = act.action_entity || act.target || this.sc.entity_id;
+                    const target = act.action_entity || this.sc.entity_id;
                     if (!target || !this.mapContext._hass) return;
                     if (act.type === 'CALL_SERVICE' && act.service) {
                         const parts = act.service.split('.');
