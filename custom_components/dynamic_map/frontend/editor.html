@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:,">
     <title>Dynamic Map Editor</title>
-    <link rel="stylesheet" href="editor.css?v=2.58">
+    <link rel="stylesheet" href="editor.css?v=2.59">
     <script src="polybool.min.js"></script>
 </head>
 <body>
@@ -43,7 +43,7 @@
             <label style="margin-top: 10px; display:block;">Custom Room Name</label>
             <input type="text" id="roomName" placeholder="e.g. Master Bedroom">
             <label style="margin-top: 10px; display:block;">Entity ID (Optional Light)</label>
-            <input type="text" id="roomEntity" list="entityList" placeholder="e.g. light.living_room">
+            <input type="text" id="roomEntity" autocomplete="off" placeholder="e.g. light.living_room">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
                 <label style="display:block;">Room Base Color</label>
                 <button id="resetColorBtn" style="width: auto; padding: 2px 6px; font-size: 10px; margin: 0; background: var(--input-bg); color: var(--text);">↺ Auto Color</button>
@@ -63,7 +63,7 @@
             <label>Name</label>
             <input type="text" id="scName" placeholder="e.g. Silvester Vacuum">
             <label>Entity ID</label>
-            <input type="text" id="scEntity" list="entityList" placeholder="e.g. vacuum.silvester">
+            <input type="text" id="scEntity" autocomplete="off" placeholder="e.g. vacuum.silvester">
             <label>Parent Context</label>
             <select id="scParent"></select>
             <label style="margin-top: 5px; display:block;">Type</label>
@@ -174,7 +174,7 @@
     <div id="resizer"></div>
 
     <!-- Datalist for HA Entities -->
-    <datalist id="entityList"></datalist>
+
 
     <!-- Datalist for Common HA Services -->
     <datalist id="serviceList">
@@ -235,6 +235,6 @@
         </div>
     </div>
 
-    <script type="module" src="editor.js?v=2.58"></script>
+    <script type="module" src="editor.js?v=2.59"></script>
 </body>
 </html>

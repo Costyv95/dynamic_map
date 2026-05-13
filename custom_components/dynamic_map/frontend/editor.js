@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.58';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.58';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.59';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.59';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -1621,6 +1621,78 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
             document.getElementById('recomputePanel').style.display = 'block';
         }
 
+        let allEntities = [];
+        
+        function setupAutocomplete(inputId) {
+            const inputElement = document.getElementById(inputId);
+            if (!inputElement) return;
+
+            const dropdown = document.createElement('div');
+            dropdown.style.position = 'absolute';
+            dropdown.style.background = 'var(--panel-bg, #1e293b)';
+            dropdown.style.border = '1px solid var(--input-border, #475569)';
+            dropdown.style.borderRadius = '4px';
+            dropdown.style.maxHeight = '200px';
+            dropdown.style.overflowY = 'auto';
+            dropdown.style.display = 'none';
+            dropdown.style.zIndex = '9999';
+            dropdown.style.width = '100%';
+            dropdown.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.5)';
+            
+            const wrapper = document.createElement('div');
+            wrapper.style.position = 'relative';
+            wrapper.style.width = '100%';
+            inputElement.parentNode.insertBefore(wrapper, inputElement);
+            wrapper.appendChild(inputElement);
+            wrapper.appendChild(dropdown);
+
+            inputElement.addEventListener('input', (e) => {
+                const val = e.target.value.toLowerCase();
+                dropdown.innerHTML = '';
+                if (!val) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+                
+                const filtered = allEntities.filter(ent => ent.toLowerCase().includes(val)).slice(0, 100);
+                if (filtered.length === 0) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+                
+                filtered.forEach(ent => {
+                    const item = document.createElement('div');
+                    item.textContent = ent;
+                    item.style.padding = '8px 12px';
+                    item.style.cursor = 'pointer';
+                    item.style.borderBottom = '1px solid var(--border, #334155)';
+                    item.style.fontSize = '12px';
+                    
+                    item.addEventListener('mouseover', () => item.style.background = 'var(--accent, #3b82f6)');
+                    item.addEventListener('mouseout', () => item.style.background = 'transparent');
+                    item.addEventListener('click', () => {
+                        inputElement.value = ent;
+                        dropdown.style.display = 'none';
+                        const event = new Event('input', { bubbles: true });
+                        inputElement.dispatchEvent(event);
+                    });
+                    dropdown.appendChild(item);
+                });
+                dropdown.style.display = 'block';
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!wrapper.contains(e.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+            
+            inputElement.addEventListener('focus', () => {
+                const event = new Event('input', { bubbles: false });
+                inputElement.dispatchEvent(event);
+            });
+        }
+
         // Fetch all HA entities for autocomplete
         async function fetchAllEntities() {
             try {
@@ -1628,15 +1700,9 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 if (res.ok) {
                     const data = await res.json();
                     if (data.success && data.entities) {
-                        const datalist = document.getElementById('entityList');
-                        if (datalist) {
-                            datalist.innerHTML = '';
-                            data.entities.forEach(entity => {
-                                const option = document.createElement('option');
-                                option.value = entity;
-                                datalist.appendChild(option);
-                            });
-                        }
+                        allEntities = data.entities;
+                        setupAutocomplete('roomEntity');
+                        setupAutocomplete('scEntity');
                     }
                 }
             } catch (err) {
