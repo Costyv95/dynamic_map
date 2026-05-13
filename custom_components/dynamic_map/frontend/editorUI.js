@@ -134,7 +134,28 @@ export function renderActionsAndStates(sc, onStateChange) {
             e.stopPropagation();
             if (window.togglePreviewState) {
                 window.togglePreviewState(idx);
-                if (onStateChange) onStateChange(); // Force a re-render of the UI to highlight the button
+                
+                // Manually update all preview buttons and their containers to reflect active state
+                document.querySelectorAll('.preview-st').forEach(btn => {
+                    const btnIdx = parseInt(btn.getAttribute('data-idx'));
+                    const isActive = window.previewStateIdx === btnIdx;
+                    
+                    btn.style.background = isActive ? 'var(--accent)' : 'var(--btn-hover)';
+                    btn.style.color = isActive ? 'white' : 'var(--text)';
+                    btn.style.border = isActive ? '1px solid var(--accent)' : '1px solid var(--input-border)';
+                    btn.innerHTML = isActive ? '👁️ Previewing' : '👁️ Preview';
+                    
+                    const parentDiv = btn.closest('.st-header').parentElement;
+                    if (parentDiv) {
+                        parentDiv.style.background = isActive ? 'rgba(14, 165, 233, 0.1)' : 'var(--input-bg)';
+                        parentDiv.style.border = isActive ? '2px solid var(--accent)' : '1px solid var(--input-border)';
+                    }
+                    
+                    const titleStrong = btn.closest('.st-header').querySelector('strong');
+                    if (titleStrong) {
+                        titleStrong.style.color = isActive ? 'var(--accent)' : 'var(--text)';
+                    }
+                });
             }
         });
 

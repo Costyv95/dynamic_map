@@ -90,6 +90,7 @@ export class MapShortcut {
         if (this.config.actions && this.config.actions.length > 0) {
             const tapActions = this.config.actions.filter(a => a.trigger === 'tap');
             if (tapActions.length > 0) {
+                // Execute instant actions (toggle/call_service)
                 tapActions.forEach(act => {
                     const target = act.action_entity || this.sc.entity_id;
                     if (!target || !this.mapContext._hass) return;
@@ -104,6 +105,12 @@ export class MapShortcut {
                         this.mapContext._hass.callService(domain, service, { entity_id: target });
                     }
                 });
+                
+                // If there are sliders configured on tap, pop up an overlay for them
+                const sliderActions = tapActions.filter(a => a.type === 'SLIDER');
+                if (sliderActions.length > 0 && this.mapContext.showOverlay) {
+                    this.mapContext.showOverlay(this, sliderActions, e);
+                }
                 return;
             }
         }

@@ -300,6 +300,10 @@ class CustomSvgMap extends HTMLElement {
                 this.vacuumState.targetX = shortcutObj.px;
                 this.vacuumState.targetY = shortcutObj.py;
             }
+            
+            if (this._hass) {
+                shortcutObj.updateState(this._hass);
+            }
         });
 
         this.svg.appendChild(this.mapRoot);
