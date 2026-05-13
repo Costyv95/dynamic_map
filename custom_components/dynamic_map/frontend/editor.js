@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.56';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.56';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.57';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.57';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -466,7 +466,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     ctx.shadowColor = '#00ffff';
                     ctx.shadowBlur = 15;
                 } else {
-                    ctx.fillStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)` : `hsla(${hue}, 100%, 50%, 0.15)`;
+                    ctx.fillStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)` : `hsla(${hue}, 100%, 50%, 0.4)`;
                     ctx.strokeStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)` : `hsla(${hue}, 100%, 50%, 0.8)`;
                     ctx.lineWidth = 2;
                 }

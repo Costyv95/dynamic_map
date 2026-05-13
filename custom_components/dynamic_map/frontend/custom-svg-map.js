@@ -681,8 +681,8 @@ class CustomSvgMap extends HTMLElement {
 
             if (this.isSelectingRooms) {
                 if (this.selectedRoomIds && this.selectedRoomIds.includes(room.id)) {
-                    if (rgb) poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`);
-                    else poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.6)`);
+                    if (rgb) poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
+                    else poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.8)`);
                     poly.setAttribute('stroke', '#10b981');
                     poly.style.filter = 'drop-shadow(0px 0px 6px #10b981)';
                 } else {
@@ -694,26 +694,26 @@ class CustomSvgMap extends HTMLElement {
             }
 
             if (isSelected) {
-                if (rgb) poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
-                else poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.5)`);
+                if (rgb) poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)`);
+                else poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.7)`);
                 poly.setAttribute('stroke', '#00ffff');
                 poly.style.filter = 'drop-shadow(0px 0px 5px #00ffff)';
             } else if (isOn) {
                 if (rgb) {
-                    poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`);
+                    poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)`);
                     poly.setAttribute('stroke', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
                 } else {
-                    poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.4)`);
+                    poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.6)`);
                     poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 1)`);
                 }
                 poly.style.filter = 'drop-shadow(0px 0px 8px yellow)';
             } else {
                 if (rgb) {
-                    poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`);
-                    poly.setAttribute('stroke', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
+                    poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`);
+                    poly.setAttribute('stroke', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.9)`);
                 } else {
-                    poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.15)`);
-                    poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 0.8)`);
+                    poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.4)`);
+                    poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 0.9)`);
                 }
                 poly.style.filter = 'none';
             }
