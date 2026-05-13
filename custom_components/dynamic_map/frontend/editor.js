@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.27';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.27';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.29';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.29';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -781,10 +781,15 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
                     const shape = sc.config?.shape || sc.shape || 'circle';
                     
-                    if (hitTest(worldPos.x, worldPos.y, scX - rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX + rx, scY + ry)) cursorStyle = 'nwse-resize';
-                    else if (hitTest(worldPos.x, worldPos.y, scX + rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX - rx, scY + ry)) cursorStyle = 'nesw-resize';
-                    else if (hitTest(worldPos.x, worldPos.y, scX, scY - ry) || hitTest(worldPos.x, worldPos.y, scX, scY + ry)) cursorStyle = 'ns-resize';
-                    else if (hitTest(worldPos.x, worldPos.y, scX - rx, scY) || hitTest(worldPos.x, worldPos.y, scX + rx, scY)) cursorStyle = 'ew-resize';
+                    if (hitTest(worldPos.x, worldPos.y, scX - rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX + rx, scY + ry)) {
+                        cursorStyle = isRotated ? 'nesw-resize' : 'nwse-resize';
+                    } else if (hitTest(worldPos.x, worldPos.y, scX + rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX - rx, scY + ry)) {
+                        cursorStyle = isRotated ? 'nwse-resize' : 'nesw-resize';
+                    } else if (hitTest(worldPos.x, worldPos.y, scX, scY - ry) || hitTest(worldPos.x, worldPos.y, scX, scY + ry)) {
+                        cursorStyle = isRotated ? 'ew-resize' : 'ns-resize';
+                    } else if (hitTest(worldPos.x, worldPos.y, scX - rx, scY) || hitTest(worldPos.x, worldPos.y, scX + rx, scY)) {
+                        cursorStyle = isRotated ? 'ns-resize' : 'ew-resize';
+                    }
                 }
 
                 if (cursorStyle === 'default') {
