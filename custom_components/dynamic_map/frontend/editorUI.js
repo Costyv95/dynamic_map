@@ -79,18 +79,18 @@ export function renderActionsAndStates(sc, onStateChange) {
         const title = st.name || st.state_entity || 'New State';
         
         const div = document.createElement('div');
-        div.style.background = 'var(--input-bg)';
+        div.style.background = window.previewStateIdx === idx ? 'rgba(14, 165, 233, 0.1)' : 'var(--input-bg)';
         div.style.padding = '8px';
         div.style.borderRadius = '6px';
-        div.style.border = '1px solid var(--input-border)';
+        div.style.border = window.previewStateIdx === idx ? '2px solid var(--accent)' : '1px solid var(--input-border)';
         div.style.userSelect = 'none';
         
         div.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="st-header">
-                <strong style="font-size: 13px; color: var(--text);">${title}</strong>
+                <strong style="font-size: 13px; color: ${window.previewStateIdx === idx ? 'var(--accent)' : 'var(--text)'};">${title}</strong>
                 <div style="display: flex; gap: 5px;">
-                    <button class="preview-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="primary">👁️</button>
-                    <span style="font-size: 10px; opacity: 0.5;">${isExpanded ? '▼' : '▶'}</span>
+                    <button class="preview-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px; font-weight: bold; background: ${window.previewStateIdx === idx ? 'var(--accent)' : 'var(--btn-hover)'}; color: ${window.previewStateIdx === idx ? 'white' : 'var(--text)'}; border: 1px solid ${window.previewStateIdx === idx ? 'var(--accent)' : 'var(--input-border)'};">${window.previewStateIdx === idx ? '👁️ Previewing' : '👁️ Preview'}</button>
+                    <span style="font-size: 10px; opacity: 0.5; display: flex; align-items: center;">${isExpanded ? '▼' : '▶'}</span>
                     <button class="del-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
                 </div>
             </div>
@@ -112,12 +112,6 @@ export function renderActionsAndStates(sc, onStateChange) {
             </div>
         `;
         statesList.appendChild(div);
-        
-        // Let's set the preview button active state if it is currently being previewed
-        if (window.previewStateIdx === idx) {
-            div.querySelector('.preview-st').style.background = 'var(--accent)';
-            div.querySelector('.preview-st').style.color = 'white';
-        }
 
         div.querySelector('.preview-st').addEventListener('click', (e) => {
             e.stopPropagation();
