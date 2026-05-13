@@ -25,7 +25,11 @@ export function renderActionsAndStates(sc, onStateChange) {
                     <span class="chevron ${isExpanded ? '' : 'collapsed'}">▼</span>
                     <strong style="font-size: 13px; color: var(--text);">${title}</strong>
                 </div>
-                <button class="del-act" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
+                <div style="display: flex; gap: 4px;">
+                    <button class="mv-up-act" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" ${idx === 0 ? 'disabled' : ''}>▲</button>
+                    <button class="mv-dn-act" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" ${idx === sc.config.actions.length - 1 ? 'disabled' : ''}>▼</button>
+                    <button class="del-act" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
+                </div>
             </div>
             <div class="act-body" style="display: ${isExpanded ? 'block' : 'none'}; margin-top: 10px; border-top: 1px solid var(--input-border); padding-top: 10px;">
                 <input type="text" class="act-name" value="${act.name || ''}" placeholder="Action Name" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
@@ -44,7 +48,8 @@ export function renderActionsAndStates(sc, onStateChange) {
                 </div>
                 <div style="display: flex; gap: 5px; margin-bottom: 5px;">
                     <input type="text" class="act-target" list="entityList" value="${act.action_entity || ''}" placeholder="Action Entity" style="flex: 2; margin: 0; padding: 4px;">
-                    <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Menu Icon (Optional)" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
+                    <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Menu Icon" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
+                    <input type="text" class="act-width" value="${act.width || ''}" placeholder="Width (e.g. 150px)" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
                 </div>
                 ${act.type === 'CALL_SERVICE' ? `<input type="text" class="act-service" list="serviceList" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="width: 100%; margin-top: 5px; padding: 4px;">` : ''}
             </div>
@@ -79,6 +84,7 @@ export function renderActionsAndStates(sc, onStateChange) {
                 act.type = div.querySelector('.act-type').value;
                 act.action_entity = div.querySelector('.act-target').value;
                 act.icon = div.querySelector('.act-icon').value;
+                act.width = div.querySelector('.act-width').value;
                 if (act.type === 'CALL_SERVICE' && div.querySelector('.act-service')) {
                     act.service = div.querySelector('.act-service').value;
                 }
@@ -88,7 +94,36 @@ export function renderActionsAndStates(sc, onStateChange) {
         div.querySelector('.del-act').addEventListener('click', () => {
             sc.config.actions.splice(idx, 1);
             if (onStateChange) onStateChange();
+            renderActionsAndStates(sc, onStateChange);
         });
+        
+        const mvUp = div.querySelector('.mv-up-act');
+        if (mvUp) {
+            mvUp.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (idx > 0) {
+                    const temp = sc.config.actions[idx];
+                    sc.config.actions[idx] = sc.config.actions[idx - 1];
+                    sc.config.actions[idx - 1] = temp;
+                    if (onStateChange) onStateChange();
+                    renderActionsAndStates(sc, onStateChange);
+                }
+            });
+        }
+
+        const mvDn = div.querySelector('.mv-dn-act');
+        if (mvDn) {
+            mvDn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (idx < sc.config.actions.length - 1) {
+                    const temp = sc.config.actions[idx];
+                    sc.config.actions[idx] = sc.config.actions[idx + 1];
+                    sc.config.actions[idx + 1] = temp;
+                    if (onStateChange) onStateChange();
+                    renderActionsAndStates(sc, onStateChange);
+                }
+            });
+        }
     });
     
     sc.config.states.forEach((st, idx) => {

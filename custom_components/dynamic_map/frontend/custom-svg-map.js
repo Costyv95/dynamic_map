@@ -812,8 +812,12 @@ class CustomSvgMap extends HTMLElement {
                 } else {
                     slider.value = '50';
                 }
+                if (act.width) {
+                    slider.style.width = act.width;
+                } else {
+                    slider.style.width = '150px';
+                }
                 
-                slider.style.width = '150px';
                 slider.addEventListener('change', (e) => {
                     if (!this._hass) return;
                     this._hass.callService(target.split('.')[0], 'turn_on', {
@@ -828,7 +832,65 @@ class CustomSvgMap extends HTMLElement {
                 } else {
                     this.activeOverlay.appendChild(slider);
                 }
-            } else if (act.type && (act.type.startsWith('TOGGLE') || act.type === 'CALL_SERVICE')) {
+            } else if (act.type === 'TOGGLE') {
+                const container = document.createElement('div');
+                container.style.display = 'flex';
+                container.style.justifyContent = 'space-between';
+                container.style.alignItems = 'center';
+                container.style.gap = '15px';
+                container.style.padding = '6px 4px';
+                if (act.width) container.style.width = act.width;
+                
+                let iconHtml = act.icon ? `<span style="margin-right:8px">${act.icon}</span>` : '';
+                const displayName = act.name !== undefined ? act.name : 'Toggle';
+                
+                const label = document.createElement('span');
+                label.innerHTML = `${iconHtml}${displayName}`;
+                label.style.fontSize = '13px';
+                
+                let isOn = false;
+                if (this._hass && this._hass.states[target]) {
+                    isOn = this._hass.states[target].state === 'on';
+                }
+                
+                const switchWrap = document.createElement('div');
+                switchWrap.style.width = '36px';
+                switchWrap.style.height = '20px';
+                switchWrap.style.background = isOn ? '#10b981' : 'rgba(255,255,255,0.2)';
+                switchWrap.style.borderRadius = '10px';
+                switchWrap.style.position = 'relative';
+                switchWrap.style.cursor = 'pointer';
+                switchWrap.style.transition = 'background 0.2s';
+                
+                const thumb = document.createElement('div');
+                thumb.style.width = '16px';
+                thumb.style.height = '16px';
+                thumb.style.background = '#fff';
+                thumb.style.borderRadius = '50%';
+                thumb.style.position = 'absolute';
+                thumb.style.top = '2px';
+                thumb.style.left = isOn ? '18px' : '2px';
+                thumb.style.transition = 'left 0.2s';
+                
+                switchWrap.appendChild(thumb);
+                
+                switchWrap.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this._hass) return;
+                    const domain = target.split('.')[0];
+                    this._hass.callService(domain, 'toggle', { entity_id: target });
+                    
+                    // Optimistic update
+                    isOn = !isOn;
+                    switchWrap.style.background = isOn ? '#10b981' : 'rgba(255,255,255,0.2)';
+                    thumb.style.left = isOn ? '18px' : '2px';
+                });
+                
+                container.appendChild(label);
+                container.appendChild(switchWrap);
+                this.activeOverlay.appendChild(container);
+
+            } else if (act.type && (act.type === 'TOGGLE_ON' || act.type === 'TOGGLE_OFF' || act.type === 'CALL_SERVICE')) {
                 const btn = document.createElement('button');
                 btn.style.background = 'rgba(255,255,255,0.1)';
                 btn.style.border = '1px solid rgba(255,255,255,0.2)';
@@ -839,7 +901,17 @@ class CustomSvgMap extends HTMLElement {
                 btn.style.fontSize = '13px';
                 btn.style.display = 'flex';
                 btn.style.alignItems = 'center';
+                btn.style.justifyContent = 'center';
                 btn.style.gap = '8px';
+                if (act.width) btn.style.width = act.width;
+                
+                if (act.type === 'TOGGLE_ON') {
+                    btn.style.color = '#10b981';
+                    btn.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+                } else if (act.type === 'TOGGLE_OFF') {
+                    btn.style.color = '#ef4444';
+                    btn.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+                }
                 
                 let iconHtml = '';
                 if (act.icon) {
@@ -847,7 +919,6 @@ class CustomSvgMap extends HTMLElement {
                 }
                 
                 let defaultName = act.type;
-                if (act.type === 'TOGGLE') defaultName = 'Toggle State';
                 if (act.type === 'TOGGLE_ON') defaultName = 'Turn On';
                 if (act.type === 'TOGGLE_OFF') defaultName = 'Turn Off';
                 if (act.type === 'CALL_SERVICE') defaultName = 'Run Action';
@@ -872,14 +943,8 @@ class CustomSvgMap extends HTMLElement {
                         }
                     } else if (act.type.startsWith('TOGGLE')) {
                         const domain = target.split('.')[0];
-                        const service = act.type === 'TOGGLE_ON' ? 'turn_on' : (act.type === 'TOGGLE_OFF' ? 'turn_off' : 'toggle');
+                        const service = act.type === 'TOGGLE_ON' ? 'turn_on' : 'turn_off';
                         this._hass.callService(domain, service, { entity_id: target });
-                    }
-                    
-                    // Close overlay on click
-                    if (this.activeOverlay) {
-                        this.activeOverlay.remove();
-                        this.activeOverlay = null;
                     }
                 });
                 
