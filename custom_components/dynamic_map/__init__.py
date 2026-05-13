@@ -15,6 +15,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
     # Register the save API endpoint
     hass.http.register_view(DynamicMapSaveView(hass))
     hass.http.register_view(DynamicMapStateView(hass))
+    hass.http.register_view(DynamicMapEntitiesView(hass))
     hass.http.register_view(DynamicMapFilesView(hass))
     hass.http.register_view(DynamicMapRecomputeView(hass))
     hass.http.register_view(DynamicMapDeleteFloorView(hass))
@@ -40,7 +41,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
         sidebar_title="Map Editor",
         sidebar_icon="mdi:map-search-outline",
         frontend_url_path="dynamic_map_editor",
-        config={"url": "/dynamic_map_ui/editor.html?v=2.19"},
+        config={"url": "/dynamic_map_ui/editor.html?v=2.20"},
         require_admin=True,
     )
     
@@ -108,6 +109,23 @@ class DynamicMapStateView(HomeAssistantView):
             "success": True,
             "state": state.state,
             "attributes": dict(state.attributes)
+        })
+
+class DynamicMapEntitiesView(HomeAssistantView):
+    """View to fetch all entity IDs."""
+    url = "/api/dynamic_map/entities"
+    name = "api:dynamic_map:entities"
+    requires_auth = False
+
+    def __init__(self, hass):
+        self.hass = hass
+
+    async def get(self, request):
+        """Handle GET request to fetch all entities."""
+        entities = [state.entity_id for state in self.hass.states.async_all()]
+        return self.json({
+            "success": True,
+            "entities": entities
         })
 
 class DynamicMapFilesView(HomeAssistantView):

@@ -83,7 +83,7 @@
             <label>Link to HA Area</label>
             <select id="roomArea"><option value="">-- Unmapped --</option></select>
             <label style="margin-top: 10px; display:block;">Entity ID (Optional Light)</label>
-            <input type="text" id="roomEntity" placeholder="e.g. light.living_room">
+            <input type="text" id="roomEntity" list="entityList" placeholder="e.g. light.living_room">
             <label style="margin-top: 10px; display:block;">Room Base Color</label>
             <input type="color" id="roomColor" value="#333333" style="width:100%; height:30px; padding:0; border:1px solid var(--input-border); border-radius:4px; margin-top:5px; cursor:pointer;">
             <div class="header-actions" style="margin-top: 10px; margin-bottom: 5px; display: flex; gap: 5px;">
@@ -100,7 +100,7 @@
             <label>Name</label>
             <input type="text" id="scName" placeholder="e.g. Silvester Vacuum">
             <label>Entity ID</label>
-            <input type="text" id="scEntity" placeholder="e.g. vacuum.silvester">
+            <input type="text" id="scEntity" list="entityList" placeholder="e.g. vacuum.silvester">
             <label>Parent Context</label>
             <select id="scParent"></select>
             <label style="margin-top: 5px; display:block;">Type</label>
@@ -157,7 +157,7 @@
             </div>
 
             <div class="header-actions" style="margin-top: 15px;">
-                <button id="saveShortcutBtn" class="primary">Done</button>
+                <button id="saveShortcutBtn" class="primary">Save Object</button>
                 <button id="deleteShortcutBtn" class="danger">Delete</button>
             </div>
         </div>
@@ -200,6 +200,9 @@
     </div>
 
     <div id="resizer"></div>
+
+    <!-- Datalist for HA Entities -->
+    <datalist id="entityList"></datalist>
 
     <div id="canvas-container">
         <canvas id="mapCanvas"></canvas>
@@ -1570,12 +1573,14 @@
         });
 
         // Shortcut Save & Delete
-        document.getElementById('saveShortcutBtn').addEventListener('click', () => {
-            // Data is already saved in real-time, just close the UI
-            selectedShortcutIdx = -1;
-            updateSidebarUI();
-            draw();
-            saveToHA();
+        document.getElementById('saveShortcutBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('saveShortcutBtn');
+            const orig = btn.textContent;
+            btn.textContent = "Saving...";
+            saveState(); // Ensure last changes are serialized
+            await saveToHA();
+            btn.textContent = "Saved!";
+            setTimeout(() => { btn.textContent = orig; }, 1500);
         });
         
         document.getElementById('addActionBtn').addEventListener('click', () => {
@@ -1889,10 +1894,34 @@
             document.getElementById('recomputePanel').style.display = 'block';
         }
 
+        // Fetch all HA entities for autocomplete
+        async function fetchAllEntities() {
+            try {
+                const res = await fetch('/api/dynamic_map/entities');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.success && data.entities) {
+                        const datalist = document.getElementById('entityList');
+                        if (datalist) {
+                            datalist.innerHTML = '';
+                            data.entities.forEach(entity => {
+                                const option = document.createElement('option');
+                                option.value = entity;
+                                datalist.appendChild(option);
+                            });
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch entities:", err);
+            }
+        }
+
         // Init
         loadRegistry();
         loadAvailableFiles();
         loadFloor(2);
+        fetchAllEntities();
     </script>
 </body>
 </html>
