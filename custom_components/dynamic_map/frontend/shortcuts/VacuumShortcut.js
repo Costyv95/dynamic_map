@@ -1,31 +1,6 @@
-import { MapShortcut } from './MapShortcut.js';
+import { GenericShortcut } from './GenericShortcut.js';
 
-export class VacuumShortcut extends MapShortcut {
-    render() {
-        const shapeType = this.config.shape === 'rect' ? 'rect' : 'circle';
-        const maxR = shapeType === 'rect' ? Math.min(this.rx, this.ry) : this.rx;
-        
-        this.inner1 = document.createElementNS(this.svgNS, 'circle');
-        this.inner1.setAttribute('r', maxR * 0.8);
-        this.inner1.setAttribute('fill', '#334155');
-        
-        this.inner2 = document.createElementNS(this.svgNS, 'circle');
-        this.inner2.setAttribute('r', maxR * 0.4);
-        this.inner2.setAttribute('fill', '#0ea5e9');
-        
-        this.inner3 = document.createElementNS(this.svgNS, 'circle');
-        this.inner3.setAttribute('cx', maxR * 0.5);
-        this.inner3.setAttribute('r', maxR * 0.15);
-        this.inner3.setAttribute('fill', '#10b981');
-        
-        this.group.appendChild(this.inner1);
-        this.group.appendChild(this.inner2);
-        this.group.appendChild(this.inner3);
-        
-        super.render();
-        return this.group;
-    }
-    
+export class VacuumShortcut extends GenericShortcut {
     updateState(hass) {
         super.updateState(hass);
         const entityId = this.sc.entity_id;
@@ -41,9 +16,9 @@ export class VacuumShortcut extends MapShortcut {
         this.mapContext.vacuumState.isCharging = chargingState ? (chargingState.state === 'on') : ['charging', 'docked', 'charging_complete'].includes(this.mapContext.vacuumState.status);
 
         if (this.activeState && this.activeState.icon) {
-            this.stateBadge.textContent = this.activeState.icon;
+            this.iconText.textContent = this.activeState.icon;
         } else {
-            this.stateBadge.textContent = '';
+            this.iconText.textContent = this.config.icon || '🧹';
         }
         
         this.mapContext.updateVacuumLogic(this.sc);

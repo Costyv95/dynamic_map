@@ -124,11 +124,15 @@
                     <label>Color</label>
                     <input type="color" id="scColor" value="#0ea5e9" style="height: 38px; padding: 2px;">
                 </div>
-                <div style="flex: 1; padding-top: 15px;">
-                    <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
-                        <input type="checkbox" id="scTransparent" style="width: auto; margin: 0;"> Background Color
-                    </label>
+                <div style="flex: 1;">
+                    <label>Default Icon</label>
+                    <input type="text" id="scIcon" placeholder="e.g. 💡 or url" style="padding: 4px;">
                 </div>
+            </div>
+            <div style="margin-top: 10px;">
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
+                    <input type="checkbox" id="scHasBackground" style="width: auto; margin: 0;" checked> Show Background Shape
+                </label>
             </div>
 
             <div id="vacuumOptions" style="display: none; margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
@@ -378,7 +382,8 @@
 
                 document.getElementById('scShape').value = sc.config?.shape || 'circle';
                 document.getElementById('scColor').value = sc.config?.color || '#0ea5e9';
-                document.getElementById('scTransparent').checked = sc.config?.transparent || false;
+                document.getElementById('scIcon').value = sc.config?.icon || '';
+                document.getElementById('scHasBackground').checked = !(sc.config?.transparent);
                 
                 if (sc.type === 'vacuum') {
                     document.getElementById('vacuumOptions').style.display = 'block';
@@ -408,6 +413,8 @@
             if (!sc.config.actions) sc.config.actions = [];
             if (!sc.config.states) sc.config.states = [];
             
+            sc.config.actions.forEach((act, idx) => {
+                const isExpanded = act._expanded !== false; // expanded by default
                 const title = act.name || act.action_entity || 'New Action';
                 
                 const div = document.createElement('div');

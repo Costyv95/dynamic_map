@@ -9,7 +9,7 @@ export class LightShortcut extends GenericShortcut {
         super.updateState(hass);
         
         let color = this.config.color || '#475569';
-        let icon = '💡';
+        let icon = this.config.icon || '💡';
         
         if (this.activeState) {
             if (this.activeState.color) color = this.activeState.color;
@@ -18,7 +18,17 @@ export class LightShortcut extends GenericShortcut {
         
         if (!this.config.transparent) {
             this.shape.setAttribute('fill', color);
+        } else {
+            this.shape.setAttribute('fill', 'rgba(0,0,0,0)');
         }
-        this.iconText.textContent = icon;
+        
+        if (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) {
+            this.iconText.textContent = '';
+            this.iconImage.setAttribute('href', icon);
+            this.iconImage.style.display = 'block';
+        } else {
+            this.iconText.textContent = icon;
+            this.iconImage.style.display = 'none';
+        }
     }
 }

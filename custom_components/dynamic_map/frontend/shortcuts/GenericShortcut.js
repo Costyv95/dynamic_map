@@ -23,9 +23,19 @@ export class GenericShortcut extends MapShortcut {
         this.iconText = document.createElementNS(this.svgNS, 'text');
         this.iconText.setAttribute('text-anchor', 'middle');
         this.iconText.setAttribute('dominant-baseline', 'central');
-        this.iconText.setAttribute('font-size', 14 * Math.min(this.scaleX, this.scaleY));
-        this.iconText.textContent = '💡';
+        this.iconText.setAttribute('font-size', 16 * Math.min(this.scaleX, this.scaleY));
+        this.iconText.style.pointerEvents = 'none';
         this.group.appendChild(this.iconText);
+        
+        this.iconImage = document.createElementNS(this.svgNS, 'image');
+        const imgSize = 20 * Math.min(this.scaleX, this.scaleY);
+        this.iconImage.setAttribute('width', imgSize);
+        this.iconImage.setAttribute('height', imgSize);
+        this.iconImage.setAttribute('x', -imgSize / 2);
+        this.iconImage.setAttribute('y', -imgSize / 2);
+        this.iconImage.style.pointerEvents = 'none';
+        this.iconImage.style.display = 'none';
+        this.group.appendChild(this.iconImage);
         
         super.render();
         return this.group;
@@ -35,7 +45,7 @@ export class GenericShortcut extends MapShortcut {
         super.updateState(hass);
         
         let color = this.config.color || '#0ea5e9';
-        let icon = '💡';
+        let icon = this.config.icon || '';
         
         if (this.activeState) {
             if (this.activeState.color) color = this.activeState.color;
@@ -44,7 +54,17 @@ export class GenericShortcut extends MapShortcut {
         
         if (!this.config.transparent) {
             this.shape.setAttribute('fill', color);
+        } else {
+            this.shape.setAttribute('fill', 'rgba(0,0,0,0)');
         }
-        this.iconText.textContent = icon;
+        
+        if (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) {
+            this.iconText.textContent = '';
+            this.iconImage.setAttribute('href', icon);
+            this.iconImage.style.display = 'block';
+        } else {
+            this.iconText.textContent = icon;
+            this.iconImage.style.display = 'none';
+        }
     }
 }
