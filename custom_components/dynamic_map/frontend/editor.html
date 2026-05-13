@@ -44,7 +44,6 @@
     <div id="sidebar">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h1 style="margin: 0;">Map Editor</h1>
-            <input type="color" id="editorBgColor" value="#ffffff" title="Canvas Background Color" style="width: 30px; height: 30px; padding: 0; border: 1px solid var(--input-border); border-radius: 4px; cursor: pointer;">
         </div>
         
         <div style="display: flex; gap: 5px; margin-bottom: 10px; align-items: center;">
@@ -618,19 +617,31 @@
                 });
                 ctx.closePath();
 
+                let rgb = null;
+                if (room.color) {
+                    const hex = room.color.replace('#', '');
+                    if (hex.length === 6) {
+                        rgb = {
+                            r: parseInt(hex.substring(0, 2), 16),
+                            g: parseInt(hex.substring(2, 4), 16),
+                            b: parseInt(hex.substring(4, 6), 16)
+                        };
+                    }
+                }
+
                 // Generate a stable color based on index
                 const hue = (idx * 137.5) % 360;
                 
                 if(selectedRooms.includes(idx)) {
                     // Keep base color, with high-contrast Neon Cyan undulating border
-                    ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.5)`;
+                    ctx.fillStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)` : `hsla(${hue}, 100%, 50%, 0.5)`;
                     ctx.strokeStyle = '#00ffff';
                     ctx.lineWidth = borderPulse;
                     ctx.shadowColor = '#00ffff';
                     ctx.shadowBlur = 15;
                 } else {
-                    ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.3)`;
-                    ctx.strokeStyle = `hsla(${hue}, 100%, 50%, 0.8)`;
+                    ctx.fillStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)` : `hsla(${hue}, 100%, 50%, 0.3)`;
+                    ctx.strokeStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)` : `hsla(${hue}, 100%, 50%, 0.8)`;
                     ctx.lineWidth = 2;
                 }
                 ctx.fill();
@@ -1309,6 +1320,7 @@
                 room.color = document.getElementById('roomColor').value;
                 saveState();
                 draw(); // Redraw to update text on canvas
+                saveToHA(); // Auto-save to JSON
             }
         }
 
@@ -1321,6 +1333,7 @@
                 saveState();
                 updateSidebarUI();
                 draw();
+                saveToHA();
             }
         });
 
@@ -1347,6 +1360,7 @@
             selectedShortcutIdx = -1;
             updateSidebarUI();
             draw();
+            saveToHA();
         });
 
         document.getElementById('scType').addEventListener('change', (e) => {
@@ -1404,11 +1418,12 @@
                 saveState();
                 updateSidebarUI();
                 draw();
+                saveToHA();
             }
         });
 
         // SAVE TO HA
-        document.getElementById('exportJsonBtn').addEventListener('click', async () => {
+        async function saveToHA() {
             const btn = document.getElementById('exportJsonBtn');
             const originalText = btn.textContent;
             btn.textContent = "Saving to HA...";
@@ -1436,8 +1451,10 @@
                 btn.textContent = "❌ Save Failed";
             }
             
-            setTimeout(() => { btn.textContent = originalText; }, 3000);
-        });
+            setTimeout(() => { btn.textContent = "💾 Save JSON"; }, 3000);
+        }
+
+        document.getElementById('exportJsonBtn').addEventListener('click', saveToHA);
 
         // EXPORT YAML
         document.getElementById('exportYamlBtn').addEventListener('click', () => {
@@ -1585,18 +1602,7 @@
             }
         });
 
-        // Background Color logic
-        const bgPicker = document.getElementById('editorBgColor');
-        const canvasContainer = document.getElementById('canvas-container');
-        const savedBg = localStorage.getItem('dynamicMapEditorBg');
-        if (savedBg) {
-            bgPicker.value = savedBg;
-            canvasContainer.style.background = savedBg;
-        }
-        bgPicker.addEventListener('input', (e) => {
-            canvasContainer.style.background = e.target.value;
-            localStorage.setItem('dynamicMapEditorBg', e.target.value);
-        });
+
 
         // Restore recompute panel state
         if (sessionStorage.getItem('recomputeOpen') === 'true') {
