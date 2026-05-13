@@ -3,184 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:,">
     <title>Dynamic Map Editor</title>
-    <link rel="stylesheet" href="editor.css?v=2.25">
-    <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+    <link rel="stylesheet" href="editor.css?v=2.28">
+    <script src="polybool.min.js"></script>
 </head>
 <body>
-    <div id="layout">
-        <!-- Sidebar -->
-        <div id="sidebar">
-            <h3 style="margin-top:0; color:var(--accent);">Map Configuration</h3>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
-                <button id="addShortcutBtn" style="flex:1; margin-right:5px;">+ Add Object</button>
-            </div>
-            
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 15px;">
-                <span style="font-size: 13px;">Editing Floor: <span id="currentFloorDisplay" style="font-weight:bold; color:var(--accent);">2</span></span>
-                <button id="switchFloorBtn" style="padding: 4px 8px; font-size: 11px;">Switch Floor</button>
-            </div>
-            
-            <div id="recomputePanel" style="display: none; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 6px; border: 1px solid #ef4444; margin-bottom: 15px;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div style="flex: 1;">
-                        <span style="color: #ef4444; font-weight: bold; font-size: 13px;">⚠️ Source DXF Updated</span>
-                        <div style="font-size: 11px; margin-top: 5px; color: var(--text);">
-                            The DXF file <code id="recomputeFilename" style="background: rgba(0,0,0,0.2); padding: 2px 4px; border-radius: 3px;"></code> was modified. Geometry alignment is out of sync.
-                        </div>
-                        <button id="recomputeNowBtn" style="margin-top: 10px; background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 4px; width: 100%;">Fix Alignment Now</button>
-                    </div>
-                    <button id="closeRecomputeBtn" style="background: none; border: none; color: var(--text); padding: 0 5px; cursor: pointer;">✕</button>
-                </div>
-            </div>
-            
-            <div id="shortcutsList" style="margin-bottom: 15px;"></div>
-            
-            <div id="roomUI" style="display:none; padding-top:15px; border-top:1px solid var(--border);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <strong style="color:var(--text);">Room Settings</strong>
-                    <button id="deleteRoomBtn" style="width: auto; margin: 0; padding: 4px 8px; font-size: 11px;" class="danger">Delete Object</button>
-                </div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label>Room Name</label>
-                    <span id="roomNameDisplay" style="font-size: 11px; opacity: 0.7; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
-                </div>
-                <input type="text" id="roomName" placeholder="e.g. Living Room">
-                <label>Area ID (for navigation)</label>
-                <input type="text" id="roomArea" placeholder="e.g. living_room">
-                <label>Linked Entity (optional)</label>
-                <input type="text" id="roomEntity" list="entityList" placeholder="e.g. light.living_room">
-                <label>Color</label>
-                <input type="color" id="roomColor" value="#333333" style="width:100%; height:30px; padding:0; border:1px solid var(--input-border); border-radius:4px; margin-top:5px; cursor:pointer;">
-            </div>
 
-            <div id="shortcutUI" style="display:none; padding-top:15px; border-top:1px solid var(--border);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <strong style="color:var(--text);">Object Settings</strong>
-                    <button id="deleteShortcutBtn" style="width: auto; margin: 0; padding: 4px 8px; font-size: 11px;" class="danger">Delete Object</button>
+    <div id="sidebar">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h1 style="margin: 0;">Map Editor</h1>
+        </div>
+        
+        <div style="display: flex; gap: 5px; margin-bottom: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: var(--text); font-size: 14px; margin: 0;">
+                <div class="switch">
+                    <input type="checkbox" id="buildModeToggle">
+                    <span class="slider"></span>
                 </div>
-                <label>Parent Container</label>
-                <select id="scParent">
-                    <option value="home">Home (Global)</option>
-                    <!-- populated dynamically with rooms -->
-                </select>
-
-                <label>Target Entity</label>
-                <input type="text" id="scEntity" list="entityList" placeholder="e.g. vacuum.silvester">
-                <label>Type</label>
-                <select id="scType">
-                    <option value="vacuum">Roborock Vacuum</option>
-                    <option value="generic">Generic Device</option>
-                    <option value="light">Light Bulb</option>
-                </select>
-                <div style="display: flex; gap: 5px; margin-top: 5px;">
-                    <div style="flex: 1;">
-                        <label>Shape</label>
-                        <select id="scShape">
-                            <option value="circle">Circle</option>
-                            <option value="rect">Rectangle</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div style="display: flex; gap: 5px; margin-top: 5px; align-items: center;">
-                    <div style="flex: 1;">
-                        <label>Color</label>
-                        <input type="color" id="scColor" value="#0ea5e9" style="height: 38px; padding: 2px;">
-                    </div>
-                    <div style="flex: 1;">
-                        <label>Default Icon</label>
-                        <input type="text" id="scIcon" placeholder="e.g. 💡 or url" style="padding: 4px;">
-                    </div>
-                </div>
-                <div style="margin-top: 10px;">
-                    <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
-                        <input type="checkbox" id="scHasBackground" style="width: auto; margin: 0;" checked> Show Background Shape
-                    </label>
-                </div>
-
-                <div id="vacuumOptions" style="display: none; margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
-                    <label style="color:var(--accent); font-weight:bold;">⚡ Dock Position is set to current icon location!</label>
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
-                        <label style="display:block;">Room Mapping</label>
-                        <button id="fetchHABtn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0; border-radius: 4px; background: #10b981; color: white; border: none;">Fetch HA</button>
-                    </div>
-                    <div id="roomMappingsList" style="margin-top: 5px;"></div>
-                </div>
-
-                <div style="margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                        <label style="margin: 0; font-weight: bold; color: var(--accent);">Actions</label>
-                        <button id="addScActionBtn" style="width: auto; margin: 0; padding: 2px 6px; font-size: 11px;">+ Add Action</button>
-                    </div>
-                    <div id="scActionsList" style="display: flex; flex-direction: column; gap: 5px;"></div>
-                </div>
-
-                <div style="margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                        <label style="margin: 0; font-weight: bold; color: var(--accent);">States</label>
-                        <button id="addScStateBtn" style="width: auto; margin: 0; padding: 2px 6px; font-size: 11px;">+ Add State</button>
-                    </div>
-                    <div id="scStatesList" style="display: flex; flex-direction: column; gap: 5px;"></div>
-                </div>
-            </div>
-
-            <div id="mergeUI" style="display:none; padding-top:15px; border-top:1px solid var(--border);">
-                <button id="mergeRoomsBtn" class="success" style="width:100%; margin-bottom:10px;">Merge Selected Objects</button>
-                <p style="font-size:12px; color:var(--text); opacity:0.8;">Select multiple elements (shift+click) to merge them into a single polygon.</p>
-            </div>
-            
-            <div style="flex-grow: 1;"></div>
-            
-            <div style="border-top: 1px solid var(--border); padding-top: 15px; margin-top: 15px;">
-                <label>Available DXF Files (auto-detected)</label>
-                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                    <select id="fileSelector" style="flex: 1;"></select>
-                    <button id="loadDxfBtn" style="width: auto;">Load</button>
-                </div>
-                <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-                    <button id="deleteFloorBtn" class="danger" style="flex: 1;">Delete Floor Map</button>
-                </div>
-                <p style="font-size:11px; color:var(--text); opacity:0.6; margin-top:10px;">Changes auto-save. Use Shift+Click to select multiple objects.</p>
+                Build Mode
+            </label>
+            <div style="display: flex; gap: 5px;">
+                <button id="addShortcutBtn" class="primary" title="Add Shortcut Object" style="height: 36px; padding: 0 10px; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 13px;">📍 Add Object</button>
+                <button id="undoBtn" title="Undo (Ctrl+Z)" style="width: 36px; height: 36px; padding: 0; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px;">↩</button>
+                <button id="redoBtn" title="Redo (Ctrl+Shift+Z)" style="width: 36px; height: 36px; padding: 0; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px;">↪</button>
             </div>
         </div>
 
-        <div id="resizer"></div>
+        <div class="instructions" id="roomInstructions">
+            <strong>Controls:</strong><br>
+            • Click a polygon to select it.<br>
+            • <b>Draw to Split:</b> Click and drag a line completely across a selected polygon to split it into two!<br>
+            • <b>Draw New:</b> Shift+Click to place corners of a new room. Press Enter to close it.
+        </div>
 
-        <!-- Toolbar -->
-        <div id="toolbar">
-            <button id="toolSelect" class="active">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/></svg>
-            </button>
-            <button id="toolDraw">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>
-            </button>
-            <button id="toolRotMode" style="margin-left: 10px; position: relative;">
+        <div class="active-room-box" id="activeRoomUI" style="display: none;">
+            <label>Link to HA Area</label>
+            <select id="roomArea"><option value="">-- Unmapped --</option></select>
+            <label style="margin-top: 10px; display:block;">Entity ID (Optional Light)</label>
+            <input type="text" id="roomEntity" list="entityList" placeholder="e.g. light.living_room">
+            <label style="margin-top: 10px; display:block;">Room Base Color</label>
+            <input type="color" id="roomColor" value="#333333" style="width:100%; height:30px; padding:0; border:1px solid var(--input-border); border-radius:4px; margin-top:5px; cursor:pointer;">
+            <div class="header-actions" style="margin-top: 10px; margin-bottom: 5px; display: flex; gap: 5px;">
+                <button id="saveNameBtn" style="flex:2; margin:0;">💾 Save Room</button>
+                <button id="deleteBtn" class="danger" style="flex:1; margin:0;">🗑️ Del</button>
+            </div>
+        </div>
+        <div class="active-room-box" id="mergeUI" style="display: none; margin-top: 10px;">
+            <button id="mergeBtn" class="primary">Merge Selected Rooms</button>
+        </div>
+
+        <div class="active-room-box" id="shortcutUI" style="display: none; margin-top: 10px;">
+            <h3 style="margin-top:0; color: var(--accent); font-size: 16px;">Shortcut Config</h3>
+            <label>Name</label>
+            <input type="text" id="scName" placeholder="e.g. Silvester Vacuum">
+            <label>Entity ID</label>
+            <input type="text" id="scEntity" list="entityList" placeholder="e.g. vacuum.silvester">
+            <label>Parent Context</label>
+            <select id="scParent"></select>
+            <label style="margin-top: 5px; display:block;">Type</label>
+            <select id="scType">
+                <option value="generic">Generic Device</option>
+                <option value="vacuum">Roborock Vacuum</option>
+                <option value="light">Light Bulb</option>
+            </select>
+            <div style="display: flex; gap: 5px; margin-top: 5px;">
+                <div style="flex: 1;">
+                    <label>Shape</label>
+                    <select id="scShape">
+                        <option value="circle">Circle</option>
+                        <option value="rect">Rectangle</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 5px; margin-top: 5px; align-items: center;">
+                <div style="flex: 1;">
+                    <label>Color</label>
+                    <input type="color" id="scColor" value="#0ea5e9" style="height: 38px; padding: 2px;">
+                </div>
+                <div style="flex: 1;">
+                    <label>Default Icon</label>
+                    <input type="text" id="scIcon" placeholder="e.g. 💡 or url" style="padding: 4px;">
+                </div>
+            </div>
+            <div style="margin-top: 10px;">
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
+                    <input type="checkbox" id="scHasBackground" style="width: auto; margin: 0;" checked> Show Background Shape
+                </label>
+            </div>
+
+            <div id="vacuumOptions" style="display: none; margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
+                <label style="color:var(--accent); font-weight:bold;">⚡ Dock Position is set to current icon location!</label>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                    <label style="display:block;">Room Mapping</label>
+                    <button id="fetchHABtn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0; border-radius: 4px; background: #10b981; color: white; border: none;">Fetch HA</button>
+                </div>
+                <div id="roomMappingsList" style="margin-top: 5px;"></div>
+            </div>
+
+            <div id="scActionsPanel" style="margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <label style="display:block; font-weight: bold;">Actions</label>
+                    <button id="addActionBtn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0; border-radius: 4px; background: var(--accent); color: white; border: none;">+ Add Action</button>
+                </div>
+                <div id="scActionsList" style="display: flex; flex-direction: column; gap: 5px;"></div>
+            </div>
+
+            <div id="scStatesPanel" style="margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <label style="display:block; font-weight: bold;">States</label>
+                    <button id="addStateBtn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0; border-radius: 4px; background: #10b981; color: white; border: none;">+ Add State</button>
+                </div>
+                <div id="scStatesList" style="display: flex; flex-direction: column; gap: 5px;"></div>
+            </div>
+
+            <div class="header-actions" style="margin-top: 15px;">
+                <button id="saveShortcutBtn" class="primary">Save Object</button>
+                <button id="deleteShortcutBtn" class="danger">Delete</button>
+            </div>
+        </div>
+
+        <div class="control-group" id="recomputePanel" style="display: none; margin-top: 15px; border-top: 1px solid var(--input-border); padding-top: 15px; position: relative;">
+            <button id="closeRecomputeBtn" style="position: absolute; top: 10px; right: 0; width: 24px; height: 24px; padding: 0; background: transparent; color: #64748b; border: none; font-size: 16px; cursor: pointer;">×</button>
+            <h3 style="margin-bottom: 10px; font-size: 14px; font-weight: bold; margin-top: 0;">Advanced: Recompute Floor</h3>
+            <label style="font-size: 11px; margin-bottom: 5px; display: block; color: #64748b;">Ensure files are uploaded to /config/dynamic_map_data/ first.</label>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <div style="flex: 1;">
+                    <label>Floor Num</label>
+                    <input type="number" id="reconFloor" value="3" min="1" max="10">
+                </div>
+            </div>
+            
+            <label>SVG Source File</label>
+            <select id="reconSvg" style="margin-bottom: 10px;"><option value="">Loading...</option></select>
+            
+            <label>DXF Source File</label>
+            <select id="reconDxf" style="margin-bottom: 10px;"><option value="">Loading...</option></select>
+            
+            <div style="display: flex; gap: 5px; margin-top: 5px;">
+                <button id="recomputeBtn" class="primary" style="background: var(--accent); color: white; flex: 2;">Recompute Map Geometry</button>
+                <button id="deleteFloorBtn" class="danger" style="flex: 1; padding: 5px;" title="Delete Floor Files">🗑️ Delete</button>
+            </div>
+            <div id="recomputeStatus" style="font-size: 11px; margin-top: 5px; color: var(--accent);"></div>
+        </div>
+
+        <div style="flex-grow: 1;"></div>
+
+        <div class="control-group">
+            <div style="display: flex; gap: 5px;">
+                <button id="exportJsonBtn" style="flex: 1; margin: 0;">💾 Save JSON</button>
+                <button id="exportYamlBtn" class="primary" style="flex: 1; margin: 0;">📄 Gen YAML</button>
+            </div>
+            <textarea id="yamlOutput" placeholder="YAML will appear here..." readonly></textarea>
+            <button id="toggleRecomputeBtn" style="margin-top: 10px; width: 100%;">⚙️ Recompute Floors</button>
+        </div>
+    </div>
+
+    <div id="resizer"></div>
+
+    <!-- Datalist for HA Entities -->
+    <datalist id="entityList"></datalist>
+
+    <div id="canvas-container">
+        <canvas id="mapCanvas"></canvas>
+        <div style="position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 10;" id="floorSwitcherContainer">
+            <!-- Floor Selector -->
+            <div style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                <div class="floor-btn active" data-floor="2">Floor 2</div>
+                <div class="floor-btn" data-floor="1">Floor 1</div>
+            </div>
+            <!-- Rotation Mode Toggle -->
+            <div id="rotationModeBtn" title="Rotation Mode: Auto">
                 <svg id="rotIconAuto" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><text x="12" y="16" font-size="10" font-family="sans-serif" text-anchor="middle" stroke="none" fill="currentColor">A</text></svg>
                 <svg id="rotIconHoriz" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="2" y="6" width="20" height="12" rx="2"/></svg>
                 <svg id="rotIconVert" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><rect x="6" y="2" width="12" height="20" rx="2"/></svg>
-            </button>
-            <div id="loader" class="loader"></div>
-            <div id="status" style="margin-left:auto; font-size:12px; color:var(--text); opacity:0.6;">Ready</div>
-        </div>
-
-        <!-- Canvas Area -->
-        <div id="canvas-container">
-            <canvas id="canvas"></canvas>
-            <!-- Map Rotation Indicator -->
-            <div id="rotationIndicator">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M12 2v20"></path>
-                    <path d="M12 2l4 4"></path>
-                    <path d="M12 2l-4 4"></path>
-                    <text x="20" y="12" font-size="12" font-family="sans-serif" text-anchor="start" alignment-baseline="middle" stroke="none" fill="currentColor">N</text>
-                </svg>
-                <div style="font-size: 10px; margin-top: 4px;" id="rotDeg">0°</div>
             </div>
         </div>
     </div>
-    <datalist id="entityList"></datalist>
 
-    <script type="module" src="editor.js?v=2.27"></script>
+    
+    <script type="module" src="editor.js?v=2.28"></script>
 </body>
 </html>

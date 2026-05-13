@@ -1,10 +1,11 @@
 import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.27';
 import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.27';
 
-        const canvas = document.getElementById('canvas');
+        const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
-        const activeRoomUI = document.getElementById('roomUI');
+        const activeRoomUI = document.getElementById('activeRoomUI');
         const roomAreaSelect = document.getElementById('roomArea');
+        const yamlOutput = document.getElementById('yamlOutput');
 
         let haAreas = [];
         let haFloors = [];
