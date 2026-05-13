@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.60';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.60';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.62';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.62';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -1629,15 +1629,15 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
 
             const dropdown = document.createElement('div');
             dropdown.style.position = 'absolute';
-            dropdown.style.background = 'var(--panel-bg, #1e293b)';
-            dropdown.style.border = '1px solid var(--input-border, #475569)';
+            dropdown.style.background = '#ffffff';
+            dropdown.style.border = '1px solid #cbd5e1';
             dropdown.style.borderRadius = '4px';
             dropdown.style.maxHeight = '200px';
             dropdown.style.overflowY = 'auto';
             dropdown.style.display = 'none';
             dropdown.style.zIndex = '9999';
             dropdown.style.width = '100%';
-            dropdown.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.5)';
+            dropdown.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.1)';
             
             const wrapper = document.createElement('div');
             wrapper.style.position = 'relative';
@@ -1666,12 +1666,19 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     item.textContent = ent;
                     item.style.padding = '8px 12px';
                     item.style.cursor = 'pointer';
-                    item.style.borderBottom = '1px solid var(--border, #334155)';
+                    item.style.borderBottom = '1px solid #f1f5f9';
                     item.style.fontSize = '12px';
-                    item.style.color = 'var(--text, #f1f5f9)';
+                    item.style.color = '#000000';
+                    item.style.fontWeight = '500';
                     
-                    item.addEventListener('mouseover', () => item.style.background = 'var(--accent, #3b82f6)');
-                    item.addEventListener('mouseout', () => item.style.background = 'transparent');
+                    item.addEventListener('mouseover', () => {
+                        item.style.background = '#e0f2fe';
+                        item.style.color = '#0284c7';
+                    });
+                    item.addEventListener('mouseout', () => {
+                        item.style.background = '#ffffff';
+                        item.style.color = '#000000';
+                    });
                     item.addEventListener('click', () => {
                         inputElement.value = ent;
                         dropdown.style.display = 'none';
