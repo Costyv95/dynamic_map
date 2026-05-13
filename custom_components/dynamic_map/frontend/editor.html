@@ -784,7 +784,7 @@
                 ctx.stroke();
                 ctx.shadowBlur = 0;
                 
-                if (idx === selectedShortcutIdx && isEditMode) {
+                if (idx === selectedShortcutIdx) {
                     const currentScale = Math.hypot(viewTransform.a, viewTransform.b);
                     const hSize = 4 / currentScale;
                     ctx.fillStyle = 'white';
@@ -968,7 +968,7 @@
             resizeHandle = null;
             
             // Check Resize Handles
-            if (isEditMode && selectedShortcutIdx !== -1 && shortcuts[selectedShortcutIdx]) {
+            if (selectedShortcutIdx !== -1 && shortcuts[selectedShortcutIdx]) {
                 const sc = shortcuts[selectedShortcutIdx];
                 const scX = (sc.position[0]/100)*bgImage.width;
                 const scY = (sc.position[1]/100)*bgImage.height;
@@ -1014,7 +1014,7 @@
                 // Shortcut selected
                 selectedShortcutIdx = overScIdx;
                 selectedRooms = [];
-                if (isEditMode) interactionState = 'DRAG_SC';
+                interactionState = 'DRAG_SC';
                 updateSidebarUI();
                 draw();
                 return;
@@ -1063,7 +1063,7 @@
                 let cursorStyle = 'default';
                 let overShortcut = false;
 
-                if (isEditMode && selectedShortcutIdx !== -1) {
+                if (selectedShortcutIdx !== -1) {
                     const sc = shortcuts[selectedShortcutIdx];
                     const scX = (sc.position[0]/100)*bgImage.width;
                     const scY = (sc.position[1]/100)*bgImage.height;
@@ -1100,7 +1100,7 @@
                         }
                     }
                     if (overShortcut) {
-                        cursorStyle = isEditMode ? 'move' : 'pointer';
+                        cursorStyle = 'move';
                     }
                 }
                 canvas.style.cursor = cursorStyle;
