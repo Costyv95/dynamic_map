@@ -107,7 +107,14 @@ export class MapShortcut {
                         }
                     } else if (act.type && act.type.startsWith('TOGGLE')) {
                         const domain = target.split('.')[0];
-                        const service = act.type === 'TOGGLE_ON' ? 'turn_on' : (act.type === 'TOGGLE_OFF' ? 'turn_off' : 'toggle');
+                        let service = act.type === 'TOGGLE_ON' ? 'turn_on' : (act.type === 'TOGGLE_OFF' ? 'turn_off' : 'toggle');
+                        
+                        if (domain === 'vacuum') {
+                            if (service === 'turn_on') service = 'start';
+                            else if (service === 'turn_off') service = 'return_to_base';
+                            else if (service === 'toggle') service = 'start_pause';
+                        }
+                        
                         this.mapContext._hass.callService(domain, service, { entity_id: target });
                     }
                 });

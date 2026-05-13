@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.42';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.42';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.43';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.43';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -19,6 +19,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         let splitStart = null;
         let splitEnd = null;
         let previewStateIdx = -1;
+        let lastFetchedVacuumOptions = [];
         
         window.togglePreviewState = function(idx) {
             if (previewStateIdx === idx) {

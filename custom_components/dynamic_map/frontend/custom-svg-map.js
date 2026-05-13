@@ -905,7 +905,9 @@ class CustomSvgMap extends HTMLElement {
                     e.stopPropagation();
                     if (!this._hass) return;
                     const domain = target.split('.')[0];
-                    this._hass.callService(domain, 'toggle', { entity_id: target });
+                    let service = 'toggle';
+                    if (domain === 'vacuum') service = 'start_pause';
+                    this._hass.callService(domain, service, { entity_id: target });
                     
                     // Optimistic update
                     isOn = !isOn;
@@ -980,7 +982,13 @@ class CustomSvgMap extends HTMLElement {
                         }
                     } else if (act.type.startsWith('TOGGLE')) {
                         const domain = target.split('.')[0];
-                        const service = act.type === 'TOGGLE_ON' ? 'turn_on' : 'turn_off';
+                        let service = act.type === 'TOGGLE_ON' ? 'turn_on' : 'turn_off';
+                        
+                        if (domain === 'vacuum') {
+                            if (service === 'turn_on') service = 'start';
+                            else if (service === 'turn_off') service = 'return_to_base';
+                        }
+                        
                         this._hass.callService(domain, service, { entity_id: target });
                     }
                 });
