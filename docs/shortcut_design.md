@@ -10,19 +10,40 @@ Shortcuts are stored in `shortcuts_floorX.json`. The schema strictly separates s
 {
   "id": "sc_123456",
   "name": "Living Room TV",
-  "type": "tv",               // Resolves to TVShortcut class
+  "type": "tv",
   "entity_id": "media_player.living_room_tv",
-  "parent": "room_789",       // Optional reference to a room or floor context
-  "position": [45.5, 60.2],   // Percentage coordinates [X, Y]
+  "parent": "room_789",
+  "position": [45.5, 60.2],
   "scaleX": 1.0,
   "scaleY": 1.0,
   "rotation": 0,
   "config": {
-    // Type-specific properties. Extensible per class.
     "shape": "rect",
     "color": "#000000",
     "transparent": false,
-    "room_mapping": {}        // E.g., for vacuums
+    "room_mapping": {},
+    "actions": [
+      {
+        "id": "act_1",
+        "type": "TOGGLE_ON", // TOGGLE_ON, TOGGLE_OFF, TOGGLE, CALL_SERVICE, SPOTIFY_ICON
+        "target": "media_player.living_room_tv",
+        "service": "",       // Used if type == CALL_SERVICE
+        "trigger": "tap",    // tap, overlay, double_tap
+        "icon": "mdi:power",
+        "name": "Turn On"
+      }
+    ],
+    "states": [
+      {
+        "id": "st_1",
+        "condition_entity": "media_player.living_room_tv",
+        "operator": "==", // ==, !=, in, not_in
+        "value": "playing",
+        "icon": "🎵",
+        "color": "#10b981",
+        "animation": "pulse"
+      }
+    ]
   }
 }
 ```

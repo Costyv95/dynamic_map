@@ -50,10 +50,45 @@ class MapShortcut {
     }
     
     updateState(hass) {
-        // Base logic for generic shortcuts
+        this.activeState = this.evaluateStates(hass);
+    }
+    
+    evaluateStates(hass) {
+        if (!this.config.states || !this.config.states.length) return null;
+        for (const st of this.config.states) {
+            if (!st.condition_entity || !hass.states[st.condition_entity]) continue;
+            const actualVal = hass.states[st.condition_entity].state;
+            const targetVal = st.value;
+            let matched = false;
+            if (st.operator === '==') matched = (actualVal == targetVal);
+            if (st.operator === '!=') matched = (actualVal != targetVal);
+            if (matched) return st;
+        }
+        return null;
     }
     
     onClick() {
+        if (this.config.actions && this.config.actions.length > 0) {
+            const tapActions = this.config.actions.filter(a => a.trigger === 'tap');
+            if (tapActions.length > 0) {
+                tapActions.forEach(act => {
+                    const target = act.target || this.sc.entity_id;
+                    if (!target || !this.mapContext._hass) return;
+                    if (act.type === 'CALL_SERVICE' && act.service) {
+                        const parts = act.service.split('.');
+                        if (parts.length === 2) {
+                            this.mapContext._hass.callService(parts[0], parts[1], { entity_id: target });
+                        }
+                    } else if (act.type && act.type.startsWith('TOGGLE')) {
+                        const domain = target.split('.')[0];
+                        const service = act.type === 'TOGGLE_ON' ? 'turn_on' : (act.type === 'TOGGLE_OFF' ? 'turn_off' : 'toggle');
+                        this.mapContext._hass.callService(domain, service, { entity_id: target });
+                    }
+                });
+                return;
+            }
+        }
+        // Fallback default action
         if (this.sc.entity_id && this.mapContext._hass) {
             const domain = this.sc.entity_id.split('.')[0];
             this.mapContext._hass.callService(domain, 'toggle', { entity_id: this.sc.entity_id });
@@ -81,24 +116,37 @@ class GenericShortcut extends MapShortcut {
         this.shape.setAttribute('stroke-width', 2);
         this.group.appendChild(this.shape);
         
-        const text = document.createElementNS(this.svgNS, 'text');
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('dominant-baseline', 'central');
-        text.setAttribute('font-size', 14 * Math.min(this.scaleX, this.scaleY));
-        text.textContent = '💡';
-        this.group.appendChild(text);
+        this.iconText = document.createElementNS(this.svgNS, 'text');
+        this.iconText.setAttribute('text-anchor', 'middle');
+        this.iconText.setAttribute('dominant-baseline', 'central');
+        this.iconText.setAttribute('font-size', 14 * Math.min(this.scaleX, this.scaleY));
+        this.iconText.textContent = '💡';
+        this.group.appendChild(this.iconText);
         
         super.render();
         return this.group;
     }
     
     updateState(hass) {
-        if (!this.sc.entity_id) return;
-        const stateObj = hass.states[this.sc.entity_id];
-        if (stateObj) {
-            const isOn = stateObj.state === 'on';
-            this.shape.setAttribute('fill', isOn ? '#00ff00' : (this.config.color || '#ffaa00'));
+        super.updateState(hass);
+        
+        let color = this.config.color || '#0ea5e9';
+        let icon = '💡';
+        
+        if (this.activeState) {
+            if (this.activeState.color) color = this.activeState.color;
+            if (this.activeState.icon) icon = this.activeState.icon;
+        } else if (this.sc.entity_id && hass.states[this.sc.entity_id]) {
+            // Legacy default toggle state logic if no states defined
+            const stateObj = hass.states[this.sc.entity_id];
+            if (stateObj.state === 'on') color = '#00ff00';
+            else color = '#ffaa00';
         }
+        
+        if (!this.config.transparent) {
+            this.shape.setAttribute('fill', color);
+        }
+        this.iconText.textContent = icon;
     }
 }
 
@@ -129,6 +177,7 @@ class VacuumShortcut extends MapShortcut {
     }
     
     updateState(hass) {
+        super.updateState(hass);
         const entityId = this.sc.entity_id;
         if (!entityId) return;
         
@@ -141,10 +190,15 @@ class VacuumShortcut extends MapShortcut {
         this.mapContext.vacuumState.room = roomState ? roomState.state : 'unknown';
         this.mapContext.vacuumState.isCharging = chargingState ? (chargingState.state === 'on') : ['charging', 'docked', 'charging_complete'].includes(this.mapContext.vacuumState.status);
 
-        if (this.mapContext.vacuumState.isCharging) this.stateBadge.textContent = '⚡';
-        else if (this.mapContext.vacuumState.status === 'error') this.stateBadge.textContent = '❌';
-        else if (this.mapContext.vacuumState.status.includes('clean') || this.mapContext.vacuumState.status === 'returning') this.stateBadge.textContent = '🧹';
-        else this.stateBadge.textContent = '';
+        if (this.activeState && this.activeState.icon) {
+            this.stateBadge.textContent = this.activeState.icon;
+        } else {
+            // Default fallback logic
+            if (this.mapContext.vacuumState.isCharging) this.stateBadge.textContent = '⚡';
+            else if (this.mapContext.vacuumState.status === 'error') this.stateBadge.textContent = '❌';
+            else if (this.mapContext.vacuumState.status.includes('clean') || this.mapContext.vacuumState.status === 'returning') this.stateBadge.textContent = '🧹';
+            else this.stateBadge.textContent = '';
+        }
         
         this.mapContext.updateVacuumLogic(this.sc);
     }

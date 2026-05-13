@@ -57,7 +57,7 @@
             <h1 style="margin: 0;">Map Editor</h1>
         </div>
         
-        <div style="display: flex; gap: 5px; margin-bottom: 10px; align-items: center; justify-content: space-between;">
+        <div style="display: flex; gap: 5px; margin-bottom: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: var(--text); font-size: 14px; margin: 0;">
                 <div class="switch">
                     <input type="checkbox" id="buildModeToggle">
@@ -137,6 +137,22 @@
                     <button id="fetchHABtn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0; border-radius: 4px; background: #10b981; color: white; border: none;">Fetch HA</button>
                 </div>
                 <div id="roomMappingsList" style="margin-top: 5px;"></div>
+            </div>
+
+            <div id="scActionsPanel" style="margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <label style="display:block; font-weight: bold;">Actions</label>
+                    <button id="addActionBtn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0; border-radius: 4px; background: var(--accent); color: white; border: none;">+ Add Action</button>
+                </div>
+                <div id="scActionsList" style="display: flex; flex-direction: column; gap: 5px;"></div>
+            </div>
+
+            <div id="scStatesPanel" style="margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <label style="display:block; font-weight: bold;">States</label>
+                    <button id="addStateBtn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0; border-radius: 4px; background: #10b981; color: white; border: none;">+ Add State</button>
+                </div>
+                <div id="scStatesList" style="display: flex; flex-direction: column; gap: 5px;"></div>
             </div>
 
             <div class="header-actions" style="margin-top: 15px;">
@@ -366,6 +382,7 @@
                 } else {
                     document.getElementById('vacuumOptions').style.display = 'none';
                 }
+                renderActionsAndStates(sc);
             } else if (selectedRooms.length === 1) {
                 activeRoomUI.style.display = 'block';
                 const room = rooms[selectedRooms[0]];
@@ -375,6 +392,105 @@
             } else if (selectedRooms.length === 2) {
                 document.getElementById('mergeUI').style.display = 'block';
             }
+        }
+
+        function renderActionsAndStates(sc) {
+            const actionsList = document.getElementById('scActionsList');
+            const statesList = document.getElementById('scStatesList');
+            actionsList.innerHTML = '';
+            statesList.innerHTML = '';
+            
+            if (!sc.config) sc.config = {};
+            if (!sc.config.actions) sc.config.actions = [];
+            if (!sc.config.states) sc.config.states = [];
+            
+            sc.config.actions.forEach((act, idx) => {
+                const div = document.createElement('div');
+                div.style.background = 'var(--input-bg)';
+                div.style.padding = '8px';
+                div.style.borderRadius = '6px';
+                div.style.border = '1px solid var(--input-border)';
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <input type="text" class="act-name" value="${act.name || ''}" placeholder="Action Name" style="width: 60%; margin: 0; padding: 4px;">
+                        <button class="del-act" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <select class="act-trigger" style="margin: 0; padding: 4px;">
+                            <option value="tap" ${act.trigger === 'tap' ? 'selected' : ''}>Tap</option>
+                            <option value="overlay" ${act.trigger === 'overlay' ? 'selected' : ''}>Overlay Button</option>
+                        </select>
+                        <select class="act-type" style="margin: 0; padding: 4px;">
+                            <option value="TOGGLE" ${act.type === 'TOGGLE' ? 'selected' : ''}>Toggle</option>
+                            <option value="CALL_SERVICE" ${act.type === 'CALL_SERVICE' ? 'selected' : ''}>Call Service</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 5px;">
+                        <input type="text" class="act-target" value="${act.target || ''}" placeholder="Target Entity" style="flex: 1; margin: 0; padding: 4px;">
+                        <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Icon/Emoji" style="width: 40px; margin: 0; padding: 4px; text-align: center;">
+                    </div>
+                    ${act.type === 'CALL_SERVICE' ? `<input type="text" class="act-service" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="width: 100%; margin-top: 5px; padding: 4px;">` : ''}
+                `;
+                actionsList.appendChild(div);
+                
+                div.querySelectorAll('input, select').forEach(el => {
+                    el.addEventListener('change', () => {
+                        act.name = div.querySelector('.act-name').value;
+                        act.trigger = div.querySelector('.act-trigger').value;
+                        act.type = div.querySelector('.act-type').value;
+                        act.target = div.querySelector('.act-target').value;
+                        act.icon = div.querySelector('.act-icon').value;
+                        if (act.type === 'CALL_SERVICE' && div.querySelector('.act-service')) {
+                            act.service = div.querySelector('.act-service').value;
+                        }
+                        renderActionsAndStates(sc);
+                    });
+                });
+                div.querySelector('.del-act').addEventListener('click', () => {
+                    sc.config.actions.splice(idx, 1);
+                    renderActionsAndStates(sc);
+                });
+            });
+            
+            sc.config.states.forEach((st, idx) => {
+                const div = document.createElement('div');
+                div.style.background = 'var(--input-bg)';
+                div.style.padding = '8px';
+                div.style.borderRadius = '6px';
+                div.style.border = '1px solid var(--input-border)';
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <input type="text" class="st-entity" value="${st.condition_entity || ''}" placeholder="Entity ID" style="width: 80%; margin: 0; padding: 4px;">
+                        <button class="del-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <select class="st-op" style="margin: 0; padding: 4px; flex: 1;">
+                            <option value="==" ${st.operator === '==' ? 'selected' : ''}>==</option>
+                            <option value="!=" ${st.operator === '!=' ? 'selected' : ''}>!=</option>
+                        </select>
+                        <input type="text" class="st-val" value="${st.value || ''}" placeholder="Value" style="flex: 2; margin: 0; padding: 4px;">
+                    </div>
+                    <div style="display: flex; gap: 5px; align-items: center;">
+                        <input type="color" class="st-color" value="${st.color || '#ffffff'}" style="width: 30px; height: 24px; padding: 0; margin: 0; border: none;">
+                        <input type="text" class="st-icon" value="${st.icon || ''}" placeholder="Icon/Emoji" style="flex: 1; margin: 0; padding: 4px;">
+                    </div>
+                `;
+                statesList.appendChild(div);
+                
+                div.querySelectorAll('input, select').forEach(el => {
+                    el.addEventListener('change', () => {
+                        st.condition_entity = div.querySelector('.st-entity').value;
+                        st.operator = div.querySelector('.st-op').value;
+                        st.value = div.querySelector('.st-val').value;
+                        st.color = div.querySelector('.st-color').value;
+                        st.icon = div.querySelector('.st-icon').value;
+                    });
+                });
+                div.querySelector('.del-st').addEventListener('click', () => {
+                    sc.config.states.splice(idx, 1);
+                    renderActionsAndStates(sc);
+                });
+            });
         }
 
         let lastFetchedVacuumOptions = null;
@@ -758,9 +874,9 @@
                 
                 const scaleX = sc.scaleX || sc.scale || 1;
                 const scaleY = sc.scaleY || sc.scale || 1;
-                const shape = sc.shape || 'circle';
-                const color = sc.color || '#0ea5e9';
-                const isTrans = sc.transparent || false;
+                const shape = sc.config?.shape || sc.shape || 'circle';
+                const color = sc.config?.color || sc.color || '#0ea5e9';
+                const isTrans = sc.config?.transparent || sc.transparent || false;
                 const rx = 12 * scaleX;
                 const ry = 12 * scaleY;
                 const r = Math.max(rx, ry);
@@ -983,7 +1099,8 @@
 
                 const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
 
-                if (sc.shape === 'rect') {
+                const shape = sc.config?.shape || sc.shape || 'circle';
+                if (shape === 'rect') {
                     if (hitTest(dragStart.x, dragStart.y, scX - rx, scY - ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'NW'; return; }
                     if (hitTest(dragStart.x, dragStart.y, scX + rx, scY - ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'NE'; return; }
                     if (hitTest(dragStart.x, dragStart.y, scX - rx, scY + ry)) { interactionState = 'RESIZE_SC'; resizeHandle = 'SW'; return; }
@@ -1003,7 +1120,8 @@
                 const rx = 12 * (sc.scaleX || sc.scale || 1);
                 const ry = 12 * (sc.scaleY || sc.scale || 1);
                 
-                if (sc.shape === 'rect') {
+                const shape = sc.config?.shape || sc.shape || 'circle';
+                if (shape === 'rect') {
                     if (Math.abs(dragStart.x - scX) <= rx && Math.abs(dragStart.y - scY) <= ry) {
                         overScIdx = i; break;
                     }
@@ -1077,7 +1195,8 @@
                     const hSize = 8 / currentScale;
 
                     const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
-                    const isRect = sc.shape === 'rect';
+                    const shape = sc.config?.shape || sc.shape || 'circle';
+                    const isRect = shape === 'rect';
 
                     if (isRect && (hitTest(worldPos.x, worldPos.y, scX - rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX + rx, scY + ry))) cursorStyle = 'nwse-resize';
                     else if (isRect && (hitTest(worldPos.x, worldPos.y, scX + rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX - rx, scY + ry))) cursorStyle = 'nesw-resize';
@@ -1093,7 +1212,8 @@
                         const rx = 12 * (sc.scaleX || sc.scale || 1);
                         const ry = 12 * (sc.scaleY || sc.scale || 1);
                         
-                        if (sc.shape === 'rect') {
+                        const shape = sc.config?.shape || sc.shape || 'circle';
+                        if (shape === 'rect') {
                             if (Math.abs(worldPos.x - scX) <= rx && Math.abs(worldPos.y - scY) <= ry) {
                                 overShortcut = true; break;
                             }
@@ -1139,11 +1259,12 @@
                 if (resizeHandle.includes('W')) newRx = scX - worldPos.x;
                 if (resizeHandle.includes('E')) newRx = worldPos.x - scX;
 
-                if (sc.shape !== 'rect') {
+                const shape = sc.config?.shape || sc.shape || 'circle';
+                if (shape !== 'rect') {
                     // circle locks aspect ratio
                     const maxR = Math.max(Math.abs(newRx), Math.abs(newRy));
-                    newRx = maxR;
-                    newRy = maxR;
+                    newRx = Math.max(5, maxR);
+                    newRy = Math.max(5, maxR);
                 } else {
                     newRx = Math.max(5, Math.abs(newRx));
                     newRy = Math.max(5, Math.abs(newRy));
@@ -1423,6 +1544,7 @@
             const newSc = {
                 id: `sc_${Date.now()}`, name: "New Object", type: "generic",
                 entity_id: "", position: center, parent: "home",
+                scaleX: 2, scaleY: 2,
                 config: {
                     shape: "circle",
                     color: "#0ea5e9",
@@ -1445,6 +1567,28 @@
             updateSidebarUI();
             draw();
             saveToHA();
+        });
+        
+        document.getElementById('addActionBtn').addEventListener('click', () => {
+            if (selectedShortcutIdx !== -1) {
+                const sc = shortcuts[selectedShortcutIdx];
+                if (!sc.config) sc.config = {};
+                if (!sc.config.actions) sc.config.actions = [];
+                sc.config.actions.push({ id: `act_${Date.now()}`, type: 'TOGGLE', trigger: 'tap', target: sc.entity_id || '' });
+                renderActionsAndStates(sc);
+                saveState();
+            }
+        });
+
+        document.getElementById('addStateBtn').addEventListener('click', () => {
+            if (selectedShortcutIdx !== -1) {
+                const sc = shortcuts[selectedShortcutIdx];
+                if (!sc.config) sc.config = {};
+                if (!sc.config.states) sc.config.states = [];
+                sc.config.states.push({ id: `st_${Date.now()}`, condition_entity: sc.entity_id || '', operator: '==', value: 'on', color: '#10b981' });
+                renderActionsAndStates(sc);
+                saveState();
+            }
         });
 
         document.getElementById('scType').addEventListener('change', (e) => {
