@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.46';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.46';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.47';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.47';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -1251,10 +1251,16 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     if (!sc.config.states || sc.config.states.length === 0) {
                         const baseName = (sc.entity_id || 'vacuum.roborock').replace('vacuum.', '');
                         sc.config.states = [
-                            { id: `st_${Date.now()}_1`, name: 'Cleaning', state_entity: `sensor.${baseName}_status`, operator: '==', value: 'cleaning', color: '#10b981', icon: '🧹' },
-                            { id: `st_${Date.now()}_2`, name: 'Charging', state_entity: `binary_sensor.${baseName}_charging`, operator: '==', value: 'on', color: '#334155', icon: '⚡' },
-                            { id: `st_${Date.now()}_3`, name: 'Returning', state_entity: `sensor.${baseName}_status`, operator: '==', value: 'returning', color: '#0ea5e9', icon: '🧹' },
-                            { id: `st_${Date.now()}_4`, name: 'Error', state_entity: `sensor.${baseName}_status`, operator: '==', value: 'error', color: '#ef4444', icon: '❌' }
+                            { id: `st_${Date.now()}_1`, name: 'Charging', state_entity: `sensor.${baseName}_status`, operator: '==', value: 'charging', color: '#10b981', image: '/dynamic_map_data/icons/vacuum_charging.svg' },
+                            { id: `st_${Date.now()}_2`, name: 'Cleaning', state_entity: `sensor.${baseName}_status`, operator: '==', value: 'cleaning', color: '#0ea5e9', image: '/dynamic_map_data/icons/vacuum_cleaning.svg' },
+                            { id: `st_${Date.now()}_3`, name: 'Error', state_entity: `sensor.${baseName}_status`, operator: '==', value: 'error', color: '#ef4444', image: '/dynamic_map_data/icons/vacuum_error.svg' }
+                        ];
+                    }
+                    if (!sc.config.actions || sc.config.actions.length === 0) {
+                        sc.config.actions = [
+                            { id: `act_${Date.now()}_1`, type: 'TOGGLE', trigger: 'tap', action_entity: sc.entity_id || '', name: 'Pause/Start', icon: '⏯️' },
+                            { id: `act_${Date.now()}_2`, type: 'CALL_SERVICE', trigger: 'overlay', action_entity: sc.entity_id || '', service: 'vacuum.return_to_base', name: 'Return to Dock', icon: '🏠' },
+                            { id: `act_${Date.now()}_3`, type: 'CALL_SERVICE', trigger: 'overlay', action_entity: sc.entity_id || '', service: 'vacuum.start', name: 'Clean House', icon: '🧹' }
                         ];
                     }
                 } else if (sc.type === 'light') {
