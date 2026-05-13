@@ -107,11 +107,6 @@ export class MapShortcut {
                 return;
             }
         }
-        // Fallback default action
-        if (this.sc.entity_id && this.mapContext._hass) {
-            const domain = this.sc.entity_id.split('.')[0];
-            this.mapContext._hass.callService(domain, 'toggle', { entity_id: this.sc.entity_id });
-        }
     }
 
     onLongPress(e) {

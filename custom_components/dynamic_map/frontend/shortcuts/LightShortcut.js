@@ -14,13 +14,6 @@ export class LightShortcut extends GenericShortcut {
         if (this.activeState) {
             if (this.activeState.color) color = this.activeState.color;
             if (this.activeState.icon) icon = this.activeState.icon;
-        } else if (this.sc.entity_id && hass.states[this.sc.entity_id]) {
-            const stateObj = hass.states[this.sc.entity_id];
-            if (stateObj.state === 'on') {
-                color = '#fbbf24';
-            } else {
-                color = '#475569';
-            }
         }
         
         if (!this.config.transparent) {

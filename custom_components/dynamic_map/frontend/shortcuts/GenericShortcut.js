@@ -40,11 +40,6 @@ export class GenericShortcut extends MapShortcut {
         if (this.activeState) {
             if (this.activeState.color) color = this.activeState.color;
             if (this.activeState.icon) icon = this.activeState.icon;
-        } else if (this.sc.entity_id && hass.states[this.sc.entity_id]) {
-            // Legacy default toggle state logic if no states defined
-            const stateObj = hass.states[this.sc.entity_id];
-            if (stateObj.state === 'on') color = '#00ff00';
-            else color = '#ffaa00';
         }
         
         if (!this.config.transparent) {

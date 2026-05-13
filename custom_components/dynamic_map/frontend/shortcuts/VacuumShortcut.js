@@ -43,11 +43,7 @@ export class VacuumShortcut extends MapShortcut {
         if (this.activeState && this.activeState.icon) {
             this.stateBadge.textContent = this.activeState.icon;
         } else {
-            // Default fallback logic
-            if (this.mapContext.vacuumState.isCharging) this.stateBadge.textContent = '⚡';
-            else if (this.mapContext.vacuumState.status === 'error') this.stateBadge.textContent = '❌';
-            else if (this.mapContext.vacuumState.status.includes('clean') || this.mapContext.vacuumState.status === 'returning') this.stateBadge.textContent = '🧹';
-            else this.stateBadge.textContent = '';
+            this.stateBadge.textContent = '';
         }
         
         this.mapContext.updateVacuumLogic(this.sc);
