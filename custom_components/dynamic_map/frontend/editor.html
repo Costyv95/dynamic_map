@@ -9,6 +9,8 @@
         :root { --bg: #f4f4f5; --panel: #ffffff; --accent: #0ea5e9; --text: #1e293b; --input-bg: #f8fafc; --input-border: #e2e8f0; --btn-hover: #f1f5f9; }
         body { margin: 0; padding: 0; background-color: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
         #sidebar { width: 350px; background: var(--panel); padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 10; border-right: 1px solid var(--input-border); }
+        #resizer { width: 6px; background: var(--input-border); cursor: col-resize; flex-shrink: 0; transition: background 0.2s; z-index: 100; box-shadow: 2px 0 5px rgba(0,0,0,0.05); }
+        #resizer:hover, #resizer.resizing { background: var(--accent); }
         h1 { font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; color: var(--accent); }
         .control-group { margin-bottom: 20px; }
         select, button, input { box-sizing: border-box; width: 100%; padding: 8px; margin-top: 5px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 6px; cursor: pointer; transition: 0.2s; font-family: inherit; font-size: 13px;}
@@ -34,8 +36,9 @@
 
         @media (max-width: 768px) and (orientation: portrait) {
             body { flex-direction: column; }
-            #sidebar { width: 100%; height: 40vh; max-height: 40vh; overflow-y: auto; border-right: none; border-bottom: 1px solid var(--input-border); }
-            #canvas-container { flex-grow: 1; height: 60vh; }
+            #sidebar { width: 100%; height: 40vh; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--input-border); }
+            #resizer { width: 100%; height: 6px; cursor: row-resize; }
+            #canvas-container { flex-grow: 1; height: auto; }
         }
 
         /* Toggle Switch CSS */
@@ -179,6 +182,8 @@
         </div>
     </div>
 
+    <div id="resizer"></div>
+
     <div id="canvas-container">
         <canvas id="mapCanvas"></canvas>
         <div style="position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 10;" id="floorSwitcherContainer">
@@ -248,6 +253,71 @@
                 draw();
             }
         }
+
+        // Resizer logic
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.getElementById('sidebar');
+        let isResizingSidebar = false;
+        let resizeStartX, resizeStartY, resizeStartWidth, resizeStartHeight;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizingSidebar = true;
+            resizeStartX = e.clientX;
+            resizeStartY = e.clientY;
+            resizeStartWidth = sidebar.getBoundingClientRect().width;
+            resizeStartHeight = sidebar.getBoundingClientRect().height;
+            resizer.classList.add('resizing');
+            document.body.style.cursor = window.innerWidth <= 768 ? 'row-resize' : 'col-resize';
+        });
+
+        resizer.addEventListener('touchstart', (e) => {
+            if (e.touches.length !== 1) return;
+            isResizingSidebar = true;
+            resizeStartX = e.touches[0].clientX;
+            resizeStartY = e.touches[0].clientY;
+            resizeStartWidth = sidebar.getBoundingClientRect().width;
+            resizeStartHeight = sidebar.getBoundingClientRect().height;
+            resizer.classList.add('resizing');
+            e.preventDefault(); // Prevent scrolling
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizingSidebar) return;
+            handleResizerMove(e.clientX, e.clientY);
+        });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isResizingSidebar) return;
+            handleResizerMove(e.touches[0].clientX, e.touches[0].clientY);
+        });
+
+        function handleResizerMove(clientX, clientY) {
+            if (window.innerWidth <= 768) {
+                const dy = clientY - resizeStartY;
+                const newHeight = Math.max(100, Math.min(window.innerHeight - 100, resizeStartHeight + dy));
+                sidebar.style.height = `${newHeight}px`;
+                sidebar.style.maxHeight = 'none';
+            } else {
+                const dx = clientX - resizeStartX;
+                const newWidth = Math.max(200, Math.min(window.innerWidth - 200, resizeStartWidth + dx));
+                sidebar.style.width = `${newWidth}px`;
+            }
+            resizeCanvas();
+            draw();
+        }
+
+        const stopResizing = () => {
+            if (isResizingSidebar) {
+                isResizingSidebar = false;
+                resizer.classList.remove('resizing');
+                document.body.style.cursor = '';
+                resizeCanvas();
+                draw();
+            }
+        };
+
+        window.addEventListener('mouseup', stopResizing);
+        window.addEventListener('touchend', stopResizing);
 
         function redo() {
             if (historyIndex < history.length - 1) {
