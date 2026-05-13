@@ -37,6 +37,14 @@
             #sidebar { width: 100%; height: 40vh; max-height: 40vh; overflow-y: auto; border-right: none; border-bottom: 1px solid var(--input-border); }
             #canvas-container { flex-grow: 1; height: 60vh; }
         }
+
+        /* Toggle Switch CSS */
+        .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--input-border); transition: .2s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .2s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { transform: translateX(20px); }
     </style>
     <script src="polybool.min.js"></script>
 </head>
@@ -46,10 +54,18 @@
             <h1 style="margin: 0;">Map Editor</h1>
         </div>
         
-        <div style="display: flex; gap: 5px; margin-bottom: 10px; align-items: center;">
-            <button id="editModeBtn" style="background: var(--input-bg); color: var(--text); flex: 1; margin: 0; padding: 8px;">🔒 View Mode</button>
-            <button id="undoBtn" title="Undo (Ctrl+Z)" style="width: 36px; height: 36px; padding: 0; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px;">↩</button>
-            <button id="redoBtn" title="Redo (Ctrl+Shift+Z)" style="width: 36px; height: 36px; padding: 0; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px;">↪</button>
+        <div style="display: flex; gap: 5px; margin-bottom: 10px; align-items: center; justify-content: space-between;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; color: var(--text); font-size: 14px; margin: 0;">
+                <div class="switch">
+                    <input type="checkbox" id="buildModeToggle">
+                    <span class="slider"></span>
+                </div>
+                Build Mode
+            </label>
+            <div style="display: flex; gap: 5px;">
+                <button id="undoBtn" title="Undo (Ctrl+Z)" style="width: 36px; height: 36px; padding: 0; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px;">↩</button>
+                <button id="redoBtn" title="Redo (Ctrl+Shift+Z)" style="width: 36px; height: 36px; padding: 0; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px;">↪</button>
+            </div>
         </div>
 
         <div class="instructions" id="roomInstructions">
@@ -246,20 +262,10 @@
         document.getElementById('undoBtn').addEventListener('click', undo);
         document.getElementById('redoBtn').addEventListener('click', redo);
 
-        document.getElementById('editModeBtn').addEventListener('click', () => {
-            isEditMode = !isEditMode;
-            const btn = document.getElementById('editModeBtn');
-            if (isEditMode) {
-                btn.textContent = '✏️ Edit Mode (ON)';
-                btn.className = 'danger';
-                btn.style.background = '';
-                btn.style.color = '';
-            } else {
-                btn.textContent = '🔒 View Mode';
-                btn.className = '';
-                btn.style.background = 'var(--input-bg)';
-                btn.style.color = 'var(--text)';
-                
+        document.getElementById('buildModeToggle').addEventListener('change', (e) => {
+            isEditMode = e.target.checked;
+            
+            if (!isEditMode) {
                 // Clear selections
                 selectedRooms = [];
                 selectedShortcutIdx = -1;
