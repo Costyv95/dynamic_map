@@ -1326,6 +1326,13 @@
 
         document.getElementById('saveNameBtn').addEventListener('click', saveRoomName);
 
+        document.getElementById('roomColor').addEventListener('input', (e) => {
+            if(selectedRooms.length === 1) {
+                rooms[selectedRooms[0]].color = e.target.value;
+                draw();
+            }
+        });
+
         document.getElementById('deleteBtn').addEventListener('click', () => {
             if(selectedRooms.length === 1) {
                 rooms.splice(selectedRooms[0], 1);
