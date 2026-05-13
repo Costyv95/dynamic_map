@@ -11,7 +11,7 @@
         #sidebar { width: 350px; background: var(--panel); padding: 20px; box-shadow: 2px 0 10px rgba(0,0,0,0.1); display: flex; flex-direction: column; z-index: 10; border-right: 1px solid var(--input-border); }
         h1 { font-size: 20px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-top: 0; color: var(--accent); }
         .control-group { margin-bottom: 20px; }
-        select, button, input { box-sizing: border-box; width: 100%; padding: 10px; margin-top: 5px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 6px; cursor: pointer; transition: 0.2s; font-family: inherit;}
+        select, button, input { box-sizing: border-box; width: 100%; padding: 8px; margin-top: 5px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 6px; cursor: pointer; transition: 0.2s; font-family: inherit; font-size: 13px;}
         button:hover { background: var(--btn-hover); border-color: var(--accent); }
         button.primary { background: rgba(14, 165, 233, 0.1); color: var(--accent); border: 1px solid var(--accent); font-weight: 600; }
         button.primary:hover { background: rgba(14, 165, 233, 0.2); box-shadow: 0 0 10px rgba(14,165,233,0.2); }
@@ -47,17 +47,10 @@
             <input type="color" id="editorBgColor" value="#ffffff" title="Canvas Background Color" style="width: 30px; height: 30px; padding: 0; border: 1px solid var(--input-border); border-radius: 4px; cursor: pointer;">
         </div>
         
-        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-            <button id="editModeBtn" style="background: var(--input-bg); color: var(--text);">🔒 View Mode</button>
-        </div>
-
-
-
-
-
-        <div style="display: flex; gap: 5px; margin-bottom: 10px;">
-            <button id="undoBtn" title="Undo (Ctrl+Z)">↩ Undo</button>
-            <button id="redoBtn" title="Redo (Ctrl+Shift+Z)">↪ Redo</button>
+        <div style="display: flex; gap: 5px; margin-bottom: 10px; align-items: center;">
+            <button id="editModeBtn" style="background: var(--input-bg); color: var(--text); flex: 1; margin: 0; padding: 8px;">🔒 View Mode</button>
+            <button id="undoBtn" title="Undo (Ctrl+Z)" style="width: 36px; height: 36px; padding: 0; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px;">↩</button>
+            <button id="redoBtn" title="Redo (Ctrl+Shift+Z)" style="width: 36px; height: 36px; padding: 0; margin: 0; flex: none; display: flex; align-items: center; justify-content: center; font-size: 16px;">↪</button>
         </div>
 
         <div class="instructions" id="roomInstructions">
@@ -159,10 +152,12 @@
         <div style="flex-grow: 1;"></div>
 
         <div class="control-group">
-            <button id="exportJsonBtn">1. Save to Home Assistant</button>
-            <button id="exportYamlBtn" class="primary" style="margin-top: 10px;">2. Generate HA YAML</button>
+            <div style="display: flex; gap: 5px;">
+                <button id="exportJsonBtn" style="flex: 1; margin: 0;">💾 Save JSON</button>
+                <button id="exportYamlBtn" class="primary" style="flex: 1; margin: 0;">📄 Gen YAML</button>
+            </div>
             <textarea id="yamlOutput" placeholder="YAML will appear here..." readonly></textarea>
-            <button id="toggleRecomputeBtn" style="margin-top: 10px; width: 100%;">⚙️ Advanced: Recompute Floors</button>
+            <button id="toggleRecomputeBtn" style="margin-top: 10px; width: 100%;">⚙️ Recompute Floors</button>
         </div>
     </div>
 
