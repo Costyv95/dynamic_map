@@ -20,7 +20,14 @@ export function renderActionsAndStates(sc, onStateChange) {
     
     sc.config.actions.forEach((act, idx) => {
         const isExpanded = act._expanded !== false; // expanded by default
-        const title = act.name || act.action_entity || 'New Action';
+        let typeText = act.type || 'Action';
+        if (typeText === 'TOGGLE_ON') typeText = 'Turn On';
+        if (typeText === 'TOGGLE_OFF') typeText = 'Turn Off';
+        if (typeText === 'CALL_SERVICE') typeText = 'Call Service';
+        if (typeText === 'ROOM_SELECTOR') typeText = 'Select Rooms';
+        
+        const triggerText = (act.trigger === 'long_press' || act.trigger === 'overlay') ? 'Long Press' : 'Tap';
+        const title = act.name || `${triggerText} - ${typeText}`;
         
         const div = document.createElement('div');
         div.style.background = 'var(--input-bg)';
