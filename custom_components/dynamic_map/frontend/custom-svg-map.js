@@ -1186,7 +1186,13 @@ class CustomSvgMap extends HTMLElement {
             let segments = [];
             if (scConfig && scConfig.room_mapping) {
                 this.selectedRoomIds.forEach(id => {
-                    const mappedId = scConfig.room_mapping[id];
+                    let mappedId = null;
+                    for (const [roboId, svgRoomId] of Object.entries(scConfig.room_mapping)) {
+                        if (svgRoomId === id) {
+                            mappedId = roboId;
+                            break;
+                        }
+                    }
                     if (mappedId) segments.push(isNaN(mappedId) ? mappedId : parseInt(mappedId));
                 });
             }
