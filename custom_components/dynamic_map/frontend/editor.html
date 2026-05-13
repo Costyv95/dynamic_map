@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:,">
     <title>Dynamic Map Editor</title>
-    <link rel="stylesheet" href="editor.css?v=2.52">
+    <link rel="stylesheet" href="editor.css?v=2.53">
     <script src="polybool.min.js"></script>
 </head>
 <body>
@@ -40,6 +40,8 @@
         <div class="active-room-box" id="activeRoomUI" style="display: none;">
             <label>Link to HA Area</label>
             <select id="roomArea"><option value="">-- Unmapped --</option></select>
+            <label style="margin-top: 10px; display:block;">Custom Room Name</label>
+            <input type="text" id="roomName" placeholder="e.g. Master Bedroom">
             <label style="margin-top: 10px; display:block;">Entity ID (Optional Light)</label>
             <input type="text" id="roomEntity" list="entityList" placeholder="e.g. light.living_room">
             <label style="margin-top: 10px; display:block;">Room Base Color</label>
@@ -230,6 +232,6 @@
         </div>
     </div>
 
-    <script type="module" src="editor.js?v=2.52"></script>
+    <script type="module" src="editor.js?v=2.53"></script>
 </body>
 </html>

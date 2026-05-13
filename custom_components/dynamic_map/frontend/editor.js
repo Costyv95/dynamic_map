@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.52';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.52';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.53';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.53';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -188,6 +188,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
             } else if (selectedRooms.length === 1) {
                 activeRoomUI.style.display = 'block';
                 const room = rooms[selectedRooms[0]];
+                document.getElementById('roomName').value = room.name || '';
                 document.getElementById('roomArea').value = room.area_id || '';
                 document.getElementById('roomEntity').value = room.entity_id || '';
                 document.getElementById('roomColor').value = room.color || '#333333';
@@ -1145,7 +1146,11 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 const room = rooms[selectedRooms[0]];
                 const areaId = document.getElementById('roomArea').value;
                 room.area_id = areaId;
-                if (areaId) {
+                
+                const customName = document.getElementById('roomName').value.trim();
+                if (customName) {
+                    room.name = customName;
+                } else if (areaId) {
                     const area = haAreas.find(a => a.id === areaId);
                     if (area) room.name = area.name;
                 } else {
