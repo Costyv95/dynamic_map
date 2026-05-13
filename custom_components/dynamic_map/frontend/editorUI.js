@@ -22,10 +22,7 @@ export function renderActionsAndStates(sc, onStateChange) {
         div.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="act-header">
                 <strong style="font-size: 13px; color: var(--text);">${title}</strong>
-                <div style="display: flex; gap: 5px;">
-                    <span style="font-size: 10px; opacity: 0.5;">${isExpanded ? '▼' : '▶'}</span>
-                    <button class="del-act" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
-                </div>
+                <button class="del-act" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
             </div>
             <div class="act-body" style="display: ${isExpanded ? 'block' : 'none'}; margin-top: 10px; border-top: 1px solid var(--input-border); padding-top: 10px;">
                 <input type="text" class="act-name" value="${act.name || ''}" placeholder="Action Name" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
@@ -40,9 +37,9 @@ export function renderActionsAndStates(sc, onStateChange) {
                         <option value="SLIDER" ${act.type === 'SLIDER' ? 'selected' : ''}>Slider (Brightness)</option>
                     </select>
                 </div>
-                <div style="display: flex; gap: 5px;">
-                    <input type="text" class="act-target" list="entityList" value="${act.action_entity || ''}" placeholder="Action Entity" style="flex: 1; margin: 0; padding: 4px;">
-                    <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Icon/Emoji" style="width: 40px; margin: 0; padding: 4px; text-align: center;">
+                <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                    <input type="text" class="act-target" list="entityList" value="${act.action_entity || ''}" placeholder="Action Entity" style="flex: 2; margin: 0; padding: 4px;">
+                    <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Overlay Icon (for Overlay Trigger)" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
                 </div>
                 ${act.type === 'CALL_SERVICE' ? `<input type="text" class="act-service" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="width: 100%; margin-top: 5px; padding: 4px;">` : ''}
             </div>
@@ -52,7 +49,7 @@ export function renderActionsAndStates(sc, onStateChange) {
         div.querySelector('.act-header').addEventListener('click', (e) => {
             if(e.target.tagName === 'BUTTON') return;
             act._expanded = !isExpanded;
-            onStateChange();
+            if (onStateChange) onStateChange();
         });
 
         div.querySelectorAll('.act-body input, .act-body select').forEach(el => {
@@ -65,12 +62,12 @@ export function renderActionsAndStates(sc, onStateChange) {
                 if (act.type === 'CALL_SERVICE' && div.querySelector('.act-service')) {
                     act.service = div.querySelector('.act-service').value;
                 }
-                onStateChange();
+                if (onStateChange) onStateChange();
             });
         });
         div.querySelector('.del-act').addEventListener('click', () => {
             sc.config.actions.splice(idx, 1);
-            onStateChange();
+            if (onStateChange) onStateChange();
         });
     });
     
@@ -90,7 +87,6 @@ export function renderActionsAndStates(sc, onStateChange) {
                 <strong style="font-size: 13px; color: ${window.previewStateIdx === idx ? 'var(--accent)' : 'var(--text)'};">${title}</strong>
                 <div style="display: flex; gap: 5px;">
                     <button class="preview-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px; font-weight: bold; background: ${window.previewStateIdx === idx ? 'var(--accent)' : 'var(--btn-hover)'}; color: ${window.previewStateIdx === idx ? 'white' : 'var(--text)'}; border: 1px solid ${window.previewStateIdx === idx ? 'var(--accent)' : 'var(--input-border)'};">${window.previewStateIdx === idx ? '👁️ Previewing' : '👁️ Preview'}</button>
-                    <span style="font-size: 10px; opacity: 0.5; display: flex; align-items: center;">${isExpanded ? '▼' : '▶'}</span>
                     <button class="del-st" data-idx="${idx}" style="width: auto; margin: 0; padding: 2px 5px; font-size: 10px;" class="danger">X</button>
                 </div>
             </div>
@@ -117,14 +113,14 @@ export function renderActionsAndStates(sc, onStateChange) {
             e.stopPropagation();
             if (window.togglePreviewState) {
                 window.togglePreviewState(idx);
-                onStateChange(); // Force a re-render of the UI to highlight the button
+                if (onStateChange) onStateChange(); // Force a re-render of the UI to highlight the button
             }
         });
 
         div.querySelector('.st-header').addEventListener('click', (e) => {
             if(e.target.tagName === 'BUTTON') return;
             st._expanded = !isExpanded;
-            onStateChange();
+            if (onStateChange) onStateChange();
         });
 
         div.querySelectorAll('.st-body input, .st-body select').forEach(el => {
@@ -140,7 +136,7 @@ export function renderActionsAndStates(sc, onStateChange) {
         });
         div.querySelector('.del-st').addEventListener('click', () => {
             sc.config.states.splice(idx, 1);
-            onStateChange();
+            if (onStateChange) onStateChange();
         });
     });
 }
