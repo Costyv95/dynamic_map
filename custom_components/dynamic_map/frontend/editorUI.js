@@ -58,7 +58,7 @@ export function renderActionsAndStates(sc, onStateChange) {
                 </div>
                 <div style="display: flex; gap: 5px; margin-bottom: 5px;">
                     <input type="text" class="act-target" list="entityList" value="${act.action_entity || ''}" placeholder="Action Entity" style="flex: 2; margin: 0; padding: 4px;">
-                    <input type="text" class="act-icon" value="${act.icon || ''}" placeholder="Menu Icon" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
+                    <input type="text" class="act-icon" list="iconList" value="${act.icon || ''}" placeholder="Menu Icon" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
                     <input type="text" class="act-width" value="${act.width || ''}" placeholder="Width (e.g. 150px)" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
                 </div>
                 ${act.type === 'CALL_SERVICE' ? `<input type="text" class="act-service" list="serviceList" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="width: 100%; margin-top: 5px; padding: 4px;">` : ''}
@@ -170,9 +170,9 @@ export function renderActionsAndStates(sc, onStateChange) {
                 </div>
                 <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 5px;">
                     <input type="color" class="st-color" value="${st.color || '#ffffff'}" style="width: 30px; height: 24px; padding: 0; margin: 0; border: none;">
-                    <input type="text" class="st-icon" value="${st.icon || ''}" placeholder="Icon/Emoji" style="flex: 1; margin: 0; padding: 4px;">
+                    <input type="text" class="st-icon" list="iconList" value="${st.icon || ''}" placeholder="Icon/Emoji" style="flex: 1; margin: 0; padding: 4px;">
                 </div>
-                <input type="text" class="st-image" value="${st.image || ''}" placeholder="Image URL (e.g. /local/img.png)" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
+                <input type="text" class="st-image" list="iconList" value="${st.image || ''}" placeholder="Image URL (e.g. /local/img.png)" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
             </div>
         `;
         statesList.appendChild(div);

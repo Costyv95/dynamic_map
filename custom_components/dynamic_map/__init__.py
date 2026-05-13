@@ -41,7 +41,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
         sidebar_title="Map Editor",
         sidebar_icon="mdi:map-search-outline",
         frontend_url_path="dynamic_map_editor",
-        config={"url": "/dynamic_map_ui/editor.html?v=2.43"},
+        config={"url": "/dynamic_map_ui/editor.html?v=2.44"},
         require_admin=True,
     )
     
@@ -139,15 +139,20 @@ class DynamicMapFilesView(HomeAssistantView):
 
     async def get(self, request):
         data_dir = self.hass.config.path(DOMAIN + "_data")
-        files = []
+        icons_dir = os.path.join(data_dir, "icons")
         
         def get_files():
+            result = {"files": [], "icons": []}
             if os.path.exists(data_dir):
-                return [f for f in os.listdir(data_dir) if f.endswith('.dxf') or f.endswith('.svg')]
-            return []
+                result["files"] = [f for f in os.listdir(data_dir) if f.endswith('.dxf') or f.endswith('.svg')]
             
-        files = await self.hass.async_add_executor_job(get_files)
-        return self.json({"success": True, "files": files})
+            if os.path.exists(icons_dir):
+                result["icons"] = [f"/dynamic_map_data/icons/{f}" for f in os.listdir(icons_dir) if f.endswith('.png') or f.endswith('.jpg') or f.endswith('.svg') or f.endswith('.webp')]
+            
+            return result
+            
+        data = await self.hass.async_add_executor_job(get_files)
+        return self.json({"success": True, "files": data["files"], "icons": data["icons"]})
 
 class DynamicMapRecomputeView(HomeAssistantView):
     """View to handle recomputing the map from DXF/SVG."""

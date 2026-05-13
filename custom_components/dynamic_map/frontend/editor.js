@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.43';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.43';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.44';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.44';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -1425,6 +1425,15 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                         if (f.endsWith('.svg')) svgSelect.innerHTML += `<option value="${f}">${f}</option>`;
                         if (f.endsWith('.dxf')) dxfSelect.innerHTML += `<option value="${f}">${f}</option>`;
                     });
+                }
+                if (data.success && data.icons) {
+                    const iconList = document.getElementById('iconList');
+                    if (iconList) {
+                        iconList.innerHTML = '';
+                        data.icons.forEach(iconPath => {
+                            iconList.innerHTML += `<option value="${iconPath}"></option>`;
+                        });
+                    }
                 }
             } catch (err) {
                 console.error("Failed to load available files", err);
