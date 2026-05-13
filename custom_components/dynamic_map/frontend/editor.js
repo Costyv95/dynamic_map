@@ -1,5 +1,5 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.53';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.53';
+import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.55';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.55';
 
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
@@ -466,7 +466,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     ctx.shadowColor = '#00ffff';
                     ctx.shadowBlur = 15;
                 } else {
-                    ctx.fillStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)` : `hsla(${hue}, 100%, 50%, 0.3)`;
+                    ctx.fillStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)` : `hsla(${hue}, 100%, 50%, 0.15)`;
                     ctx.strokeStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)` : `hsla(${hue}, 100%, 50%, 0.8)`;
                     ctx.lineWidth = 2;
                 }
@@ -1165,6 +1165,9 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         }
 
         document.getElementById('saveNameBtn').addEventListener('click', saveRoomName);
+        document.getElementById('roomName').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') saveRoomName();
+        });
 
         document.getElementById('roomColor').addEventListener('input', (e) => {
             if(selectedRooms.length === 1) {
@@ -1402,6 +1405,10 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
 
         // SAVE TO HA
         async function saveToHA() {
+            if (selectedRooms.length === 1) {
+                saveRoomName(); // Flush any pending input
+            }
+            
             const btn = document.getElementById('exportJsonBtn');
             const originalText = btn.textContent;
             btn.textContent = "Saving to HA...";
