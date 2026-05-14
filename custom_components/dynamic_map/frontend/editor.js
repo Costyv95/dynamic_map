@@ -246,6 +246,12 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
                 const data = await ApiManager.fetchFloorData(floorNum);
                 rooms = data.rooms;
                 shortcuts = data.shortcuts;
+                
+                const cfg = data.config || {};
+                engine.rotationMode = cfg.rotation_mode || 'auto';
+                engine.horizontalFlip = !!cfg.horizontal_flip;
+                engine.verticalFlip = !!cfg.vertical_flip;
+                updateRotationUI();
 
                 // Initialize history
                 historyManager.reset();
@@ -278,17 +284,57 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             });
         });
         
-        document.getElementById('rotationModeBtn').addEventListener('click', () => {
-            if (engine.rotationMode === 'auto') engine.rotationMode = 'horizontal';
-            else if (engine.rotationMode === 'horizontal') engine.rotationMode = 'vertical';
-            else engine.rotationMode = 'auto';
-            
+        function updateRotationUI() {
             document.getElementById('rotIconAuto').style.display = engine.rotationMode === 'auto' ? 'block' : 'none';
             document.getElementById('rotIconHoriz').style.display = engine.rotationMode === 'horizontal' ? 'block' : 'none';
             document.getElementById('rotIconVert').style.display = engine.rotationMode === 'vertical' ? 'block' : 'none';
             document.getElementById('rotationModeBtn').title = `Rotation Mode: ${engine.rotationMode.charAt(0).toUpperCase() + engine.rotationMode.slice(1)}`;
             
-            if (bgImage.complete && rooms.length > 0) calculateAutoCrop();
+            const flipHBtn = document.getElementById('flipHorizBtn');
+            const flipVBtn = document.getElementById('flipVertBtn');
+            
+            if (engine.rotationMode === 'auto') {
+                flipHBtn.style.opacity = '0.3'; flipHBtn.style.cursor = 'not-allowed';
+                flipVBtn.style.opacity = '0.3'; flipVBtn.style.cursor = 'not-allowed';
+            } else if (engine.rotationMode === 'horizontal') {
+                flipHBtn.style.opacity = engine.horizontalFlip ? '1' : '0.5';
+                flipHBtn.style.cursor = 'pointer';
+                flipVBtn.style.opacity = '0.3'; flipVBtn.style.cursor = 'not-allowed';
+            } else if (engine.rotationMode === 'vertical') {
+                flipHBtn.style.opacity = '0.3'; flipHBtn.style.cursor = 'not-allowed';
+                flipVBtn.style.opacity = engine.verticalFlip ? '1' : '0.5';
+                flipVBtn.style.cursor = 'pointer';
+            }
+        }
+
+        document.getElementById('rotationModeBtn').addEventListener('click', () => {
+            if (engine.rotationMode === 'auto') engine.rotationMode = 'horizontal';
+            else if (engine.rotationMode === 'horizontal') engine.rotationMode = 'vertical';
+            else engine.rotationMode = 'auto';
+            
+            updateRotationUI();
+            if (bgImage.complete && rooms.length > 0) {
+                calculateAutoCrop();
+                saveToHA();
+            }
+            draw();
+        });
+
+        document.getElementById('flipHorizBtn').addEventListener('click', () => {
+            if (engine.rotationMode !== 'horizontal') return;
+            engine.horizontalFlip = !engine.horizontalFlip;
+            updateRotationUI();
+            calculateAutoCrop();
+            saveToHA();
+            draw();
+        });
+
+        document.getElementById('flipVertBtn').addEventListener('click', () => {
+            if (engine.rotationMode !== 'vertical') return;
+            engine.verticalFlip = !engine.verticalFlip;
+            updateRotationUI();
+            calculateAutoCrop();
+            saveToHA();
             draw();
         });
 
@@ -1065,7 +1111,12 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             btn.textContent = "Saving to HA...";
             
             try {
-                await ApiManager.saveToHA(activeFloor, rooms, shortcuts);
+                const config = {
+                    rotation_mode: engine.rotationMode,
+                    horizontal_flip: engine.horizontalFlip,
+                    vertical_flip: engine.verticalFlip
+                };
+                await ApiManager.saveToHA(activeFloor, rooms, shortcuts, config);
                 btn.textContent = "✅ Saved to HA Successfully!";
             } catch (err) {
                 console.error("Save failed, is HA running?", err);
@@ -1083,8 +1134,9 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             yaml += `vacuum_entity: vacuum.roborock_s7\n`;
             yaml += `default_floor: ${activeFloor}\n`;
             yaml += `floors: [1, 2]\n`;
-            yaml += `# Note: You can also just add this card visually\n`;
-            yaml += `# by clicking 'Add Card' and searching for 'Custom Svg Map'\n`;
+            yaml += `# Note: Floor rotation and flip settings are now saved automatically \n`;
+            yaml += `# in dynamic_map_data/config_floorX.json.\n`;
+            yaml += `# You don't need to specify them here!\n`;
             
             yamlOutput.value = yaml;
         });

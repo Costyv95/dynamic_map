@@ -9,6 +9,8 @@ export class CanvasEngine {
         this.minScale = 0.1;
         this.isRotated = false;
         this.rotationMode = 'auto'; // 'auto', 'horizontal', 'vertical'
+        this.horizontalFlip = false;
+        this.verticalFlip = false;
         this.animationFrameId = null;
     }
 
@@ -70,10 +72,15 @@ export class CanvasEngine {
         const cx = minX + w/2;
         const cy = minY + h/2;
         
+        let extraRotation = 0;
+        if (!this.isRotated && this.horizontalFlip) extraRotation = 180;
+        if (this.isRotated && this.verticalFlip) extraRotation = 180;
+        
         this.defaultTransform = new DOMMatrix();
         this.defaultTransform.translateSelf(this.canvas.width / 2, this.canvas.height / 2);
         this.defaultTransform.scaleSelf(this.minScale);
         if (this.isRotated) this.defaultTransform.rotateSelf(90);
+        if (extraRotation) this.defaultTransform.rotateSelf(extraRotation);
         this.defaultTransform.translateSelf(-cx, -cy);
 
         this.viewTransform = new DOMMatrix(this.defaultTransform);
@@ -177,7 +184,11 @@ export class CanvasEngine {
                 
                 this.ctx.save();
                 this.ctx.translate(textX, textY);
-                if (this.isRotated) this.ctx.rotate(-Math.PI / 2);
+                let textRot = 0;
+                if (this.isRotated) textRot -= Math.PI / 2;
+                if (this.isRotated && this.verticalFlip) textRot -= Math.PI;
+                if (!this.isRotated && this.horizontalFlip) textRot -= Math.PI;
+                if (textRot !== 0) this.ctx.rotate(textRot);
 
                 this.ctx.font = '900 20px sans-serif';
                 this.ctx.textAlign = 'center';
@@ -276,7 +287,11 @@ export class CanvasEngine {
             } else {
                 this.ctx.save();
                 this.ctx.translate(x, y);
-                if (this.isRotated) this.ctx.rotate(-Math.PI / 2);
+                let scRot = 0;
+                if (this.isRotated) scRot -= Math.PI / 2;
+                if (this.isRotated && this.verticalFlip) scRot -= Math.PI;
+                if (!this.isRotated && this.horizontalFlip) scRot -= Math.PI;
+                if (scRot !== 0) this.ctx.rotate(scRot);
                 
                 if (image) {
                     if (!sc._imgCache) sc._imgCache = {};
@@ -307,7 +322,11 @@ export class CanvasEngine {
             if (idx === selectedShortcutIdx) {
                 this.ctx.save();
                 this.ctx.translate(x, y);
-                if (this.isRotated) this.ctx.rotate(-Math.PI / 2);
+                let lblRot = 0;
+                if (this.isRotated) lblRot -= Math.PI / 2;
+                if (this.isRotated && this.verticalFlip) lblRot -= Math.PI;
+                if (!this.isRotated && this.horizontalFlip) lblRot -= Math.PI;
+                if (lblRot !== 0) this.ctx.rotate(lblRot);
 
                 this.ctx.font = '10px sans-serif';
                 this.ctx.textAlign = 'center';

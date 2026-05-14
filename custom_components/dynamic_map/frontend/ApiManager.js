@@ -46,6 +46,7 @@ export class ApiManager {
         const t = Date.now();
         let rooms = [];
         let shortcuts = [];
+        let config = { rotation_mode: 'auto', horizontal_flip: false, vertical_flip: false };
         
         try {
             const response = await fetch(`/dynamic_map_data/rooms_floor${floorNum}.json?t=${t}`);
@@ -59,13 +60,20 @@ export class ApiManager {
                     shortcuts = await scResponse.json();
                 }
             } catch(e) {}
+            
+            try {
+                const cfgResponse = await fetch(`/dynamic_map_data/config_floor${floorNum}.json?t=${t}`);
+                if(cfgResponse.ok) {
+                    config = { ...config, ...(await cfgResponse.json()) };
+                }
+            } catch(e) {}
         } catch (e) {
             console.error("Failed to load JSON", e);
         }
-        return { rooms, shortcuts };
+        return { rooms, shortcuts, config };
     }
 
-    static async saveToHA(activeFloor, rooms, shortcuts) {
+    static async saveToHA(activeFloor, rooms, shortcuts, config) {
         let res1 = await fetch('/api/dynamic_map/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -79,6 +87,15 @@ export class ApiManager {
             body: JSON.stringify({ filename: `shortcuts_floor${activeFloor}.json`, content: shortcuts })
         });
         if (!res2.ok) throw new Error(`Shortcuts save failed: ${res2.statusText}`);
+        
+        if (config) {
+            let res3 = await fetch('/api/dynamic_map/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: `config_floor${activeFloor}.json`, content: config })
+            });
+            if (!res3.ok) console.error(`Config save failed: ${res3.statusText}`);
+        }
         return true;
     }
 

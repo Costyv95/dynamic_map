@@ -83,11 +83,13 @@ class CustomSvgMap extends HTMLElement {
         const bgUrl = `/dynamic_map_data/bg_floor${floor}.png?t=${t}`;
         const roomsUrl = `/dynamic_map_data/rooms_floor${floor}.json?t=${t}`;
         const shortcutsUrl = `/dynamic_map_data/shortcuts_floor${floor}.json?t=${t}`;
+        const configUrl = `/dynamic_map_data/config_floor${floor}.json?t=${t}`;
 
         try {
-            const [roomsRes, shortcutsRes] = await Promise.all([
+            const [roomsRes, shortcutsRes, configRes] = await Promise.all([
                 fetch(`${roomsUrl}?t=${Date.now()}`).catch(() => ({ ok: false })),
-                fetch(`${shortcutsUrl}?t=${Date.now()}`).catch(() => ({ ok: false }))
+                fetch(`${shortcutsUrl}?t=${Date.now()}`).catch(() => ({ ok: false })),
+                fetch(`${configUrl}?t=${Date.now()}`).catch(() => ({ ok: false }))
             ]);
 
             if (roomsRes.ok) this.rooms = await roomsRes.json();
@@ -95,6 +97,13 @@ class CustomSvgMap extends HTMLElement {
 
             if (shortcutsRes && shortcutsRes.ok) this.shortcuts = await shortcutsRes.json();
             else this.shortcuts = [];
+            
+            let config = { rotation_mode: 'auto', horizontal_flip: false, vertical_flip: false };
+            if (configRes && configRes.ok) config = await configRes.json();
+            
+            this.rotationMode = config.rotation_mode || 'auto';
+            this.horizontalFlip = !!config.horizontal_flip;
+            this.verticalFlip = !!config.vertical_flip;
 
             const img = new Image();
             img.onload = () => {
@@ -402,24 +411,31 @@ class CustomSvgMap extends HTMLElement {
             shouldRotate = isMapLandscape;
         }
 
-        if (shouldRotate) {
-            this.isRotated = true;
-            this.mapRoot.setAttribute('transform', `rotate(90, ${cx}, ${cy})`);
+        this.isRotated = shouldRotate;
+        
+        let extraRotation = 0;
+        if (!this.isRotated && this.horizontalFlip) extraRotation = 180;
+        if (this.isRotated && this.verticalFlip) extraRotation = 180;
+
+        if (this.isRotated || extraRotation) {
+            const totalRot = (this.isRotated ? 90 : 0) + extraRotation;
+            this.mapRoot.setAttribute('transform', `rotate(${totalRot}, ${cx}, ${cy})`);
             
             this.mapRoot.querySelectorAll('.room-label').forEach(label => {
-                label.setAttribute('transform', `rotate(-90, ${label.rawCx}, ${label.rawCy})`);
+                label.setAttribute('transform', `rotate(${-totalRot}, ${label.rawCx}, ${label.rawCy})`);
             });
             if (this.shortcutElements) {
                 Object.values(this.shortcutElements).forEach(scObj => {
-                    if (scObj.setRotation) scObj.setRotation(-90);
+                    if (scObj.setRotation) scObj.setRotation(-totalRot);
                 });
             }
 
             // Content rotated, swap target dimensions
-            const temp = targetW;
-            targetW = targetH;
-            targetH = temp;
-
+            if (this.isRotated) {
+                const temp = targetW;
+                targetW = targetH;
+                targetH = temp;
+            }
         } else {
             this.mapRoot.removeAttribute('transform');
             this.mapRoot.querySelectorAll('.room-label').forEach(label => {
