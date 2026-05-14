@@ -9,6 +9,7 @@ export class CanvasEngine {
         this.minScale = 0.1;
         this.isRotated = false;
         this.rotationMode = 'auto'; // 'auto', 'horizontal', 'vertical'
+        this.activeMode = 'horizontal';
         this.flips = {
             horizontal: { h: false, v: false },
             vertical: { h: false, v: false }
@@ -81,9 +82,9 @@ export class CanvasEngine {
         
         const isMapLandscape = w > h;
         const finalIsHorizontal = isMapLandscape !== this.isRotated;
-        const activeMode = finalIsHorizontal ? 'horizontal' : 'vertical';
+        this.activeMode = finalIsHorizontal ? 'horizontal' : 'vertical';
         
-        const currentFlips = this.flips[activeMode];
+        const currentFlips = this.flips[this.activeMode];
         let sx = 1, sy = 1;
         if (this.isRotated) {
             if (currentFlips.h) sy = -1;
@@ -100,11 +101,7 @@ export class CanvasEngine {
     }
     
     getActiveMode() {
-        if (!this.cachedBounds) return 'horizontal';
-        const w = this.cachedBounds.maxPctX - this.cachedBounds.minPctX;
-        const h = this.cachedBounds.maxPctY - this.cachedBounds.minPctY;
-        const isMapLandscape = w > h;
-        return (isMapLandscape !== this.isRotated) ? 'horizontal' : 'vertical';
+        return this.activeMode;
     }
 
     getMousePos(e) {
