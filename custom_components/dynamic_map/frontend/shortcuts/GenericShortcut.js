@@ -35,9 +35,12 @@ export class GenericShortcut extends MapShortcut {
         this.iconImage.setAttribute('y', -imgSize / 2);
         this.iconImage.style.pointerEvents = 'none';
         this.iconImage.style.display = 'none';
-        this.iconImage.onerror = () => {
+        this.iconImage.addEventListener('error', () => {
             this.iconImage.style.display = 'none';
-        };
+            if (this._currentFallbackIcon) {
+                this.iconText.textContent = this._currentFallbackIcon;
+            }
+        });
         this.group.appendChild(this.iconImage);
         
         super.render();
@@ -72,6 +75,8 @@ export class GenericShortcut extends MapShortcut {
         } else {
             this.shape.setAttribute('fill', 'rgba(0,0,0,0)');
         }
+        
+        this._currentFallbackIcon = icon;
         
         if (finalImage) {
             this.iconText.textContent = '';
