@@ -1,8 +1,8 @@
-import { ApiManager } from './ApiManager.js?v=2.67';
-import { CanvasEngine } from './CanvasEngine.js?v=2.67';
-import { EditorStateManager } from './EditorStateManager.js?v=2.67';
-import { EditorInteractionManager } from './EditorInteractionManager.js?v=2.67';
-import { EditorUIManager } from './EditorUIManager.js?v=2.67';
+import { ApiManager } from './shared/ApiManager.js?v=2.68';
+import { CanvasEngine } from './editor/CanvasEngine.js?v=2.68';
+import { EditorStateManager } from './editor/EditorStateManager.js?v=2.68';
+import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=2.68';
+import { EditorUIManager } from './editor/EditorUIManager.js?v=2.68';
 
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');

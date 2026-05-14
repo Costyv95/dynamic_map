@@ -1,4 +1,4 @@
-import { MapGeometry } from './MapGeometry.js';
+import { MapGeometry } from '../shared/MapGeometry.js';
 
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {
