@@ -9,8 +9,10 @@ export class CanvasEngine {
         this.minScale = 0.1;
         this.isRotated = false;
         this.rotationMode = 'auto'; // 'auto', 'horizontal', 'vertical'
-        this.horizontalFlip = false;
-        this.verticalFlip = false;
+        this.flips = {
+            horizontal: { h: false, v: false },
+            vertical: { h: false, v: false }
+        };
         this.animationFrameId = null;
     }
 
@@ -76,8 +78,13 @@ export class CanvasEngine {
         this.defaultTransform.translateSelf(this.canvas.width / 2, this.canvas.height / 2);
         this.defaultTransform.scaleSelf(this.minScale);
         if (this.isRotated) this.defaultTransform.rotateSelf(90);
-        if (this.horizontalFlip) this.defaultTransform.scaleSelf(-1, 1);
-        if (this.verticalFlip) this.defaultTransform.scaleSelf(1, -1);
+        
+        if (this.rotationMode !== 'auto') {
+            const currentFlips = this.flips[this.rotationMode];
+            if (currentFlips.h) this.defaultTransform.scaleSelf(-1, 1);
+            if (currentFlips.v) this.defaultTransform.scaleSelf(1, -1);
+        }
+        
         this.defaultTransform.translateSelf(-cx, -cy);
 
         this.viewTransform = new DOMMatrix(this.defaultTransform);

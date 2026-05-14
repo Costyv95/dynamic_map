@@ -249,8 +249,10 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
                 
                 const cfg = data.config || {};
                 engine.rotationMode = cfg.rotation_mode || 'auto';
-                engine.horizontalFlip = !!cfg.horizontal_flip;
-                engine.verticalFlip = !!cfg.vertical_flip;
+                engine.flips = cfg.flips || {
+                    horizontal: { h: false, v: false },
+                    vertical: { h: false, v: false }
+                };
                 updateRotationUI();
 
                 // Initialize history
@@ -293,14 +295,35 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             const flipHBtn = document.getElementById('flipHorizBtn');
             const flipVBtn = document.getElementById('flipVertBtn');
             
+            const setBtnStyle = (btn, active, disabled) => {
+                if (disabled) {
+                    btn.style.opacity = '0.3';
+                    btn.style.cursor = 'not-allowed';
+                    btn.style.background = 'rgba(255, 255, 255, 0.9)';
+                    btn.style.color = '#1e293b';
+                    btn.style.borderColor = 'var(--input-border)';
+                } else if (active) {
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                    btn.style.background = '#e0f2fe';
+                    btn.style.color = '#0ea5e9';
+                    btn.style.borderColor = '#0ea5e9';
+                } else {
+                    btn.style.opacity = '0.8';
+                    btn.style.cursor = 'pointer';
+                    btn.style.background = 'rgba(255, 255, 255, 0.9)';
+                    btn.style.color = '#1e293b';
+                    btn.style.borderColor = 'var(--input-border)';
+                }
+            };
+            
             if (engine.rotationMode === 'auto') {
-                flipHBtn.style.opacity = '0.3'; flipHBtn.style.cursor = 'not-allowed';
-                flipVBtn.style.opacity = '0.3'; flipVBtn.style.cursor = 'not-allowed';
+                setBtnStyle(flipHBtn, false, true);
+                setBtnStyle(flipVBtn, false, true);
             } else {
-                flipHBtn.style.opacity = engine.horizontalFlip ? '1' : '0.5';
-                flipHBtn.style.cursor = 'pointer';
-                flipVBtn.style.opacity = engine.verticalFlip ? '1' : '0.5';
-                flipVBtn.style.cursor = 'pointer';
+                const currentFlips = engine.flips[engine.rotationMode];
+                setBtnStyle(flipHBtn, currentFlips.h, false);
+                setBtnStyle(flipVBtn, currentFlips.v, false);
             }
         }
 
@@ -319,7 +342,7 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
 
         document.getElementById('flipHorizBtn').addEventListener('click', () => {
             if (engine.rotationMode === 'auto') return;
-            engine.horizontalFlip = !engine.horizontalFlip;
+            engine.flips[engine.rotationMode].h = !engine.flips[engine.rotationMode].h;
             updateRotationUI();
             calculateAutoCrop();
             saveToHA();
@@ -328,7 +351,7 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
 
         document.getElementById('flipVertBtn').addEventListener('click', () => {
             if (engine.rotationMode === 'auto') return;
-            engine.verticalFlip = !engine.verticalFlip;
+            engine.flips[engine.rotationMode].v = !engine.flips[engine.rotationMode].v;
             updateRotationUI();
             calculateAutoCrop();
             saveToHA();
@@ -1110,8 +1133,7 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             try {
                 const config = {
                     rotation_mode: engine.rotationMode,
-                    horizontal_flip: engine.horizontalFlip,
-                    vertical_flip: engine.verticalFlip
+                    flips: engine.flips
                 };
                 await ApiManager.saveToHA(activeFloor, rooms, shortcuts, config);
                 btn.textContent = "✅ Saved to HA Successfully!";

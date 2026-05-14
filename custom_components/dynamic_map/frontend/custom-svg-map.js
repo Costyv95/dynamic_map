@@ -98,12 +98,14 @@ class CustomSvgMap extends HTMLElement {
             if (shortcutsRes && shortcutsRes.ok) this.shortcuts = await shortcutsRes.json();
             else this.shortcuts = [];
             
-            let config = { rotation_mode: 'auto', horizontal_flip: false, vertical_flip: false };
+            let config = { rotation_mode: 'auto' };
             if (configRes && configRes.ok) config = await configRes.json();
             
             this.rotationMode = config.rotation_mode || 'auto';
-            this.horizontalFlip = !!config.horizontal_flip;
-            this.verticalFlip = !!config.vertical_flip;
+            this.flips = config.flips || {
+                horizontal: { h: false, v: false },
+                vertical: { h: false, v: false }
+            };
 
             const img = new Image();
             img.onload = () => {
@@ -415,8 +417,11 @@ class CustomSvgMap extends HTMLElement {
         
         let scaleX = 1;
         let scaleY = 1;
-        if (this.horizontalFlip) scaleX = -1;
-        if (this.verticalFlip) scaleY = -1;
+        if (this.rotationMode !== 'auto') {
+            const currentFlips = this.flips[this.rotationMode];
+            if (currentFlips.h) scaleX = -1;
+            if (currentFlips.v) scaleY = -1;
+        }
 
         let transformStr = '';
         if (this.isRotated) transformStr += `rotate(90, ${cx}, ${cy}) `;
