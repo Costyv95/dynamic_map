@@ -60,8 +60,9 @@ export class VacuumShortcut extends GenericShortcut {
             this.vacuumState.activePolygon = null;
         } else {
             let targetSvgRoomId = null;
-            console.log(`[Vacuum] Evaluating mapping:`, sc.room_mapping);
-            for (const [roboRoomName, svgRoomId] of Object.entries(sc.room_mapping || {})) {
+            const mapping = this.config.room_mapping || sc.room_mapping || {};
+            console.log(`[Vacuum] Evaluating mapping:`, mapping);
+            for (const [roboRoomName, svgRoomId] of Object.entries(mapping)) {
                 console.log(`[Vacuum] Checking if mapping key "${roboRoomName.toLowerCase()}" === sensor "${(this.vacuumState.room || '').toLowerCase()}"`);
                 if (roboRoomName.toLowerCase() === (this.vacuumState.room || '').toLowerCase()) {
                     targetSvgRoomId = svgRoomId;
