@@ -1,4 +1,4 @@
-import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.63';
+import { MapGeometry } from './MapGeometry.js';
 import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.63';
 import { ApiManager } from './ApiManager.js?v=2.63';
 import { HistoryManager } from './HistoryManager.js?v=2.63';
@@ -678,7 +678,7 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
                 let clickedIdx = -1;
                 for(let i = 0; i < rooms.length; i++) {
                     // isPointInPolygon needs pctPos, not worldPos!
-                    if (isPointInPolygon(pctPos, rooms[i].polygon)) {
+                    if (MapGeometry.isPointInPolygon(pctPos, rooms[i].polygon)) {
                         clickedIdx = i; break;
                     }
                 }
@@ -733,12 +733,12 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
                         if(cut1.regions.length > 0 && cut2.regions.length > 0) {
                             rooms.splice(targetRoomIdx, 1);
                             cut1.regions.forEach((reg, i) => {
-                                if(getPolygonArea(reg) > 2.0) {
+                                if(MapGeometry.getPolygonArea(reg) > 2.0) {
                                     rooms.push({ id: `room_${Date.now()}_A${i}`, name: `${targetRoom.name || 'Room'} Part A`, polygon: reg });
                                 }
                             });
                             cut2.regions.forEach((reg, i) => {
-                                if(getPolygonArea(reg) > 2.0) {
+                                if(MapGeometry.getPolygonArea(reg) > 2.0) {
                                     rooms.push({ id: `room_${Date.now()}_B${i}`, name: `${targetRoom.name || 'Room'} Part B`, polygon: reg });
                                 }
                             });
@@ -922,7 +922,7 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             
             // If a room is selected, default to its center
             if (selectedRooms.length === 1) {
-                const roomCenter = getPolygonCenter(rooms[selectedRooms[0]].polygon);
+                const roomCenter = MapGeometry.getPolygonCenter(rooms[selectedRooms[0]].polygon);
                 center[0] = roomCenter[0];
                 center[1] = roomCenter[1];
             }

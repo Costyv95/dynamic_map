@@ -1,4 +1,4 @@
-import { getPolygonCenter } from './editorUtils.js?v=2.63';
+import { MapGeometry } from './MapGeometry.js';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -196,7 +196,7 @@ export class CanvasEngine {
             this.ctx.shadowBlur = 0;
 
             if(room.name) {
-                const center = getPolygonCenter(room.polygon);
+                const center = MapGeometry.getPolygonCenter(room.polygon);
                 const textX = (center[0]/100)*bgImage.width;
                 const textY = (center[1]/100)*bgImage.height;
                 

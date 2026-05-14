@@ -1,8 +1,34 @@
 export class MapGeometry {
     static getPolygonCenter(polygon) {
-        let avgX = 0, avgY = 0;
-        polygon.forEach(pt => { avgX += pt[0]; avgY += pt[1]; });
-        return [avgX / polygon.length, avgY / polygon.length];
+        let signedArea = 0;
+        let cx = 0;
+        let cy = 0;
+        
+        for (let i = 0; i < polygon.length; i++) {
+            let p1 = polygon[i];
+            let p2 = polygon[(i + 1) % polygon.length];
+            let a = p1[0] * p2[1] - p2[0] * p1[1];
+            signedArea += a;
+            cx += (p1[0] + p2[0]) * a;
+            cy += (p1[1] + p2[1]) * a;
+        }
+        
+        signedArea *= 0.5;
+        if (Math.abs(signedArea) < 0.0001) {
+            let avgX = 0, avgY = 0;
+            polygon.forEach(pt => { avgX += pt[0]; avgY += pt[1]; });
+            return [avgX / polygon.length, avgY / polygon.length];
+        }
+        
+        return [cx / (6 * signedArea), cy / (6 * signedArea)];
+    }
+
+    static getPolygonArea(polygon) {
+        let area = 0;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+            area += (polygon[j][0] + polygon[i][0]) * (polygon[j][1] - polygon[i][1]);
+        }
+        return Math.abs(area / 2);
     }
 
     static isPointInPolygon(point, vs) {
