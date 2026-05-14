@@ -1,8 +1,13 @@
 import { getPolygonCenter, isPointInPolygon, getPolygonArea } from './editorUtils.js?v=2.63';
 import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.63';
+import { ApiManager } from './ApiManager.js?v=2.63';
+import { HistoryManager } from './HistoryManager.js?v=2.63';
+import { CanvasEngine } from './CanvasEngine.js?v=2.63';
 
+        const historyManager = new HistoryManager();
         const canvas = document.getElementById('mapCanvas');
         const ctx = canvas.getContext('2d');
+        const engine = new CanvasEngine(canvas, ctx);
         const activeRoomUI = document.getElementById('activeRoomUI');
         const roomAreaSelect = document.getElementById('roomArea');
         const yamlOutput = document.getElementById('yamlOutput');
@@ -31,14 +36,6 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
             return previewStateIdx;
         };
         
-        let history = [];
-        let historyIndex = -1;
-
-        let viewTransform = new DOMMatrix();
-        let defaultTransform = new DOMMatrix();
-        let minScale = 0.1;
-        let isRotated = false;
-        let rotationMode = 'auto'; // 'auto', 'horizontal', 'vertical'
         let activeFloor = '2';
         
         let isPanning = false;
@@ -46,17 +43,12 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         let resizeHandle = null;
 
         function saveState() {
-            if (historyIndex < history.length - 1) {
-                history = history.slice(0, historyIndex + 1);
-            }
-            history.push(JSON.parse(JSON.stringify({ rooms: rooms, shortcuts: shortcuts })));
-            historyIndex++;
+            historyManager.saveState(rooms, shortcuts);
         }
 
         function undo() {
-            if (historyIndex > 0) {
-                historyIndex--;
-                const state = JSON.parse(JSON.stringify(history[historyIndex]));
+            const state = historyManager.undo();
+            if (state) {
                 rooms = state.rooms;
                 shortcuts = state.shortcuts;
                 selectedRooms = [];
@@ -111,9 +103,8 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         }
 
         function redo() {
-            if (historyIndex < history.length - 1) {
-                historyIndex++;
-                const state = JSON.parse(JSON.stringify(history[historyIndex]));
+            const state = historyManager.redo();
+            if (state) {
                 rooms = state.rooms;
                 shortcuts = state.shortcuts;
                 selectedRooms = [];
@@ -211,46 +202,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
             const origText = btn.textContent;
             btn.textContent = "Fetching...";
             try {
-                let data = null;
-                let roomsFound = [];
-
-                if (entityId.startsWith('vacuum.')) {
-                    // Try to fetch the matching _current_room sensor first for Enum options
-                    const baseName = entityId.replace('vacuum.', '');
-                    const roomRes = await fetch(`/api/dynamic_map/state?entity_id=sensor.${baseName}_current_room`);
-                    if (roomRes.ok) {
-                        const roomData = await roomRes.json();
-                        if (roomData.success && roomData.attributes && Array.isArray(roomData.attributes.options)) {
-                            roomsFound = roomData.attributes.options.map(o => ({ id: o, name: o }));
-                        }
-                    }
-                }
-
-                // If no options found, fetch the vacuum entity and check for typical room attributes
-                if (roomsFound.length === 0) {
-                    const res = await fetch(`/api/dynamic_map/state?entity_id=${entityId}`);
-                    data = await res.json();
-                    
-                    if (data.success && data.attributes) {
-                        if (data.attributes.rooms) {
-                            const rAttr = data.attributes.rooms;
-                            if (Array.isArray(rAttr)) roomsFound = rAttr.map((v,i) => ({ id: v, name: String(v) }));
-                            else if (typeof rAttr === 'object') {
-                                for (const [k, v] of Object.entries(rAttr)) roomsFound.push({ id: k, name: v });
-                            }
-                        } else if (data.attributes.room_mapping) {
-                            const rAttr = data.attributes.room_mapping;
-                            if (typeof rAttr === 'object') {
-                                for (const [k, v] of Object.entries(rAttr)) roomsFound.push({ id: v, name: k });
-                            }
-                        }
-                    }
-                }
-
-                // Fallback, just generate 16-25 IDs
-                if (roomsFound.length === 0) {
-                    for(let i=16; i<=25; i++) roomsFound.push({ id: i, name: `Room ${i}`});
-                }
+                let roomsFound = await ApiManager.fetchVacuumRooms(entityId);
                 lastFetchedVacuumOptions = roomsFound;
                 if (selectedShortcutIdx !== -1) {
                     renderVacuumRoomMapping(shortcuts[selectedShortcutIdx], rooms, lastFetchedVacuumOptions, () => renderActionsAndStates(shortcuts[selectedShortcutIdx], () => renderActionsAndStates(shortcuts[selectedShortcutIdx], () => {})));
@@ -291,25 +243,12 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
             };
 
             try {
-                const response = await fetch(`/dynamic_map_data/rooms_floor${floorNum}.json?t=${t}`);
-                if(response.ok) {
-                    rooms = await response.json();
-                } else {
-                    rooms = [];
-                }
-                
-                try {
-                    const scResponse = await fetch(`/dynamic_map_data/shortcuts_floor${floorNum}.json?t=${t}`);
-                    if(scResponse.ok) {
-                        shortcuts = await scResponse.json();
-                    } else {
-                        shortcuts = [];
-                    }
-                } catch(e) { shortcuts = []; }
+                const data = await ApiManager.fetchFloorData(floorNum);
+                rooms = data.rooms;
+                shortcuts = data.shortcuts;
 
                 // Initialize history
-                history = [];
-                historyIndex = -1;
+                historyManager.reset();
                 saveState();
                 
                 selectedRooms = [];
@@ -324,66 +263,11 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         }
 
         function resizeCanvas() {
-            const container = document.getElementById('canvas-container');
-            if (canvas.width !== container.clientWidth || canvas.height !== container.clientHeight) {
-                canvas.width = container.clientWidth;
-                canvas.height = container.clientHeight;
-                if (bgImage.complete && rooms.length > 0) calculateAutoCrop();
-            }
+            engine.resizeCanvas();
         }
 
         function calculateAutoCrop() {
-            if (rooms.length === 0 || !bgImage.complete) return;
-            
-            let minPctX = 100, maxPctX = 0, minPctY = 100, maxPctY = 0;
-            rooms.forEach(r => {
-                r.polygon.forEach(pt => {
-                    if(pt[0] < minPctX) minPctX = pt[0];
-                    if(pt[0] > maxPctX) maxPctX = pt[0];
-                    if(pt[1] < minPctY) minPctY = pt[1];
-                    if(pt[1] > maxPctY) maxPctY = pt[1];
-                });
-            });
-
-            const minX = (minPctX / 100) * bgImage.width;
-            const maxX = (maxPctX / 100) * bgImage.width;
-            const minY = (minPctY / 100) * bgImage.height;
-            const maxY = (maxPctY / 100) * bgImage.height;
-            
-            const w = maxX - minX;
-            const h = maxY - minY;
-            
-            // Handle edge case of tiny bounding box
-            if (w < 1 || h < 1) return;
-
-            const mapRatio = w / h;
-            const screenRatio = canvas.width / canvas.height;
-            
-            if (rotationMode === 'auto') {
-                isRotated = (mapRatio > 1 && screenRatio < 1) || (mapRatio < 1 && screenRatio > 1);
-            } else if (rotationMode === 'horizontal') {
-                isRotated = mapRatio < 1; // tall map -> rotate to make horizontal
-            } else if (rotationMode === 'vertical') {
-                isRotated = mapRatio > 1; // wide map -> rotate to make vertical
-            }
-
-            let viewW = isRotated ? h : w;
-            let viewH = isRotated ? w : h;
-
-            const zoomX = (canvas.width * 0.75) / viewW;
-            const zoomY = (canvas.height * 0.75) / viewH;
-            minScale = Math.min(zoomX, zoomY);
-            
-            const cx = minX + w/2;
-            const cy = minY + h/2;
-            
-            defaultTransform = new DOMMatrix();
-            defaultTransform.translateSelf(canvas.width / 2, canvas.height / 2);
-            defaultTransform.scaleSelf(minScale);
-            if (isRotated) defaultTransform.rotateSelf(90);
-            defaultTransform.translateSelf(-cx, -cy);
-
-            viewTransform = new DOMMatrix(defaultTransform);
+            engine.calculateAutoCrop(bgImage, rooms);
         }
 
         document.querySelectorAll('.floor-btn').forEach(btn => {
@@ -395,14 +279,14 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         });
         
         document.getElementById('rotationModeBtn').addEventListener('click', () => {
-            if (rotationMode === 'auto') rotationMode = 'horizontal';
-            else if (rotationMode === 'horizontal') rotationMode = 'vertical';
-            else rotationMode = 'auto';
+            if (engine.rotationMode === 'auto') engine.rotationMode = 'horizontal';
+            else if (engine.rotationMode === 'horizontal') engine.rotationMode = 'vertical';
+            else engine.rotationMode = 'auto';
             
-            document.getElementById('rotIconAuto').style.display = rotationMode === 'auto' ? 'block' : 'none';
-            document.getElementById('rotIconHoriz').style.display = rotationMode === 'horizontal' ? 'block' : 'none';
-            document.getElementById('rotIconVert').style.display = rotationMode === 'vertical' ? 'block' : 'none';
-            document.getElementById('rotationModeBtn').title = `Rotation Mode: ${rotationMode.charAt(0).toUpperCase() + rotationMode.slice(1)}`;
+            document.getElementById('rotIconAuto').style.display = engine.rotationMode === 'auto' ? 'block' : 'none';
+            document.getElementById('rotIconHoriz').style.display = engine.rotationMode === 'horizontal' ? 'block' : 'none';
+            document.getElementById('rotIconVert').style.display = engine.rotationMode === 'vertical' ? 'block' : 'none';
+            document.getElementById('rotationModeBtn').title = `Rotation Mode: ${engine.rotationMode.charAt(0).toUpperCase() + engine.rotationMode.slice(1)}`;
             
             if (bgImage.complete && rooms.length > 0) calculateAutoCrop();
             draw();
@@ -414,234 +298,10 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         let animationFrameId = null;
         
         function draw() {
-            if(!bgImage.complete || isTransitioning) {
-                if (animationFrameId) cancelAnimationFrame(animationFrameId);
-                animationFrameId = requestAnimationFrame(draw);
-                return;
-            }
-
-            resizeCanvas();
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.save();
-            ctx.setTransform(viewTransform);
-
-            ctx.drawImage(bgImage, 0, 0);
-            
-            const time = Date.now();
-            // Undulating border thickness between 3 and 9
-            const borderPulse = 6 + Math.sin(time / 200) * 3;
-
-            // Draw Polygons
-            rooms.forEach((room, idx) => {
-                ctx.beginPath();
-                room.polygon.forEach((pt, i) => {
-                    const x = (pt[0] / 100) * bgImage.width;
-                    const y = (pt[1] / 100) * bgImage.height;
-                    if(i === 0) ctx.moveTo(x, y);
-                    else ctx.lineTo(x, y);
-                });
-                ctx.closePath();
-
-                let rgb = null;
-                if (room.color) {
-                    const hex = room.color.replace('#', '');
-                    if (hex.length === 6) {
-                        rgb = {
-                            r: parseInt(hex.substring(0, 2), 16),
-                            g: parseInt(hex.substring(2, 4), 16),
-                            b: parseInt(hex.substring(4, 6), 16)
-                        };
-                    }
-                }
-
-                // Generate a stable color based on index
-                const hue = (idx * 137.5) % 360;
-                
-                if(selectedRooms.includes(idx)) {
-                    // Keep base color, with high-contrast Neon Cyan undulating border
-                    ctx.fillStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)` : `hsla(${hue}, 100%, 50%, 0.5)`;
-                    ctx.strokeStyle = '#00ffff';
-                    ctx.lineWidth = borderPulse;
-                    ctx.shadowColor = '#00ffff';
-                    ctx.shadowBlur = 15;
-                } else {
-                    ctx.fillStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)` : `hsla(${hue}, 100%, 50%, 0.4)`;
-                    ctx.strokeStyle = rgb ? `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)` : `hsla(${hue}, 100%, 50%, 0.8)`;
-                    ctx.lineWidth = 2;
-                }
-                ctx.fill();
-                ctx.stroke();
-                
-                // Reset shadow to prevent it bleeding to other elements
-                ctx.shadowBlur = 0;
-
-                // Draw Name
-                if(room.name) {
-                    const center = getPolygonCenter(room.polygon);
-                    const textX = (center[0]/100)*bgImage.width;
-                    const textY = (center[1]/100)*bgImage.height;
-                    
-                    ctx.save();
-                    ctx.translate(textX, textY);
-                    if (isRotated) ctx.rotate(-Math.PI / 2);
-
-                    ctx.font = '900 20px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    
-                    ctx.strokeStyle = 'black';
-                    ctx.lineWidth = 5;
-                    ctx.strokeText(room.name, 0, 0);
-                    
-                    ctx.fillStyle = 'white';
-                    ctx.fillText(room.name, 0, 0);
-                    
-                    ctx.restore();
-                }
+            engine.draw({
+                bgImage, rooms, selectedRooms, isSplitting, splitStart, splitEnd,
+                shortcuts, selectedShortcutIdx, previewStateIdx, isTransitioning
             });
-
-            // Draw Splitting Line
-            if(isSplitting && splitStart && splitEnd) {
-                ctx.beginPath();
-                ctx.moveTo(splitStart.x, splitStart.y);
-                ctx.lineTo(splitEnd.x, splitEnd.y);
-                ctx.strokeStyle = '#ff00ff';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-
-            // Draw Shortcuts
-            shortcuts.forEach((sc, idx) => {
-                const x = (sc.position[0] / 100) * bgImage.width;
-                const y = (sc.position[1] / 100) * bgImage.height;
-                
-                const scaleX = sc.scaleX || sc.scale || 1;
-                const scaleY = sc.scaleY || sc.scale || 1;
-                
-                let shape = sc.config?.shape || sc.shape || 'circle';
-                let color = sc.config?.color || sc.color || '#0ea5e9';
-                let isTrans = sc.config?.transparent || sc.transparent || false;
-                let icon = sc.config?.icon || '💡';
-                let image = sc.config?.image || '';
-
-                if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
-                    const st = sc.config.states[previewStateIdx];
-                    if (st.color) color = st.color;
-                    if (st.icon) icon = st.icon;
-                    if (st.image) image = st.image;
-                }
-
-                const rx = 12 * scaleX;
-                const ry = 12 * scaleY;
-                const r = Math.max(rx, ry);
-
-                ctx.beginPath();
-                if (shape === 'rect') {
-                    ctx.rect(x - rx, y - ry, rx*2, ry*2);
-                } else {
-                    ctx.arc(x, y, rx, 0, Math.PI*2);
-                }
-
-                if (idx === selectedShortcutIdx) {
-                    ctx.fillStyle = isTrans ? 'rgba(0,0,0,0)' : color;
-                    ctx.shadowColor = '#0ea5e9';
-                    ctx.shadowBlur = 10;
-                    ctx.strokeStyle = '#0ea5e9';
-                    ctx.lineWidth = 3;
-                } else {
-                    ctx.fillStyle = isTrans ? 'rgba(0,0,0,0)' : color;
-                    ctx.shadowBlur = 0;
-                    ctx.strokeStyle = 'white';
-                    ctx.lineWidth = 2;
-                }
-                ctx.fill();
-                ctx.stroke();
-                ctx.shadowBlur = 0;
-                
-                if (idx === selectedShortcutIdx) {
-                    const currentScale = Math.hypot(viewTransform.a, viewTransform.b);
-                    const hSize = 4 / currentScale;
-                    ctx.fillStyle = 'white';
-                    ctx.strokeStyle = 'black';
-                    ctx.lineWidth = 1 / currentScale;
-
-                    const drawHandle = (hx, hy) => {
-                        ctx.fillRect(hx - hSize, hy - hSize, hSize*2, hSize*2);
-                        ctx.strokeRect(hx - hSize, hy - hSize, hSize*2, hSize*2);
-                    };
-
-                    drawHandle(x, y - ry); // N
-                    drawHandle(x, y + ry); // S
-                    drawHandle(x - rx, y); // W
-                    drawHandle(x + rx, y); // E
-                    if (true) { // Always show corner handles for better UX
-                        drawHandle(x - rx, y - ry); // NW
-                        drawHandle(x + rx, y - ry); // NE
-                        drawHandle(x - rx, y + ry); // SW
-                        drawHandle(x + rx, y + ry); // SE
-                    }
-                }
-
-                if (sc.type === 'vacuum') {
-                    const maxR = shape === 'rect' ? Math.min(rx, ry) : rx;
-                    ctx.beginPath(); ctx.arc(x, y, maxR*0.8, 0, Math.PI*2); ctx.fillStyle = '#334155'; ctx.fill();
-                    ctx.beginPath(); ctx.arc(x, y, maxR*0.4, 0, Math.PI*2); ctx.fillStyle = '#0ea5e9'; ctx.fill();
-                    ctx.beginPath(); ctx.arc(x + maxR*0.5, y, maxR*0.15, 0, Math.PI*2); ctx.fillStyle = '#10b981'; ctx.fill();
-                } else {
-                    ctx.save();
-                    ctx.translate(x, y);
-                    if (isRotated) ctx.rotate(-Math.PI / 2);
-                    
-                    if (image) {
-                        // Draw image
-                        // Need to cache images so we don't load them every frame
-                        if (!sc._imgCache) sc._imgCache = {};
-                        if (!sc._imgCache[image]) {
-                            const img = new Image();
-                            img.src = image;
-                            sc._imgCache[image] = img;
-                        }
-                        const img = sc._imgCache[image];
-                        if (img.complete && img.naturalWidth > 0) {
-                            const dim = 20 * Math.min(scaleX, scaleY);
-                            ctx.drawImage(img, -dim/2, -dim/2, dim, dim);
-                        } else {
-                            // Fallback to icon while loading
-                            ctx.font = `${14 * Math.min(scaleX, scaleY)}px sans-serif`;
-                            ctx.textBaseline = 'middle';
-                            ctx.textAlign = 'center';
-                            ctx.fillText(icon, 0, 0);
-                        }
-                    } else {
-                        ctx.font = `${14 * Math.min(scaleX, scaleY)}px sans-serif`;
-                        ctx.textBaseline = 'middle';
-                        ctx.textAlign = 'center';
-                        ctx.fillText(icon, 0, 0);
-                    }
-                    ctx.restore();
-                }
-
-                if (idx === selectedShortcutIdx) {
-                    ctx.save();
-                    ctx.translate(x, y);
-                    if (isRotated) ctx.rotate(-Math.PI / 2);
-
-                    ctx.font = '10px sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'top';
-                    ctx.fillStyle = '#1e293b';
-                    ctx.shadowColor = 'white';
-                    ctx.shadowBlur = 4;
-                    ctx.fillText(sc.name || 'Shortcut', 0, r + 4);
-                    ctx.shadowBlur = 0;
-                    ctx.restore();
-                }
-            });
-            
-            ctx.restore();
-
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             animationFrameId = requestAnimationFrame(draw);
         }
@@ -650,20 +310,8 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
 
         // Mouse Events for Canvas
         function getMousePos(e) {
-            const rect = canvas.getBoundingClientRect();
-            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-            
-            // Screen coords
-            const screenX = clientX - rect.left;
-            const screenY = clientY - rect.top;
-
-            const inverse = viewTransform.inverse();
-            const pt = new DOMPoint(screenX, screenY).matrixTransform(inverse);
-            return { x: pt.x, y: pt.y };
+            return engine.getMousePos(e);
         }
-
-
 
         let isDragging = false;
         let dragStart = null;
@@ -672,22 +320,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         canvas.addEventListener('contextmenu', e => e.preventDefault());
 
         function handleZoom(clientX, clientY, deltaY) {
-            const zoomFactor = 1 - (deltaY * 0.001);
-            
-            const rect = canvas.getBoundingClientRect();
-            const screenX = clientX - rect.left;
-            const screenY = clientY - rect.top;
-
-            const newTransform = new DOMMatrix().translate(screenX, screenY).scale(zoomFactor).translate(-screenX, -screenY).multiply(viewTransform);
-            
-            const currentScale = Math.hypot(newTransform.a, newTransform.b);
-
-            if (currentScale <= minScale * 1.02 && zoomFactor < 1) {
-                viewTransform = new DOMMatrix(defaultTransform);
-            } else {
-                viewTransform = newTransform;
-            }
-
+            engine.handleZoom(clientX, clientY, deltaY);
             draw();
         }
 
@@ -732,7 +365,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 const scY = (sc.position[1]/100)*bgImage.height;
                 const rx = 12 * (sc.scaleX || sc.scale || 1);
                 const ry = 12 * (sc.scaleY || sc.scale || 1);
-                const currentScale = Math.hypot(viewTransform.a, viewTransform.b);
+                const currentScale = Math.hypot(engine.viewTransform.a, engine.viewTransform.b);
                 const hSize = 8 / currentScale; // Larger hit area
 
                 const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
@@ -792,7 +425,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 );
                 if (!initialPinchDist) {
                     initialPinchDist = dist;
-                    initialViewTransform = new DOMMatrix(viewTransform);
+                    initialViewTransform = new DOMMatrix(engine.viewTransform);
                 } else {
                     const zoomFactor = dist / initialPinchDist;
                     
@@ -806,10 +439,10 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     
                     const currentScale = Math.hypot(newTransform.a, newTransform.b);
 
-                    if (currentScale <= minScale * 1.02 && zoomFactor < 1) {
-                        viewTransform = new DOMMatrix(defaultTransform);
+                    if (currentScale <= engine.minScale * 1.02 && zoomFactor < 1) {
+                        engine.viewTransform = new DOMMatrix(engine.defaultTransform);
                     } else {
-                        viewTransform = newTransform;
+                        engine.viewTransform = newTransform;
                     }
                     draw();
                 }
@@ -828,20 +461,20 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                     const scY = (sc.position[1]/100)*bgImage.height;
                     const rx = 12 * (sc.scaleX || sc.scale || 1);
                     const ry = 12 * (sc.scaleY || sc.scale || 1);
-                    const currentScale = Math.hypot(viewTransform.a, viewTransform.b);
+                    const currentScale = Math.hypot(engine.viewTransform.a, engine.viewTransform.b);
                     const hSize = 8 / currentScale;
 
                     const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
                     const shape = sc.config?.shape || sc.shape || 'circle';
                     
                     if (hitTest(worldPos.x, worldPos.y, scX - rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX + rx, scY + ry)) {
-                        cursorStyle = isRotated ? 'nesw-resize' : 'nwse-resize';
+                        cursorStyle = engine.isRotated ? 'nesw-resize' : 'nwse-resize';
                     } else if (hitTest(worldPos.x, worldPos.y, scX + rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX - rx, scY + ry)) {
-                        cursorStyle = isRotated ? 'nwse-resize' : 'nesw-resize';
+                        cursorStyle = engine.isRotated ? 'nwse-resize' : 'nesw-resize';
                     } else if (hitTest(worldPos.x, worldPos.y, scX, scY - ry) || hitTest(worldPos.x, worldPos.y, scX, scY + ry)) {
-                        cursorStyle = isRotated ? 'ew-resize' : 'ns-resize';
+                        cursorStyle = engine.isRotated ? 'ew-resize' : 'ns-resize';
                     } else if (hitTest(worldPos.x, worldPos.y, scX - rx, scY) || hitTest(worldPos.x, worldPos.y, scX + rx, scY)) {
-                        cursorStyle = isRotated ? 'ns-resize' : 'ew-resize';
+                        cursorStyle = engine.isRotated ? 'ns-resize' : 'ew-resize';
                     }
                 }
 
@@ -937,8 +570,8 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
                 const dx = clientX - panStart.x;
                 const dy = clientY - panStart.y;
                 
-                viewTransform.e += dx;
-                viewTransform.f += dy;
+                engine.viewTransform.e += dx;
+                engine.viewTransform.f += dy;
                 
                 panStart = { x: clientX, y: clientY };
                 draw();
@@ -1432,22 +1065,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
             btn.textContent = "Saving to HA...";
             
             try {
-                // Save Rooms
-                let res1 = await fetch('/api/dynamic_map/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filename: `rooms_floor${activeFloor}.json`, content: rooms })
-                });
-                if (!res1.ok) throw new Error(`Rooms save failed: ${res1.statusText}`);
-
-                // Save Shortcuts
-                let res2 = await fetch('/api/dynamic_map/save', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filename: `shortcuts_floor${activeFloor}.json`, content: shortcuts })
-                });
-                if (!res2.ok) throw new Error(`Shortcuts save failed: ${res2.statusText}`);
-
+                await ApiManager.saveToHA(activeFloor, rooms, shortcuts);
                 btn.textContent = "✅ Saved to HA Successfully!";
             } catch (err) {
                 console.error("Save failed, is HA running?", err);
@@ -1474,9 +1092,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         // RECOMPUTE LOGIC
         async function loadAvailableFiles() {
             try {
-                const res = await fetch('/api/dynamic_map/files');
-                if (!res.ok) return;
-                const data = await res.json();
+                const data = await ApiManager.fetchAvailableFiles();
                 if (data.success && data.files) {
                     const svgSelect = document.getElementById('reconSvg');
                     const dxfSelect = document.getElementById('reconDxf');
@@ -1521,12 +1137,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
             const status = document.getElementById('recomputeStatus');
             status.textContent = "Deleting floor files...";
             try {
-                const res = await fetch('/api/dynamic_map/delete_floor', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ floor_num: parseInt(floorNum) })
-                });
-                const data = await res.json();
+                const data = await ApiManager.deleteFloor(floorNum);
                 if (data.success) {
                     status.textContent = "✅ Floor deleted! Refreshing...";
                     sessionStorage.setItem('recomputeOpen', 'true');
@@ -1551,17 +1162,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
             status.textContent = "Running OpenCV algorithms on Home Assistant server...";
             
             try {
-                const res = await fetch('/api/dynamic_map/recompute', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        floor_num: parseInt(floorNum),
-                        svg_file: svgFile || null,
-                        dxf_file: dxfFile || null
-                    })
-                });
-                
-                const data = await res.json();
+                const data = await ApiManager.recomputeFloor(floorNum, svgFile, dxfFile);
                 if (data.success) {
                     status.textContent = "✅ Success! Refreshing Map...";
                     status.style.color = "#10b981";
@@ -1586,8 +1187,7 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         // Registry logic
         async function loadRegistry() {
             try {
-                const res = await fetch('/api/dynamic_map/registry');
-                const data = await res.json();
+                const data = await ApiManager.fetchRegistry();
                 if (data.success) {
                     haAreas = data.areas;
                     haFloors = data.floors;
@@ -1708,14 +1308,11 @@ import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v
         // Fetch all HA entities for autocomplete
         async function fetchAllEntities() {
             try {
-                const res = await fetch('/api/dynamic_map/entities');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.success && data.entities) {
-                        allEntities = data.entities;
-                        setupAutocomplete('roomEntity');
-                        setupAutocomplete('scEntity');
-                    }
+                const data = await ApiManager.fetchEntities();
+                if (data.success && data.entities) {
+                    allEntities = data.entities;
+                    setupAutocomplete('roomEntity');
+                    setupAutocomplete('scEntity');
                 }
             } catch (err) {
                 console.error("Failed to fetch entities:", err);
