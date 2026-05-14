@@ -19,11 +19,19 @@ export class CanvasEngine {
 
     resizeCanvas(state) {
         const container = this.canvas.parentElement || document.getElementById('canvas-container');
-        if (container && (this.canvas.width !== container.clientWidth || this.canvas.height !== container.clientHeight)) {
-            this.canvas.width = container.clientWidth;
-            this.canvas.height = container.clientHeight;
-            if (state && state.bgImage && state.bgImage.complete && state.rooms && state.rooms.length > 0) {
-                this.calculateAutoCrop(state.bgImage, state.rooms);
+        if (container) {
+            const dpr = window.devicePixelRatio || 1;
+            const targetWidth = container.clientWidth * dpr;
+            const targetHeight = container.clientHeight * dpr;
+
+            if (this.canvas.width !== targetWidth || this.canvas.height !== targetHeight) {
+                this.canvas.width = targetWidth;
+                this.canvas.height = targetHeight;
+                this.canvas.style.width = container.clientWidth + 'px';
+                this.canvas.style.height = container.clientHeight + 'px';
+                if (state && state.bgImage && state.bgImage.complete && state.rooms && state.rooms.length > 0) {
+                    this.calculateAutoCrop(state.bgImage, state.rooms);
+                }
             }
         }
     }
@@ -148,8 +156,9 @@ export class CanvasEngine {
         this.resizeCanvas(state);
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
+        const dpr = window.devicePixelRatio || 1;
         this.ctx.save();
-        this.ctx.setTransform(this.viewTransform);
+        this.ctx.setTransform(new DOMMatrix().scale(dpr).multiply(this.viewTransform));
         this.ctx.drawImage(bgImage, 0, 0);
         
         const time = Date.now();
@@ -202,7 +211,8 @@ export class CanvasEngine {
                 
                 this.ctx.save();
                 const pt = new DOMPoint(textX, textY).matrixTransform(this.viewTransform);
-                this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+                const dpr = window.devicePixelRatio || 1;
+                this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 this.ctx.translate(pt.x, pt.y);
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
@@ -304,7 +314,8 @@ export class CanvasEngine {
             } else {
                 this.ctx.save();
                 const pt = new DOMPoint(x, y).matrixTransform(this.viewTransform);
-                this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+                const dpr = window.devicePixelRatio || 1;
+                this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 this.ctx.translate(pt.x, pt.y);
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
@@ -338,7 +349,8 @@ export class CanvasEngine {
             if (idx === selectedShortcutIdx) {
                 this.ctx.save();
                 const pt = new DOMPoint(x, y).matrixTransform(this.viewTransform);
-                this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+                const dpr = window.devicePixelRatio || 1;
+                this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 this.ctx.translate(pt.x, pt.y);
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
