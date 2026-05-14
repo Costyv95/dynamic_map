@@ -47,8 +47,8 @@ export class GenericShortcut extends MapShortcut {
     updateState(hass) {
         super.updateState(hass);
         
-        let color = this.config.color || '#0ea5e9';
-        let icon = this.config.icon || '';
+        let color = this.config.color || this.defaultColor || '#0ea5e9';
+        let icon = this.config.icon || this.defaultIcon || '';
         let image = this.config.image || '';
         
         if (this.activeState) {
@@ -57,13 +57,21 @@ export class GenericShortcut extends MapShortcut {
             if (this.activeState.image) image = this.activeState.image;
         }
         
+        const finalImage = image || (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) ? icon : '');
+        
+        let changed = false;
+        if (this._lastColor !== color) { this._lastColor = color; changed = true; }
+        if (this._lastIcon !== icon) { this._lastIcon = icon; changed = true; }
+        if (this._lastImage !== finalImage) { this._lastImage = finalImage; changed = true; }
+        
+        if (!changed && this._initialized) return false;
+        this._initialized = true;
+
         if (!this.config.transparent) {
             this.shape.setAttribute('fill', color);
         } else {
             this.shape.setAttribute('fill', 'rgba(0,0,0,0)');
         }
-        
-        const finalImage = image || (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) ? icon : '');
         
         if (finalImage) {
             this.iconText.textContent = '';
@@ -73,5 +81,7 @@ export class GenericShortcut extends MapShortcut {
             this.iconText.textContent = icon;
             this.iconImage.style.display = 'none';
         }
+        
+        return true;
     }
 }

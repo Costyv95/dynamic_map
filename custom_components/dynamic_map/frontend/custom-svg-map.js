@@ -21,7 +21,6 @@ class CustomSvgMap extends HTMLElement {
 
         this.rooms = [];
         this.shortcuts = [];
-        this.vacuumState = { status: 'unknown', room: 'unknown', x: 0, y: 0, targetX: 0, targetY: 0, activePolygon: null };
         this.lastTime = 0;
         this.selectedRoomId = null;
         this.rotationMode = 'auto';
@@ -321,13 +320,6 @@ class CustomSvgMap extends HTMLElement {
             this.shortcutElements[sc.id] = shortcutObj;
             this.mapRoot.appendChild(shortcutObj.render());
             
-            if (sc.type === 'vacuum') {
-                this.vacuumState.x = shortcutObj.px;
-                this.vacuumState.y = shortcutObj.py;
-                this.vacuumState.targetX = shortcutObj.px;
-                this.vacuumState.targetY = shortcutObj.py;
-            }
-            
             if (this._hass) {
                 shortcutObj.updateState(this._hass);
             }
@@ -524,69 +516,24 @@ class CustomSvgMap extends HTMLElement {
     set hass(hass) {
         this._hass = hass;
 
+        let needsStyleUpdate = false;
         for (const id in this.shortcutElements) {
-            this.shortcutElements[id].updateState(hass);
-        }
-
-        this.updateRoomStyles();
-    }
-
-    updateVacuumLogic(sc) {
-        console.log(`[Vacuum] Status: ${this.vacuumState.status}, Charging: ${this.vacuumState.isCharging}, Current Room Sensor: "${this.vacuumState.room}"`);
-        
-        // If it's explicitly charging, or offline/unknown without a room sensor, snap to dock
-        const isOffline = ['unknown', 'device_offline'].includes((this.vacuumState.status || '').toLowerCase());
-        const isTrackingRoom = !this.vacuumState.isCharging && !isOffline;
-        
-        if (!isTrackingRoom) {
-            console.log(`[Vacuum] Vacuum is charging or offline. Snapping to dock.`);
-            this.vacuumState.targetX = (sc.position[0] / 100) * this.imgW;
-            this.vacuumState.targetY = (sc.position[1] / 100) * this.imgH;
-            this.vacuumState.activePolygon = null;
-        } else {
-            let targetSvgRoomId = null;
-            console.log(`[Vacuum] Evaluating mapping:`, sc.room_mapping);
-            for (const [roboRoomName, svgRoomId] of Object.entries(sc.room_mapping || {})) {
-                console.log(`[Vacuum] Checking if mapping key "${roboRoomName.toLowerCase()}" === sensor "${(this.vacuumState.room || '').toLowerCase()}"`);
-                if (roboRoomName.toLowerCase() === (this.vacuumState.room || '').toLowerCase()) {
-                    targetSvgRoomId = svgRoomId;
-                    console.log(`[Vacuum] MATCH FOUND! Target SVG Room ID: ${targetSvgRoomId}`);
-                    break;
-                }
-            }
-
-            if (targetSvgRoomId) {
-                const targetRoom = this.rooms.find(r => r.id === targetSvgRoomId);
-                if (targetRoom) {
-                    console.log(`[Vacuum] Valid SVG Room Found: ${targetRoom.name}`);
-                    if (this.vacuumState.status === 'error') {
-                        this.vacuumState.activePolygon = targetRoom.polygon;
-                        const center = this.getPolygonCenter(targetRoom.polygon);
-                        this.vacuumState.targetX = (center[0] / 100) * this.imgW;
-                        this.vacuumState.targetY = (center[1] / 100) * this.imgH;
-                    } else if (isTrackingRoom) {
-                        if (this.vacuumState.activePolygon !== targetRoom.polygon) {
-                            console.log(`[Vacuum] Moving to center of ${targetRoom.name}`);
-                            this.vacuumState.activePolygon = targetRoom.polygon;
-                            const center = this.getPolygonCenter(targetRoom.polygon);
-                            this.vacuumState.targetX = (center[0] / 100) * this.imgW;
-                            this.vacuumState.targetY = (center[1] / 100) * this.imgH;
-                            // Teleport instantly to avoid flying through walls!
-                            this.vacuumState.x = this.vacuumState.targetX;
-                            this.vacuumState.y = this.vacuumState.targetY;
-                        }
-                    }
-                } else {
-                    console.log(`[Vacuum] Error: Target SVG Room ID ${targetSvgRoomId} does not exist in this.rooms!`);
-                }
-            } else {
-                console.log(`[Vacuum] No mapping matched. Snapping to dock.`);
-                this.vacuumState.targetX = (sc.position[0] / 100) * this.imgW;
-                this.vacuumState.targetY = (sc.position[1] / 100) * this.imgH;
-                this.vacuumState.activePolygon = null;
+            const sc = this.shortcutElements[id];
+            const changed = sc.updateState(hass);
+            // If the shortcut represents a room light and it changed state, we need to update room styles
+            if (changed && sc.sc.type === 'light') {
+                needsStyleUpdate = true;
             }
         }
+
+        // Only update room styles if something actually changed, or on first load
+        if (needsStyleUpdate || !this._initialStylesRendered) {
+            this.updateRoomStyles();
+            this._initialStylesRendered = true;
+        }
     }
+
+
 
     updateRoomStyles() {
         if (!this.mapRoot) return;
