@@ -30,7 +30,7 @@ export class CanvasEngine {
                 this.canvas.style.width = container.clientWidth + 'px';
                 this.canvas.style.height = container.clientHeight + 'px';
                 if (state && state.bgImage && state.bgImage.complete && state.rooms && state.rooms.length > 0) {
-                    this.calculateAutoCrop(state.bgImage, state.rooms);
+                    this.calculateAutoCrop(state.bgImage, state.rooms, true);
                 }
             }
         }
@@ -118,8 +118,20 @@ export class CanvasEngine {
 
     getMousePos(e) {
         const rect = this.canvas.getBoundingClientRect();
-        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        
+        let clientX, clientY;
+        if (e.clientX !== undefined) {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        } else if (e.changedTouches && e.changedTouches.length > 0) {
+            clientX = e.changedTouches[0].clientX;
+            clientY = e.changedTouches[0].clientY;
+        } else if (e.touches && e.touches.length > 0) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            return { x: 0, y: 0 };
+        }
         
         const screenX = clientX - rect.left;
         const screenY = clientY - rect.top;
