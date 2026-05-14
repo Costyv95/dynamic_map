@@ -1,8 +1,8 @@
 import { MapGeometry } from './MapGeometry.js';
-import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.63';
-import { ApiManager } from './ApiManager.js?v=2.63';
-import { HistoryManager } from './HistoryManager.js?v=2.63';
-import { CanvasEngine } from './CanvasEngine.js?v=2.63';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './editorUI.js?v=2.64';
+import { ApiManager } from './ApiManager.js?v=2.64';
+import { HistoryManager } from './HistoryManager.js?v=2.64';
+import { CanvasEngine } from './CanvasEngine.js?v=2.64';
 
         const historyManager = new HistoryManager();
         const canvas = document.getElementById('mapCanvas');
