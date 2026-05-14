@@ -1,4 +1,5 @@
 import { ShortcutFactory } from './shortcuts/ShortcutFactory.js';
+import { CameraManager } from './CameraManager.js';
 
 class CustomSvgMap extends HTMLElement {
     constructor() {
@@ -56,6 +57,10 @@ class CustomSvgMap extends HTMLElement {
         if (this.resizeObserver) {
             this.resizeObserver.disconnect();
             this.resizeObserver = null;
+        }
+        if (this.cameraManager) {
+            this.cameraManager.destroy();
+            this.cameraManager = null;
         }
     }
 
@@ -357,7 +362,8 @@ class CustomSvgMap extends HTMLElement {
         this.versionText.textContent = "v2.2";
         this.svg.appendChild(this.versionText);
 
-        this.setupInteraction();
+        if (this.cameraManager) this.cameraManager.destroy();
+        this.cameraManager = new CameraManager(this.svg, this);
 
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.lastTime = performance.now();
@@ -513,117 +519,7 @@ class CustomSvgMap extends HTMLElement {
         }
     }
 
-    setupInteraction() {
-        let isPanning = false;
-        let startPan = { x: 0, y: 0 };
-        let startVB = { x: 0, y: 0 };
 
-        const getEventPos = (e) => {
-            if (e.touches && e.touches.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-            return { x: e.clientX, y: e.clientY };
-        };
-
-        const onPointerDown = (e) => {
-            isPanning = true;
-            const pos = getEventPos(e);
-            startPan = { x: pos.x, y: pos.y };
-            startVB = { x: this.vb.x, y: this.vb.y };
-        };
-
-        const onPointerMove = (e) => {
-            if (e.touches && e.touches.length === 2) {
-                e.preventDefault();
-                const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-                if (!this.initialPinchDist) {
-                    this.initialPinchDist = dist;
-                    this.initialVbW = this.vb.w;
-                    this.initialVbH = this.vb.h;
-                    this.initialVbX = this.vb.x;
-                    this.initialVbY = this.vb.y;
-                } else {
-                    const zoomFactor = this.initialPinchDist / dist;
-                    const newW = this.initialVbW * zoomFactor;
-                    const newH = this.initialVbH * zoomFactor;
-
-                    if (newW >= this.defaultVb.w * 0.99) {
-                        this.vb = { ...this.defaultVb };
-                    } else {
-                        if (newW < (this.imgW * 0.05)) return;
-
-                        const rect = this.svg.getBoundingClientRect();
-                        const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                        const cy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                        const mouseX = cx - rect.left;
-                        const mouseY = cy - rect.top;
-
-                        const vx = this.initialVbX + (mouseX / rect.width) * this.initialVbW;
-                        const vy = this.initialVbY + (mouseY / rect.height) * this.initialVbH;
-
-                        this.vb.w = newW;
-                        this.vb.h = newH;
-                        this.vb.x = vx - (mouseX / rect.width) * this.vb.w;
-                        this.vb.y = vy - (mouseY / rect.height) * this.vb.h;
-                    }
-                    this.updateViewBox();
-                }
-                return;
-            }
-
-            if (!isPanning) return;
-            e.preventDefault();
-            const pos = getEventPos(e);
-            const dx = pos.x - startPan.x;
-            const dy = pos.y - startPan.y;
-
-            const rect = this.svg.getBoundingClientRect();
-            const scaleX = this.vb.w / rect.width;
-            const scaleY = this.vb.h / rect.height;
-
-            this.vb.x = startVB.x - (dx * scaleX);
-            this.vb.y = startVB.y - (dy * scaleY);
-            this.updateViewBox();
-        };
-
-        const onPointerUp = () => { isPanning = false; this.initialPinchDist = null; };
-
-        this.svg.addEventListener('mousedown', onPointerDown);
-        this.svg.addEventListener('mousemove', onPointerMove);
-        this.svg.addEventListener('mouseup', onPointerUp);
-        this.svg.addEventListener('mouseleave', onPointerUp);
-        this.svg.addEventListener('touchstart', onPointerDown, { passive: false });
-        this.svg.addEventListener('touchmove', onPointerMove, { passive: false });
-        this.svg.addEventListener('touchend', onPointerUp);
-        this.svg.addEventListener('touchcancel', onPointerUp);
-
-        this.svg.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            const rect = this.svg.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            const vx = this.vb.x + (mouseX / rect.width) * this.vb.w;
-            const vy = this.vb.y + (mouseY / rect.height) * this.vb.h;
-
-            const zoomSpeed = 0.001;
-            let zoomFactor = Math.exp(-e.deltaY * zoomSpeed);
-            if (zoomFactor > 1.2) zoomFactor = 1.2;
-            if (zoomFactor < 0.8) zoomFactor = 0.8;
-
-            const viewZoom = 1 / zoomFactor;
-            const newW = this.vb.w * viewZoom;
-
-            if (newW >= this.defaultVb.w * 0.99) {
-                this.vb = { ...this.defaultVb };
-            } else {
-                if (newW < (this.imgW * 0.05)) return;
-                this.vb.w = newW;
-                this.vb.h *= viewZoom;
-                this.vb.x = vx - (mouseX / rect.width) * this.vb.w;
-                this.vb.y = vy - (mouseY / rect.height) * this.vb.h;
-            }
-            this.updateViewBox();
-        });
-    }
 
     set hass(hass) {
         this._hass = hass;
