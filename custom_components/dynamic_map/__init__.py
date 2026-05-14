@@ -298,12 +298,17 @@ class DynamicMapRoborockRoomsView(HomeAssistantView):
 
     async def get(self, request):
         try:
+            entity_id = request.query.get("entity_id")
+            if not entity_id:
+                return self.json({"success": False, "error": "entity_id is required"})
+
             if not self.hass.services.has_service("roborock", "get_maps"):
                 return self.json({"success": False, "error": "roborock.get_maps service not found"})
             
             response = await self.hass.services.async_call(
                 "roborock", 
                 "get_maps", 
+                service_data={"entity_id": entity_id},
                 blocking=True, 
                 return_response=True
             )

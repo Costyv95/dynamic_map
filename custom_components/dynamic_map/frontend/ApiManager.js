@@ -55,8 +55,8 @@ export class ApiManager {
             
             // 2.5 Try to call roborock.get_maps service if still empty
             if (Object.keys(segmentMap).length === 0) {
-                console.log(`[ApiManager] Step 2.5: Trying roborock.get_maps service proxy`);
-                const rbRes = await fetch(`/api/dynamic_map/roborock_rooms`);
+                console.log(`[ApiManager] Step 2.5: Trying roborock.get_maps service proxy for ${entityId}`);
+                const rbRes = await fetch(`/api/dynamic_map/roborock_rooms?entity_id=${entityId}`);
                 if (rbRes.ok) {
                     const rbData = await rbRes.json();
                     if (rbData.success && rbData.data) {
