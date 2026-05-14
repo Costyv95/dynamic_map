@@ -421,8 +421,13 @@ class CustomSvgMap extends HTMLElement {
         const activeMode = finalIsHorizontal ? 'horizontal' : 'vertical';
         
         const currentFlips = this.flips[activeMode];
-        if (currentFlips.h) scaleX = -1;
-        if (currentFlips.v) scaleY = -1;
+        if (this.isRotated) {
+            if (currentFlips.h) scaleY = -1;
+            if (currentFlips.v) scaleX = -1;
+        } else {
+            if (currentFlips.h) scaleX = -1;
+            if (currentFlips.v) scaleY = -1;
+        }
 
         let transformStr = '';
         if (this.isRotated) transformStr += `rotate(90, ${cx}, ${cy}) `;
