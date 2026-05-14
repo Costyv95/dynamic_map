@@ -290,6 +290,17 @@ export function renderVacuumRoomMapping(sc, rooms, lastFetchedVacuumOptions, onS
     roboRoomIds.forEach(roboId => {
         let val = sc.config.room_mapping[roboId] || '';
         let segVal = (sc.config.segment_mapping && sc.config.segment_mapping[roboId] !== undefined) ? sc.config.segment_mapping[roboId] : '';
+        
+        // Auto-fill from fetched options if available and not set
+        if (segVal === '' && lastFetchedVacuumOptions) {
+            const opt = lastFetchedVacuumOptions.find(o => o.id === roboId);
+            if (opt && opt.segId !== undefined && opt.segId !== '') {
+                segVal = opt.segId;
+                if (!sc.config.segment_mapping) sc.config.segment_mapping = {};
+                sc.config.segment_mapping[roboId] = parseInt(segVal);
+            }
+        }
+        
         let name = optNames[roboId] ? (String(optNames[roboId]) !== String(roboId) ? `${optNames[roboId]} (${roboId})` : roboId) : `Room ID ${roboId}`;
         let div = document.createElement('div');
         div.style.marginBottom = '5px';

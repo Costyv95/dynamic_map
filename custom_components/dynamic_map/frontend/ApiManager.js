@@ -1,43 +1,84 @@
 export class ApiManager {
     static async fetchVacuumRooms(entityId) {
         let roomsFound = [];
+        let segmentMap = {};
+        
         try {
+            // 1. Try to fetch segment IDs from the vacuum entity attributes
+            const res = await fetch(`/api/dynamic_map/state?entity_id=${entityId}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.attributes) {
+                    let rAttr = data.attributes.rooms || data.attributes.room_mapping || data.attributes.room_mapping_dict;
+                    if (rAttr && typeof rAttr === 'object' && !Array.isArray(rAttr)) {
+                        for (const [k, v] of Object.entries(rAttr)) {
+                            let name = typeof v === 'object' ? v.name : v;
+                            if (name) {
+                                segmentMap[String(name).toLowerCase()] = parseInt(k);
+                                segmentMap[String(name)] = parseInt(k);
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 2. Try camera entity attributes if not found
+            if (Object.keys(segmentMap).length === 0 && entityId.startsWith('vacuum.')) {
+                const baseName = entityId.replace('vacuum.', '');
+                for (const camName of [`camera.${baseName}_map`, `camera.roborock_map`]) {
+                    const camRes = await fetch(`/api/dynamic_map/state?entity_id=${camName}`);
+                    if (camRes.ok) {
+                        const camData = await camRes.json();
+                        if (camData.success && camData.attributes && camData.attributes.rooms) {
+                            const rAttr = camData.attributes.rooms;
+                            if (typeof rAttr === 'object' && !Array.isArray(rAttr)) {
+                                for (const [k, v] of Object.entries(rAttr)) {
+                                    let name = typeof v === 'object' ? v.name : v;
+                                    if (name) {
+                                        segmentMap[String(name).toLowerCase()] = parseInt(k);
+                                        segmentMap[String(name)] = parseInt(k);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 3. Fetch tracking names from sensor options
             if (entityId.startsWith('vacuum.')) {
                 const baseName = entityId.replace('vacuum.', '');
                 const roomRes = await fetch(`/api/dynamic_map/state?entity_id=sensor.${baseName}_current_room`);
                 if (roomRes.ok) {
                     const roomData = await roomRes.json();
                     if (roomData.success && roomData.attributes && Array.isArray(roomData.attributes.options)) {
-                        roomsFound = roomData.attributes.options.map(o => ({ id: o, name: o }));
+                        roomsFound = roomData.attributes.options.map(o => {
+                            let segId = segmentMap[o] !== undefined ? segmentMap[o] : (segmentMap[String(o).toLowerCase()] !== undefined ? segmentMap[String(o).toLowerCase()] : "");
+                            return { id: o, name: o, segId: segId };
+                        });
                     }
                 }
             }
 
-            if (roomsFound.length === 0) {
-                const res = await fetch(`/api/dynamic_map/state?entity_id=${entityId}`);
-                const data = await res.json();
-                
-                if (data.success && data.attributes) {
-                    if (data.attributes.rooms) {
-                        const rAttr = data.attributes.rooms;
-                        if (Array.isArray(rAttr)) roomsFound = rAttr.map((v,i) => ({ id: v, name: String(v) }));
-                        else if (typeof rAttr === 'object') {
-                            for (const [k, v] of Object.entries(rAttr)) roomsFound.push({ id: k, name: v });
-                        }
-                    } else if (data.attributes.room_mapping) {
-                        const rAttr = data.attributes.room_mapping;
-                        if (typeof rAttr === 'object') {
-                            for (const [k, v] of Object.entries(rAttr)) roomsFound.push({ id: v, name: k });
-                        }
+            // 4. Fallback if no current_room sensor but we found segment mappings
+            if (roomsFound.length === 0 && Object.keys(segmentMap).length > 0) {
+                let added = new Set();
+                for (const [name, segId] of Object.entries(segmentMap)) {
+                    // Check original casing
+                    let cleanName = name;
+                    if (!added.has(cleanName)) {
+                        roomsFound.push({ id: cleanName, name: cleanName, segId: segId });
+                        added.add(cleanName);
                     }
                 }
             }
+
         } catch (e) {
             console.error("Failed to fetch vacuum rooms", e);
         }
         
         if (roomsFound.length === 0) {
-            for(let i=16; i<=25; i++) roomsFound.push({ id: i, name: `Room ${i}`});
+            for(let i=16; i<=25; i++) roomsFound.push({ id: `Room ${i}`, name: `Room ${i}`, segId: i });
         }
         return roomsFound;
     }
