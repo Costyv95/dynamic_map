@@ -12,11 +12,14 @@ export class CanvasEngine {
         this.animationFrameId = null;
     }
 
-    resizeCanvas() {
-        const container = this.canvas.parentElement;
-        if (this.canvas.width !== container.clientWidth || this.canvas.height !== container.clientHeight) {
+    resizeCanvas(state) {
+        const container = this.canvas.parentElement || document.getElementById('canvas-container');
+        if (container && (this.canvas.width !== container.clientWidth || this.canvas.height !== container.clientHeight)) {
             this.canvas.width = container.clientWidth;
             this.canvas.height = container.clientHeight;
+            if (state && state.bgImage && state.bgImage.complete && state.rooms && state.rooms.length > 0) {
+                this.calculateAutoCrop(state.bgImage, state.rooms);
+            }
         }
     }
 
@@ -112,7 +115,7 @@ export class CanvasEngine {
             return;
         }
 
-        this.resizeCanvas();
+        this.resizeCanvas(state);
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
         this.ctx.save();
