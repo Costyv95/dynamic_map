@@ -69,8 +69,14 @@ export class OverlayManager {
                 slider.min = '1';
                 slider.max = '100';
                 
-                if (mapContext._hass && mapContext._hass.states[target] && mapContext._hass.states[target].attributes.brightness) {
-                    slider.value = Math.round((mapContext._hass.states[target].attributes.brightness / 255) * 100);
+                if (mapContext._hass && mapContext._hass.states[target]) {
+                    if (target.startsWith('input_number.')) {
+                        slider.value = parseFloat(mapContext._hass.states[target].state);
+                    } else if (mapContext._hass.states[target].attributes.brightness) {
+                        slider.value = Math.round((mapContext._hass.states[target].attributes.brightness / 255) * 100);
+                    } else {
+                        slider.value = '50';
+                    }
                 } else {
                     slider.value = '50';
                 }
@@ -79,10 +85,18 @@ export class OverlayManager {
                 
                 slider.addEventListener('change', (e) => {
                     if (!mapContext._hass) return;
-                    mapContext._hass.callService(target.split('.')[0], 'turn_on', {
-                        entity_id: target,
-                        brightness_pct: parseInt(e.target.value)
-                    });
+                    const domain = target.split('.')[0];
+                    if (domain === 'input_number') {
+                        mapContext._hass.callService('input_number', 'set_value', {
+                            entity_id: target,
+                            value: parseFloat(e.target.value)
+                        });
+                    } else {
+                        mapContext._hass.callService(domain, 'turn_on', {
+                            entity_id: target,
+                            brightness_pct: parseInt(e.target.value)
+                        });
+                    }
                 });
                 
                 if (isVisual && act.pos_x !== undefined) {
