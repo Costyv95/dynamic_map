@@ -315,29 +315,24 @@ export class EditorInteractionManager {
             const worldPos = this.getMousePos(e);
             const pctPos = [(worldPos.x / this.state.bgImage.width)*100, (worldPos.y / this.state.bgImage.height)*100];
             
-            if (this.state.isEditMode) {
-                let clickedIdx = -1;
-                for(let i = 0; i < this.state.rooms.length; i++) {
-                    if (MapGeometry.isPointInPolygon(pctPos, this.state.rooms[i].polygon)) {
-                        clickedIdx = i; break;
-                    }
+            let clickedIdx = -1;
+            for(let i = 0; i < this.state.rooms.length; i++) {
+                if (MapGeometry.isPointInPolygon(pctPos, this.state.rooms[i].polygon)) {
+                    clickedIdx = i; break;
                 }
+            }
 
-                if (clickedIdx !== -1) {
-                    if (e.ctrlKey || e.metaKey) {
-                        const idx = this.state.selectedRooms.indexOf(clickedIdx);
-                        if(idx === -1) this.state.selectedRooms.push(clickedIdx);
-                        else this.state.selectedRooms.splice(idx, 1);
-                    } else {
-                        this.state.selectedRooms = [clickedIdx];
-                    }
-                    this.state.selectedShortcutIdx = -1;
+            if (clickedIdx !== -1) {
+                if (this.state.isEditMode && (e.ctrlKey || e.metaKey)) {
+                    const idx = this.state.selectedRooms.indexOf(clickedIdx);
+                    if(idx === -1) this.state.selectedRooms.push(clickedIdx);
+                    else this.state.selectedRooms.splice(idx, 1);
                 } else {
-                    this.state.selectedRooms = [];
+                    this.state.selectedRooms = [clickedIdx];
                 }
+                this.state.selectedShortcutIdx = -1;
             } else {
                 this.state.selectedRooms = [];
-                this.state.selectedShortcutIdx = -1;
             }
             this.state.updateUICallback();
             this.state.requestDrawCallback();
