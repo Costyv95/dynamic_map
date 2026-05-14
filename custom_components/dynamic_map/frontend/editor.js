@@ -296,12 +296,9 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             if (engine.rotationMode === 'auto') {
                 flipHBtn.style.opacity = '0.3'; flipHBtn.style.cursor = 'not-allowed';
                 flipVBtn.style.opacity = '0.3'; flipVBtn.style.cursor = 'not-allowed';
-            } else if (engine.rotationMode === 'horizontal') {
+            } else {
                 flipHBtn.style.opacity = engine.horizontalFlip ? '1' : '0.5';
                 flipHBtn.style.cursor = 'pointer';
-                flipVBtn.style.opacity = '0.3'; flipVBtn.style.cursor = 'not-allowed';
-            } else if (engine.rotationMode === 'vertical') {
-                flipHBtn.style.opacity = '0.3'; flipHBtn.style.cursor = 'not-allowed';
                 flipVBtn.style.opacity = engine.verticalFlip ? '1' : '0.5';
                 flipVBtn.style.cursor = 'pointer';
             }
@@ -321,7 +318,7 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
         });
 
         document.getElementById('flipHorizBtn').addEventListener('click', () => {
-            if (engine.rotationMode !== 'horizontal') return;
+            if (engine.rotationMode === 'auto') return;
             engine.horizontalFlip = !engine.horizontalFlip;
             updateRotationUI();
             calculateAutoCrop();
@@ -330,7 +327,7 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
         });
 
         document.getElementById('flipVertBtn').addEventListener('click', () => {
-            if (engine.rotationMode !== 'vertical') return;
+            if (engine.rotationMode === 'auto') return;
             engine.verticalFlip = !engine.verticalFlip;
             updateRotationUI();
             calculateAutoCrop();

@@ -41,6 +41,10 @@ export class MapShortcut {
         this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) rotate(${this.rotation})`);
     }
 
+    setTransformStr(str) {
+        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${str}`);
+    }
+
     setupInteractions() {
         this.group.style.cursor = 'pointer';
         let pressTimer = null;

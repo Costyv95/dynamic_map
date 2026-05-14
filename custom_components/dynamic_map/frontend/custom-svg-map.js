@@ -413,20 +413,33 @@ class CustomSvgMap extends HTMLElement {
 
         this.isRotated = shouldRotate;
         
-        let extraRotation = 0;
-        if (!this.isRotated && this.horizontalFlip) extraRotation = 180;
-        if (this.isRotated && this.verticalFlip) extraRotation = 180;
+        let scaleX = 1;
+        let scaleY = 1;
+        if (this.horizontalFlip) scaleX = -1;
+        if (this.verticalFlip) scaleY = -1;
 
-        if (this.isRotated || extraRotation) {
-            const totalRot = (this.isRotated ? 90 : 0) + extraRotation;
-            this.mapRoot.setAttribute('transform', `rotate(${totalRot}, ${cx}, ${cy})`);
+        let transformStr = '';
+        if (this.isRotated) transformStr += `rotate(90, ${cx}, ${cy}) `;
+        if (scaleX !== 1 || scaleY !== 1) transformStr += `translate(${cx}, ${cy}) scale(${scaleX}, ${scaleY}) translate(${-cx}, ${-cy})`;
+
+        if (transformStr.trim()) {
+            this.mapRoot.setAttribute('transform', transformStr.trim());
             
             this.mapRoot.querySelectorAll('.room-label').forEach(label => {
-                label.setAttribute('transform', `rotate(${-totalRot}, ${label.rawCx}, ${label.rawCy})`);
+                let childTransformStr = `translate(${label.rawCx}, ${label.rawCy}) `;
+                if (scaleX !== 1 || scaleY !== 1) childTransformStr += `scale(${scaleX}, ${scaleY}) `;
+                if (this.isRotated) childTransformStr += `rotate(-90) `;
+                childTransformStr += `translate(${-label.rawCx}, ${-label.rawCy})`;
+                
+                label.setAttribute('transform', childTransformStr);
             });
             if (this.shortcutElements) {
                 Object.values(this.shortcutElements).forEach(scObj => {
-                    if (scObj.setRotation) scObj.setRotation(-totalRot);
+                    let scTransformStr = '';
+                    if (scaleX !== 1 || scaleY !== 1) scTransformStr += `scale(${scaleX}, ${scaleY}) `;
+                    if (this.isRotated) scTransformStr += `rotate(-90) `;
+                    if (scObj.setTransformStr) scObj.setTransformStr(scTransformStr.trim());
+                    else if (scObj.setRotation) scObj.setRotation(this.isRotated ? -90 : 0);
                 });
             }
 
@@ -443,7 +456,8 @@ class CustomSvgMap extends HTMLElement {
             });
             if (this.shortcutElements) {
                 Object.values(this.shortcutElements).forEach(scObj => {
-                    if (scObj.setRotation) scObj.setRotation(0);
+                    if (scObj.setTransformStr) scObj.setTransformStr('');
+                    else if (scObj.setRotation) scObj.setRotation(0);
                 });
             }
         }

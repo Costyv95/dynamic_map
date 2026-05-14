@@ -72,15 +72,12 @@ export class CanvasEngine {
         const cx = minX + w/2;
         const cy = minY + h/2;
         
-        let extraRotation = 0;
-        if (!this.isRotated && this.horizontalFlip) extraRotation = 180;
-        if (this.isRotated && this.verticalFlip) extraRotation = 180;
-        
         this.defaultTransform = new DOMMatrix();
         this.defaultTransform.translateSelf(this.canvas.width / 2, this.canvas.height / 2);
         this.defaultTransform.scaleSelf(this.minScale);
         if (this.isRotated) this.defaultTransform.rotateSelf(90);
-        if (extraRotation) this.defaultTransform.rotateSelf(extraRotation);
+        if (this.horizontalFlip) this.defaultTransform.scaleSelf(-1, 1);
+        if (this.verticalFlip) this.defaultTransform.scaleSelf(1, -1);
         this.defaultTransform.translateSelf(-cx, -cy);
 
         this.viewTransform = new DOMMatrix(this.defaultTransform);
@@ -183,12 +180,13 @@ export class CanvasEngine {
                 const textY = (center[1]/100)*bgImage.height;
                 
                 this.ctx.save();
-                this.ctx.translate(textX, textY);
-                let textRot = 0;
-                if (this.isRotated) textRot -= Math.PI / 2;
-                if (this.isRotated && this.verticalFlip) textRot -= Math.PI;
-                if (!this.isRotated && this.horizontalFlip) textRot -= Math.PI;
-                if (textRot !== 0) this.ctx.rotate(textRot);
+                const pt = new DOMPoint(textX, textY).matrixTransform(this.viewTransform);
+                this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+                this.ctx.translate(pt.x, pt.y);
+                
+                const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
+                this.ctx.scale(currentScale, currentScale);
+                if (this.isRotated) this.ctx.rotate(-Math.PI / 2);
 
                 this.ctx.font = '900 20px sans-serif';
                 this.ctx.textAlign = 'center';
@@ -286,12 +284,13 @@ export class CanvasEngine {
                 this.ctx.beginPath(); this.ctx.arc(x + maxR*0.5, y, maxR*0.15, 0, Math.PI*2); this.ctx.fillStyle = '#10b981'; this.ctx.fill();
             } else {
                 this.ctx.save();
-                this.ctx.translate(x, y);
-                let scRot = 0;
-                if (this.isRotated) scRot -= Math.PI / 2;
-                if (this.isRotated && this.verticalFlip) scRot -= Math.PI;
-                if (!this.isRotated && this.horizontalFlip) scRot -= Math.PI;
-                if (scRot !== 0) this.ctx.rotate(scRot);
+                const pt = new DOMPoint(x, y).matrixTransform(this.viewTransform);
+                this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+                this.ctx.translate(pt.x, pt.y);
+                
+                const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
+                this.ctx.scale(currentScale, currentScale);
+                if (this.isRotated) this.ctx.rotate(-Math.PI / 2);
                 
                 if (image) {
                     if (!sc._imgCache) sc._imgCache = {};
@@ -321,12 +320,13 @@ export class CanvasEngine {
 
             if (idx === selectedShortcutIdx) {
                 this.ctx.save();
-                this.ctx.translate(x, y);
-                let lblRot = 0;
-                if (this.isRotated) lblRot -= Math.PI / 2;
-                if (this.isRotated && this.verticalFlip) lblRot -= Math.PI;
-                if (!this.isRotated && this.horizontalFlip) lblRot -= Math.PI;
-                if (lblRot !== 0) this.ctx.rotate(lblRot);
+                const pt = new DOMPoint(x, y).matrixTransform(this.viewTransform);
+                this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+                this.ctx.translate(pt.x, pt.y);
+                
+                const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
+                this.ctx.scale(currentScale, currentScale);
+                if (this.isRotated) this.ctx.rotate(-Math.PI / 2);
 
                 this.ctx.font = '10px sans-serif';
                 this.ctx.textAlign = 'center';
