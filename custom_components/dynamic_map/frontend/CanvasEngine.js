@@ -79,11 +79,10 @@ export class CanvasEngine {
         this.defaultTransform.scaleSelf(this.minScale);
         if (this.isRotated) this.defaultTransform.rotateSelf(90);
         
-        if (this.rotationMode !== 'auto') {
-            const currentFlips = this.flips[this.rotationMode];
-            if (currentFlips.h) this.defaultTransform.scaleSelf(-1, 1);
-            if (currentFlips.v) this.defaultTransform.scaleSelf(1, -1);
-        }
+        const activeMode = this.isRotated ? 'vertical' : 'horizontal';
+        const currentFlips = this.flips[activeMode];
+        if (currentFlips.h) this.defaultTransform.scaleSelf(-1, 1);
+        if (currentFlips.v) this.defaultTransform.scaleSelf(1, -1);
         
         this.defaultTransform.translateSelf(-cx, -cy);
 
