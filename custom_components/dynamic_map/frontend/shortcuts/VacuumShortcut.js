@@ -8,7 +8,6 @@ export class VacuumShortcut extends GenericShortcut {
     }
 
     updateState(hass) {
-        super.updateState(hass);
         const entityId = this.sc.entity_id;
         if (!entityId) return false;
         
@@ -24,7 +23,7 @@ export class VacuumShortcut extends GenericShortcut {
         const newRoom = roomState ? roomState.state : 'unknown';
         const newCharging = chargingState ? (chargingState.state === 'on') : ['charging', 'docked', 'charging_complete'].includes(newStatus);
 
-        let changed = false;
+        let changed = super.updateState(hass);
         
         if (this.vacuumState.status !== newStatus) { this.vacuumState.status = newStatus; changed = true; }
         if (this.vacuumState.room !== newRoom) { this.vacuumState.room = newRoom; changed = true; }
@@ -49,18 +48,24 @@ export class VacuumShortcut extends GenericShortcut {
         const imgW = this.mapContext.imgW;
         const imgH = this.mapContext.imgH;
         
+        console.log(`[Vacuum] Status: ${this.vacuumState.status}, Charging: ${this.vacuumState.isCharging}, Current Room Sensor: "${this.vacuumState.room}"`);
+        
         const isOffline = ['unknown', 'device_offline'].includes((this.vacuumState.status || '').toLowerCase());
         const isTrackingRoom = !this.vacuumState.isCharging && !isOffline;
         
         if (!isTrackingRoom) {
+            console.log(`[Vacuum] Vacuum is charging or offline. Snapping to dock.`);
             this.vacuumState.targetX = (sc.position[0] / 100) * imgW;
             this.vacuumState.targetY = (sc.position[1] / 100) * imgH;
             this.vacuumState.activePolygon = null;
         } else {
             let targetSvgRoomId = null;
+            console.log(`[Vacuum] Evaluating mapping:`, sc.room_mapping);
             for (const [roboRoomName, svgRoomId] of Object.entries(sc.room_mapping || {})) {
+                console.log(`[Vacuum] Checking if mapping key "${roboRoomName.toLowerCase()}" === sensor "${(this.vacuumState.room || '').toLowerCase()}"`);
                 if (roboRoomName.toLowerCase() === (this.vacuumState.room || '').toLowerCase()) {
                     targetSvgRoomId = svgRoomId;
+                    console.log(`[Vacuum] MATCH FOUND! Target SVG Room ID: ${targetSvgRoomId}`);
                     break;
                 }
             }
@@ -68,6 +73,7 @@ export class VacuumShortcut extends GenericShortcut {
             if (targetSvgRoomId) {
                 const targetRoom = this.mapContext.rooms.find(r => r.id === targetSvgRoomId);
                 if (targetRoom) {
+                    console.log(`[Vacuum] Valid SVG Room Found: ${targetRoom.name}`);
                     if (this.vacuumState.status === 'error') {
                         this.vacuumState.activePolygon = targetRoom.polygon;
                         const center = this.mapContext.getPolygonCenter(targetRoom.polygon);
@@ -75,6 +81,7 @@ export class VacuumShortcut extends GenericShortcut {
                         this.vacuumState.targetY = (center[1] / 100) * imgH;
                     } else if (isTrackingRoom) {
                         if (this.vacuumState.activePolygon !== targetRoom.polygon) {
+                            console.log(`[Vacuum] Moving to center of ${targetRoom.name}`);
                             this.vacuumState.activePolygon = targetRoom.polygon;
                             const center = this.mapContext.getPolygonCenter(targetRoom.polygon);
                             this.vacuumState.targetX = (center[0] / 100) * imgW;
@@ -82,10 +89,14 @@ export class VacuumShortcut extends GenericShortcut {
                             // Teleport instantly to avoid flying through walls!
                             this.vacuumState.x = this.vacuumState.targetX;
                             this.vacuumState.y = this.vacuumState.targetY;
+                            this.group.setAttribute('transform', `translate(${this.vacuumState.x}, ${this.vacuumState.y})`);
                         }
                     }
+                } else {
+                    console.log(`[Vacuum] Error: Target SVG Room ID ${targetSvgRoomId} does not exist in this.rooms!`);
                 }
             } else {
+                console.log(`[Vacuum] No mapping matched. Snapping to dock.`);
                 this.vacuumState.targetX = (sc.position[0] / 100) * imgW;
                 this.vacuumState.targetY = (sc.position[1] / 100) * imgH;
                 this.vacuumState.activePolygon = null;
