@@ -2,6 +2,7 @@ export class ApiManager {
     static async fetchVacuumRooms(entityId) {
         let roomsFound = [];
         let segmentMap = {};
+        let originalNames = [];
         
         console.log(`[ApiManager] Fetching vacuum rooms for ${entityId}...`);
         try {
@@ -20,6 +21,7 @@ export class ApiManager {
                             if (name) {
                                 segmentMap[String(name).toLowerCase()] = parseInt(k);
                                 segmentMap[String(name)] = parseInt(k);
+                                if (!originalNames.includes(String(name))) originalNames.push(String(name));
                             }
                         }
                     }
@@ -45,6 +47,7 @@ export class ApiManager {
                                     if (name) {
                                         segmentMap[String(name).toLowerCase()] = parseInt(k);
                                         segmentMap[String(name)] = parseInt(k);
+                                        if (!originalNames.includes(String(name))) originalNames.push(String(name));
                                     }
                                 }
                             }
@@ -71,6 +74,7 @@ export class ApiManager {
                                     if (name) {
                                         segmentMap[String(name).toLowerCase()] = parseInt(k);
                                         segmentMap[String(name)] = parseInt(k);
+                                        if (!originalNames.includes(String(name))) originalNames.push(String(name));
                                     }
                                 }
                             }
@@ -105,16 +109,10 @@ export class ApiManager {
             }
 
             // 4. Fallback if no current_room sensor but we found segment mappings
-            if (roomsFound.length === 0 && Object.keys(segmentMap).length > 0) {
-                console.log(`[ApiManager] Step 4: No sensor options found, falling back to segmentMap keys`);
-                let added = new Set();
-                for (const [name, segId] of Object.entries(segmentMap)) {
-                    // Check original casing
-                    let cleanName = name;
-                    if (!added.has(cleanName)) {
-                        roomsFound.push({ id: cleanName, name: cleanName, segId: segId });
-                        added.add(cleanName);
-                    }
+            if (roomsFound.length === 0 && originalNames.length > 0) {
+                console.log(`[ApiManager] Step 4: No sensor options found, falling back to originalNames`);
+                for (const name of originalNames) {
+                    roomsFound.push({ id: name, name: name, segId: segmentMap[name] });
                 }
             }
 
