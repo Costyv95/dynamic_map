@@ -120,7 +120,16 @@ export class MapShortcut {
                     if (act.type === 'CALL_SERVICE' && act.service) {
                         const parts = act.service.split('.');
                         if (parts.length === 2) {
-                            this.mapContext._hass.callService(parts[0], parts[1], { entity_id: target });
+                            let payload = { entity_id: target };
+                            if (act.payload) {
+                                try {
+                                    const parsed = JSON.parse(act.payload);
+                                    payload = { ...payload, ...parsed };
+                                } catch (e) {
+                                    console.error("[DynamicMap] Failed to parse action payload:", e);
+                                }
+                            }
+                            this.mapContext._hass.callService(parts[0], parts[1], payload);
                         }
                     } else if (act.type && act.type.startsWith('TOGGLE')) {
                         const domain = target.split('.')[0];

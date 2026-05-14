@@ -998,7 +998,8 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
                         sc.config.actions = [
                             { id: `act_${Date.now()}_1`, type: 'TOGGLE', trigger: 'tap', action_entity: sc.entity_id || '', name: 'Pause/Start', icon: '⏯️' },
                             { id: `act_${Date.now()}_2`, type: 'CALL_SERVICE', trigger: 'overlay', action_entity: sc.entity_id || '', service: 'vacuum.return_to_base', name: 'Return to Dock', icon: '🏠' },
-                            { id: `act_${Date.now()}_3`, type: 'CALL_SERVICE', trigger: 'overlay', action_entity: sc.entity_id || '', service: 'vacuum.start', name: 'Clean House', icon: '🧹' }
+                            { id: `act_${Date.now()}_3`, type: 'CALL_SERVICE', trigger: 'overlay', action_entity: sc.entity_id || '', service: 'vacuum.start', name: 'Clean House', icon: '🧹' },
+                            { id: `act_${Date.now()}_4`, type: 'CALL_SERVICE', trigger: 'overlay', action_entity: sc.entity_id || '', service: 'vacuum.send_command', name: 'Deep Clean Kitchen', icon: '✨', payload: '{"command": "app_segment_clean", "params": [{"segments": ["Kitchen"], "repeat": 2}]}' }
                         ];
                     }
                 } else if (sc.type === 'light') {

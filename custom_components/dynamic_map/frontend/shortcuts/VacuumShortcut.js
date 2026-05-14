@@ -131,8 +131,27 @@ export class VacuumShortcut extends GenericShortcut {
 
         if (dist > (imgW * 0.001)) {
             const moveAmt = Math.min(dist, speed * deltaTime);
-            this.vacuumState.x += (dx / dist) * moveAmt;
-            this.vacuumState.y += (dy / dist) * moveAmt;
+            const nextX = this.vacuumState.x + (dx / dist) * moveAmt;
+            const nextY = this.vacuumState.y + (dy / dist) * moveAmt;
+            
+            let hitWall = false;
+            if (isTrackingRoom && this.vacuumState.activePolygon) {
+                const nextXPercent = (nextX / imgW) * 100;
+                const nextYPercent = (nextY / imgH) * 100;
+                if (!this.mapContext.isPointInPolygon([nextXPercent, nextYPercent], this.vacuumState.activePolygon)) {
+                    hitWall = true;
+                }
+            }
+            
+            if (hitWall) {
+                // Bounce off wall by generating a new target
+                const newTarget = this.mapContext.getRandomPointInPolygon(this.vacuumState.activePolygon);
+                this.vacuumState.targetX = (newTarget[0] / 100) * imgW;
+                this.vacuumState.targetY = (newTarget[1] / 100) * imgH;
+            } else {
+                this.vacuumState.x = nextX;
+                this.vacuumState.y = nextY;
+            }
 
             if (isNaN(this.vacuumState.x) || isNaN(this.vacuumState.y)) {
                 this.vacuumState.x = this.px;
