@@ -142,6 +142,12 @@ export class MapShortcut {
                         }
                         
                         this.mapContext._hass.callService(domain, service, { entity_id: target });
+                    } else if (act.type === 'ROOM_SELECTOR') {
+                        this.mapContext.isSelectingRooms = true;
+                        this.mapContext.selectedRoomIds = [];
+                        this.mapContext.selectionVacuumTarget = target;
+                        this.mapContext.updateRoomStyles();
+                        this.mapContext.showRoomSelectionUI();
                     }
                 });
                 
