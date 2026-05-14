@@ -23,16 +23,21 @@ export class CanvasEngine {
         }
     }
 
-    calculateAutoCrop(bgImage, rooms) {
-        let minPctX = 100, maxPctX = 0, minPctY = 100, maxPctY = 0;
-        rooms.forEach(r => {
-            r.polygon.forEach(pt => {
-                if(pt[0] < minPctX) minPctX = pt[0];
-                if(pt[0] > maxPctX) maxPctX = pt[0];
-                if(pt[1] < minPctY) minPctY = pt[1];
-                if(pt[1] > maxPctY) maxPctY = pt[1];
+    calculateAutoCrop(bgImage, rooms, forceRecalculate = false) {
+        if (!this.cachedBounds || forceRecalculate) {
+            let minPctX = 100, maxPctX = 0, minPctY = 100, maxPctY = 0;
+            rooms.forEach(r => {
+                r.polygon.forEach(pt => {
+                    if(pt[0] < minPctX) minPctX = pt[0];
+                    if(pt[0] > maxPctX) maxPctX = pt[0];
+                    if(pt[1] < minPctY) minPctY = pt[1];
+                    if(pt[1] > maxPctY) maxPctY = pt[1];
+                });
             });
-        });
+            this.cachedBounds = { minPctX, maxPctX, minPctY, maxPctY };
+        }
+
+        const { minPctX, maxPctX, minPctY, maxPctY } = this.cachedBounds;
 
         const minX = (minPctX / 100) * bgImage.width;
         const maxX = (maxPctX / 100) * bgImage.width;

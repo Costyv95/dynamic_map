@@ -230,7 +230,7 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
 
             const checkAutoCrop = () => {
                 if (imgLoaded && dataLoaded) {
-                    calculateAutoCrop();
+                    calculateAutoCrop(true);
                     isTransitioning = false;
                     draw();
                 }
@@ -266,8 +266,8 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             engine.resizeCanvas();
         }
 
-        function calculateAutoCrop() {
-            engine.calculateAutoCrop(bgImage, rooms);
+        function calculateAutoCrop(forceRecalculate = false) {
+            engine.calculateAutoCrop(bgImage, rooms, forceRecalculate);
         }
 
         document.querySelectorAll('.floor-btn').forEach(btn => {
