@@ -289,11 +289,12 @@ export function renderVacuumRoomMapping(sc, rooms, lastFetchedVacuumOptions, onS
     
     roboRoomIds.forEach(roboId => {
         let val = sc.config.room_mapping[roboId] || '';
+        let segVal = (sc.config.segment_mapping && sc.config.segment_mapping[roboId] !== undefined) ? sc.config.segment_mapping[roboId] : '';
         let name = optNames[roboId] ? (String(optNames[roboId]) !== String(roboId) ? `${optNames[roboId]} (${roboId})` : roboId) : `Room ID ${roboId}`;
         let div = document.createElement('div');
         div.style.marginBottom = '5px';
         
-        let selectHtml = `<select class="room-map-input" data-roboroomid="${roboId}" style="width:100%; padding:5px; margin-top:2px; background:var(--bg-secondary); color:var(--text-main); border:1px solid var(--input-border); border-radius:4px;">`;
+        let selectHtml = `<div style="display:flex; gap:5px;"><select class="room-map-input" data-roboroomid="${roboId}" style="flex:1; padding:5px; margin-top:2px; background:var(--bg-secondary); color:var(--text-main); border:1px solid var(--input-border); border-radius:4px;">`;
         selectHtml += `<option value="">-- Ignore --</option>`;
         rooms.forEach(room => {
             if(!room.name) return;
@@ -301,6 +302,8 @@ export function renderVacuumRoomMapping(sc, rooms, lastFetchedVacuumOptions, onS
             selectHtml += `<option value="${room.id}" ${selected}>${room.name}</option>`;
         });
         selectHtml += `</select>`;
+        selectHtml += `<input type="number" class="room-seg-input" data-roboroomid="${roboId}" value="${segVal}" placeholder="Seg ID (e.g. 16)" style="width:100px; padding:5px; margin-top:2px; background:var(--bg-secondary); color:var(--text-main); border:1px solid var(--input-border); border-radius:4px;"></div>`;
+        
         div.innerHTML = `<span style="font-size:12px; color:#aaa">Vacuum: ${name}</span> ${selectHtml}`;
         
         container.appendChild(div);
@@ -316,6 +319,20 @@ export function renderVacuumRoomMapping(sc, rooms, lastFetchedVacuumOptions, onS
                 delete sc.config.room_mapping[rId];
             } else {
                 sc.config.room_mapping[rId] = e.target.value;
+            }
+            if (onStateChange) onStateChange();
+        });
+    });
+
+    container.querySelectorAll('.room-seg-input').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const rId = e.target.dataset.roboroomid;
+            if (!sc.config) sc.config = {};
+            if (!sc.config.segment_mapping) sc.config.segment_mapping = {};
+            if (e.target.value === "") {
+                delete sc.config.segment_mapping[rId];
+            } else {
+                sc.config.segment_mapping[rId] = parseInt(e.target.value);
             }
             if (onStateChange) onStateChange();
         });

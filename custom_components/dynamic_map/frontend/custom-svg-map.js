@@ -891,7 +891,10 @@ class CustomSvgMap extends HTMLElement {
                     if (!this._hass || !target) return;
                     
                     if (act.type === 'ROOM_SELECTOR') {
-                        this.closeOverlay();
+                        if (this.activeOverlay) {
+                            this.activeOverlay.remove();
+                            this.activeOverlay = null;
+                        }
                         this.isSelectingRooms = true;
                         this.selectedRoomIds = [];
                         this.selectionVacuumTarget = target;
@@ -918,7 +921,11 @@ class CustomSvgMap extends HTMLElement {
                                         for (const [roboId, svgRoomId] of Object.entries(scConfig.room_mapping)) {
                                             const roomDef = this.rooms.find(r => r.id === svgRoomId);
                                             if (roomDef && roomDef.name) {
-                                                nameToRoboId[roomDef.name] = isNaN(roboId) ? roboId : parseInt(roboId);
+                                                if (scConfig.segment_mapping && scConfig.segment_mapping[roboId] !== undefined) {
+                                                    nameToRoboId[roomDef.name] = scConfig.segment_mapping[roboId];
+                                                } else {
+                                                    nameToRoboId[roomDef.name] = isNaN(roboId) ? roboId : parseInt(roboId);
+                                                }
                                             }
                                         }
                                     }
@@ -1073,11 +1080,15 @@ class CustomSvgMap extends HTMLElement {
                     let mappedId = null;
                     for (const [roboId, svgRoomId] of Object.entries(scConfig.room_mapping)) {
                         if (svgRoomId === id) {
-                            mappedId = roboId;
+                            if (scConfig.segment_mapping && scConfig.segment_mapping[roboId] !== undefined) {
+                                mappedId = scConfig.segment_mapping[roboId];
+                            } else {
+                                mappedId = roboId;
+                            }
                             break;
                         }
                     }
-                    if (mappedId) segments.push(isNaN(mappedId) ? mappedId : parseInt(mappedId));
+                    if (mappedId !== null) segments.push(isNaN(mappedId) ? mappedId : parseInt(mappedId));
                 });
             }
             
