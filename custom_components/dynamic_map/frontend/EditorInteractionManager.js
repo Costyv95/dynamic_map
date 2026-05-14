@@ -34,10 +34,13 @@ export class EditorInteractionManager {
             this.state.requestDrawCallback();
         }, { passive: false });
 
-        this.canvas.addEventListener('pointerdown', this.onPointerDown.bind(this));
-        this.canvas.addEventListener('pointermove', this.onPointerMove.bind(this));
-        this.canvas.addEventListener('pointerup', this.onPointerUp.bind(this));
-        this.canvas.addEventListener('pointerleave', this.onPointerUp.bind(this));
+        this.canvas.addEventListener('mousedown', this.onPointerDown.bind(this));
+        this.canvas.addEventListener('mousemove', this.onPointerMove.bind(this));
+        window.addEventListener('mouseup', this.onPointerUp.bind(this));
+        
+        this.canvas.addEventListener('touchstart', this.onPointerDown.bind(this), { passive: false });
+        this.canvas.addEventListener('touchmove', this.onPointerMove.bind(this), { passive: false });
+        window.addEventListener('touchend', this.onPointerUp.bind(this));
         
         // Keydown for polygon drawing
         document.addEventListener('keydown', this.onKeyDown.bind(this));

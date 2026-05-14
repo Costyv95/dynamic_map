@@ -21,8 +21,8 @@ export class CanvasEngine {
         const container = this.canvas.parentElement || document.getElementById('canvas-container');
         if (container) {
             const dpr = window.devicePixelRatio || 1;
-            const targetWidth = container.clientWidth * dpr;
-            const targetHeight = container.clientHeight * dpr;
+            const targetWidth = Math.floor(container.clientWidth * dpr);
+            const targetHeight = Math.floor(container.clientHeight * dpr);
 
             if (this.canvas.width !== targetWidth || this.canvas.height !== targetHeight) {
                 this.canvas.width = targetWidth;
