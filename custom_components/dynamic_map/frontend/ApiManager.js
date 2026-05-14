@@ -53,6 +53,38 @@ export class ApiManager {
                 }
             }
             
+            // 2.5 Try to call roborock.get_maps service if still empty
+            if (Object.keys(segmentMap).length === 0) {
+                console.log(`[ApiManager] Step 2.5: Trying roborock.get_maps service proxy`);
+                const rbRes = await fetch(`/api/dynamic_map/roborock_rooms`);
+                if (rbRes.ok) {
+                    const rbData = await rbRes.json();
+                    if (rbData.success && rbData.data) {
+                        console.log(`[ApiManager] roborock.get_maps response:`, rbData.data);
+                        // Data usually looks like: { "vacuum.silvester": { "maps": [ { "rooms": { "16": "Kitchen" } } ] } }
+                        // Or if direct: { "maps": [ ... ] }
+                        const parseRoborockMaps = (obj) => {
+                            if (!obj) return;
+                            if (obj.rooms && typeof obj.rooms === 'object') {
+                                for (const [k, v] of Object.entries(obj.rooms)) {
+                                    let name = typeof v === 'object' ? v.name : v;
+                                    if (name) {
+                                        segmentMap[String(name).toLowerCase()] = parseInt(k);
+                                        segmentMap[String(name)] = parseInt(k);
+                                    }
+                                }
+                            }
+                            if (typeof obj === 'object') {
+                                Object.values(obj).forEach(val => {
+                                    if (typeof val === 'object') parseRoborockMaps(val);
+                                });
+                            }
+                        };
+                        parseRoborockMaps(rbData.data);
+                    }
+                }
+            }
+            
             console.log(`[ApiManager] Final Extracted Segment Map:`, segmentMap);
 
             // 3. Fetch tracking names from sensor options

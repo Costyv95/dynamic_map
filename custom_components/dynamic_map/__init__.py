@@ -20,6 +20,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
     hass.http.register_view(DynamicMapRecomputeView(hass))
     hass.http.register_view(DynamicMapDeleteFloorView(hass))
     hass.http.register_view(DynamicMapRegistryView(hass))
+    hass.http.register_view(DynamicMapRoborockRoomsView(hass))
     
     # Expose the frontend folder statically
     frontend_dir = hass.config.path("custom_components", DOMAIN, "frontend")
@@ -285,3 +286,27 @@ class DynamicMapRegistryView(HomeAssistantView):
             "floors": floors,
             "areas": areas
         })
+
+class DynamicMapRoborockRoomsView(HomeAssistantView):
+    """View to fetch roborock rooms via service call."""
+    url = "/api/dynamic_map/roborock_rooms"
+    name = "api:dynamic_map:roborock_rooms"
+    requires_auth = False
+
+    def __init__(self, hass):
+        self.hass = hass
+
+    async def get(self, request):
+        try:
+            if not self.hass.services.has_service("roborock", "get_maps"):
+                return self.json({"success": False, "error": "roborock.get_maps service not found"})
+            
+            response = await self.hass.services.async_call(
+                "roborock", 
+                "get_maps", 
+                blocking=True, 
+                return_response=True
+            )
+            return self.json({"success": True, "data": response})
+        except Exception as e:
+            return self.json({"success": False, "error": str(e)})
