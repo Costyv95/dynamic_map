@@ -417,7 +417,9 @@ class CustomSvgMap extends HTMLElement {
         
         let scaleX = 1;
         let scaleY = 1;
-        const activeMode = this.isRotated ? 'vertical' : 'horizontal';
+        const finalIsHorizontal = isMapLandscape !== this.isRotated;
+        const activeMode = finalIsHorizontal ? 'horizontal' : 'vertical';
+        
         const currentFlips = this.flips[activeMode];
         if (currentFlips.h) scaleX = -1;
         if (currentFlips.v) scaleY = -1;

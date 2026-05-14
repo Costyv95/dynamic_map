@@ -297,11 +297,17 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             
             const setBtnStyle = (btn, active, disabled) => {
                 if (disabled) {
-                    btn.style.opacity = '0.3';
+                    btn.style.opacity = '0.5';
                     btn.style.cursor = 'not-allowed';
-                    btn.style.background = 'rgba(255, 255, 255, 0.9)';
-                    btn.style.color = '#1e293b';
-                    btn.style.borderColor = 'var(--input-border)';
+                    if (active) {
+                        btn.style.background = '#e0f2fe';
+                        btn.style.color = '#0ea5e9';
+                        btn.style.borderColor = '#0ea5e9';
+                    } else {
+                        btn.style.background = 'rgba(255, 255, 255, 0.9)';
+                        btn.style.color = '#1e293b';
+                        btn.style.borderColor = 'var(--input-border)';
+                    }
                 } else if (active) {
                     btn.style.opacity = '1';
                     btn.style.cursor = 'pointer';
@@ -317,11 +323,13 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
                 }
             };
             
+            const activeMode = engine.getActiveMode ? engine.getActiveMode() : 'horizontal';
+            const currentFlips = engine.flips[activeMode] || {h: false, v: false};
+            
             if (engine.rotationMode === 'auto') {
-                setBtnStyle(flipHBtn, false, true);
-                setBtnStyle(flipVBtn, false, true);
+                setBtnStyle(flipHBtn, currentFlips.h, true);
+                setBtnStyle(flipVBtn, currentFlips.v, true);
             } else {
-                const currentFlips = engine.flips[engine.rotationMode];
                 setBtnStyle(flipHBtn, currentFlips.h, false);
                 setBtnStyle(flipVBtn, currentFlips.v, false);
             }
@@ -332,28 +340,32 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             else if (engine.rotationMode === 'horizontal') engine.rotationMode = 'vertical';
             else engine.rotationMode = 'auto';
             
-            updateRotationUI();
             if (bgImage.complete && rooms.length > 0) {
                 calculateAutoCrop();
+                updateRotationUI();
                 saveToHA();
+            } else {
+                updateRotationUI();
             }
             draw();
         });
 
         document.getElementById('flipHorizBtn').addEventListener('click', () => {
             if (engine.rotationMode === 'auto') return;
-            engine.flips[engine.rotationMode].h = !engine.flips[engine.rotationMode].h;
-            updateRotationUI();
+            const activeMode = engine.getActiveMode();
+            engine.flips[activeMode].h = !engine.flips[activeMode].h;
             calculateAutoCrop();
+            updateRotationUI();
             saveToHA();
             draw();
         });
 
         document.getElementById('flipVertBtn').addEventListener('click', () => {
             if (engine.rotationMode === 'auto') return;
-            engine.flips[engine.rotationMode].v = !engine.flips[engine.rotationMode].v;
-            updateRotationUI();
+            const activeMode = engine.getActiveMode();
+            engine.flips[activeMode].v = !engine.flips[activeMode].v;
             calculateAutoCrop();
+            updateRotationUI();
             saveToHA();
             draw();
         });

@@ -79,7 +79,10 @@ export class CanvasEngine {
         this.defaultTransform.scaleSelf(this.minScale);
         if (this.isRotated) this.defaultTransform.rotateSelf(90);
         
-        const activeMode = this.isRotated ? 'vertical' : 'horizontal';
+        const isMapLandscape = w > h;
+        const finalIsHorizontal = isMapLandscape !== this.isRotated;
+        const activeMode = finalIsHorizontal ? 'horizontal' : 'vertical';
+        
         const currentFlips = this.flips[activeMode];
         if (currentFlips.h) this.defaultTransform.scaleSelf(-1, 1);
         if (currentFlips.v) this.defaultTransform.scaleSelf(1, -1);
@@ -87,6 +90,14 @@ export class CanvasEngine {
         this.defaultTransform.translateSelf(-cx, -cy);
 
         this.viewTransform = new DOMMatrix(this.defaultTransform);
+    }
+    
+    getActiveMode() {
+        if (!this.cachedBounds) return 'horizontal';
+        const w = this.cachedBounds.maxPctX - this.cachedBounds.minPctX;
+        const h = this.cachedBounds.maxPctY - this.cachedBounds.minPctY;
+        const isMapLandscape = w > h;
+        return (isMapLandscape !== this.isRotated) ? 'horizontal' : 'vertical';
     }
 
     getMousePos(e) {
