@@ -43,11 +43,13 @@ export class MapShortcut {
 
     setupInteractions() {
         this.group.style.cursor = 'pointer';
-        let pressTimer;
+        let pressTimer = null;
         let isDragging = false;
-        
+        let startPos = null;
+
         this.group.addEventListener('pointerdown', (e) => {
             isDragging = false;
+            startPos = { x: e.clientX, y: e.clientY };
             pressTimer = window.setTimeout(() => {
                 pressTimer = null;
                 this.onLongPress(e);
@@ -55,16 +57,27 @@ export class MapShortcut {
         });
         
         this.group.addEventListener('pointermove', (e) => {
-            isDragging = true;
-            if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+            if (startPos) {
+                const dist = Math.hypot(e.clientX - startPos.x, e.clientY - startPos.y);
+                if (dist > 8) {
+                    isDragging = true;
+                    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+                }
+            }
         });
         
         this.group.addEventListener('pointerup', (e) => {
+            startPos = null;
             if (pressTimer) {
                 clearTimeout(pressTimer);
                 if (!isDragging) this.onClick(e);
             }
             e.stopPropagation();
+        });
+        
+        this.group.addEventListener('pointercancel', () => {
+            startPos = null;
+            if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
         });
     }
 
