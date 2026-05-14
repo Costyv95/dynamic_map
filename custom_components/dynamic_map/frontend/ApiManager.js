@@ -3,13 +3,17 @@ export class ApiManager {
         let roomsFound = [];
         let segmentMap = {};
         
+        console.log(`[ApiManager] Fetching vacuum rooms for ${entityId}...`);
         try {
             // 1. Try to fetch segment IDs from the vacuum entity attributes
+            console.log(`[ApiManager] Step 1: Checking vacuum entity attributes`);
             const res = await fetch(`/api/dynamic_map/state?entity_id=${entityId}`);
             if (res.ok) {
                 const data = await res.json();
+                console.log(`[ApiManager] Vacuum entity data:`, data);
                 if (data.success && data.attributes) {
                     let rAttr = data.attributes.rooms || data.attributes.room_mapping || data.attributes.room_mapping_dict;
+                    console.log(`[ApiManager] Vacuum entity room attribute found:`, rAttr);
                     if (rAttr && typeof rAttr === 'object' && !Array.isArray(rAttr)) {
                         for (const [k, v] of Object.entries(rAttr)) {
                             let name = typeof v === 'object' ? v.name : v;
@@ -23,14 +27,18 @@ export class ApiManager {
             }
             
             // 2. Try camera entity attributes if not found
+            console.log(`[ApiManager] Step 2: Checking camera entities. Current segmentMap size: ${Object.keys(segmentMap).length}`);
             if (Object.keys(segmentMap).length === 0 && entityId.startsWith('vacuum.')) {
                 const baseName = entityId.replace('vacuum.', '');
-                for (const camName of [`camera.${baseName}_map`, `camera.roborock_map`]) {
+                for (const camName of [`camera.${baseName}_map`, `camera.roborock_map`, `camera.${baseName}_floormap`]) {
+                    console.log(`[ApiManager] Fetching camera entity: ${camName}`);
                     const camRes = await fetch(`/api/dynamic_map/state?entity_id=${camName}`);
                     if (camRes.ok) {
                         const camData = await camRes.json();
+                        console.log(`[ApiManager] Camera entity data for ${camName}:`, camData);
                         if (camData.success && camData.attributes && camData.attributes.rooms) {
                             const rAttr = camData.attributes.rooms;
+                            console.log(`[ApiManager] Camera entity room attribute found:`, rAttr);
                             if (typeof rAttr === 'object' && !Array.isArray(rAttr)) {
                                 for (const [k, v] of Object.entries(rAttr)) {
                                     let name = typeof v === 'object' ? v.name : v;
@@ -45,12 +53,16 @@ export class ApiManager {
                 }
             }
             
+            console.log(`[ApiManager] Final Extracted Segment Map:`, segmentMap);
+
             // 3. Fetch tracking names from sensor options
+            console.log(`[ApiManager] Step 3: Checking current_room sensor`);
             if (entityId.startsWith('vacuum.')) {
                 const baseName = entityId.replace('vacuum.', '');
                 const roomRes = await fetch(`/api/dynamic_map/state?entity_id=sensor.${baseName}_current_room`);
                 if (roomRes.ok) {
                     const roomData = await roomRes.json();
+                    console.log(`[ApiManager] Current room sensor data:`, roomData);
                     if (roomData.success && roomData.attributes && Array.isArray(roomData.attributes.options)) {
                         roomsFound = roomData.attributes.options.map(o => {
                             let segId = segmentMap[o] !== undefined ? segmentMap[o] : (segmentMap[String(o).toLowerCase()] !== undefined ? segmentMap[String(o).toLowerCase()] : "");
@@ -62,6 +74,7 @@ export class ApiManager {
 
             // 4. Fallback if no current_room sensor but we found segment mappings
             if (roomsFound.length === 0 && Object.keys(segmentMap).length > 0) {
+                console.log(`[ApiManager] Step 4: No sensor options found, falling back to segmentMap keys`);
                 let added = new Set();
                 for (const [name, segId] of Object.entries(segmentMap)) {
                     // Check original casing
@@ -74,9 +87,10 @@ export class ApiManager {
             }
 
         } catch (e) {
-            console.error("Failed to fetch vacuum rooms", e);
+            console.error("[ApiManager] Failed to fetch vacuum rooms", e);
         }
         
+        console.log(`[ApiManager] Final roomsFound returned:`, roomsFound);
         if (roomsFound.length === 0) {
             for(let i=16; i<=25; i++) roomsFound.push({ id: `Room ${i}`, name: `Room ${i}`, segId: i });
         }
