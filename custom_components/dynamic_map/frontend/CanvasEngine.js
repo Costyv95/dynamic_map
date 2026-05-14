@@ -206,14 +206,12 @@ export class CanvasEngine {
                 this.ctx.translate(pt.x, pt.y);
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
-                this.ctx.scale(currentScale, currentScale);
-                if (this.isRotated) this.ctx.rotate(-Math.PI / 2);
-
-                this.ctx.font = '900 20px sans-serif';
+                
+                this.ctx.font = `900 ${20 * currentScale}px sans-serif`;
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'middle';
                 this.ctx.strokeStyle = 'black';
-                this.ctx.lineWidth = 5;
+                this.ctx.lineWidth = 5 * currentScale;
                 this.ctx.strokeText(room.name, 0, 0);
                 this.ctx.fillStyle = 'white';
                 this.ctx.fillText(room.name, 0, 0);
@@ -310,8 +308,6 @@ export class CanvasEngine {
                 this.ctx.translate(pt.x, pt.y);
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
-                this.ctx.scale(currentScale, currentScale);
-                if (this.isRotated) this.ctx.rotate(-Math.PI / 2);
                 
                 if (image) {
                     if (!sc._imgCache) sc._imgCache = {};
@@ -322,16 +318,16 @@ export class CanvasEngine {
                     }
                     const img = sc._imgCache[image];
                     if (img.complete && img.naturalWidth > 0) {
-                        const dim = 20 * Math.min(scaleX, scaleY);
+                        const dim = 20 * Math.min(scaleX, scaleY) * currentScale;
                         this.ctx.drawImage(img, -dim/2, -dim/2, dim, dim);
                     } else {
-                        this.ctx.font = `${14 * Math.min(scaleX, scaleY)}px sans-serif`;
+                        this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                         this.ctx.textBaseline = 'middle';
                         this.ctx.textAlign = 'center';
                         this.ctx.fillText(icon, 0, 0);
                     }
                 } else {
-                    this.ctx.font = `${14 * Math.min(scaleX, scaleY)}px sans-serif`;
+                    this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                     this.ctx.textBaseline = 'middle';
                     this.ctx.textAlign = 'center';
                     this.ctx.fillText(icon, 0, 0);
@@ -346,16 +342,14 @@ export class CanvasEngine {
                 this.ctx.translate(pt.x, pt.y);
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
-                this.ctx.scale(currentScale, currentScale);
-                if (this.isRotated) this.ctx.rotate(-Math.PI / 2);
 
-                this.ctx.font = '10px sans-serif';
+                this.ctx.font = `${10 * currentScale}px sans-serif`;
                 this.ctx.textAlign = 'center';
                 this.ctx.textBaseline = 'top';
                 this.ctx.fillStyle = '#1e293b';
                 this.ctx.shadowColor = 'white';
-                this.ctx.shadowBlur = 4;
-                this.ctx.fillText(sc.name || 'Shortcut', 0, r + 4);
+                this.ctx.shadowBlur = 4 * currentScale;
+                this.ctx.fillText(sc.name || 'Shortcut', 0, (r + 4) * currentScale);
                 this.ctx.shadowBlur = 0;
                 this.ctx.restore();
             }
