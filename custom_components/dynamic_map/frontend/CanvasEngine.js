@@ -63,7 +63,11 @@ export class CanvasEngine {
         if (w < 1 || h < 1) return;
 
         const mapRatio = w / h;
-        const screenRatio = this.canvas.width / this.canvas.height;
+        const dpr = window.devicePixelRatio || 1;
+        const cssWidth = this.canvas.width / dpr;
+        const cssHeight = this.canvas.height / dpr;
+
+        const screenRatio = cssWidth / cssHeight;
         
         if (this.rotationMode === 'auto') {
             this.isRotated = (mapRatio > 1 && screenRatio < 1) || (mapRatio < 1 && screenRatio > 1);
@@ -76,15 +80,15 @@ export class CanvasEngine {
         let viewW = this.isRotated ? h : w;
         let viewH = this.isRotated ? w : h;
 
-        const zoomX = (this.canvas.width * 0.75) / viewW;
-        const zoomY = (this.canvas.height * 0.75) / viewH;
+        const zoomX = (cssWidth * 0.75) / viewW;
+        const zoomY = (cssHeight * 0.75) / viewH;
         this.minScale = Math.min(zoomX, zoomY);
         
         const cx = minX + w/2;
         const cy = minY + h/2;
         
         this.defaultTransform = new DOMMatrix();
-        this.defaultTransform.translateSelf(this.canvas.width / 2, this.canvas.height / 2);
+        this.defaultTransform.translateSelf(cssWidth / 2, cssHeight / 2);
         this.defaultTransform.scaleSelf(this.minScale);
         if (this.isRotated) this.defaultTransform.rotateSelf(90);
         
