@@ -185,6 +185,70 @@ export class EditorUIManager {
             }
         });
 
+        document.getElementById('addActionBtn').addEventListener('click', () => {
+            if(this.state.selectedShortcutIdx !== -1) {
+                const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+                if (!sc.config.actions) sc.config.actions = [];
+                sc.config.actions.push({
+                    id: `act_${Date.now()}`,
+                    name: 'New Action',
+                    trigger: 'tap',
+                    type: 'CALL_SERVICE',
+                    action_entity: sc.entity_id || ''
+                });
+                this.state.saveState();
+                renderActionsAndStates(sc, () => {});
+            }
+        });
+
+        document.getElementById('addStateBtn').addEventListener('click', () => {
+            if(this.state.selectedShortcutIdx !== -1) {
+                const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+                if (!sc.config.states) sc.config.states = [];
+                sc.config.states.push({
+                    id: `st_${Date.now()}`,
+                    name: 'New State',
+                    state_entity: sc.entity_id || '',
+                    operator: '==',
+                    value: '',
+                    color: '#ffffff',
+                    icon: ''
+                });
+                this.state.saveState();
+                renderActionsAndStates(sc, () => {});
+            }
+        });
+
+        const jsonModal = document.getElementById('jsonEditorModal');
+        const jsonTextarea = document.getElementById('jsonEditorTextarea');
+        
+        document.getElementById('rawJsonBtn').addEventListener('click', () => {
+            if (this.state.selectedShortcutIdx !== -1) {
+                const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+                jsonTextarea.value = JSON.stringify(sc.config, null, 4);
+                jsonModal.style.display = 'flex';
+            }
+        });
+
+        const closeJsonModal = () => { jsonModal.style.display = 'none'; };
+        document.getElementById('closeJsonEditorBtn').addEventListener('click', closeJsonModal);
+        document.getElementById('cancelJsonEditorBtn').addEventListener('click', closeJsonModal);
+
+        document.getElementById('saveJsonEditorBtn').addEventListener('click', () => {
+            if (this.state.selectedShortcutIdx !== -1) {
+                try {
+                    const parsed = JSON.parse(jsonTextarea.value);
+                    this.state.shortcuts[this.state.selectedShortcutIdx].config = parsed;
+                    this.state.saveState();
+                    this.updateSidebar();
+                    this.state.requestDrawCallback();
+                    closeJsonModal();
+                } catch (e) {
+                    alert('Invalid JSON! Please check your syntax.\n\nError: ' + e.message);
+                }
+            }
+        });
+
         // Room edits
         document.getElementById('saveNameBtn').addEventListener('click', () => this.saveRoomName());
         document.getElementById('deleteBtn').addEventListener('click', () => {
