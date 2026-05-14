@@ -66,11 +66,16 @@ export class OverlayManager {
                 
                 const slider = document.createElement('input');
                 slider.type = 'range';
-                slider.min = '1';
-                slider.max = '100';
-                
+                let sMin = '1';
+                let sMax = '100';
+                let sStep = '1';
+
                 if (mapContext._hass && mapContext._hass.states[target]) {
                     if (target.startsWith('input_number.')) {
+                        const attrs = mapContext._hass.states[target].attributes;
+                        if (attrs.min !== undefined) sMin = attrs.min;
+                        if (attrs.max !== undefined) sMax = attrs.max;
+                        if (attrs.step !== undefined) sStep = attrs.step;
                         slider.value = parseFloat(mapContext._hass.states[target].state);
                     } else if (mapContext._hass.states[target].attributes.brightness) {
                         slider.value = Math.round((mapContext._hass.states[target].attributes.brightness / 255) * 100);
@@ -80,6 +85,10 @@ export class OverlayManager {
                 } else {
                     slider.value = '50';
                 }
+                
+                slider.min = sMin;
+                slider.max = sMax;
+                slider.step = sStep;
                 if (act.width) slider.style.width = act.width;
                 else slider.style.width = '150px';
                 
