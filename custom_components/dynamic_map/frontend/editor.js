@@ -171,6 +171,7 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
                 
                 if (sc.type === 'vacuum') {
                     document.getElementById('vacuumOptions').style.display = 'block';
+                    document.getElementById('vacuumRoomSensor').value = sc.config?.room_sensor || '';
                     renderVacuumRoomMapping(sc, rooms, lastFetchedVacuumOptions, () => renderActionsAndStates(sc, () => renderActionsAndStates(sc, () => {})));
                 } else {
                     document.getElementById('vacuumOptions').style.display = 'none';
@@ -1061,6 +1062,15 @@ import { CanvasEngine } from './CanvasEngine.js?v=2.63';
             }
         });
         document.getElementById('scEntity').addEventListener('change', () => saveState());
+        
+        document.getElementById('vacuumRoomSensor').addEventListener('change', (e) => {
+            if(selectedShortcutIdx !== -1) {
+                const sc = shortcuts[selectedShortcutIdx];
+                if (!sc.config) sc.config = {};
+                sc.config.room_sensor = e.target.value.trim();
+                saveState();
+            }
+        });
         
         document.getElementById('scParent').addEventListener('change', (e) => {
             if(selectedShortcutIdx !== -1) {

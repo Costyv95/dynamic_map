@@ -14,7 +14,10 @@ export class VacuumShortcut extends GenericShortcut {
         
         const baseName = entityId.replace('vacuum.', '');
         const statusState = hass.states[`sensor.${baseName}_status`] || hass.states[entityId];
-        const roomState = hass.states[`sensor.${baseName}_current_room`];
+        
+        const roomSensorId = this.config.room_sensor || `sensor.${baseName}_current_room`;
+        const roomState = hass.states[roomSensorId];
+        
         const chargingState = hass.states[`binary_sensor.${baseName}_charging`];
 
         const newStatus = statusState ? statusState.state : 'unknown';

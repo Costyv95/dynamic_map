@@ -105,6 +105,10 @@
 
             <div id="vacuumOptions" style="display: none; margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
                 <label style="color:var(--accent); font-weight:bold;">⚡ Dock Position is set to current icon location!</label>
+                <div style="margin-top: 10px; margin-bottom: 10px;">
+                    <label style="display:block;">Room Sensor Override (Optional)</label>
+                    <input type="text" id="vacuumRoomSensor" placeholder="sensor.silvester_current_room" style="width: 100%; box-sizing: border-box; padding: 4px;">
+                </div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
                     <label style="display:block;">Room Mapping</label>
                     <button id="fetchHABtn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0; border-radius: 4px; background: #10b981; color: white; border: none;">Fetch HA</button>
