@@ -25,6 +25,13 @@ export class MapShortcut {
         this.rx = 12 * this.scaleX;
         this.ry = 12 * this.scaleY;
         
+        // Create invisible hitbox to expand click area for small buttons
+        this.hitbox = document.createElementNS(svgNS, 'circle');
+        this.hitbox.setAttribute('r', Math.max(30, Math.max(this.rx, this.ry)));
+        this.hitbox.setAttribute('fill', 'rgba(0,0,0,0)');
+        this.hitbox.style.pointerEvents = 'all';
+        this.group.insertBefore(this.hitbox, this.bgGroup);
+        
         // Configuration
         this.config = scData.config || {};
         
