@@ -18,14 +18,27 @@ export class GenericShortcut extends MapShortcut {
         this.shape.setAttribute('fill', this.config.transparent ? 'rgba(0,0,0,0)' : (this.config.color || '#0ea5e9'));
         this.shape.setAttribute('stroke', 'white');
         this.shape.setAttribute('stroke-width', 2);
-        this.group.appendChild(this.shape);
+        this.bgGroup.appendChild(this.shape);
         
         this.iconText = document.createElementNS(this.svgNS, 'text');
         this.iconText.setAttribute('text-anchor', 'middle');
         this.iconText.setAttribute('dominant-baseline', 'central');
         this.iconText.setAttribute('font-size', 16 * Math.min(this.scaleX, this.scaleY));
         this.iconText.style.pointerEvents = 'none';
-        this.group.appendChild(this.iconText);
+        this.iconGroup.appendChild(this.iconText);
+        
+        this.iconForeignObject = document.createElementNS(this.svgNS, 'foreignObject');
+        const foSize = 20 * Math.min(this.scaleX, this.scaleY);
+        this.iconForeignObject.setAttribute('width', foSize);
+        this.iconForeignObject.setAttribute('height', foSize);
+        this.iconForeignObject.setAttribute('x', -foSize / 2);
+        this.iconForeignObject.setAttribute('y', -foSize / 2);
+        this.iconForeignObject.style.pointerEvents = 'none';
+        this.iconForeignObject.style.display = 'none';
+        this.haIcon = document.createElement('ha-icon');
+        this.haIcon.style.cssText = `display:flex; width:100%; height:100%; color: white; --mdc-icon-size: ${foSize}px; align-items:center; justify-content:center;`;
+        this.iconForeignObject.appendChild(this.haIcon);
+        this.iconGroup.appendChild(this.iconForeignObject);
         
         this.iconImage = document.createElementNS(this.svgNS, 'image');
         const imgSize = 20 * Math.min(this.scaleX, this.scaleY);
@@ -38,12 +51,21 @@ export class GenericShortcut extends MapShortcut {
         this.iconImage.addEventListener('error', () => {
             this.iconImage.style.display = 'none';
             if (this._currentFallbackIcon) {
-                this.iconText.textContent = this._currentFallbackIcon;
+                if (this._currentFallbackIcon.startsWith('mdi:') || this._currentFallbackIcon.includes(':')) {
+                    this.haIcon.setAttribute('icon', this._currentFallbackIcon);
+                    this.iconForeignObject.style.display = 'block';
+                } else {
+                    this.iconText.textContent = this._currentFallbackIcon;
+                }
             }
         });
-        this.group.appendChild(this.iconImage);
+        this.iconGroup.appendChild(this.iconImage);
         
-        super.render();
+        // Let MapShortcut append the state badge to iconGroup
+        this.iconGroup.appendChild(this.stateBadge);
+        
+        // We do not call super.render() anymore because MapShortcut's render just appends stateBadge to group, 
+        // which we already did to iconGroup.
         return this.group;
     }
     
@@ -80,11 +102,19 @@ export class GenericShortcut extends MapShortcut {
         
         if (finalImage) {
             this.iconText.textContent = '';
+            this.iconForeignObject.style.display = 'none';
             this.iconImage.setAttribute('href', finalImage);
             this.iconImage.style.display = 'block';
         } else {
-            this.iconText.textContent = icon;
             this.iconImage.style.display = 'none';
+            if (icon && (icon.startsWith('mdi:') || icon.includes(':'))) {
+                this.iconText.textContent = '';
+                this.haIcon.setAttribute('icon', icon);
+                this.iconForeignObject.style.display = 'block';
+            } else {
+                this.iconForeignObject.style.display = 'none';
+                this.iconText.textContent = icon;
+            }
         }
         
         return true;

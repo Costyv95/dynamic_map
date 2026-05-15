@@ -12,8 +12,13 @@ export class MapShortcut {
         this.py = (scData.position[1] / 100) * imgH;
         this.group.scX = this.px;
         this.group.scY = this.py;
-        this.rotation = 0;
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) rotate(${this.rotation})`);
+        this.group.setAttribute('transform', `translate(${this.px}, ${this.py})`);
+        
+        this.bgGroup = document.createElementNS(svgNS, 'g');
+        this.group.appendChild(this.bgGroup);
+        
+        this.iconGroup = document.createElementNS(svgNS, 'g');
+        this.group.appendChild(this.iconGroup);
         
         this.scaleX = scData.scaleX || scData.scale || 1;
         this.scaleY = scData.scaleY || scData.scale || 1;
@@ -37,12 +42,11 @@ export class MapShortcut {
     }
     
     setRotation(deg) {
-        this.rotation = deg;
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) rotate(${this.rotation})`);
+        this.iconGroup.setAttribute('transform', `rotate(${deg})`);
     }
 
     setTransformStr(str) {
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${str}`);
+        this.iconGroup.setAttribute('transform', str);
     }
 
     setupInteractions() {
