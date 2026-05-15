@@ -75,6 +75,12 @@ export function renderActionsAndStates(sc, onStateChange) {
                         <input type="text" class="act-payload" value='${act.payload || ''}' placeholder='Payload JSON e.g. {"repeat": 2}' style="flex: 1; padding: 4px;">
                     </div>
                 ` : ''}
+                ${act.type === 'SLIDER' ? `
+                    <div style="display: flex; gap: 5px; margin-top: 5px; align-items: center;">
+                        <input type="checkbox" class="act-symmetric" ${act.symmetric_scale ? 'checked' : ''}>
+                        <label style="font-size: 12px; color: #ccc;">Symmetric Scale (e.g. 1/5x to 5x)</label>
+                    </div>
+                ` : ''}
             </div>
         `;
         actionsList.appendChild(div);
@@ -113,6 +119,10 @@ export function renderActionsAndStates(sc, onStateChange) {
                     if (srv) act.service = srv.value;
                     const pld = div.querySelector('.act-payload');
                     if (pld) act.payload = pld.value;
+                }
+                if (act.type === 'SLIDER') {
+                    const symm = div.querySelector('.act-symmetric');
+                    if (symm) act.symmetric_scale = symm.checked;
                 }
                 if (onStateChange) onStateChange();
             });

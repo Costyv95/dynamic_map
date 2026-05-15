@@ -69,26 +69,40 @@ export class OverlayManager {
                 let sMin = '1';
                 let sMax = '100';
                 let sStep = '1';
+                const isSymmetric = act.symmetric_scale === true;
 
                 if (mapContext._hass && mapContext._hass.states[target]) {
                     if (target.startsWith('input_number.')) {
                         const attrs = mapContext._hass.states[target].attributes;
-                        if (attrs.min !== undefined) sMin = attrs.min;
-                        if (attrs.max !== undefined) sMax = attrs.max;
-                        if (attrs.step !== undefined) sStep = attrs.step;
-                        slider.value = parseFloat(mapContext._hass.states[target].state);
+                        if (!isSymmetric) {
+                            if (attrs.min !== undefined) sMin = attrs.min;
+                            if (attrs.max !== undefined) sMax = attrs.max;
+                            if (attrs.step !== undefined) sStep = attrs.step;
+                            slider.value = parseFloat(mapContext._hass.states[target].state);
+                        } else {
+                            let x = parseFloat(mapContext._hass.states[target].state);
+                            if (x >= 1) slider.value = x - 1;
+                            else slider.value = 1 - (1 / x);
+                        }
                     } else if (mapContext._hass.states[target].attributes.brightness) {
                         slider.value = Math.round((mapContext._hass.states[target].attributes.brightness / 255) * 100);
                     } else {
-                        slider.value = '50';
+                        slider.value = isSymmetric ? '0' : '50';
                     }
                 } else {
-                    slider.value = '50';
+                    slider.value = isSymmetric ? '0' : '50';
                 }
                 
-                slider.min = sMin;
-                slider.max = sMax;
-                slider.step = sStep;
+                if (isSymmetric) {
+                    slider.min = '-4';
+                    slider.max = '4';
+                    slider.step = '1';
+                } else {
+                    slider.min = sMin;
+                    slider.max = sMax;
+                    slider.step = sStep;
+                }
+                
                 if (act.width) slider.style.width = act.width;
                 else slider.style.width = '150px';
                 
@@ -96,9 +110,15 @@ export class OverlayManager {
                     if (!mapContext._hass) return;
                     const domain = target.split('.')[0];
                     if (domain === 'input_number') {
+                        let finalVal = parseFloat(e.target.value);
+                        if (isSymmetric) {
+                            let v = finalVal;
+                            if (v >= 0) finalVal = v + 1;
+                            else finalVal = 1 / (-v + 1);
+                        }
                         mapContext._hass.callService('input_number', 'set_value', {
                             entity_id: target,
-                            value: parseFloat(e.target.value)
+                            value: finalVal
                         });
                     } else {
                         mapContext._hass.callService(domain, 'turn_on', {
