@@ -410,7 +410,14 @@ export function openMenuEditor(sc, onStateChange) {
         el.style.transform = `rotate(${act.rotation}deg)`;
         
         let label = act.name || act.type;
-        let iconHtml = act.icon ? `<span style="margin-right:5px;">${act.icon}</span>` : '';
+        let iconHtml = '';
+        if (act.icon) {
+            if (act.icon.startsWith('mdi:') || act.icon.includes(':')) {
+                iconHtml = `<ha-icon icon="${act.icon}" style="--mdc-icon-size: 16px; margin-right:5px;"></ha-icon>`;
+            } else {
+                iconHtml = `<span style="margin-right:5px;">${act.icon}</span>`;
+            }
+        }
         
         if (act.type === 'SLIDER') {
             el.innerHTML = `

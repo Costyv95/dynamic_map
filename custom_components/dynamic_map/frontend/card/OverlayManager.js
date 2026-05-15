@@ -141,7 +141,14 @@ export class OverlayManager {
                 container.style.padding = '6px 4px';
                 if (act.width) container.style.width = act.width;
                 
-                let iconHtml = act.icon ? `<span style="margin-right:8px">${act.icon}</span>` : '';
+                let iconHtml = '';
+                if (act.icon) {
+                    if (act.icon.startsWith('mdi:') || act.icon.includes(':')) {
+                        iconHtml = `<ha-icon icon="${act.icon}" style="--mdc-icon-size: 18px; margin-right:8px;"></ha-icon>`;
+                    } else {
+                        iconHtml = `<span style="margin-right:8px">${act.icon}</span>`;
+                    }
+                }
                 const displayName = act.name !== undefined ? act.name : 'Toggle';
                 
                 const label = document.createElement('span');
@@ -231,7 +238,11 @@ export class OverlayManager {
                 
                 let iconHtml = '';
                 if (act.icon) {
-                    iconHtml = `<span>${act.icon}</span>`;
+                    if (act.icon.startsWith('mdi:') || act.icon.includes(':')) {
+                        iconHtml = `<ha-icon icon="${act.icon}" style="--mdc-icon-size: 18px;"></ha-icon>`;
+                    } else {
+                        iconHtml = `<span>${act.icon}</span>`;
+                    }
                 }
                 
                 let defaultName = act.type;

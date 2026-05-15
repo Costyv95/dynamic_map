@@ -175,6 +175,19 @@ export class EditorUIManager {
         bindScProp('scHasBackground', 'transparent', true);
         bindScProp('vacuumRoomSensor', 'room_sensor');
 
+        document.getElementById('saveShortcutBtn').addEventListener('click', (e) => {
+            if (this.state.selectedShortcutIdx !== -1) {
+                this.state.saveState();
+                const origText = e.target.textContent;
+                e.target.textContent = "Saved!";
+                e.target.style.background = '#10b981';
+                setTimeout(() => {
+                    e.target.textContent = origText;
+                    e.target.style.background = 'var(--accent)';
+                }, 1000);
+            }
+        });
+
         document.getElementById('deleteShortcutBtn').addEventListener('click', () => {
             if (this.state.selectedShortcutIdx !== -1) {
                 this.state.shortcuts.splice(this.state.selectedShortcutIdx, 1);
