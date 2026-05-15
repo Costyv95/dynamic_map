@@ -216,7 +216,8 @@ export class EditorUIManager {
                     name: 'New Action',
                     trigger: 'tap',
                     type: 'CALL_SERVICE',
-                    action_entity: sc.entity_id || ''
+                    action_entity: sc.entity_id || '',
+                    _expanded: true
                 });
                 this.state.saveState();
                 renderActionsAndStates(sc, () => {});
@@ -234,7 +235,8 @@ export class EditorUIManager {
                     operator: '==',
                     value: '',
                     color: '#ffffff',
-                    icon: ''
+                    icon: '',
+                    _expanded: true
                 });
                 this.state.saveState();
                 renderActionsAndStates(sc, () => {});

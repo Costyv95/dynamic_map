@@ -19,7 +19,7 @@ export function renderActionsAndStates(sc, onStateChange) {
     }
     
     sc.config.actions.forEach((act, idx) => {
-        const isExpanded = act._expanded !== false; // expanded by default
+        const isExpanded = act._expanded === true; // folded by default
         let typeText = act.type || 'Action';
         if (typeText === 'TOGGLE_ON') typeText = 'Turn On';
         if (typeText === 'TOGGLE_OFF') typeText = 'Turn Off';
@@ -153,7 +153,7 @@ export function renderActionsAndStates(sc, onStateChange) {
     });
     
     sc.config.states.forEach((st, idx) => {
-        const isExpanded = st._expanded !== false; // expanded by default
+        const isExpanded = st._expanded === true; // folded by default
         const title = st.name || st.state_entity || 'New State';
         
         const div = document.createElement('div');
