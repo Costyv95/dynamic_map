@@ -281,7 +281,11 @@ export class OverlayManager {
                         const parts = act.service.split('.');
                         if (parts.length === 2) {
                             let payload = {};
-                            if (target) payload.entity_id = target;
+                            if (act.action_entity) {
+                                payload.entity_id = act.action_entity;
+                            } else if (!act.payload && target) {
+                                payload.entity_id = target;
+                            }
                             if (act.payload) {
                                 try {
                                     const parsed = JSON.parse(act.payload);
