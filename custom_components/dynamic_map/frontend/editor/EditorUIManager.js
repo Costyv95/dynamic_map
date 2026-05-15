@@ -175,16 +175,25 @@ export class EditorUIManager {
         bindScProp('scHasBackground', 'transparent', true);
         bindScProp('vacuumRoomSensor', 'room_sensor');
 
-        document.getElementById('saveShortcutBtn').addEventListener('click', (e) => {
+        document.getElementById('saveShortcutBtn').addEventListener('click', async (e) => {
             if (this.state.selectedShortcutIdx !== -1) {
                 this.state.saveState();
                 const origText = e.target.textContent;
-                e.target.textContent = "Saved!";
-                e.target.style.background = '#10b981';
+                e.target.textContent = "Saving to HA...";
+                try {
+                    await ApiManager.saveToHA(this.state.activeFloor, this.state.rooms, this.state.shortcuts, {
+                        rotation_mode: this.engine.rotationMode, flips: this.engine.flips
+                    });
+                    e.target.textContent = "Saved to HA!";
+                    e.target.style.background = '#10b981';
+                } catch (err) {
+                    e.target.textContent = "Save Failed";
+                    e.target.style.background = '#ef4444';
+                }
                 setTimeout(() => {
                     e.target.textContent = origText;
                     e.target.style.background = 'var(--accent)';
-                }, 1000);
+                }, 2000);
             }
         });
 
