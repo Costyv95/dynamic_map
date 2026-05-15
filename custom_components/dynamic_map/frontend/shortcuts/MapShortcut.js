@@ -120,7 +120,8 @@ export class MapShortcut {
                 // Execute instant actions (toggle/call_service)
                 tapActions.forEach(act => {
                     const target = act.action_entity || this.sc.entity_id;
-                    if (!target || !this.mapContext._hass) return;
+                    if (!this.mapContext._hass) return;
+                    if (!target && act.type !== 'CALL_SERVICE') return;
                     if (act.type === 'CALL_SERVICE' && act.service) {
                         const parts = act.service.split('.');
                         if (parts.length === 2) {

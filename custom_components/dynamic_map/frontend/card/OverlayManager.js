@@ -262,7 +262,8 @@ export class OverlayManager {
                 
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    if (!mapContext._hass || !target) return;
+                    if (!mapContext._hass) return;
+                    if (!target && act.type !== 'CALL_SERVICE') return;
                     
                     if (act.type === 'ROOM_SELECTOR') {
                         if (mapContext.activeOverlay) {
