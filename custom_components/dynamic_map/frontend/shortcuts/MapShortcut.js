@@ -138,7 +138,10 @@ export class MapShortcut {
                                     console.error("[DynamicMap] Failed to parse action payload:", e);
                                 }
                             }
-                            this.mapContext._hass.callService(parts[0], parts[1], payload);
+                            this.mapContext._hass.callService(parts[0], parts[1], payload).catch(e => {
+                                console.error("[DynamicMap] callService Error:", e);
+                                alert("HA Error: " + (e.message || JSON.stringify(e)));
+                            });
                         }
                     } else if (act.type && act.type.startsWith('TOGGLE')) {
                         const domain = target.split('.')[0];
