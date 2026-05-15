@@ -356,6 +356,41 @@ export class OverlayManager {
         });
         
         mapContext.renderRoot.appendChild(mapContext.activeOverlay);
+
+        // Clamp to screen bounds to prevent needing to pan
+        const w = mapContext.activeOverlay.offsetWidth;
+        const h = mapContext.activeOverlay.offsetHeight;
+        
+        let finalX = posX;
+        let finalY = posY - 20; // 20px above cursor
+        let transX = -50;
+        let transY = -100;
+
+        // Clamp X
+        if (posX - w/2 < 10) {
+            transX = 0;
+            finalX = 10;
+        } else if (posX + w/2 > rect.width - 10) {
+            transX = -100;
+            finalX = rect.width - 10;
+        }
+
+        // Clamp Y (if it goes above the top edge)
+        if (posY - h - 20 < 10) {
+            transY = 0;
+            finalY = posY + 20; // Place below cursor
+            
+            // If it now goes off the bottom, clamp it to the bottom
+            if (finalY + h > rect.height - 10) {
+                finalY = rect.height - h - 10;
+            }
+        } else if (posY - 20 > rect.height - 10) {
+            finalY = rect.height - 10;
+        }
+
+        mapContext.activeOverlay.style.left = `${finalX}px`;
+        mapContext.activeOverlay.style.top = `${finalY}px`;
+        mapContext.activeOverlay.style.transform = `translate(${transX}%, ${transY}%)`;
     }
 
     static showRoomSelectionUI(mapContext) {
