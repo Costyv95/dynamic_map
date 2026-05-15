@@ -124,7 +124,8 @@ export class MapShortcut {
                     if (act.type === 'CALL_SERVICE' && act.service) {
                         const parts = act.service.split('.');
                         if (parts.length === 2) {
-                            let payload = { entity_id: target };
+                            let payload = {};
+                            if (target) payload.entity_id = target;
                             if (act.payload) {
                                 try {
                                     const parsed = JSON.parse(act.payload);
