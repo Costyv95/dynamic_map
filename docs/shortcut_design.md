@@ -16,32 +16,35 @@ Shortcuts are stored in `shortcuts_floorX.json`. The schema strictly separates s
   "position": [45.5, 60.2],
   "scaleX": 1.0,
   "scaleY": 1.0,
-  "rotation": 0,
   "config": {
     "shape": "rect",
     "color": "#000000",
     "transparent": false,
+    "menuWidth": 250,
+    "menuHeight": 300,
     "room_mapping": {},
     "actions": [
       {
         "id": "act_1",
-        "type": "TOGGLE_ON", // TOGGLE_ON, TOGGLE_OFF, TOGGLE, CALL_SERVICE, SPOTIFY_ICON
-        "target": "media_player.living_room_tv",
+        "type": "TOGGLE_ON", // TOGGLE_ON, TOGGLE_OFF, TOGGLE, CALL_SERVICE, SLIDER
+        "action_entity": "media_player.living_room_tv",
         "service": "",       // Used if type == CALL_SERVICE
         "trigger": "tap",    // tap, overlay, double_tap
         "icon": "mdi:power",
-        "name": "Turn On"
+        "name": "Turn On",
+        "_expanded": false
       }
     ],
     "states": [
       {
         "id": "st_1",
-        "condition_entity": "media_player.living_room_tv",
+        "state_entity": "media_player.living_room_tv",
         "operator": "==", // ==, !=, in, not_in
         "value": "playing",
-        "icon": "🎵",
+        "icon": "mdi:music",
         "color": "#10b981",
-        "animation": "pulse"
+        "animation": "pulse",
+        "_expanded": false
       }
     ]
   }
@@ -51,12 +54,12 @@ Shortcuts are stored in `shortcuts_floorX.json`. The schema strictly separates s
 ## 2. Rendering Engine (`custom-svg-map.js`)
 The Home Assistant card UI uses a **Polymorphic Factory Pattern**.
 
-*   `MapShortcut` (Base Class): Handles coordinate translation, SVG group (`<g>`) generation, affine transformations (scaling/rotation), and core click-event delegation.
+*   `MapShortcut` (Base Class): Handles coordinate translation, SVG group (`<g>`) generation, affine transformations (scaling/rotation), and core click-event delegation. It structurally separates the background shape from the foreground icon so they can rotate independently.
 *   `ShortcutFactory`: Reads the JSON `type` field and instantiates the correct subclass.
 *   **Subclasses**:
-    *   `LightShortcut`: Draws a bulb icon. Binds to HA state to show glowing `drop-shadows` when `state === 'on'`.
-    *   `CurtainShortcut`: Draws a dynamic window cover. Contains separate left/right hitboxes.
+    *   `GenericShortcut`: General-purpose shortcuts (Buttons, Toggles). Supports rendering native Home Assistant `<ha-icon>` components inside SVG boundaries via `<foreignObject>`.
     *   `VacuumShortcut`: Handles live path-tracking and zone-cleaning logic.
+    *   `LightShortcut`: Legacy minimal extension for specialized light shadow bindings.
 
 ### Interaction Model
 Events are delegated through the base class:
