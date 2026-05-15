@@ -70,6 +70,9 @@ Events are delegated through the base class:
 ## 3. Map Editor (`editor.html`)
 The administration interface provides a generic sidebar for standard properties (Name, Entity, Parent) and dynamically mounts a configuration panel based on the selected `Type`. Legacy flat properties (`sc.color`, `sc.shape`) are automatically migrated into the `config` object at load time.
 
+## 4. Entity Decoupling
+As of recent updates, the Map Engine explicitly supports **Abstract Shortcuts**. A shortcut no longer requires a root `entity_id`. Actions configured with the `CALL_SERVICE` type will execute payload-driven Home Assistant scripts flawlessly without attempting to inject a required `entity_id` target.
+
 ## Benefits
 1.  **Safety**: Recomputing the floorplan (SVG/DXF) never overwrites shortcut files.
 2.  **Extensibility**: Adding a new device type requires only a single new class definition file, zero changes to the core drawing loop.
