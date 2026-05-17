@@ -359,7 +359,7 @@ export class EditorInteractionManager {
 
     performRoomSplit(targetRoomIdx, p1, p2) {
         const targetRoom = this.state.rooms[targetRoomIdx];
-        if (!targetRoom || !window.polybool) return;
+        if (!targetRoom || !window.PolyBool) return;
         
         // Convert pct points back to world points for slicing logic
         const polyWorld = targetRoom.polygon.map(pt => [(pt[0]/100)*this.state.bgImage.width, (pt[1]/100)*this.state.bgImage.height]);
@@ -388,9 +388,9 @@ export class EditorInteractionManager {
         ];
 
         try {
-            const pb1 = window.polybool.polygonFromSegments(window.polybool.segments({ regions: [polyWorld], inverted: false }));
-            const cut1 = window.polybool.intersect(pb1, { regions: [sliceBox1], inverted: false });
-            const cut2 = window.polybool.difference(pb1, { regions: [sliceBox1], inverted: false });
+            const pb1 = window.PolyBool.polygonFromSegments(window.PolyBool.segments({ regions: [polyWorld], inverted: false }));
+            const cut1 = window.PolyBool.intersect(pb1, { regions: [sliceBox1], inverted: false });
+            const cut2 = window.PolyBool.difference(pb1, { regions: [sliceBox1], inverted: false });
             
             if(cut1.regions.length > 0 && cut2.regions.length > 0) {
                 this.state.rooms.splice(targetRoomIdx, 1);

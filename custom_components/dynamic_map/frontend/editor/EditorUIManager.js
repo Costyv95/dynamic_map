@@ -286,12 +286,12 @@ export class EditorUIManager {
         });
 
         document.getElementById('mergeBtn').addEventListener('click', () => {
-            if(this.state.selectedRooms.length === 2 && window.polybool) {
+            if(this.state.selectedRooms.length === 2 && window.PolyBool) {
                 const r1 = this.state.rooms[this.state.selectedRooms[0]];
                 const r2 = this.state.rooms[this.state.selectedRooms[1]];
-                const p1 = window.polybool.segments({ regions: [r1.polygon], inverted: false });
-                const p2 = window.polybool.segments({ regions: [r2.polygon], inverted: false });
-                const comb = window.polybool.union(p1, p2);
+                const p1 = window.PolyBool.segments({ regions: [r1.polygon], inverted: false });
+                const p2 = window.PolyBool.segments({ regions: [r2.polygon], inverted: false });
+                const comb = window.PolyBool.union(p1, p2);
                 if(comb.regions.length > 0) {
                     r1.polygon = comb.regions[0];
                     r1.name = r1.name || r2.name;
