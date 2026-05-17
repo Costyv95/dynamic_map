@@ -289,8 +289,8 @@ export class EditorUIManager {
             if(this.state.selectedRooms.length === 2 && window.PolyBool) {
                 const r1 = this.state.rooms[this.state.selectedRooms[0]];
                 const r2 = this.state.rooms[this.state.selectedRooms[1]];
-                const p1 = window.PolyBool.segments({ regions: [r1.polygon], inverted: false });
-                const p2 = window.PolyBool.segments({ regions: [r2.polygon], inverted: false });
+                const p1 = { regions: [r1.polygon], inverted: false };
+                const p2 = { regions: [r2.polygon], inverted: false };
                 const comb = window.PolyBool.union(p1, p2);
                 if(comb.regions.length > 0) {
                     r1.polygon = comb.regions[0];

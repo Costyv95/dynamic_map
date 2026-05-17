@@ -388,9 +388,11 @@ export class EditorInteractionManager {
         ];
 
         try {
-            const pb1 = window.PolyBool.polygonFromSegments(window.PolyBool.segments({ regions: [polyWorld], inverted: false }));
-            const cut1 = window.PolyBool.intersect(pb1, { regions: [sliceBox1], inverted: false });
-            const cut2 = window.PolyBool.difference(pb1, { regions: [sliceBox1], inverted: false });
+            const pb1 = { regions: [polyWorld], inverted: false };
+            const pbBox = { regions: [sliceBox1], inverted: false };
+            
+            const cut1 = window.PolyBool.intersect(pb1, pbBox);
+            const cut2 = window.PolyBool.difference(pb1, pbBox);
             
             if(cut1.regions.length > 0 && cut2.regions.length > 0) {
                 this.state.rooms.splice(targetRoomIdx, 1);
