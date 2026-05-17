@@ -374,17 +374,10 @@ export class EditorInteractionManager {
         
         const BIG = 10000;
         const sliceBox1 = [
-            [p1.x - nx*BIG - dx*BIG, p1.y - ny*BIG - dy*BIG],
+            [p1.x - dx*BIG, p1.y - dy*BIG],
             [p1.x + nx*BIG - dx*BIG, p1.y + ny*BIG - dy*BIG],
             [p2.x + nx*BIG + dx*BIG, p2.y + ny*BIG + dy*BIG],
-            [p2.x - nx*BIG + dx*BIG, p2.y - ny*BIG + dy*BIG]
-        ];
-        
-        const sliceBox2 = [
-            [p1.x - nx*BIG - dx*BIG, p1.y - ny*BIG - dy*BIG],
-            [p1.x - nx*BIG + dx*BIG, p1.y - ny*BIG + dy*BIG],
-            [p2.x - nx*BIG + dx*BIG, p2.y - ny*BIG + dy*BIG],
-            [p2.x - nx*BIG - dx*BIG, p2.y - ny*BIG - dy*BIG]
+            [p2.x + dx*BIG, p2.y + dy*BIG]
         ];
 
         try {
