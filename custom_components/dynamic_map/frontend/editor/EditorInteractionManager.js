@@ -130,7 +130,13 @@ export class EditorInteractionManager {
             return;
         }
 
-        this.interactionState = 'MAYBE_PAN';
+        if (this.state.isEditMode && this.state.selectedRooms.length === 1) {
+            this.interactionState = 'MAYBE_SPLIT';
+            this.state.splitStart = this.getMousePos(e);
+            this.state.isSplitting = false;
+        } else {
+            this.interactionState = 'MAYBE_PAN';
+        }
     }
 
     onPointerMove(e) {
@@ -254,6 +260,19 @@ export class EditorInteractionManager {
             return;
         }
 
+        if (this.interactionState === 'MAYBE_SPLIT') {
+            let clientX = e.clientX;
+            let clientY = e.clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            }
+            const dist = Math.hypot(clientX - this.panStart.x, clientY - this.panStart.y);
+            if (dist > 5) {
+                this.interactionState = 'SPLIT';
+            }
+        }
+
         if (this.interactionState === 'MAYBE_PAN') {
             let clientX = e.clientX;
             let clientY = e.clientY;
@@ -309,6 +328,11 @@ export class EditorInteractionManager {
                 this.state.saveState();
                 this.state.updateUICallback();
             }
+        }
+
+        if (this.interactionState === 'MAYBE_SPLIT') {
+            this.interactionState = 'MAYBE_PAN';
+            this.isDragging = false;
         }
 
         if (this.interactionState === 'MAYBE_PAN' && !this.isDragging) {
