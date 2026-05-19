@@ -336,14 +336,15 @@ export class CanvasEngine {
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
                 
-                if (image) {
+                const finalImage = image || (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) ? icon : '');
+                if (finalImage) {
                     if (!sc._imgCache) sc._imgCache = {};
-                    if (!sc._imgCache[image]) {
+                    if (!sc._imgCache[finalImage]) {
                         const img = new Image();
-                        img.src = image;
-                        sc._imgCache[image] = img;
+                        img.src = finalImage;
+                        sc._imgCache[finalImage] = img;
                     }
-                    const img = sc._imgCache[image];
+                    const img = sc._imgCache[finalImage];
                     if (img.complete && img.naturalWidth > 0) {
                         const dim = 20 * Math.min(scaleX, scaleY) * currentScale;
                         this.ctx.drawImage(img, -dim/2, -dim/2, dim, dim);
@@ -351,7 +352,8 @@ export class CanvasEngine {
                         this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                         this.ctx.textBaseline = 'middle';
                         this.ctx.textAlign = 'center';
-                        this.ctx.fillText(icon, 0, 0);
+                        const isUrl = icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp'));
+                        this.ctx.fillText(isUrl ? '📍' : icon, 0, 0);
                     }
                 } else {
                     this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
