@@ -89,6 +89,7 @@ if (resizer) {
 
 // Floor and Data loading
 async function loadFloor(floorNum) {
+    console.log(`[DynamicMapDebug] loadFloor starting for Floor ${floorNum}...`);
     stateManager.activeFloor = floorNum;
     stateManager.isTransitioning = true;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -97,21 +98,48 @@ async function loadFloor(floorNum) {
     let dataLoaded = false;
     
     const checkAutoCrop = () => {
+        console.log(`[DynamicMapDebug] checkAutoCrop checking: imgLoaded=${imgLoaded}, dataLoaded=${dataLoaded}`);
         if (imgLoaded && dataLoaded) {
-            engine.calculateAutoCrop(stateManager.bgImage, stateManager.rooms, true);
-            uiManager.updateRotationUI();
-            stateManager.isTransitioning = false;
-            draw();
+            try {
+                console.log(`[DynamicMapDebug] Calculating auto crop...`);
+                engine.calculateAutoCrop(stateManager.bgImage, stateManager.rooms, true);
+                uiManager.updateRotationUI();
+                stateManager.isTransitioning = false;
+                console.log(`[DynamicMapDebug] Transition complete! Initializing map draw loop.`);
+                draw();
+            } catch (err) {
+                console.error(`[DynamicMapDebug] Error during calculateAutoCrop:`, err);
+                stateManager.isTransitioning = false;
+                draw();
+            }
         }
     };
     
-    stateManager.bgImage.src = `/dynamic_map_data/bg_floor${floorNum}.png?t=${Date.now()}`;
-    stateManager.bgImage.onload = () => { imgLoaded = true; checkAutoCrop(); };
+    const bgUrl = `/dynamic_map_data/bg_floor${floorNum}.png?t=${Date.now()}`;
+    console.log(`[DynamicMapDebug] Setting up image handlers for: "${bgUrl}"`);
+    
+    stateManager.bgImage.onload = () => {
+        console.log(`[DynamicMapDebug] bgImage loaded successfully. Dimensions: ${stateManager.bgImage.naturalWidth}x${stateManager.bgImage.naturalHeight}`);
+        imgLoaded = true;
+        checkAutoCrop();
+    };
+    
+    stateManager.bgImage.onerror = (err) => {
+        console.error(`[DynamicMapDebug] bgImage FAILED to load. URL: "${bgUrl}"`, err);
+        // Force recovery: let editor render and log diagnostic output
+        imgLoaded = true;
+        checkAutoCrop();
+    };
+    
+    // Set src after handlers are fully registered to avoid synchronous cache bugs
+    stateManager.bgImage.src = bgUrl;
     
     try {
+        console.log(`[DynamicMapDebug] Fetching floor data for floor ${floorNum}...`);
         const data = await ApiManager.fetchFloorData(floorNum);
-        stateManager.rooms = data.rooms;
-        stateManager.shortcuts = data.shortcuts;
+        console.log(`[DynamicMapDebug] Floor data loaded. Rooms: ${data.rooms?.length || 0}, Shortcuts: ${data.shortcuts?.length || 0}`);
+        stateManager.rooms = data.rooms || [];
+        stateManager.shortcuts = data.shortcuts || [];
         
         if (data.config) {
             if (data.config.rotation_mode) engine.rotationMode = data.config.rotation_mode;
@@ -125,7 +153,12 @@ async function loadFloor(floorNum) {
         dataLoaded = true;
         checkAutoCrop();
     } catch (err) {
-        console.error("Failed to load floor JSON", err);
+        console.error("[DynamicMapDebug] Failed to load floor JSON", err);
+        // Force recovery on JSON failure
+        stateManager.rooms = [];
+        stateManager.shortcuts = [];
+        dataLoaded = true;
+        checkAutoCrop();
     }
 }
 
