@@ -5,7 +5,6 @@ function resolveShortcutAssets(sc, activeState = null, previewStateIdx = -1) {
     let icon = sc.config?.icon || '💡';
     let image = sc.config?.image || '';
 
-    // Active state override logic (as in GenericShortcut.js and CanvasEngine.js)
     let activeStateObj = activeState;
     if (previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
         activeStateObj = sc.config.states[previewStateIdx];
@@ -13,21 +12,28 @@ function resolveShortcutAssets(sc, activeState = null, previewStateIdx = -1) {
 
     if (activeStateObj) {
         if (activeStateObj.color) color = activeStateObj.color;
-        if (activeStateObj.image !== undefined && activeStateObj.image !== '') {
+        if (activeStateObj.image) {
             image = activeStateObj.image;
-            icon = '';
-        } else if (activeStateObj.icon !== undefined && activeStateObj.icon !== '') {
+            icon = activeStateObj.icon || '';
+        } else if (activeStateObj.icon) {
             icon = activeStateObj.icon;
             image = '';
-        } else {
-            if (activeStateObj.icon) icon = activeStateObj.icon;
-            if (activeStateObj.image) image = activeStateObj.image;
         }
     }
 
     const finalImage = image || (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) ? icon : '');
 
-    return { color, icon, image, finalImage };
+    const isUrlFn = (str) => str && (str.startsWith('http') || str.startsWith('/') || str.endsWith('.png') || str.endsWith('.svg') || str.endsWith('.jpg') || str.endsWith('.webp'));
+    let fallbackIcon = '💡';
+    if (activeStateObj && activeStateObj.icon && !isUrlFn(activeStateObj.icon)) {
+        fallbackIcon = activeStateObj.icon;
+    } else if (sc.config?.icon && !isUrlFn(sc.config.icon)) {
+        fallbackIcon = sc.config.icon;
+    } else if (sc.icon && !isUrlFn(sc.icon)) {
+        fallbackIcon = sc.icon;
+    }
+
+    return { color, icon, image, finalImage, fallbackIcon };
 }
 
 describe('State Overrides Priority', () => {
@@ -97,5 +103,53 @@ describe('State Overrides Priority', () => {
         expect(res.image).toBe('/local/off.png');
         expect(res.icon).toBe('💡');
         expect(res.finalImage).toBe('/local/off.png');
+    });
+
+    it('should resolve state icon as fallbackIcon if it is not a URL', () => {
+        const sc = {
+            config: {
+                icon: '💡',
+                states: [
+                    { name: 'State with icon', value: 'on', image: '/local/on.png', icon: '🔥' }
+                ]
+            }
+        };
+
+        const res = resolveShortcutAssets(sc, null, 0);
+        expect(res.finalImage).toBe('/local/on.png');
+        expect(res.icon).toBe('🔥');
+        expect(res.fallbackIcon).toBe('🔥');
+    });
+
+    it('should resolve base icon as fallbackIcon if state icon is missing/URL and base icon is not a URL', () => {
+        const sc = {
+            config: {
+                icon: '⚡',
+                states: [
+                    { name: 'State with image only', value: 'on', image: '/local/on.png' }
+                ]
+            }
+        };
+
+        const res = resolveShortcutAssets(sc, null, 0);
+        expect(res.finalImage).toBe('/local/on.png');
+        expect(res.icon).toBe('');
+        expect(res.fallbackIcon).toBe('⚡');
+    });
+
+    it('should fall back to 💡 if both state icon and base icon are missing or URLs', () => {
+        const sc = {
+            config: {
+                icon: '/local/base.png',
+                states: [
+                    { name: 'State with image only', value: 'on', image: '/local/on.png' }
+                ]
+            }
+        };
+
+        const res = resolveShortcutAssets(sc, null, 0);
+        expect(res.finalImage).toBe('/local/on.png');
+        expect(res.icon).toBe('');
+        expect(res.fallbackIcon).toBe('💡');
     });
 });

@@ -270,15 +270,12 @@ export class CanvasEngine {
             if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
                 const st = sc.config.states[previewStateIdx];
                 if (st.color) color = st.color;
-                if (st.image !== undefined && st.image !== '') {
+                if (st.image) {
                     image = st.image;
-                    icon = '';
-                } else if (st.icon !== undefined && st.icon !== '') {
+                    icon = st.icon || '';
+                } else if (st.icon) {
                     icon = st.icon;
                     image = '';
-                } else {
-                    if (st.icon) icon = st.icon;
-                    if (st.image) image = st.image;
                 }
             }
 
@@ -346,11 +343,30 @@ export class CanvasEngine {
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
                 
                 const finalImage = image || (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) ? icon : '');
+                
+                const isUrlFn = (str) => str && (str.startsWith('http') || str.startsWith('/') || str.endsWith('.png') || str.endsWith('.svg') || str.endsWith('.jpg') || str.endsWith('.webp'));
+                let fallbackIcon = '💡';
+                if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
+                    const st = sc.config.states[previewStateIdx];
+                    if (st.icon && !isUrlFn(st.icon)) {
+                        fallbackIcon = st.icon;
+                    } else if (sc.config?.icon && !isUrlFn(sc.config.icon)) {
+                        fallbackIcon = sc.config.icon;
+                    }
+                } else if (sc.config?.icon && !isUrlFn(sc.config.icon)) {
+                    fallbackIcon = sc.config.icon;
+                }
+
                 if (finalImage) {
                     if (!sc._imgCache) sc._imgCache = {};
                     if (!sc._imgCache[finalImage]) {
                         const img = new Image();
+                        img.crossOrigin = 'anonymous';
                         img.onload = () => {
+                            if (requestDraw) requestDraw();
+                        };
+                        img.onerror = (err) => {
+                            console.error(`[DynamicMap] Canvas Engine image load failed for URL: "${finalImage}"`, err);
                             if (requestDraw) requestDraw();
                         };
                         img.src = finalImage;
@@ -364,14 +380,13 @@ export class CanvasEngine {
                         this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                         this.ctx.textBaseline = 'middle';
                         this.ctx.textAlign = 'center';
-                        const isUrl = icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp'));
-                        this.ctx.fillText(isUrl ? '📍' : icon, 0, 0);
+                        this.ctx.fillText(fallbackIcon, 0, 0);
                     }
                 } else {
                     this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                     this.ctx.textBaseline = 'middle';
                     this.ctx.textAlign = 'center';
-                    this.ctx.fillText(icon, 0, 0);
+                    this.ctx.fillText(fallbackIcon, 0, 0);
                 }
                 this.ctx.restore();
             }

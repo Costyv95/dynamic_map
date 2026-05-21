@@ -48,16 +48,15 @@ export class GenericShortcut extends MapShortcut {
         this.iconImage.setAttribute('y', -imgSize / 2);
         this.iconImage.style.pointerEvents = 'none';
         this.iconImage.style.display = 'none';
-        this.iconImage.addEventListener('error', () => {
+        this.iconImage.addEventListener('load', () => {
+            this.iconImage.style.display = 'block';
+            this.iconText.textContent = '';
+            this.iconForeignObject.style.display = 'none';
+        });
+        this.iconImage.addEventListener('error', (e) => {
+            console.error(`[DynamicMap] SVG Image load error for: "${this.iconImage.getAttribute('href')}"`, e);
             this.iconImage.style.display = 'none';
-            if (this._currentFallbackIcon) {
-                if (this._currentFallbackIcon.startsWith('mdi:') || this._currentFallbackIcon.includes(':')) {
-                    this.haIcon.setAttribute('icon', this._currentFallbackIcon);
-                    this.iconForeignObject.style.display = 'block';
-                } else {
-                    this.iconText.textContent = this._currentFallbackIcon;
-                }
-            }
+            this.showFallbackIcon();
         });
         this.iconGroup.appendChild(this.iconImage);
         
@@ -78,15 +77,12 @@ export class GenericShortcut extends MapShortcut {
         
         if (this.activeState) {
             if (this.activeState.color) color = this.activeState.color;
-            if (this.activeState.image !== undefined && this.activeState.image !== '') {
+            if (this.activeState.image) {
                 image = this.activeState.image;
-                icon = '';
-            } else if (this.activeState.icon !== undefined && this.activeState.icon !== '') {
+                icon = this.activeState.icon || '';
+            } else if (this.activeState.icon) {
                 icon = this.activeState.icon;
                 image = '';
-            } else {
-                if (this.activeState.icon) icon = this.activeState.icon;
-                if (this.activeState.image) image = this.activeState.image;
             }
         }
         
@@ -106,25 +102,41 @@ export class GenericShortcut extends MapShortcut {
             this.shape.setAttribute('fill', 'rgba(0,0,0,0)');
         }
         
-        this._currentFallbackIcon = icon;
+        const isUrlFn = (str) => str && (str.startsWith('http') || str.startsWith('/') || str.endsWith('.png') || str.endsWith('.svg') || str.endsWith('.jpg') || str.endsWith('.webp'));
+        let fallbackIcon = '💡';
+        if (this.activeState && this.activeState.icon && !isUrlFn(this.activeState.icon)) {
+            fallbackIcon = this.activeState.icon;
+        } else if (this.config.icon && !isUrlFn(this.config.icon)) {
+            fallbackIcon = this.config.icon;
+        } else if (this.defaultIcon && !isUrlFn(this.defaultIcon)) {
+            fallbackIcon = this.defaultIcon;
+        }
+        this._currentFallbackIcon = fallbackIcon;
         
         if (finalImage) {
-            this.iconText.textContent = '';
-            this.iconForeignObject.style.display = 'none';
-            this.iconImage.setAttribute('href', finalImage);
-            this.iconImage.style.display = 'block';
-        } else {
-            this.iconImage.style.display = 'none';
-            if (icon && (icon.startsWith('mdi:') || icon.includes(':'))) {
-                this.iconText.textContent = '';
-                this.haIcon.setAttribute('icon', icon);
-                this.iconForeignObject.style.display = 'block';
-            } else {
-                this.iconForeignObject.style.display = 'none';
-                this.iconText.textContent = icon;
+            if (this.iconImage.getAttribute('href') !== finalImage) {
+                this.iconImage.style.display = 'none';
+                this.iconImage.setAttribute('href', finalImage);
+                this.showFallbackIcon();
             }
+        } else {
+            this.iconImage.removeAttribute('href');
+            this.iconImage.style.display = 'none';
+            this.showFallbackIcon();
         }
         
         return true;
+    }
+
+    showFallbackIcon() {
+        const icon = this._currentFallbackIcon || '💡';
+        if (icon.startsWith('mdi:') || icon.includes(':')) {
+            this.iconText.textContent = '';
+            this.haIcon.setAttribute('icon', icon);
+            this.iconForeignObject.style.display = 'block';
+        } else {
+            this.iconForeignObject.style.display = 'none';
+            this.iconText.textContent = icon;
+        }
     }
 }
