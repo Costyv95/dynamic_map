@@ -357,23 +357,40 @@ export class CanvasEngine {
                     fallbackIcon = sc.config.icon;
                 }
 
+                // Add diagnostic logs for the selected preview state
+                if (idx === selectedShortcutIdx && previewStateIdx !== -1) {
+                    console.log(`[DynamicMapDebug] CanvasEngine selected shortcut preview info:`, {
+                        entity: sc.entity_id,
+                        stateIdx: previewStateIdx,
+                        baseImage: sc.config?.image || '',
+                        baseIcon: sc.config?.icon || '',
+                        overrideImage: image,
+                        overrideIcon: icon,
+                        finalImage,
+                        fallbackIcon
+                    });
+                }
+
                 if (finalImage) {
                     if (!sc._imgCache) sc._imgCache = {};
                     let cachedImg = sc._imgCache[finalImage];
                     
                     if (cachedImg && cachedImg._failed && (Date.now() - (cachedImg._lastFailureTime || 0) > 15000)) {
+                        console.log(`[DynamicMapDebug] CanvasEngine retry cooldown elapsed for: "${finalImage}"`);
                         delete sc._imgCache[finalImage];
                         cachedImg = null;
                     }
 
                     if (!cachedImg) {
+                        console.log(`[DynamicMapDebug] CanvasEngine creating new Image for: "${finalImage}"`);
                         const img = new Image();
                         img._failed = false;
                         img.onload = () => {
+                            console.log(`[DynamicMapDebug] CanvasEngine Image LOADED successfully: "${finalImage}"`);
                             if (requestDraw) requestDraw();
                         };
                         img.onerror = (err) => {
-                            console.error(`[DynamicMap] Canvas Engine image load failed for URL: "${finalImage}"`, err);
+                            console.error(`[DynamicMapDebug] CanvasEngine Image FAILED to load for: "${finalImage}"`, err);
                             img._failed = true;
                             img._lastFailureTime = Date.now();
                             if (requestDraw) requestDraw();
@@ -385,17 +402,28 @@ export class CanvasEngine {
 
                     if (cachedImg.complete && cachedImg.naturalWidth > 0 && !cachedImg._failed) {
                         const dim = 20 * Math.min(scaleX, scaleY) * currentScale;
+                        if (idx === selectedShortcutIdx && previewStateIdx !== -1) {
+                            console.log(`[DynamicMapDebug] CanvasEngine drawing image: "${finalImage}" at dim: ${dim}`);
+                        }
                         this.ctx.drawImage(cachedImg, -dim/2, -dim/2, dim, dim);
                     } else {
+                        if (idx === selectedShortcutIdx && previewStateIdx !== -1) {
+                            console.log(`[DynamicMapDebug] CanvasEngine image not ready/failed. complete: ${cachedImg.complete}, failed: ${cachedImg._failed}. Drawing fallbackIcon: "${fallbackIcon}"`);
+                        }
                         this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                         this.ctx.textBaseline = 'middle';
                         this.ctx.textAlign = 'center';
+                        this.ctx.fillStyle = 'white';
                         this.ctx.fillText(fallbackIcon, 0, 0);
                     }
                 } else {
+                    if (idx === selectedShortcutIdx && previewStateIdx !== -1) {
+                        console.log(`[DynamicMapDebug] CanvasEngine no finalImage. Drawing fallbackIcon: "${fallbackIcon}"`);
+                    }
                     this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                     this.ctx.textBaseline = 'middle';
                     this.ctx.textAlign = 'center';
+                    this.ctx.fillStyle = 'white';
                     this.ctx.fillText(fallbackIcon, 0, 0);
                 }
                 this.ctx.restore();
