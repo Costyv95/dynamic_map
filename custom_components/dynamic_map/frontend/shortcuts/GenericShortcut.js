@@ -47,14 +47,50 @@ export class GenericShortcut extends MapShortcut {
         this.iconImage.setAttribute('x', -imgSize / 2);
         this.iconImage.setAttribute('y', -imgSize / 2);
         this.iconImage.style.pointerEvents = 'none';
-        this.iconImage.style.display = 'none';
+        this.iconImage.style.display = 'block';
+        this.iconImage.style.opacity = '0';
+
+        // Native SVG <image> loading & error event listeners
+        this.iconImage.addEventListener('load', () => {
+            const currentHref = this.iconImage.getAttribute('href');
+            if (currentHref) {
+                if (!this._imgStatusCache) this._imgStatusCache = {};
+                this._imgStatusCache[currentHref] = { state: 'loaded', lastFailureTime: 0 };
+                
+                if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                    window.dynamicMapDebug.log(`Native SVG image LOADED successfully: "${currentHref}"`, { entity: this.sc.entity_id });
+                }
+                
+                if (this._lastImage === currentHref) {
+                    this.iconText.textContent = '';
+                    this.iconForeignObject.style.display = 'none';
+                    this.iconImage.style.opacity = '1';
+                }
+            }
+        });
+        
+        this.iconImage.addEventListener('error', () => {
+            const currentHref = this.iconImage.getAttribute('href');
+            if (currentHref) {
+                if (!this._imgStatusCache) this._imgStatusCache = {};
+                this._imgStatusCache[currentHref] = { state: 'error', lastFailureTime: Date.now() };
+                
+                if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                    window.dynamicMapDebug.log(`Native SVG image FAILED for: "${currentHref}"`, { entity: this.sc.entity_id });
+                }
+                
+                if (this._lastImage === currentHref) {
+                    this.iconImage.style.opacity = '0';
+                    this.showFallbackIcon();
+                }
+            }
+        });
+
         this.iconGroup.appendChild(this.iconImage);
         
         // Let MapShortcut append the state badge to iconGroup
         this.iconGroup.appendChild(this.stateBadge);
         
-        // We do not call super.render() anymore because MapShortcut's render just appends stateBadge to group, 
-        // which we already did to iconGroup.
         return this.group;
     }
     
@@ -125,7 +161,13 @@ export class GenericShortcut extends MapShortcut {
         if (this._lastIcon !== icon) { this._lastIcon = icon; changed = true; }
         if (this._lastImage !== finalImage) { this._lastImage = finalImage; changed = true; }
         
-        if (!changed && this._initialized) return false;
+        if (!changed && this._initialized) {
+            const status = this._imgStatusCache && this._imgStatusCache[finalImage];
+            const hasFailedImageWithCooldown = status && status.state === 'error' && (Date.now() - (status.lastFailureTime || 0) > 15000);
+            if (!hasFailedImageWithCooldown) {
+                return false;
+            }
+        }
         this._initialized = true;
 
         if (!this.config.transparent) {
@@ -146,57 +188,28 @@ export class GenericShortcut extends MapShortcut {
         this._currentFallbackIcon = fallbackIcon;
         
         if (finalImage) {
-            if (!this._imgPreloaders) this._imgPreloaders = {};
+            if (!this._imgStatusCache) this._imgStatusCache = {};
             
-            let preloader = this._imgPreloaders[finalImage];
-            if (!preloader) {
+            let status = this._imgStatusCache[finalImage];
+            if (status && status.state === 'error' && (Date.now() - (status.lastFailureTime || 0) > 15000)) {
                 if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                    window.dynamicMapDebug.log(`Creating preloader for: "${finalImage}"`, { entity: this.sc.entity_id });
+                    window.dynamicMapDebug.log(`Image retry cooldown elapsed for: "${finalImage}". Retrying...`, { entity: this.sc.entity_id });
                 }
-                const img = new Image();
-                preloader = {
-                    loaded: false,
-                    error: false,
-                    img: img, // Pin Image object to prevent Garbage Collection!
-                    promise: new Promise((resolve) => {
-                        img.onload = () => {
-                            const dims = { w: img.naturalWidth, h: img.naturalHeight };
-                            if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                                window.dynamicMapDebug.log(`Preloader LOADED successfully: "${finalImage}"`, {
-                                    entity: this.sc.entity_id,
-                                    dimensions: dims
-                                });
-                            }
-                            preloader.loaded = true;
-                            resolve(true);
-                        };
-                        img.onerror = (err) => {
-                            if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                                window.dynamicMapDebug.log(`Preloader FAILED for: "${finalImage}"`, {
-                                    entity: this.sc.entity_id,
-                                    error: err ? err.message || String(err) : 'Unknown error'
-                                });
-                            }
-                            preloader.error = true;
-                            resolve(false);
-                        };
-                        img.src = finalImage;
-                    })
-                };
-                this._imgPreloaders[finalImage] = preloader;
+                delete this._imgStatusCache[finalImage];
+                status = null;
             }
 
             // Sync shortcut status in debug map
             if (typeof window !== 'undefined' && window.dynamicMapDebug) {
                 window.dynamicMapDebug.shortcuts[this.sc.id || this.sc.entity_id || 'unknown'].preloaderState = {
-                    loaded: preloader.loaded,
-                    error: preloader.error
+                    loaded: status ? status.state === 'loaded' : false,
+                    error: status ? status.state === 'error' : false
                 };
             }
 
-            if (preloader.loaded) {
+            if (status && status.state === 'loaded') {
                 if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                    window.dynamicMapDebug.log(`Preloader already loaded for: "${finalImage}". Drawing immediately.`, { entity: this.sc.entity_id });
+                    window.dynamicMapDebug.log(`Image already loaded for: "${finalImage}". Drawing immediately.`, { entity: this.sc.entity_id });
                 }
                 this.iconText.textContent = '';
                 this.iconForeignObject.style.display = 'none';
@@ -204,59 +217,32 @@ export class GenericShortcut extends MapShortcut {
                     this.iconImage.setAttribute('href', finalImage);
                     this.iconImage.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', finalImage);
                 }
-                this.iconImage.style.display = 'block';
-            } else if (preloader.error) {
+                this.iconImage.style.opacity = '1';
+            } else if (status && status.state === 'error') {
                 if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                    window.dynamicMapDebug.log(`Preloader previously failed for: "${finalImage}". Drawing fallback.`, { entity: this.sc.entity_id });
+                    window.dynamicMapDebug.log(`Image previously failed for: "${finalImage}". Drawing fallback.`, { entity: this.sc.entity_id });
                 }
                 this.iconImage.removeAttribute('href');
                 this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
-                this.iconImage.style.display = 'none';
+                this.iconImage.style.opacity = '0';
                 this.showFallbackIcon();
             } else {
                 if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                    window.dynamicMapDebug.log(`Preloader is currently loading for: "${finalImage}". Drawing fallback placeholder.`, { entity: this.sc.entity_id });
+                    window.dynamicMapDebug.log(`Setting image source & loading natively: "${finalImage}"`, { entity: this.sc.entity_id });
                 }
+                
+                if (!status) {
+                    this._imgStatusCache[finalImage] = { state: 'loading', lastFailureTime: 0 };
+                }
+                
                 this.iconImage.removeAttribute('href');
                 this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
-                this.iconImage.style.display = 'none';
+                this.iconImage.style.opacity = '0';
                 this.showFallbackIcon();
                 
-                preloader.promise.then((success) => {
-                    if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                        window.dynamicMapDebug.log(`Preloader promise resolved for: "${finalImage}" (success: ${success})`, { entity: this.sc.entity_id });
-                        if (window.dynamicMapDebug.shortcuts[this.sc.id || this.sc.entity_id || 'unknown']) {
-                            window.dynamicMapDebug.shortcuts[this.sc.id || this.sc.entity_id || 'unknown'].preloaderState = {
-                                loaded: preloader.loaded,
-                                error: preloader.error
-                            };
-                        }
-                    }
-                    if (this._lastImage === finalImage) {
-                        if (success) {
-                            if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                                window.dynamicMapDebug.log(`Applying loaded image to SVG for: "${finalImage}"`, { entity: this.sc.entity_id });
-                            }
-                            this.iconText.textContent = '';
-                            this.iconForeignObject.style.display = 'none';
-                            this.iconImage.setAttribute('href', finalImage);
-                            this.iconImage.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', finalImage);
-                            this.iconImage.style.display = 'block';
-                        } else {
-                            if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                                window.dynamicMapDebug.log(`Applying fallback to SVG due to preloader failure for: "${finalImage}"`, { entity: this.sc.entity_id });
-                            }
-                            this.iconImage.removeAttribute('href');
-                            this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
-                            this.iconImage.style.display = 'none';
-                            this.showFallbackIcon();
-                        }
-                    } else {
-                        if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                            window.dynamicMapDebug.log(`Active image has changed from "${finalImage}" to "${this._lastImage}". Skipping preloader resolve.`, { entity: this.sc.entity_id });
-                        }
-                    }
-                });
+                // Directly set the source on the SVG <image> tag to let the browser natively load it
+                this.iconImage.setAttribute('href', finalImage);
+                this.iconImage.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', finalImage);
             }
         } else {
             if (typeof window !== 'undefined' && window.dynamicMapDebug) {
@@ -264,7 +250,7 @@ export class GenericShortcut extends MapShortcut {
             }
             this.iconImage.removeAttribute('href');
             this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
-            this.iconImage.style.display = 'none';
+            this.iconImage.style.opacity = '0';
             this.showFallbackIcon();
         }
         
@@ -283,3 +269,4 @@ export class GenericShortcut extends MapShortcut {
         }
     }
 }
+

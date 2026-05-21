@@ -359,22 +359,33 @@ export class CanvasEngine {
 
                 if (finalImage) {
                     if (!sc._imgCache) sc._imgCache = {};
-                    if (!sc._imgCache[finalImage]) {
+                    let cachedImg = sc._imgCache[finalImage];
+                    
+                    if (cachedImg && cachedImg._failed && (Date.now() - (cachedImg._lastFailureTime || 0) > 15000)) {
+                        delete sc._imgCache[finalImage];
+                        cachedImg = null;
+                    }
+
+                    if (!cachedImg) {
                         const img = new Image();
+                        img._failed = false;
                         img.onload = () => {
                             if (requestDraw) requestDraw();
                         };
                         img.onerror = (err) => {
                             console.error(`[DynamicMap] Canvas Engine image load failed for URL: "${finalImage}"`, err);
+                            img._failed = true;
+                            img._lastFailureTime = Date.now();
                             if (requestDraw) requestDraw();
                         };
                         img.src = finalImage;
                         sc._imgCache[finalImage] = img;
+                        cachedImg = img;
                     }
-                    const img = sc._imgCache[finalImage];
-                    if (img.complete && img.naturalWidth > 0) {
+
+                    if (cachedImg.complete && cachedImg.naturalWidth > 0 && !cachedImg._failed) {
                         const dim = 20 * Math.min(scaleX, scaleY) * currentScale;
-                        this.ctx.drawImage(img, -dim/2, -dim/2, dim, dim);
+                        this.ctx.drawImage(cachedImg, -dim/2, -dim/2, dim, dim);
                     } else {
                         this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                         this.ctx.textBaseline = 'middle';

@@ -157,29 +157,7 @@ describe('State Overrides Priority', () => {
 import { GenericShortcut } from '../shortcuts/GenericShortcut.js';
 
 describe('GenericShortcut JSDOM Integration', () => {
-    let originalImage;
-    let mockImages;
-
-    beforeEach(() => {
-        originalImage = global.Image;
-        mockImages = [];
-        global.Image = class MockImage {
-            constructor() {
-                this.onload = null;
-                this.onerror = null;
-                this.src = '';
-                this.naturalWidth = 0;
-                this.naturalHeight = 0;
-                mockImages.push(this);
-            }
-        };
-    });
-
-    afterEach(() => {
-        global.Image = originalImage;
-    });
-
-    it('should initialize and handle preloader state transitions correctly', async () => {
+    it('should initialize and handle native SVG tag load and error states correctly', async () => {
         const scData = {
             id: 'lamp_shortcut',
             entity_id: 'light.desk_lamp',
@@ -221,7 +199,7 @@ describe('GenericShortcut JSDOM Integration', () => {
         // Render SVG elements
         shortcut.render();
 
-        // 1. Initial State: lamp is "off" (fallback icon should show while preloader runs)
+        // 1. Initial State: lamp is "off" (fallback icon should show while loading natively)
         const mockHass = {
             states: {
                 'light.desk_lamp': { state: 'off' }
@@ -230,25 +208,20 @@ describe('GenericShortcut JSDOM Integration', () => {
 
         shortcut.updateState(mockHass);
 
-        // Verify shape color and fallback icon since preloader has not resolved
+        // Verify shape color and fallback icon since native load has not resolved yet
         expect(shortcut.shape.getAttribute('fill')).toBe('#a17070');
-        expect(shortcut.iconImage.style.display).toBe('none');
+        expect(shortcut.iconImage.style.opacity).toBe('0');
         expect(shortcut.iconText.textContent).toBe('💡'); // fallback icon
+        expect(shortcut.iconImage.getAttribute('href')).toBe('/local/icons/lamp-off.png');
 
-        // Verify preloader created
-        expect(mockImages.length).toBe(1);
-        expect(mockImages[0].src).toBe('/local/icons/lamp-off.png');
-
-        // 2. Resolve the preloader for Off state
-        mockImages[0].naturalWidth = 120;
-        mockImages[0].naturalHeight = 120;
-        mockImages[0].onload();
+        // 2. Resolve the native load for Off state by dispatching standard load event
+        shortcut.iconImage.dispatchEvent(new window.Event('load'));
 
         // Wait for microtasks/promises to resolve
         await new Promise(resolve => setTimeout(resolve, 0));
 
-        // Check if image display updated to block and received correct attributes
-        expect(shortcut.iconImage.style.display).toBe('block');
+        // Check if image display updated to opacity 1 and received correct attributes
+        expect(shortcut.iconImage.style.opacity).toBe('1');
         expect(shortcut.iconImage.getAttribute('href')).toBe('/local/icons/lamp-off.png');
         expect(shortcut.iconImage.getAttributeNS('http://www.w3.org/1999/xlink', 'href')).toBe('/local/icons/lamp-off.png');
         expect(shortcut.iconText.textContent).toBe('');
@@ -262,27 +235,50 @@ describe('GenericShortcut JSDOM Integration', () => {
 
         shortcut.updateState(mockHassOn);
 
-        // Assert color changed, but image hidden initially because preloader is loading
+        // Assert color changed, but image hidden initially because it's loading natively
         expect(shortcut.shape.getAttribute('fill')).toBe('#facaca');
-        expect(shortcut.iconImage.style.display).toBe('none');
+        expect(shortcut.iconImage.style.opacity).toBe('0');
         expect(shortcut.iconText.textContent).toBe('💡');
+        expect(shortcut.iconImage.getAttribute('href')).toBe('/local/icons/lamp-on.png');
 
-        // Second preloader should be created
-        expect(mockImages.length).toBe(2);
-        expect(mockImages[1].src).toBe('/local/icons/lamp-on.png');
-
-        // 4. Fail the preloader for On state (to test onerror fallback path)
-        mockImages[1].onerror(new Error('Network failure'));
+        // 4. Fail the native load for On state (by dispatching error event)
+        shortcut.iconImage.dispatchEvent(new window.Event('error'));
 
         await new Promise(resolve => setTimeout(resolve, 0));
 
         // Assert SVG remains hidden and fallback icon is drawn
-        expect(shortcut.iconImage.style.display).toBe('none');
+        expect(shortcut.iconImage.style.opacity).toBe('0');
         expect(shortcut.iconText.textContent).toBe('💡');
 
-        // 5. Subsequent updates when preloader already failed should load fallback immediately
+        // 5. Subsequent updates when image already failed should load fallback immediately
         shortcut.updateState(mockHassOn);
-        expect(shortcut.iconImage.style.display).toBe('none');
+        expect(shortcut.iconImage.style.opacity).toBe('0');
         expect(shortcut.iconText.textContent).toBe('💡');
+
+        // 6. Simulate time passing past the 15-second cooldown (e.g. 20 seconds later)
+        const originalDateNow = Date.now;
+        Date.now = () => originalDateNow() + 20000;
+
+        try {
+            // Update state again - should retry loading since cooldown passed
+            shortcut.updateState(mockHassOn);
+
+            expect(shortcut.iconImage.getAttribute('href')).toBe('/local/icons/lamp-on.png');
+            expect(shortcut.iconImage.style.opacity).toBe('0'); // Still placeholder until loaded
+
+            // Dispatch load event successfully
+            shortcut.iconImage.dispatchEvent(new window.Event('load'));
+
+            // Wait for promise resolution
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+            // Verify that the image is now successfully showing on the SVG!
+            expect(shortcut.iconImage.style.opacity).toBe('1');
+            expect(shortcut.iconImage.getAttribute('href')).toBe('/local/icons/lamp-on.png');
+            expect(shortcut.iconText.textContent).toBe('');
+        } finally {
+            // Restore Date.now to prevent side effects in other tests
+            Date.now = originalDateNow;
+        }
     });
 });
