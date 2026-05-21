@@ -357,19 +357,6 @@ export class CanvasEngine {
                     fallbackIcon = sc.config.icon;
                 }
 
-                // Add diagnostic logs for the selected preview state
-                if (idx === selectedShortcutIdx && previewStateIdx !== -1) {
-                    console.log(`[DynamicMapDebug] CanvasEngine selected shortcut preview info:`, {
-                        entity: sc.entity_id,
-                        stateIdx: previewStateIdx,
-                        baseImage: sc.config?.image || '',
-                        baseIcon: sc.config?.icon || '',
-                        overrideImage: image,
-                        overrideIcon: icon,
-                        finalImage,
-                        fallbackIcon
-                    });
-                }
 
                 if (finalImage) {
                     if (!sc._imgCache) sc._imgCache = {};
@@ -402,14 +389,8 @@ export class CanvasEngine {
 
                     if (cachedImg.complete && cachedImg.naturalWidth > 0 && !cachedImg._failed) {
                         const dim = 20 * Math.min(scaleX, scaleY) * currentScale;
-                        if (idx === selectedShortcutIdx && previewStateIdx !== -1) {
-                            console.log(`[DynamicMapDebug] CanvasEngine drawing image: "${finalImage}" at dim: ${dim}`);
-                        }
                         this.ctx.drawImage(cachedImg, -dim/2, -dim/2, dim, dim);
                     } else {
-                        if (idx === selectedShortcutIdx && previewStateIdx !== -1) {
-                            console.log(`[DynamicMapDebug] CanvasEngine image not ready/failed. complete: ${cachedImg.complete}, failed: ${cachedImg._failed}. Drawing fallbackIcon: "${fallbackIcon}"`);
-                        }
                         this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                         this.ctx.textBaseline = 'middle';
                         this.ctx.textAlign = 'center';
@@ -417,9 +398,6 @@ export class CanvasEngine {
                         this.ctx.fillText(fallbackIcon, 0, 0);
                     }
                 } else {
-                    if (idx === selectedShortcutIdx && previewStateIdx !== -1) {
-                        console.log(`[DynamicMapDebug] CanvasEngine no finalImage. Drawing fallbackIcon: "${fallbackIcon}"`);
-                    }
                     this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                     this.ctx.textBaseline = 'middle';
                     this.ctx.textAlign = 'center';
