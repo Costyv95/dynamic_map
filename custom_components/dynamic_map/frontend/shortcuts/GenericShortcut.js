@@ -48,11 +48,6 @@ export class GenericShortcut extends MapShortcut {
         this.iconImage.setAttribute('y', -imgSize / 2);
         this.iconImage.style.pointerEvents = 'none';
         this.iconImage.style.display = 'none';
-        this.iconImage.addEventListener('error', (e) => {
-            console.error(`[DynamicMap] SVG Image load error for: "${this.iconImage.getAttribute('href')}"`, e);
-            this.iconImage.style.display = 'none';
-            this.showFallbackIcon();
-        });
         this.iconGroup.appendChild(this.iconImage);
         
         // Let MapShortcut append the state badge to iconGroup
@@ -109,14 +104,70 @@ export class GenericShortcut extends MapShortcut {
         this._currentFallbackIcon = fallbackIcon;
         
         if (finalImage) {
-            this.iconText.textContent = '';
-            this.iconForeignObject.style.display = 'none';
-            if (this.iconImage.getAttribute('href') !== finalImage) {
-                this.iconImage.setAttribute('href', finalImage);
+            if (!this._imgPreloaders) this._imgPreloaders = {};
+            
+            let preloader = this._imgPreloaders[finalImage];
+            if (!preloader) {
+                preloader = {
+                    loaded: false,
+                    error: false,
+                    promise: new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            preloader.loaded = true;
+                            resolve(true);
+                        };
+                        img.onerror = (err) => {
+                            console.error(`[DynamicMap] GenericShortcut preloader failed for: "${finalImage}"`, err);
+                            preloader.error = true;
+                            resolve(false);
+                        };
+                        img.src = finalImage;
+                    })
+                };
+                this._imgPreloaders[finalImage] = preloader;
             }
-            this.iconImage.style.display = 'block';
+
+            if (preloader.loaded) {
+                this.iconText.textContent = '';
+                this.iconForeignObject.style.display = 'none';
+                if (this.iconImage.getAttribute('href') !== finalImage) {
+                    this.iconImage.setAttribute('href', finalImage);
+                    this.iconImage.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', finalImage);
+                }
+                this.iconImage.style.display = 'block';
+            } else if (preloader.error) {
+                this.iconImage.removeAttribute('href');
+                this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
+                this.iconImage.style.display = 'none';
+                this.showFallbackIcon();
+            } else {
+                // Render fallback active placeholder while loading
+                this.iconImage.removeAttribute('href');
+                this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
+                this.iconImage.style.display = 'none';
+                this.showFallbackIcon();
+                
+                preloader.promise.then((success) => {
+                    if (this._lastImage === finalImage) {
+                        if (success) {
+                            this.iconText.textContent = '';
+                            this.iconForeignObject.style.display = 'none';
+                            this.iconImage.setAttribute('href', finalImage);
+                            this.iconImage.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', finalImage);
+                            this.iconImage.style.display = 'block';
+                        } else {
+                            this.iconImage.removeAttribute('href');
+                            this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
+                            this.iconImage.style.display = 'none';
+                            this.showFallbackIcon();
+                        }
+                    }
+                });
+            }
         } else {
             this.iconImage.removeAttribute('href');
+            this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
             this.iconImage.style.display = 'none';
             this.showFallbackIcon();
         }
