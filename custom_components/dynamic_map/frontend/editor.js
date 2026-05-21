@@ -19,7 +19,9 @@ const uiManager = new EditorUIManager(stateManager, engine);
 const interactionManager = new EditorInteractionManager(canvas, engine, stateManager);
 
 window.togglePreviewState = function(idx) {
-    return stateManager.togglePreviewState(idx);
+    const res = stateManager.togglePreviewState(idx);
+    window.previewStateIdx = res;
+    return res;
 };
 
 // Expose state for UI/draw

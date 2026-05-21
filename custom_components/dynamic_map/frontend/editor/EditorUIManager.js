@@ -450,6 +450,7 @@ export class EditorUIManager {
             if (!sc.config.states || this.state.previewStateIdx >= sc.config.states.length) {
                 this.state.previewStateIdx = -1;
             }
+            window.previewStateIdx = this.state.previewStateIdx;
             document.getElementById('scName').value = sc.name || '';
             document.getElementById('scEntity').value = sc.entity_id || '';
             document.getElementById('scType').value = sc.type || 'generic';

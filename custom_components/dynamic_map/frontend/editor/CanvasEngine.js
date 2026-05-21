@@ -270,8 +270,16 @@ export class CanvasEngine {
             if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
                 const st = sc.config.states[previewStateIdx];
                 if (st.color) color = st.color;
-                if (st.icon) icon = st.icon;
-                if (st.image) image = st.image;
+                if (st.image !== undefined && st.image !== '') {
+                    image = st.image;
+                    icon = '';
+                } else if (st.icon !== undefined && st.icon !== '') {
+                    icon = st.icon;
+                    image = '';
+                } else {
+                    if (st.icon) icon = st.icon;
+                    if (st.image) image = st.image;
+                }
             }
 
             const rx = 12 * scaleX;

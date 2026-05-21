@@ -78,8 +78,16 @@ export class GenericShortcut extends MapShortcut {
         
         if (this.activeState) {
             if (this.activeState.color) color = this.activeState.color;
-            if (this.activeState.icon) icon = this.activeState.icon;
-            if (this.activeState.image) image = this.activeState.image;
+            if (this.activeState.image !== undefined && this.activeState.image !== '') {
+                image = this.activeState.image;
+                icon = '';
+            } else if (this.activeState.icon !== undefined && this.activeState.icon !== '') {
+                icon = this.activeState.icon;
+                image = '';
+            } else {
+                if (this.activeState.icon) icon = this.activeState.icon;
+                if (this.activeState.image) image = this.activeState.image;
+            }
         }
         
         const finalImage = image || (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) ? icon : '');
