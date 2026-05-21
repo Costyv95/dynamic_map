@@ -203,7 +203,48 @@ export class EditorUIManager {
             });
         };
         bindScProp('scShape', 'shape');
-        bindScProp('scColor', 'color');
+        // Sync scColor and scColorText
+        const scColorInput = document.getElementById('scColor');
+        const scColorText = document.getElementById('scColorText');
+        if (scColorInput && scColorText) {
+            const syncScColor = (val) => {
+                scColorInput.value = val;
+                scColorText.value = val;
+                localStorage.setItem('lastShortcutColor', val);
+                if (this.state.selectedShortcutIdx !== -1) {
+                    const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+                    if (!sc.config) sc.config = {};
+                    sc.config.color = val;
+                }
+                this.state.requestDrawCallback();
+            };
+            scColorInput.addEventListener('input', (e) => syncScColor(e.target.value));
+            scColorInput.addEventListener('change', (e) => {
+                syncScColor(e.target.value);
+                this.state.saveState();
+            });
+            scColorText.addEventListener('input', (e) => {
+                const val = e.target.value.trim();
+                if (/^#[0-9A-F]{6}$/i.test(val)) {
+                    syncScColor(val);
+                }
+            });
+            scColorText.addEventListener('change', (e) => {
+                let val = e.target.value.trim();
+                if (/^[0-9A-F]{6}$/i.test(val)) {
+                    val = '#' + val;
+                }
+                if (/^#[0-9A-F]{6}$/i.test(val)) {
+                    syncScColor(val);
+                    this.state.saveState();
+                } else {
+                    if (this.state.selectedShortcutIdx !== -1) {
+                        const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+                        scColorText.value = sc.config?.color || '#0ea5e9';
+                    }
+                }
+            });
+        }
         bindScProp('scIcon', 'icon');
         bindScProp('scImage', 'image');
         bindScProp('scHasBackground', 'transparent', true);
@@ -309,23 +350,44 @@ export class EditorUIManager {
         });
 
         // Room edits
+        // Sync roomColor and roomColorText
         const roomColorInput = document.getElementById('roomColor');
-        if (roomColorInput) {
-            roomColorInput.addEventListener('input', (e) => {
-                localStorage.setItem('lastRoomColor', e.target.value);
+        const roomColorText = document.getElementById('roomColorText');
+        if (roomColorInput && roomColorText) {
+            const syncRoomColor = (val) => {
+                roomColorInput.value = val;
+                roomColorText.value = val;
+                localStorage.setItem('lastRoomColor', val);
                 if (this.state.selectedRooms.length === 1) {
                     const room = this.state.rooms[this.state.selectedRooms[0]];
-                    room.color = e.target.value;
-                    this.state.requestDrawCallback();
+                    room.color = val;
+                }
+                this.state.requestDrawCallback();
+            };
+            roomColorInput.addEventListener('input', (e) => syncRoomColor(e.target.value));
+            roomColorInput.addEventListener('change', (e) => {
+                syncRoomColor(e.target.value);
+                this.state.saveState();
+            });
+            roomColorText.addEventListener('input', (e) => {
+                const val = e.target.value.trim();
+                if (/^#[0-9A-F]{6}$/i.test(val)) {
+                    syncRoomColor(val);
                 }
             });
-            roomColorInput.addEventListener('change', (e) => {
-                localStorage.setItem('lastRoomColor', e.target.value);
-                if (this.state.selectedRooms.length === 1) {
-                    const room = this.state.rooms[this.state.selectedRooms[0]];
-                    room.color = e.target.value;
+            roomColorText.addEventListener('change', (e) => {
+                let val = e.target.value.trim();
+                if (/^[0-9A-F]{6}$/i.test(val)) {
+                    val = '#' + val;
+                }
+                if (/^#[0-9A-F]{6}$/i.test(val)) {
+                    syncRoomColor(val);
                     this.state.saveState();
-                    this.state.requestDrawCallback();
+                } else {
+                    if (this.state.selectedRooms.length === 1) {
+                        const room = this.state.rooms[this.state.selectedRooms[0]];
+                        roomColorText.value = room.color || '#333333';
+                    }
                 }
             });
         }
@@ -463,7 +525,9 @@ export class EditorUIManager {
             scParentSelect.value = sc.parent || 'home';
 
             document.getElementById('scShape').value = sc.config?.shape || 'circle';
-            document.getElementById('scColor').value = sc.config?.color || '#0ea5e9';
+            const scColorVal = sc.config?.color || '#0ea5e9';
+            document.getElementById('scColor').value = scColorVal;
+            document.getElementById('scColorText').value = scColorVal;
             document.getElementById('scIcon').value = sc.config?.icon || '';
             document.getElementById('scImage').value = sc.config?.image || '';
             document.getElementById('scHasBackground').checked = !(sc.config?.transparent);
@@ -482,7 +546,9 @@ export class EditorUIManager {
             document.getElementById('roomName').value = room.name || '';
             document.getElementById('roomArea').value = room.area_id || '';
             document.getElementById('roomEntity').value = room.entity_id || '';
-            document.getElementById('roomColor').value = room.color || '#333333';
+            const roomColorVal = room.color || '#333333';
+            document.getElementById('roomColor').value = roomColorVal;
+            document.getElementById('roomColorText').value = roomColorVal;
         } else if (this.state.selectedRooms.length === 2) {
             document.getElementById('mergeUI').style.display = 'block';
         }

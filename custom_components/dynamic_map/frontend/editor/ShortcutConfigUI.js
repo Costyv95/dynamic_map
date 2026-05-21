@@ -202,7 +202,10 @@ export function renderActionsAndStates(sc, onStateChange) {
                     <input type="text" class="st-val" value="${st.value || ''}" placeholder="Value" style="flex: 2; margin: 0; padding: 4px;">
                 </div>
                 <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 5px;">
-                    <input type="color" class="st-color" value="${st.color || '#ffffff'}" style="width: 30px; height: 24px; padding: 0; margin: 0; border: none;">
+                    <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+                        <input type="color" class="st-color" value="${st.color || '#ffffff'}" style="width: 30px; height: 28px; padding: 0; border: 1px solid var(--input-border); border-radius: 4px; cursor: pointer; flex-shrink: 0;">
+                        <input type="text" class="st-color-text" value="${st.color || '#ffffff'}" style="flex: 1; min-width: 0; margin: 0; padding: 4px; font-size: 12px; font-family: monospace;" placeholder="#ffffff">
+                    </div>
                     <input type="text" class="st-icon" list="iconList" value="${st.icon || ''}" placeholder="Icon/Emoji" style="flex: 1; margin: 0; padding: 4px;">
                 </div>
                 <input type="text" class="st-image" list="iconList" value="${st.image || ''}" placeholder="Image URL (e.g. /local/img.png)" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
@@ -260,28 +263,59 @@ export function renderActionsAndStates(sc, onStateChange) {
             }
         });
 
+        // Bind explicit sync logic for state color swatches and text inputs
+        const stColorInput = div.querySelector('.st-color');
+        const stColorText = div.querySelector('.st-color-text');
+        if (stColorInput && stColorText) {
+            const syncStColor = (val) => {
+                stColorInput.value = val;
+                stColorText.value = val;
+                localStorage.setItem('lastStateColor', val);
+                st.color = val;
+                if (onStateChange) onStateChange(false);
+            };
+            stColorInput.addEventListener('input', (e) => syncStColor(e.target.value));
+            stColorInput.addEventListener('change', (e) => {
+                syncStColor(e.target.value);
+                if (onStateChange) onStateChange(true);
+            });
+            stColorText.addEventListener('input', (e) => {
+                const val = e.target.value.trim();
+                if (/^#[0-9A-F]{6}$/i.test(val)) {
+                    syncStColor(val);
+                }
+            });
+            stColorText.addEventListener('change', (e) => {
+                let val = e.target.value.trim();
+                if (/^[0-9A-F]{6}$/i.test(val)) {
+                    val = '#' + val;
+                }
+                if (/^#[0-9A-F]{6}$/i.test(val)) {
+                    syncStColor(val);
+                    if (onStateChange) onStateChange(true);
+                } else {
+                    stColorText.value = st.color || '#ffffff';
+                }
+            });
+        }
+
+        // Generic inputs (excluding the color swatch and text hex input)
         div.querySelectorAll('.st-body input, .st-body select').forEach(el => {
+            if (el.classList.contains('st-color') || el.classList.contains('st-color-text')) return;
             const updateStateObj = () => {
                 st.name = div.querySelector('.st-name').value;
                 st.state_entity = div.querySelector('.st-entity').value;
                 st.operator = div.querySelector('.st-op').value;
                 st.value = div.querySelector('.st-val').value;
-                st.color = div.querySelector('.st-color').value;
                 st.icon = div.querySelector('.st-icon').value;
                 st.image = div.querySelector('.st-image').value;
             };
             el.addEventListener('input', () => {
                 updateStateObj();
-                if (el.classList.contains('st-color')) {
-                    localStorage.setItem('lastStateColor', el.value);
-                }
                 if (onStateChange) onStateChange(false);
             });
             el.addEventListener('change', () => {
                 updateStateObj();
-                if (el.classList.contains('st-color')) {
-                    localStorage.setItem('lastStateColor', el.value);
-                }
                 if (onStateChange) onStateChange(true);
             });
         });
