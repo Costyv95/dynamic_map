@@ -17,6 +17,17 @@ export class CanvasEngine {
         this.animationFrameId = null;
     }
 
+    /**
+     * Returns safe pixel dimensions for a background image, preferring
+     * naturalWidth/naturalHeight (which are always accurate for loaded images)
+     * over the DOM-layout .width/.height (which can be 0 in iframe/shadow-DOM contexts).
+     */
+    static safeDimensions(bgImage) {
+        const bgW = bgImage.naturalWidth || bgImage.width || 1;
+        const bgH = bgImage.naturalHeight || bgImage.height || 1;
+        return { bgW, bgH };
+    }
+
     resizeCanvas(state) {
         const container = this.canvas.parentElement || document.getElementById('canvas-container');
         if (container) {
@@ -51,11 +62,12 @@ export class CanvasEngine {
         }
 
         const { minPctX, maxPctX, minPctY, maxPctY } = this.cachedBounds;
+        const { bgW, bgH } = CanvasEngine.safeDimensions(bgImage);
 
-        const minX = (minPctX / 100) * bgImage.width;
-        const maxX = (maxPctX / 100) * bgImage.width;
-        const minY = (minPctY / 100) * bgImage.height;
-        const maxY = (maxPctY / 100) * bgImage.height;
+        const minX = (minPctX / 100) * bgW;
+        const maxX = (maxPctX / 100) * bgW;
+        const minY = (minPctY / 100) * bgH;
+        const maxY = (maxPctY / 100) * bgH;
         
         const w = maxX - minX;
         const h = maxY - minY;
@@ -172,11 +184,12 @@ export class CanvasEngine {
 
         this.resizeCanvas(state);
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        const { bgW, bgH } = CanvasEngine.safeDimensions(bgImage);
         
         const dpr = window.devicePixelRatio || 1;
         this.ctx.save();
         this.ctx.setTransform(new DOMMatrix().scale(dpr).multiply(this.viewTransform));
-        this.ctx.drawImage(bgImage, 0, 0);
+        this.ctx.drawImage(bgImage, 0, 0, bgW, bgH);
         
         const time = Date.now();
         const borderPulse = 6 + Math.sin(time / 200) * 3;
@@ -185,8 +198,8 @@ export class CanvasEngine {
         rooms.forEach((room, idx) => {
             this.ctx.beginPath();
             room.polygon.forEach((pt, i) => {
-                const x = (pt[0] / 100) * bgImage.width;
-                const y = (pt[1] / 100) * bgImage.height;
+                const x = (pt[0] / 100) * bgW;
+                const y = (pt[1] / 100) * bgH;
                 if(i === 0) this.ctx.moveTo(x, y);
                 else this.ctx.lineTo(x, y);
             });
@@ -223,8 +236,8 @@ export class CanvasEngine {
 
             if(room.name) {
                 const center = MapGeometry.getPolygonCenter(room.polygon);
-                const textX = (center[0]/100)*bgImage.width;
-                const textY = (center[1]/100)*bgImage.height;
+                const textX = (center[0]/100)*bgW;
+                const textY = (center[1]/100)*bgH;
                 
                 this.ctx.save();
                 const pt = new DOMPoint(textX, textY).matrixTransform(this.viewTransform);
@@ -256,8 +269,8 @@ export class CanvasEngine {
         }
 
         shortcuts.forEach((sc, idx) => {
-            const x = (sc.position[0] / 100) * bgImage.width;
-            const y = (sc.position[1] / 100) * bgImage.height;
+            const x = (sc.position[0] / 100) * bgW;
+            const y = (sc.position[1] / 100) * bgH;
             const scaleX = sc.scaleX || sc.scale || 1;
             const scaleY = sc.scaleY || sc.scale || 1;
             

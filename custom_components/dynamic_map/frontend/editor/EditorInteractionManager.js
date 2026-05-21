@@ -1,4 +1,5 @@
 import { MapGeometry } from '../shared/MapGeometry.js';
+import { CanvasEngine } from './CanvasEngine.js';
 
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {
@@ -69,7 +70,8 @@ export class EditorInteractionManager {
             this.interactionState = 'DRAW_POLY';
             const wp = this.getMousePos(e);
             if (!this.drawingPolygon) this.drawingPolygon = [];
-            this.drawingPolygon.push([(wp.x / this.state.bgImage.width)*100, (wp.y / this.state.bgImage.height)*100]);
+            const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+            this.drawingPolygon.push([(wp.x / bgW)*100, (wp.y / bgH)*100]);
             this.state.requestDrawCallback();
             return;
         }
@@ -79,11 +81,13 @@ export class EditorInteractionManager {
         this.isDragging = false;
         this.resizeHandle = null;
 
+        const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+
         // Check Resize Handles
         if (this.state.selectedShortcutIdx !== -1 && this.state.shortcuts[this.state.selectedShortcutIdx]) {
             const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
-            const scX = (sc.position[0]/100)*this.state.bgImage.width;
-            const scY = (sc.position[1]/100)*this.state.bgImage.height;
+            const scX = (sc.position[0]/100)*bgW;
+            const scY = (sc.position[1]/100)*bgH;
             const rx = 12 * (sc.scaleX || sc.scale || 1);
             const ry = 12 * (sc.scaleY || sc.scale || 1);
             const currentScale = Math.hypot(this.engine.viewTransform.a, this.engine.viewTransform.b);
@@ -104,8 +108,8 @@ export class EditorInteractionManager {
         let overScIdx = -1;
         for (let i = this.state.shortcuts.length - 1; i >= 0; i--) {
             const sc = this.state.shortcuts[i];
-            const scX = (sc.position[0]/100)*this.state.bgImage.width;
-            const scY = (sc.position[1]/100)*this.state.bgImage.height;
+            const scX = (sc.position[0]/100)*bgW;
+            const scY = (sc.position[1]/100)*bgH;
             const rx = 12 * (sc.scaleX || sc.scale || 1);
             const ry = 12 * (sc.scaleY || sc.scale || 1);
             
@@ -168,11 +172,12 @@ export class EditorInteractionManager {
             const worldPos = this.getMousePos(e);
             let cursorStyle = 'default';
             let overShortcut = false;
+            const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
 
             if (this.state.selectedShortcutIdx !== -1) {
                 const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
-                const scX = (sc.position[0]/100)*this.state.bgImage.width;
-                const scY = (sc.position[1]/100)*this.state.bgImage.height;
+                const scX = (sc.position[0]/100)*bgW;
+                const scY = (sc.position[1]/100)*bgH;
                 const rx = 12 * (sc.scaleX || sc.scale || 1);
                 const ry = 12 * (sc.scaleY || sc.scale || 1);
                 const currentScale = Math.hypot(this.engine.viewTransform.a, this.engine.viewTransform.b);
@@ -194,8 +199,8 @@ export class EditorInteractionManager {
             if (cursorStyle === 'default') {
                 for (let i = this.state.shortcuts.length - 1; i >= 0; i--) {
                     const sc = this.state.shortcuts[i];
-                    const scX = (sc.position[0]/100)*this.state.bgImage.width;
-                    const scY = (sc.position[1]/100)*this.state.bgImage.height;
+                    const scX = (sc.position[0]/100)*bgW;
+                    const scY = (sc.position[1]/100)*bgH;
                     const rx = 12 * (sc.scaleX || sc.scale || 1);
                     const ry = 12 * (sc.scaleY || sc.scale || 1);
                     
@@ -227,7 +232,8 @@ export class EditorInteractionManager {
         if (this.interactionState === 'DRAG_SC') {
             this.isDragging = true;
             const worldPos = this.getMousePos(e);
-            this.state.shortcuts[this.state.selectedShortcutIdx].position = [(worldPos.x / this.state.bgImage.width)*100, (worldPos.y / this.state.bgImage.height)*100];
+            const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+            this.state.shortcuts[this.state.selectedShortcutIdx].position = [(worldPos.x / bgW)*100, (worldPos.y / bgH)*100];
             this.state.requestDrawCallback();
             return;
         }
@@ -236,8 +242,9 @@ export class EditorInteractionManager {
             this.isDragging = true;
             const worldPos = this.getMousePos(e);
             const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
-            const scX = (sc.position[0]/100)*this.state.bgImage.width;
-            const scY = (sc.position[1]/100)*this.state.bgImage.height;
+            const { bgW: sBgW, bgH: sBgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+            const scX = (sc.position[0]/100)*sBgW;
+            const scY = (sc.position[1]/100)*sBgH;
             
             const dx = Math.abs(worldPos.x - scX);
             const dy = Math.abs(worldPos.y - scY);
@@ -313,7 +320,8 @@ export class EditorInteractionManager {
 
         if (this.interactionState === 'MAYBE_PAN' && !this.isDragging) {
             const worldPos = this.getMousePos(e);
-            const pctPos = [(worldPos.x / this.state.bgImage.width)*100, (worldPos.y / this.state.bgImage.height)*100];
+            const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+            const pctPos = [(worldPos.x / bgW)*100, (worldPos.y / bgH)*100];
             
             let clickedIdx = -1;
             for(let i = 0; i < this.state.rooms.length; i++) {
@@ -364,7 +372,8 @@ export class EditorInteractionManager {
         if (!targetRoom || !window.PolyBool) return;
         
         // Convert pct points back to world points for slicing logic
-        const polyWorld = targetRoom.polygon.map(pt => [(pt[0]/100)*this.state.bgImage.width, (pt[1]/100)*this.state.bgImage.height]);
+        const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+        const polyWorld = targetRoom.polygon.map(pt => [(pt[0]/100)*bgW, (pt[1]/100)*bgH]);
         
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
@@ -394,7 +403,7 @@ export class EditorInteractionManager {
                 
                 const processRegion = (reg, partName) => {
                     if(MapGeometry.getPolygonArea(reg) > 2.0) {
-                        const pctReg = reg.map(pt => [(pt[0]/this.state.bgImage.width)*100, (pt[1]/this.state.bgImage.height)*100]);
+                        const pctReg = reg.map(pt => [(pt[0]/bgW)*100, (pt[1]/bgH)*100]);
                         const roomColor = targetRoom.color || localStorage.getItem('lastRoomColor') || '#333333';
                         this.state.rooms.push({
                             id: `room_${Date.now()}_${partName}`,

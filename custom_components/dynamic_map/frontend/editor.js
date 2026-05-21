@@ -1,8 +1,8 @@
-import { ApiManager } from './shared/ApiManager.js?v=2.68';
-import { CanvasEngine } from './editor/CanvasEngine.js?v=2.68';
-import { EditorStateManager } from './editor/EditorStateManager.js?v=2.68';
-import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=2.68';
-import { EditorUIManager } from './editor/EditorUIManager.js?v=2.68';
+import { ApiManager } from './shared/ApiManager.js?v=2.69';
+import { CanvasEngine } from './editor/CanvasEngine.js?v=2.69';
+import { EditorStateManager } from './editor/EditorStateManager.js?v=2.69';
+import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=2.69';
+import { EditorUIManager } from './editor/EditorUIManager.js?v=2.69';
 
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');
@@ -119,14 +119,24 @@ async function loadFloor(floorNum) {
     console.log(`[DynamicMapDebug] Setting up image handlers for: "${bgUrl}"`);
     
     stateManager.bgImage.onload = () => {
-        console.log(`[DynamicMapDebug] bgImage loaded successfully. Dimensions: ${stateManager.bgImage.naturalWidth}x${stateManager.bgImage.naturalHeight}`);
+        // Synchronize .width/.height from intrinsic dimensions.
+        // In iframe-sandboxed or shadow-DOM contexts, unattached Image elements
+        // may report .width/.height as 0 even after load completes.
+        // .naturalWidth/.naturalHeight always reflect the true pixel dimensions.
+        const nw = stateManager.bgImage.naturalWidth;
+        const nh = stateManager.bgImage.naturalHeight;
+        if (nw > 0) stateManager.bgImage.width = nw;
+        if (nh > 0) stateManager.bgImage.height = nh;
+        console.log(`[DynamicMapDebug] bgImage loaded successfully. Dimensions: ${nw}x${nh} (synced w=${stateManager.bgImage.width}, h=${stateManager.bgImage.height})`);
         imgLoaded = true;
         checkAutoCrop();
     };
     
     stateManager.bgImage.onerror = (err) => {
         console.error(`[DynamicMapDebug] bgImage FAILED to load. URL: "${bgUrl}"`, err);
-        // Force recovery: let editor render and log diagnostic output
+        // Assign safe recovery dimensions so the editor canvas remains usable
+        stateManager.bgImage.width = 1280;
+        stateManager.bgImage.height = 1920;
         imgLoaded = true;
         checkAutoCrop();
     };
