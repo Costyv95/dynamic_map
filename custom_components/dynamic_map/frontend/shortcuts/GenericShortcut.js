@@ -48,11 +48,6 @@ export class GenericShortcut extends MapShortcut {
         this.iconImage.setAttribute('y', -imgSize / 2);
         this.iconImage.style.pointerEvents = 'none';
         this.iconImage.style.display = 'none';
-        this.iconImage.addEventListener('load', () => {
-            this.iconImage.style.display = 'block';
-            this.iconText.textContent = '';
-            this.iconForeignObject.style.display = 'none';
-        });
         this.iconImage.addEventListener('error', (e) => {
             console.error(`[DynamicMap] SVG Image load error for: "${this.iconImage.getAttribute('href')}"`, e);
             this.iconImage.style.display = 'none';
@@ -114,11 +109,12 @@ export class GenericShortcut extends MapShortcut {
         this._currentFallbackIcon = fallbackIcon;
         
         if (finalImage) {
+            this.iconText.textContent = '';
+            this.iconForeignObject.style.display = 'none';
             if (this.iconImage.getAttribute('href') !== finalImage) {
-                this.iconImage.style.display = 'none';
                 this.iconImage.setAttribute('href', finalImage);
-                this.showFallbackIcon();
             }
+            this.iconImage.style.display = 'block';
         } else {
             this.iconImage.removeAttribute('href');
             this.iconImage.style.display = 'none';

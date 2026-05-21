@@ -361,7 +361,6 @@ export class CanvasEngine {
                     if (!sc._imgCache) sc._imgCache = {};
                     if (!sc._imgCache[finalImage]) {
                         const img = new Image();
-                        img.crossOrigin = 'anonymous';
                         img.onload = () => {
                             if (requestDraw) requestDraw();
                         };
