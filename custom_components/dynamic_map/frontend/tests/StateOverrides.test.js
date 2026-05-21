@@ -153,3 +153,136 @@ describe('State Overrides Priority', () => {
         expect(res.fallbackIcon).toBe('💡');
     });
 });
+
+import { GenericShortcut } from '../shortcuts/GenericShortcut.js';
+
+describe('GenericShortcut JSDOM Integration', () => {
+    let originalImage;
+    let mockImages;
+
+    beforeEach(() => {
+        originalImage = global.Image;
+        mockImages = [];
+        global.Image = class MockImage {
+            constructor() {
+                this.onload = null;
+                this.onerror = null;
+                this.src = '';
+                this.naturalWidth = 0;
+                this.naturalHeight = 0;
+                mockImages.push(this);
+            }
+        };
+    });
+
+    afterEach(() => {
+        global.Image = originalImage;
+    });
+
+    it('should initialize and handle preloader state transitions correctly', async () => {
+        const scData = {
+            id: 'lamp_shortcut',
+            entity_id: 'light.desk_lamp',
+            position: [50, 50],
+            config: {
+                states: [
+                    {
+                        id: 'st_1',
+                        name: 'On',
+                        state_entity: 'light.desk_lamp',
+                        operator: '==',
+                        value: 'on',
+                        color: '#facaca',
+                        image: '/local/icons/lamp-on.png'
+                    },
+                    {
+                        id: 'st_2',
+                        name: 'Off',
+                        state_entity: 'light.desk_lamp',
+                        operator: '==',
+                        value: 'off',
+                        color: '#a17070',
+                        image: '/local/icons/lamp-off.png'
+                    }
+                ]
+            }
+        };
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const mapContext = {
+            _hass: {},
+            imgW: 1000,
+            imgH: 1000
+        };
+
+        // Instantiate GenericShortcut
+        const shortcut = new GenericShortcut(scData, svgNS, 1000, 1000, mapContext);
+        
+        // Render SVG elements
+        shortcut.render();
+
+        // 1. Initial State: lamp is "off" (fallback icon should show while preloader runs)
+        const mockHass = {
+            states: {
+                'light.desk_lamp': { state: 'off' }
+            }
+        };
+
+        shortcut.updateState(mockHass);
+
+        // Verify shape color and fallback icon since preloader has not resolved
+        expect(shortcut.shape.getAttribute('fill')).toBe('#a17070');
+        expect(shortcut.iconImage.style.display).toBe('none');
+        expect(shortcut.iconText.textContent).toBe('💡'); // fallback icon
+
+        // Verify preloader created
+        expect(mockImages.length).toBe(1);
+        expect(mockImages[0].src).toBe('/local/icons/lamp-off.png');
+
+        // 2. Resolve the preloader for Off state
+        mockImages[0].naturalWidth = 120;
+        mockImages[0].naturalHeight = 120;
+        mockImages[0].onload();
+
+        // Wait for microtasks/promises to resolve
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        // Check if image display updated to block and received correct attributes
+        expect(shortcut.iconImage.style.display).toBe('block');
+        expect(shortcut.iconImage.getAttribute('href')).toBe('/local/icons/lamp-off.png');
+        expect(shortcut.iconImage.getAttributeNS('http://www.w3.org/1999/xlink', 'href')).toBe('/local/icons/lamp-off.png');
+        expect(shortcut.iconText.textContent).toBe('');
+
+        // 3. Switch to On state
+        const mockHassOn = {
+            states: {
+                'light.desk_lamp': { state: 'on' }
+            }
+        };
+
+        shortcut.updateState(mockHassOn);
+
+        // Assert color changed, but image hidden initially because preloader is loading
+        expect(shortcut.shape.getAttribute('fill')).toBe('#facaca');
+        expect(shortcut.iconImage.style.display).toBe('none');
+        expect(shortcut.iconText.textContent).toBe('💡');
+
+        // Second preloader should be created
+        expect(mockImages.length).toBe(2);
+        expect(mockImages[1].src).toBe('/local/icons/lamp-on.png');
+
+        // 4. Fail the preloader for On state (to test onerror fallback path)
+        mockImages[1].onerror(new Error('Network failure'));
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        // Assert SVG remains hidden and fallback icon is drawn
+        expect(shortcut.iconImage.style.display).toBe('none');
+        expect(shortcut.iconText.textContent).toBe('💡');
+
+        // 5. Subsequent updates when preloader already failed should load fallback immediately
+        shortcut.updateState(mockHassOn);
+        expect(shortcut.iconImage.style.display).toBe('none');
+        expect(shortcut.iconText.textContent).toBe('💡');
+    });
+});

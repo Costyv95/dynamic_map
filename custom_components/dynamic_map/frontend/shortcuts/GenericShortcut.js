@@ -78,6 +78,48 @@ export class GenericShortcut extends MapShortcut {
         
         const finalImage = image || (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) ? icon : '');
         
+        // Initialize global telemetry debugger
+        if (typeof window !== 'undefined') {
+            if (!window.dynamicMapDebug) {
+                window.dynamicMapDebug = {
+                    logs: [],
+                    shortcuts: {},
+                    log: function(msg, obj) {
+                        const entry = {
+                            timestamp: new Date().toISOString(),
+                            message: msg,
+                            data: obj ? JSON.parse(JSON.stringify(obj)) : null
+                        };
+                        this.logs.push(entry);
+                        if (this.logs.length > 500) this.logs.shift();
+                        console.log(`[DynamicMapDebug] ${msg}`, obj || '');
+                    }
+                };
+            }
+            window.dynamicMapDebug.shortcuts[this.sc.id || this.sc.entity_id || 'unknown'] = {
+                entity_id: this.sc.entity_id,
+                activeState: this.activeState ? {
+                    id: this.activeState.id,
+                    name: this.activeState.name,
+                    value: this.activeState.value,
+                    color: this.activeState.color,
+                    image: this.activeState.image,
+                    icon: this.activeState.icon
+                } : null,
+                color,
+                image,
+                icon,
+                finalImage,
+                preloaderState: null
+            };
+            window.dynamicMapDebug.log(`updateState evaluating for entity: ${this.sc.entity_id}`, {
+                state: this.sc.entity_id && hass.states[this.sc.entity_id] ? hass.states[this.sc.entity_id].state : 'unknown',
+                activeStateId: this.activeState ? this.activeState.id : 'none',
+                color,
+                finalImage
+            });
+        }
+
         let changed = false;
         if (this._lastColor !== color) { this._lastColor = color; changed = true; }
         if (this._lastIcon !== icon) { this._lastIcon = icon; changed = true; }
@@ -108,17 +150,33 @@ export class GenericShortcut extends MapShortcut {
             
             let preloader = this._imgPreloaders[finalImage];
             if (!preloader) {
+                if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                    window.dynamicMapDebug.log(`Creating preloader for: "${finalImage}"`, { entity: this.sc.entity_id });
+                }
+                const img = new Image();
                 preloader = {
                     loaded: false,
                     error: false,
+                    img: img, // Pin Image object to prevent Garbage Collection!
                     promise: new Promise((resolve) => {
-                        const img = new Image();
                         img.onload = () => {
+                            const dims = { w: img.naturalWidth, h: img.naturalHeight };
+                            if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                                window.dynamicMapDebug.log(`Preloader LOADED successfully: "${finalImage}"`, {
+                                    entity: this.sc.entity_id,
+                                    dimensions: dims
+                                });
+                            }
                             preloader.loaded = true;
                             resolve(true);
                         };
                         img.onerror = (err) => {
-                            console.error(`[DynamicMap] GenericShortcut preloader failed for: "${finalImage}"`, err);
+                            if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                                window.dynamicMapDebug.log(`Preloader FAILED for: "${finalImage}"`, {
+                                    entity: this.sc.entity_id,
+                                    error: err ? err.message || String(err) : 'Unknown error'
+                                });
+                            }
                             preloader.error = true;
                             resolve(false);
                         };
@@ -128,7 +186,18 @@ export class GenericShortcut extends MapShortcut {
                 this._imgPreloaders[finalImage] = preloader;
             }
 
+            // Sync shortcut status in debug map
+            if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                window.dynamicMapDebug.shortcuts[this.sc.id || this.sc.entity_id || 'unknown'].preloaderState = {
+                    loaded: preloader.loaded,
+                    error: preloader.error
+                };
+            }
+
             if (preloader.loaded) {
+                if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                    window.dynamicMapDebug.log(`Preloader already loaded for: "${finalImage}". Drawing immediately.`, { entity: this.sc.entity_id });
+                }
                 this.iconText.textContent = '';
                 this.iconForeignObject.style.display = 'none';
                 if (this.iconImage.getAttribute('href') !== finalImage) {
@@ -137,35 +206,62 @@ export class GenericShortcut extends MapShortcut {
                 }
                 this.iconImage.style.display = 'block';
             } else if (preloader.error) {
+                if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                    window.dynamicMapDebug.log(`Preloader previously failed for: "${finalImage}". Drawing fallback.`, { entity: this.sc.entity_id });
+                }
                 this.iconImage.removeAttribute('href');
                 this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
                 this.iconImage.style.display = 'none';
                 this.showFallbackIcon();
             } else {
-                // Render fallback active placeholder while loading
+                if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                    window.dynamicMapDebug.log(`Preloader is currently loading for: "${finalImage}". Drawing fallback placeholder.`, { entity: this.sc.entity_id });
+                }
                 this.iconImage.removeAttribute('href');
                 this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
                 this.iconImage.style.display = 'none';
                 this.showFallbackIcon();
                 
                 preloader.promise.then((success) => {
+                    if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                        window.dynamicMapDebug.log(`Preloader promise resolved for: "${finalImage}" (success: ${success})`, { entity: this.sc.entity_id });
+                        if (window.dynamicMapDebug.shortcuts[this.sc.id || this.sc.entity_id || 'unknown']) {
+                            window.dynamicMapDebug.shortcuts[this.sc.id || this.sc.entity_id || 'unknown'].preloaderState = {
+                                loaded: preloader.loaded,
+                                error: preloader.error
+                            };
+                        }
+                    }
                     if (this._lastImage === finalImage) {
                         if (success) {
+                            if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                                window.dynamicMapDebug.log(`Applying loaded image to SVG for: "${finalImage}"`, { entity: this.sc.entity_id });
+                            }
                             this.iconText.textContent = '';
                             this.iconForeignObject.style.display = 'none';
                             this.iconImage.setAttribute('href', finalImage);
                             this.iconImage.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', finalImage);
                             this.iconImage.style.display = 'block';
                         } else {
+                            if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                                window.dynamicMapDebug.log(`Applying fallback to SVG due to preloader failure for: "${finalImage}"`, { entity: this.sc.entity_id });
+                            }
                             this.iconImage.removeAttribute('href');
                             this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
                             this.iconImage.style.display = 'none';
                             this.showFallbackIcon();
                         }
+                    } else {
+                        if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                            window.dynamicMapDebug.log(`Active image has changed from "${finalImage}" to "${this._lastImage}". Skipping preloader resolve.`, { entity: this.sc.entity_id });
+                        }
                     }
                 });
             }
         } else {
+            if (typeof window !== 'undefined' && window.dynamicMapDebug) {
+                window.dynamicMapDebug.log(`No image to load for "${this.sc.entity_id}". Showing fallback icon: "${fallbackIcon}"`, { entity: this.sc.entity_id });
+            }
             this.iconImage.removeAttribute('href');
             this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
             this.iconImage.style.display = 'none';
