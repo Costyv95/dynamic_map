@@ -299,7 +299,7 @@ export class CanvasEngine {
             } else {
                 this.ctx.fillStyle = isTrans ? 'rgba(0,0,0,0)' : color;
                 this.ctx.shadowBlur = 0;
-                this.ctx.strokeStyle = 'white';
+                this.ctx.strokeStyle = isTrans ? 'rgba(0,0,0,0)' : 'white';
                 this.ctx.lineWidth = 2;
             }
             this.ctx.fill();
@@ -413,7 +413,7 @@ export class CanvasEngine {
                         this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                         this.ctx.textBaseline = 'middle';
                         this.ctx.textAlign = 'center';
-                        this.ctx.fillStyle = 'white';
+                        this.ctx.fillStyle = isTrans ? color : 'white';
                         this.ctx.fillText(fallbackIcon, 0, 0);
                     }
                 } else {
@@ -423,7 +423,7 @@ export class CanvasEngine {
                     this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                     this.ctx.textBaseline = 'middle';
                     this.ctx.textAlign = 'center';
-                    this.ctx.fillStyle = 'white';
+                    this.ctx.fillStyle = isTrans ? color : 'white';
                     this.ctx.fillText(fallbackIcon, 0, 0);
                 }
                 this.ctx.restore();

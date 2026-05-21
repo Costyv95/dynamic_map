@@ -160,6 +160,7 @@ export class GenericShortcut extends MapShortcut {
         if (this._lastColor !== color) { this._lastColor = color; changed = true; }
         if (this._lastIcon !== icon) { this._lastIcon = icon; changed = true; }
         if (this._lastImage !== finalImage) { this._lastImage = finalImage; changed = true; }
+        if (this._lastTransparent !== !!this.config.transparent) { this._lastTransparent = !!this.config.transparent; changed = true; }
         
         if (!changed && this._initialized) {
             const status = this._imgStatusCache && this._imgStatusCache[finalImage];
@@ -172,8 +173,14 @@ export class GenericShortcut extends MapShortcut {
 
         if (!this.config.transparent) {
             this.shape.setAttribute('fill', color);
+            this.shape.setAttribute('stroke', 'white');
+            this.iconText.setAttribute('fill', 'white');
+            this.haIcon.style.color = 'white';
         } else {
             this.shape.setAttribute('fill', 'rgba(0,0,0,0)');
+            this.shape.setAttribute('stroke', 'rgba(0,0,0,0)');
+            this.iconText.setAttribute('fill', color);
+            this.haIcon.style.color = color;
         }
         
         const isUrlFn = (str) => str && (str.startsWith('http') || str.startsWith('/') || str.endsWith('.png') || str.endsWith('.svg') || str.endsWith('.jpg') || str.endsWith('.webp'));

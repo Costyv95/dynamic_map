@@ -281,4 +281,49 @@ describe('GenericShortcut JSDOM Integration', () => {
             Date.now = originalDateNow;
         }
     });
+
+    it('should render correct fill, stroke, and fallback color when transparent is enabled/disabled', async () => {
+        const scData = {
+            id: 'lamp_shortcut_trans',
+            entity_id: 'light.desk_lamp_trans',
+            position: [50, 50],
+            config: {
+                color: '#facaca',
+                icon: '💡',
+                transparent: true
+            }
+        };
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const mapContext = {
+            _hass: {},
+            imgW: 1000,
+            imgH: 1000
+        };
+
+        const shortcut = new GenericShortcut(scData, svgNS, 1000, 1000, mapContext);
+        shortcut.render();
+
+        const mockHass = {
+            states: {
+                'light.desk_lamp_trans': { state: 'off' }
+            }
+        };
+
+        // 1. With transparent = true
+        shortcut.updateState(mockHass);
+        expect(shortcut.shape.getAttribute('fill')).toBe('rgba(0,0,0,0)');
+        expect(shortcut.shape.getAttribute('stroke')).toBe('rgba(0,0,0,0)');
+        expect(shortcut.iconText.getAttribute('fill')).toBe('#facaca');
+        expect(['rgb(250, 202, 202)', '#facaca']).toContain(shortcut.haIcon.style.color);
+
+        // 2. With transparent = false
+        shortcut.config.transparent = false;
+        shortcut.updateState(mockHass);
+        expect(shortcut.shape.getAttribute('fill')).toBe('#facaca');
+        expect(shortcut.shape.getAttribute('stroke')).toBe('white');
+        expect(shortcut.iconText.getAttribute('fill')).toBe('white');
+        expect(shortcut.haIcon.style.color).toBe('white');
+    });
 });
+
