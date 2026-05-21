@@ -162,7 +162,8 @@ export class CanvasEngine {
     draw(state) {
         const {
             bgImage, rooms, selectedRooms, isSplitting, splitStart, splitEnd,
-            shortcuts, selectedShortcutIdx, previewStateIdx, isTransitioning
+            shortcuts, selectedShortcutIdx, previewStateIdx, isTransitioning,
+            requestDraw
         } = state;
 
         if(!bgImage.complete || isTransitioning) {
@@ -341,6 +342,9 @@ export class CanvasEngine {
                     if (!sc._imgCache) sc._imgCache = {};
                     if (!sc._imgCache[finalImage]) {
                         const img = new Image();
+                        img.onload = () => {
+                            if (requestDraw) requestDraw();
+                        };
                         img.src = finalImage;
                         sc._imgCache[finalImage] = img;
                     }

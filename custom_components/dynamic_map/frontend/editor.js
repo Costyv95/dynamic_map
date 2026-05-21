@@ -34,7 +34,8 @@ function draw() {
         shortcuts: stateManager.shortcuts,
         selectedShortcutIdx: stateManager.selectedShortcutIdx,
         previewStateIdx: stateManager.previewStateIdx,
-        isTransitioning: stateManager.isTransitioning
+        isTransitioning: stateManager.isTransitioning,
+        requestDraw: () => draw()
     });
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
     animationFrameId = requestAnimationFrame(draw);

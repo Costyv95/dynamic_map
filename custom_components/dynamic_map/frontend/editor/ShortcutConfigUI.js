@@ -107,7 +107,7 @@ export function renderActionsAndStates(sc, onStateChange) {
         });
 
         div.querySelectorAll('.act-body input, .act-body select').forEach(el => {
-            el.addEventListener('change', () => {
+            const updateActionObj = () => {
                 act.name = div.querySelector('.act-name').value;
                 act.trigger = div.querySelector('.act-trigger').value;
                 act.type = div.querySelector('.act-type').value;
@@ -124,7 +124,14 @@ export function renderActionsAndStates(sc, onStateChange) {
                     const symm = div.querySelector('.act-symmetric');
                     if (symm) act.symmetric_scale = symm.checked;
                 }
-                if (onStateChange) onStateChange();
+            };
+            el.addEventListener('input', () => {
+                updateActionObj();
+                if (onStateChange) onStateChange(false);
+            });
+            el.addEventListener('change', () => {
+                updateActionObj();
+                if (onStateChange) onStateChange(true);
             });
         });
         div.querySelector('.del-act').addEventListener('click', () => {
@@ -254,7 +261,7 @@ export function renderActionsAndStates(sc, onStateChange) {
         });
 
         div.querySelectorAll('.st-body input, .st-body select').forEach(el => {
-            el.addEventListener('change', () => {
+            const updateStateObj = () => {
                 st.name = div.querySelector('.st-name').value;
                 st.state_entity = div.querySelector('.st-entity').value;
                 st.operator = div.querySelector('.st-op').value;
@@ -262,11 +269,26 @@ export function renderActionsAndStates(sc, onStateChange) {
                 st.color = div.querySelector('.st-color').value;
                 st.icon = div.querySelector('.st-icon').value;
                 st.image = div.querySelector('.st-image').value;
+            };
+            el.addEventListener('input', () => {
+                updateStateObj();
+                if (el.classList.contains('st-color')) {
+                    localStorage.setItem('lastStateColor', el.value);
+                }
+                if (onStateChange) onStateChange(false);
+            });
+            el.addEventListener('change', () => {
+                updateStateObj();
+                if (el.classList.contains('st-color')) {
+                    localStorage.setItem('lastStateColor', el.value);
+                }
+                if (onStateChange) onStateChange(true);
             });
         });
         div.querySelector('.del-st').addEventListener('click', () => {
             sc.config.states.splice(idx, 1);
-            if (onStateChange) onStateChange();
+            if (onStateChange) onStateChange(true);
+            renderActionsAndStates(sc, onStateChange);
         });
     });
 }

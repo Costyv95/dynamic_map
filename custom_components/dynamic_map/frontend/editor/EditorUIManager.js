@@ -10,6 +10,13 @@ export class EditorUIManager {
         this.bindEvents();
     }
 
+    handleShortcutChange(isFinalChange = true) {
+        if (isFinalChange) {
+            this.state.saveState();
+        }
+        this.state.requestDrawCallback();
+    }
+
     bindEvents() {
         // Toggle Build Mode
         document.getElementById('buildModeToggle').addEventListener('change', (e) => {
@@ -18,12 +25,13 @@ export class EditorUIManager {
 
         // Add Shortcut Object
         document.getElementById('addShortcutBtn').addEventListener('click', () => {
+            const defaultColor = localStorage.getItem('lastShortcutColor') || '#0ea5e9';
             this.state.shortcuts.push({
                 id: `sc_${Date.now()}`,
                 name: 'New Shortcut',
                 type: 'generic',
                 position: [50, 50],
-                config: { shape: 'circle', color: '#0ea5e9' }
+                config: { shape: 'circle', color: defaultColor }
             });
             this.state.selectedShortcutIdx = this.state.shortcuts.length - 1;
             this.state.selectedRooms = [];
@@ -69,9 +77,13 @@ export class EditorUIManager {
         document.getElementById('scName').addEventListener('input', (e) => {
             if(this.state.selectedShortcutIdx !== -1) {
                 this.state.shortcuts[this.state.selectedShortcutIdx].name = e.target.value;
+                this.state.requestDrawCallback();
             }
         });
-        document.getElementById('scName').addEventListener('change', () => this.state.saveState());
+        document.getElementById('scName').addEventListener('change', () => {
+            this.state.saveState();
+            this.state.requestDrawCallback();
+        });
 
         let oldEntityId = '';
         document.getElementById('scEntity').addEventListener('focus', (e) => {
@@ -99,12 +111,16 @@ export class EditorUIManager {
                             }
                         });
                     }
-                    renderActionsAndStates(sc, () => renderActionsAndStates(sc, () => {}));
+                    renderActionsAndStates(sc, (final) => this.handleShortcutChange(final));
                 }
                 oldEntityId = newEntityId;
+                this.state.requestDrawCallback();
             }
         });
-        document.getElementById('scEntity').addEventListener('change', () => this.state.saveState());
+        document.getElementById('scEntity').addEventListener('change', () => {
+            this.state.saveState();
+            this.state.requestDrawCallback();
+        });
         
         document.getElementById('scParent').addEventListener('change', (e) => {
             if(this.state.selectedShortcutIdx !== -1) {
@@ -157,15 +173,33 @@ export class EditorUIManager {
 
         // Shortcut properties
         const bindScProp = (id, prop, isCheckbox = false) => {
-            document.getElementById(id).addEventListener('change', (e) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            const updateVal = (e) => {
                 if(this.state.selectedShortcutIdx !== -1) {
                     const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
                     if (!sc.config) sc.config = {};
                     if (isCheckbox) sc.config[prop] = !e.target.checked;
                     else sc.config[prop] = e.target.value;
-                    this.state.saveState();
-                    this.state.requestDrawCallback();
                 }
+            };
+
+            el.addEventListener('input', (e) => {
+                updateVal(e);
+                if (id === 'scColor') {
+                    localStorage.setItem('lastShortcutColor', e.target.value);
+                }
+                this.state.requestDrawCallback();
+            });
+
+            el.addEventListener('change', (e) => {
+                updateVal(e);
+                if (id === 'scColor') {
+                    localStorage.setItem('lastShortcutColor', e.target.value);
+                }
+                this.state.saveState();
+                this.state.requestDrawCallback();
             });
         };
         bindScProp('scShape', 'shape');
@@ -220,7 +254,7 @@ export class EditorUIManager {
                     _expanded: true
                 });
                 this.state.saveState();
-                renderActionsAndStates(sc, () => {});
+                renderActionsAndStates(sc, (final) => this.handleShortcutChange(final));
             }
         });
 
@@ -228,18 +262,19 @@ export class EditorUIManager {
             if(this.state.selectedShortcutIdx !== -1) {
                 const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
                 if (!sc.config.states) sc.config.states = [];
+                const defaultStateColor = localStorage.getItem('lastStateColor') || '#ffffff';
                 sc.config.states.push({
                     id: `st_${Date.now()}`,
                     name: 'New State',
                     state_entity: sc.entity_id || '',
                     operator: '==',
                     value: '',
-                    color: '#ffffff',
+                    color: defaultStateColor,
                     icon: '',
                     _expanded: true
                 });
                 this.state.saveState();
-                renderActionsAndStates(sc, () => {});
+                renderActionsAndStates(sc, (final) => this.handleShortcutChange(final));
             }
         });
 
@@ -274,6 +309,27 @@ export class EditorUIManager {
         });
 
         // Room edits
+        const roomColorInput = document.getElementById('roomColor');
+        if (roomColorInput) {
+            roomColorInput.addEventListener('input', (e) => {
+                localStorage.setItem('lastRoomColor', e.target.value);
+                if (this.state.selectedRooms.length === 1) {
+                    const room = this.state.rooms[this.state.selectedRooms[0]];
+                    room.color = e.target.value;
+                    this.state.requestDrawCallback();
+                }
+            });
+            roomColorInput.addEventListener('change', (e) => {
+                localStorage.setItem('lastRoomColor', e.target.value);
+                if (this.state.selectedRooms.length === 1) {
+                    const room = this.state.rooms[this.state.selectedRooms[0]];
+                    room.color = e.target.value;
+                    this.state.saveState();
+                    this.state.requestDrawCallback();
+                }
+            });
+        }
+
         document.getElementById('saveNameBtn').addEventListener('click', () => this.saveRoomName());
         document.getElementById('deleteBtn').addEventListener('click', () => {
             if(this.state.selectedRooms.length === 1) {
@@ -319,7 +375,7 @@ export class EditorUIManager {
                 let roomsFound = await ApiManager.fetchVacuumRooms(entityId);
                 this.state.lastFetchedVacuumOptions = roomsFound;
                 if (this.state.selectedShortcutIdx !== -1) {
-                    renderVacuumRoomMapping(this.state.shortcuts[this.state.selectedShortcutIdx], this.state.rooms, this.state.lastFetchedVacuumOptions, () => renderActionsAndStates(this.state.shortcuts[this.state.selectedShortcutIdx], () => {}));
+                    renderVacuumRoomMapping(this.state.shortcuts[this.state.selectedShortcutIdx], this.state.rooms, this.state.lastFetchedVacuumOptions, (final) => this.handleShortcutChange(final));
                 }
                 btn.textContent = "Success!";
             } catch (e) {
@@ -414,11 +470,11 @@ export class EditorUIManager {
             if (sc.type === 'vacuum') {
                 document.getElementById('vacuumOptions').style.display = 'block';
                 document.getElementById('vacuumRoomSensor').value = sc.config?.room_sensor || '';
-                renderVacuumRoomMapping(sc, this.state.rooms, this.state.lastFetchedVacuumOptions, () => renderActionsAndStates(sc, () => {}));
+                renderVacuumRoomMapping(sc, this.state.rooms, this.state.lastFetchedVacuumOptions, (final) => this.handleShortcutChange(final));
             } else {
                 document.getElementById('vacuumOptions').style.display = 'none';
             }
-            renderActionsAndStates(sc, () => {});
+            renderActionsAndStates(sc, (final) => this.handleShortcutChange(final));
         } else if (this.state.selectedRooms.length === 1) {
             this.activeRoomUI.style.display = 'block';
             const room = this.state.rooms[this.state.selectedRooms[0]];

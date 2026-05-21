@@ -2,36 +2,14 @@ version: '3.8'
 
 services:
   map-processor:
-    image: python:3.11-slim
+    build: .
     container_name: map-processor
     volumes:
       # /data in the container is mapped to the LXC /data (which is the Samba share)
       - /data:/data
-      # Mount the current directory (which has api.py and dxf_processor.py) into the app folder
+      # Mount the current directory into the app folder
       - .:/app
     working_dir: /app
-    command: >
-      bash -c "apt-get update && apt-get install -y libcairo2 && pip install --no-cache-dir ezdxf opencv-python-headless shapely cairosvg flask && python api.py"
     ports:
       - "5000:5000"
-    restart: unless-stopped
-
-  auto-updater:
-    image: alpine/git
-    container_name: map-auto-updater
-    volumes:
-      - .:/app
-      - /var/run/docker.sock:/var/run/docker.sock
-    working_dir: /app
-    entrypoint: >
-      /bin/sh -c "
-      apk add --no-cache docker-cli &&
-      while true; do
-        git fetch;
-        if [ \"$$(git rev-parse HEAD)\" != \"$$(git rev-parse @{u})\" ]; then
-          git pull && docker restart map-processor;
-        fi;
-        sleep 60;
-      done
-      "
     restart: unless-stopped

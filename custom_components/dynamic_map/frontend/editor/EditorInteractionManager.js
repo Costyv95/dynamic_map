@@ -345,10 +345,12 @@ export class EditorInteractionManager {
 
     onKeyDown(e) {
         if (e.key === 'Enter' && this.drawingPolygon && this.drawingPolygon.length > 2) {
+            const defaultRoomColor = localStorage.getItem('lastRoomColor') || '#333333';
             this.state.rooms.push({
                 id: `room_${Date.now()}`,
                 name: 'New Room',
-                polygon: this.drawingPolygon
+                polygon: this.drawingPolygon,
+                color: defaultRoomColor
             });
             this.drawingPolygon = null;
             this.interactionState = 'NONE';
@@ -393,7 +395,13 @@ export class EditorInteractionManager {
                 const processRegion = (reg, partName) => {
                     if(MapGeometry.getPolygonArea(reg) > 2.0) {
                         const pctReg = reg.map(pt => [(pt[0]/this.state.bgImage.width)*100, (pt[1]/this.state.bgImage.height)*100]);
-                        this.state.rooms.push({ id: `room_${Date.now()}_${partName}`, name: `${targetRoom.name || 'Room'} Part ${partName}`, polygon: pctReg });
+                        const roomColor = targetRoom.color || localStorage.getItem('lastRoomColor') || '#333333';
+                        this.state.rooms.push({
+                            id: `room_${Date.now()}_${partName}`,
+                            name: `${targetRoom.name || 'Room'} Part ${partName}`,
+                            polygon: pctReg,
+                            color: roomColor
+                        });
                     }
                 };
 
