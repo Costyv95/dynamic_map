@@ -292,6 +292,34 @@ export class CanvasEngine {
                 }
             }
 
+            const finalImage = image || (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) ? icon : '');
+
+            if (idx === selectedShortcutIdx && previewStateIdx !== -1) {
+                if (!this._lastLoggedPreview || this._lastLoggedPreview.selectedShortcutIdx !== selectedShortcutIdx || this._lastLoggedPreview.previewStateIdx !== previewStateIdx) {
+                    this._lastLoggedPreview = { selectedShortcutIdx, previewStateIdx };
+                    const st = sc.config?.states?.[previewStateIdx];
+                    let cachedStatus = 'none';
+                    if (sc._imgCache && sc._imgCache[finalImage]) {
+                        const ci = sc._imgCache[finalImage];
+                        cachedStatus = `complete=${ci.complete}, naturalWidth=${ci.naturalWidth}, failed=${ci._failed}`;
+                    }
+                    console.log(`[DynamicMapDebug] CanvasEngine selected shortcut preview info:`, {
+                        entity: sc.entity_id || '',
+                        stateIdx: previewStateIdx,
+                        stateName: st?.name || '',
+                        baseImage: sc.config?.image || '',
+                        baseIcon: sc.config?.icon || '',
+                        overrideImage: st?.image || '',
+                        overrideIcon: st?.icon || '',
+                        resolvedFinalImage: finalImage,
+                        cacheStatus: cachedStatus,
+                        scType: sc.type || 'generic'
+                    });
+                }
+            } else if (idx === selectedShortcutIdx) {
+                this._lastLoggedPreview = null;
+            }
+
             const rx = 12 * scaleX;
             const ry = 12 * scaleY;
             const r = Math.max(rx, ry);
@@ -354,8 +382,6 @@ export class CanvasEngine {
                 this.ctx.translate(pt.x, pt.y);
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
-                
-                const finalImage = image || (icon && (icon.startsWith('http') || icon.startsWith('/') || icon.endsWith('.png') || icon.endsWith('.svg') || icon.endsWith('.jpg') || icon.endsWith('.webp')) ? icon : '');
                 
                 const isUrlFn = (str) => str && (str.startsWith('http') || str.startsWith('/') || str.endsWith('.png') || str.endsWith('.svg') || str.endsWith('.jpg') || str.endsWith('.webp'));
                 let fallbackIcon = '💡';
