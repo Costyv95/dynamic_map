@@ -15,6 +15,12 @@ __pycache__/
 .venv/
 env/
 
+# JavaScript / Node
+node_modules/
+custom_components/dynamic_map/frontend/node_modules/
+.vitest/
+.coverage/
+
 # Map Generation Debug Outputs
 debug_*.png
 raw_debug_*.png
