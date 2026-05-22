@@ -58,7 +58,7 @@ export class GenericShortcut extends MapShortcut {
                 this._imgStatusCache[currentHref] = { state: 'loaded', lastFailureTime: 0 };
                 
                 if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                    window.dynamicMapDebug.log(`Native SVG image LOADED successfully: "${currentHref}"`, { entity: this.sc.entity_id });
+                    window.dynamicMapDebug.log(`Native image (via SVG element) LOADED successfully: "${currentHref}"`, { entity: this.sc.entity_id });
                 }
                 
                 if (this._lastImage === currentHref) {
@@ -76,7 +76,7 @@ export class GenericShortcut extends MapShortcut {
                 this._imgStatusCache[currentHref] = { state: 'error', lastFailureTime: Date.now() };
                 
                 if (typeof window !== 'undefined' && window.dynamicMapDebug) {
-                    window.dynamicMapDebug.log(`Native SVG image FAILED for: "${currentHref}"`, { entity: this.sc.entity_id });
+                    window.dynamicMapDebug.log(`Native image (via SVG element) FAILED for: "${currentHref}"`, { entity: this.sc.entity_id });
                 }
                 
                 if (this._lastImage === currentHref) {

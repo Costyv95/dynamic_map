@@ -8,7 +8,11 @@ export class HistoryManager {
         if (this.historyIndex < this.history.length - 1) {
             this.history = this.history.slice(0, this.historyIndex + 1);
         }
-        this.history.push(JSON.parse(JSON.stringify({ rooms, shortcuts })));
+        const serialized = JSON.stringify({ rooms, shortcuts }, (key, value) => {
+            if (key === '_imgCache') return undefined;
+            return value;
+        });
+        this.history.push(JSON.parse(serialized));
         this.historyIndex++;
     }
 

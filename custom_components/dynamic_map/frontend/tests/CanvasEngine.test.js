@@ -535,6 +535,58 @@ describe('CanvasEngine.draw - Shortcut Image Preview', () => {
         expect(fallbackIconDrawn).toBe(true);
     });
 
+    it('should recover defensively and self-heal when cached image is an invalid plain deserialized object', () => {
+        const bgImage = createMockBgImage({ naturalWidth: 1280, naturalHeight: 1920, width: 1280, height: 1920 });
+        const rooms = [
+            { polygon: [[10, 10], [90, 10], [90, 90], [10, 90]] }
+        ];
+
+        // Simulates the exact bug scenario: image cache has been corrupted to a plain empty object `{}` due to JSON serialization/deserialization.
+        const corruptedImgCache = {
+            '/local/icons/lamp-on.png': {}
+        };
+
+        const shortcuts = [{
+            position: [50, 50],
+            scaleX: 1, scaleY: 1,
+            name: 'Desk Lamp',
+            config: {
+                shape: 'circle',
+                color: '#475569',
+                icon: '💡',
+                image: '',
+                states: [
+                    { name: 'On', value: 'on', color: '#facaca', image: '/local/icons/lamp-on.png' }
+                ]
+            },
+            _imgCache: corruptedImgCache
+        }];
+
+        engine.calculateAutoCrop(bgImage, rooms, true);
+
+        const requestDraw = vi.fn();
+        engine.draw({
+            bgImage,
+            rooms,
+            selectedRooms: [],
+            isSplitting: false,
+            splitStart: null,
+            splitEnd: null,
+            shortcuts,
+            selectedShortcutIdx: 0,
+            previewStateIdx: 0,
+            isTransitioning: false,
+            requestDraw,
+        });
+
+        // The corrupted plain object {} must have been deleted, and replaced by a real, valid HTMLImageElement instance
+        expect(shortcuts[0]._imgCache['/local/icons/lamp-on.png']).toBeDefined();
+        const recoveredImg = shortcuts[0]._imgCache['/local/icons/lamp-on.png'];
+        
+        expect(recoveredImg).not.toEqual({});
+        expect(recoveredImg.src).toContain('/local/icons/lamp-on.png');
+    });
+
     it('should draw fallback icon when no image is configured', () => {
         const bgImage = createMockBgImage({ naturalWidth: 1280, naturalHeight: 1920, width: 1280, height: 1920 });
         const rooms = [

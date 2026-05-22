@@ -401,6 +401,12 @@ export class CanvasEngine {
                     if (!sc._imgCache) sc._imgCache = {};
                     let cachedImg = sc._imgCache[finalImage];
                     
+                    if (cachedImg && !(cachedImg instanceof Image) && typeof cachedImg.src !== 'string') {
+                        console.log(`[DynamicMapDebug] CanvasEngine invalid cached image detected for: "${finalImage}", clearing cache`);
+                        delete sc._imgCache[finalImage];
+                        cachedImg = null;
+                    }
+
                     if (cachedImg && cachedImg._failed && (Date.now() - (cachedImg._lastFailureTime || 0) > 15000)) {
                         console.log(`[DynamicMapDebug] CanvasEngine retry cooldown elapsed for: "${finalImage}"`);
                         delete sc._imgCache[finalImage];

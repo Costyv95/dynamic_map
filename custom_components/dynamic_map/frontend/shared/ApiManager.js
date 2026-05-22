@@ -159,6 +159,12 @@ export class ApiManager {
     }
 
     static async saveToHA(activeFloor, rooms, shortcuts, config) {
+        // Strip the runtime _imgCache object from shortcuts to prevent serializing DOM Image objects
+        const cleanShortcuts = JSON.parse(JSON.stringify(shortcuts, (key, value) => {
+            if (key === '_imgCache') return undefined;
+            return value;
+        }));
+
         let res1 = await fetch('/api/dynamic_map/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -169,7 +175,7 @@ export class ApiManager {
         let res2 = await fetch('/api/dynamic_map/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: `shortcuts_floor${activeFloor}.json`, content: shortcuts })
+            body: JSON.stringify({ filename: `shortcuts_floor${activeFloor}.json`, content: cleanShortcuts })
         });
         if (!res2.ok) throw new Error(`Shortcuts save failed: ${res2.statusText}`);
         
