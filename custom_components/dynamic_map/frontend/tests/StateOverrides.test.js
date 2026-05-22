@@ -325,5 +325,74 @@ describe('GenericShortcut JSDOM Integration', () => {
         expect(shortcut.iconText.getAttribute('fill')).toBe('white');
         expect(shortcut.haIcon.style.color).toBe('white');
     });
+
+    it('should correctly calculate auto-rotate status and swap dimensions on rotated maps', () => {
+        const scData = {
+            id: 'lamp_shortcut_autorotate',
+            entity_id: 'light.desk_lamp',
+            position: [50, 50],
+            config: {
+                autoRotate: true,
+                states: [
+                    {
+                        id: 'st_1',
+                        name: 'On',
+                        state_entity: 'light.desk_lamp',
+                        operator: '==',
+                        value: 'on',
+                        image: '/local/icons/lamp-on.png',
+                        autoRotate: false
+                    },
+                    {
+                        id: 'st_2',
+                        name: 'Off',
+                        state_entity: 'light.desk_lamp',
+                        operator: '==',
+                        value: 'off',
+                        image: '/local/icons/lamp-off.png'
+                    }
+                ]
+            }
+        };
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const mapContext = {
+            _hass: {},
+            imgW: 1000,
+            imgH: 1000,
+            isRotated: true
+        };
+
+        const shortcut = new GenericShortcut(scData, svgNS, 1000, 1000, mapContext);
+        shortcut.scaleX = 2;
+        shortcut.scaleY = 3;
+        shortcut.render();
+
+        const mockHassOn = {
+            states: {
+                'light.desk_lamp': { state: 'on' }
+            }
+        };
+
+        const mockHassOff = {
+            states: {
+                'light.desk_lamp': { state: 'off' }
+            }
+        };
+
+        // 1. When state is "on", autoRotate is overridden to false.
+        // It should NOT swap scales even though map is rotated.
+        shortcut.updateState(mockHassOn);
+        expect(shortcut.getIsAutoRotateActive()).toBe(false);
+        expect(shortcut.shape.getAttribute('r')).toBe('24'); // scaleX (2) * 12 = 24
+
+        // 2. When state is "off", autoRotate inherits root true.
+        // It SHOULD swap scales because autoRotate is true and map is rotated.
+        // ActiveScaleX becomes scaleY (3), activeScaleY becomes scaleX (2).
+        shortcut.updateState(mockHassOff);
+        expect(shortcut.getIsAutoRotateActive()).toBe(true);
+        expect(shortcut.shape.getAttribute('r')).toBe('36'); // scaleY (3) * 12 = 36
+    });
 });
+
 

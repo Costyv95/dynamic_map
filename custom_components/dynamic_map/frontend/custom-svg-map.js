@@ -355,6 +355,9 @@ class CustomSvgMap extends HTMLElement {
             if (currentFlips.h) scaleX = -1;
             if (currentFlips.v) scaleY = -1;
         }
+        
+        this.mapScaleX = scaleX;
+        this.mapScaleY = scaleY;
 
         let transformStr = '';
         if (this.isRotated) transformStr += `rotate(90, ${cx}, ${cy}) `;
@@ -373,11 +376,12 @@ class CustomSvgMap extends HTMLElement {
             });
             if (this.shortcutElements) {
                 Object.values(this.shortcutElements).forEach(scObj => {
+                    const isAutoRotate = scObj.getIsAutoRotateActive && scObj.getIsAutoRotateActive();
                     let scTransformStr = '';
                     if (scaleX !== 1 || scaleY !== 1) scTransformStr += `scale(${scaleX}, ${scaleY}) `;
-                    if (this.isRotated) scTransformStr += `rotate(-90) `;
+                    if (this.isRotated && !isAutoRotate) scTransformStr += `rotate(-90) `;
                     if (scObj.setTransformStr) scObj.setTransformStr(scTransformStr.trim());
-                    else if (scObj.setRotation) scObj.setRotation(this.isRotated ? -90 : 0);
+                    else if (scObj.setRotation) scObj.setRotation((this.isRotated && !isAutoRotate) ? -90 : 0);
                 });
             }
 
@@ -453,6 +457,25 @@ class CustomSvgMap extends HTMLElement {
             if (changed && sc.sc.type === 'light') {
                 needsStyleUpdate = true;
             }
+        }
+
+        // Re-apply shortcut transforms in case their active autoRotate state changed
+        if (this.shortcutElements) {
+            const sX = this.mapScaleX !== undefined ? this.mapScaleX : 1;
+            const sY = this.mapScaleY !== undefined ? this.mapScaleY : 1;
+            Object.values(this.shortcutElements).forEach(scObj => {
+                const isAutoRotate = scObj.getIsAutoRotateActive && scObj.getIsAutoRotateActive();
+                if (this.isRotated) {
+                    let scTransformStr = '';
+                    if (sX !== 1 || sY !== 1) scTransformStr += `scale(${sX}, ${sY}) `;
+                    if (!isAutoRotate) scTransformStr += `rotate(-90) `;
+                    if (scObj.setTransformStr) scObj.setTransformStr(scTransformStr.trim());
+                    else if (scObj.setRotation) scObj.setRotation(!isAutoRotate ? -90 : 0);
+                } else {
+                    if (scObj.setTransformStr) scObj.setTransformStr('');
+                    else if (scObj.setRotation) scObj.setRotation(0);
+                }
+            });
         }
 
         // Only update room styles if something actually changed, or on first load

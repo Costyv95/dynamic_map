@@ -723,6 +723,58 @@ describe('CanvasEngine.draw - Coordinate Mapping', () => {
         });
         expect(shortcutArc).toBeDefined();
     });
+
+    it('should rotate canvas context by 90 degrees and swap dimensions if autoRotate and isRotated are true', () => {
+        const bgImage = createMockBgImage({ naturalWidth: 1280, naturalHeight: 1920, width: 1280, height: 1920 });
+        const rooms = [
+            { polygon: [[10, 10], [90, 10], [90, 90], [10, 90]] }
+        ];
+
+        const loadedImg = { complete: true, naturalWidth: 64, naturalHeight: 64, _failed: false, src: '/local/icons/lamp-on.png' };
+        const shortcuts = [{
+            position: [50, 50],
+            scaleX: 2, scaleY: 3,
+            name: 'Desk Lamp',
+            config: {
+                shape: 'rect',
+                color: '#475569',
+                icon: '💡',
+                image: '/local/icons/lamp-on.png',
+                autoRotate: true
+            },
+            _imgCache: {
+                '/local/icons/lamp-on.png': loadedImg
+            }
+        }];
+
+        engine.calculateAutoCrop(bgImage, rooms, true);
+        engine.isRotated = true; // Force rotation
+
+        const requestDraw = vi.fn();
+        engine.draw({
+            bgImage,
+            rooms,
+            selectedRooms: [],
+            isSplitting: false,
+            splitStart: null,
+            splitEnd: null,
+            shortcuts,
+            selectedShortcutIdx: 0,
+            previewStateIdx: -1,
+            isTransitioning: false,
+            requestDraw,
+        });
+
+        // 1. Check if ctx.rotate was called with Math.PI / 2
+        expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
+
+        // 2. Check if scales were swapped (rx should be 12 * 3 = 36, ry should be 12 * 2 = 24 instead of 24 and 36)
+        // x = 0.5 * 1280 = 640
+        // y = 0.5 * 1920 = 960
+        // rx = 36, ry = 24
+        // x - rx = 604, y - ry = 936, rx*2 = 72, ry*2 = 48
+        expect(ctx.rect).toHaveBeenCalledWith(604, 936, 72, 48);
+    });
 });
 
 // -----------------------------------------------------------

@@ -172,7 +172,7 @@ export class EditorUIManager {
         });
 
         // Shortcut properties
-        const bindScProp = (id, prop, isCheckbox = false) => {
+        const bindScProp = (id, prop, isCheckbox = false, isTrueCheckbox = false) => {
             const el = document.getElementById(id);
             if (!el) return;
 
@@ -180,7 +180,13 @@ export class EditorUIManager {
                 if(this.state.selectedShortcutIdx !== -1) {
                     const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
                     if (!sc.config) sc.config = {};
-                    if (isCheckbox) sc.config[prop] = !e.target.checked;
+                    if (isCheckbox) {
+                        if (isTrueCheckbox) {
+                            sc.config[prop] = e.target.checked;
+                        } else {
+                            sc.config[prop] = !e.target.checked;
+                        }
+                    }
                     else sc.config[prop] = e.target.value;
                 }
             };
@@ -247,6 +253,7 @@ export class EditorUIManager {
         }
         bindScProp('scIcon', 'icon');
         bindScProp('scImage', 'image');
+        bindScProp('scAutoRotate', 'autoRotate', true, true);
         bindScProp('scHasBackground', 'transparent', true);
         bindScProp('vacuumRoomSensor', 'room_sensor');
 
@@ -530,6 +537,7 @@ export class EditorUIManager {
             document.getElementById('scColorText').value = scColorVal;
             document.getElementById('scIcon').value = sc.config?.icon || '';
             document.getElementById('scImage').value = sc.config?.image || '';
+            document.getElementById('scAutoRotate').checked = !!(sc.config?.autoRotate);
             document.getElementById('scHasBackground').checked = !(sc.config?.transparent);
             
             if (sc.type === 'vacuum') {

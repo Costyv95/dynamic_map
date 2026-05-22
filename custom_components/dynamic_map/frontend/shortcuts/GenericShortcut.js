@@ -97,6 +97,51 @@ export class GenericShortcut extends MapShortcut {
     updateState(hass) {
         super.updateState(hass);
         
+        let activeScaleX = this.scaleX;
+        let activeScaleY = this.scaleY;
+        
+        const isAutoRotate = this.getIsAutoRotateActive();
+        if (isAutoRotate && this.mapContext.isRotated) {
+            activeScaleX = this.scaleY;
+            activeScaleY = this.scaleX;
+        }
+
+        const rx = 12 * activeScaleX;
+        const ry = 12 * activeScaleY;
+
+        if (this.shape) {
+            const shapeType = this.config.shape === 'rect' ? 'rect' : 'circle';
+            if (shapeType === 'rect') {
+                this.shape.setAttribute('x', -rx);
+                this.shape.setAttribute('y', -ry);
+                this.shape.setAttribute('width', rx * 2);
+                this.shape.setAttribute('height', ry * 2);
+            } else {
+                this.shape.setAttribute('r', rx);
+            }
+        }
+        
+        const imgSize = 20 * Math.min(activeScaleX, activeScaleY);
+        if (this.iconImage) {
+            this.iconImage.setAttribute('width', imgSize);
+            this.iconImage.setAttribute('height', imgSize);
+            this.iconImage.setAttribute('x', -imgSize / 2);
+            this.iconImage.setAttribute('y', -imgSize / 2);
+        }
+        if (this.iconForeignObject) {
+            const foSize = 20 * Math.min(activeScaleX, activeScaleY);
+            this.iconForeignObject.setAttribute('width', foSize);
+            this.iconForeignObject.setAttribute('height', foSize);
+            this.iconForeignObject.setAttribute('x', -foSize / 2);
+            this.iconForeignObject.setAttribute('y', -foSize / 2);
+            if (this.haIcon) {
+                this.haIcon.style.cssText = `display:flex; width:100%; height:100%; color: white; --mdc-icon-size: ${foSize}px; align-items:center; justify-content:center;`;
+            }
+        }
+        if (this.iconText) {
+            this.iconText.setAttribute('font-size', 16 * Math.min(activeScaleX, activeScaleY));
+        }
+        
         let color = this.config.color || this.defaultColor || '#0ea5e9';
         let icon = this.config.icon || this.defaultIcon || '';
         let image = this.config.image || '';
@@ -262,6 +307,13 @@ export class GenericShortcut extends MapShortcut {
         }
         
         return true;
+    }
+
+    getIsAutoRotateActive() {
+        if (this.activeState && this.activeState.autoRotate !== undefined) {
+            return !!this.activeState.autoRotate;
+        }
+        return !!(this.config && this.config.autoRotate);
     }
 
     showFallbackIcon() {

@@ -209,6 +209,11 @@ export function renderActionsAndStates(sc, onStateChange) {
                     <input type="text" class="st-icon" list="iconList" value="${st.icon || ''}" placeholder="Icon/Emoji" style="flex: 1; margin: 0; padding: 4px;">
                 </div>
                 <input type="text" class="st-image" list="iconList" value="${st.image || ''}" placeholder="Image URL (e.g. /local/img.png)" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
+                <div style="margin-bottom: 5px;">
+                    <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 11px; color: #ccc;">
+                        <input type="checkbox" class="st-autorotate" ${st.autoRotate ? 'checked' : ''} style="width: auto; margin: 0;"> Auto-rotate state image with map
+                    </label>
+                </div>
             </div>
         `;
         statesList.appendChild(div);
@@ -309,6 +314,7 @@ export function renderActionsAndStates(sc, onStateChange) {
                 st.value = div.querySelector('.st-val').value;
                 st.icon = div.querySelector('.st-icon').value;
                 st.image = div.querySelector('.st-image').value;
+                st.autoRotate = div.querySelector('.st-autorotate').checked;
             };
             el.addEventListener('input', () => {
                 updateStateObj();

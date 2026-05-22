@@ -271,14 +271,28 @@ export class CanvasEngine {
         shortcuts.forEach((sc, idx) => {
             const x = (sc.position[0] / 100) * bgW;
             const y = (sc.position[1] / 100) * bgH;
-            const scaleX = sc.scaleX || sc.scale || 1;
-            const scaleY = sc.scaleY || sc.scale || 1;
+            let scaleX = sc.scaleX || sc.scale || 1;
+            let scaleY = sc.scaleY || sc.scale || 1;
             
             let shape = sc.config?.shape || sc.shape || 'circle';
             let color = sc.config?.color || sc.color || '#0ea5e9';
             let isTrans = sc.config?.transparent || sc.transparent || false;
             let icon = sc.config?.icon || '💡';
             let image = sc.config?.image || '';
+
+            let autoRotate = false;
+            if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
+                const st = sc.config.states[previewStateIdx];
+                autoRotate = st.autoRotate !== undefined ? st.autoRotate : (sc.config?.autoRotate || false);
+            } else {
+                autoRotate = sc.config?.autoRotate || false;
+            }
+
+            if (autoRotate && this.isRotated) {
+                const temp = scaleX;
+                scaleX = scaleY;
+                scaleY = temp;
+            }
 
             if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
                 const st = sc.config.states[previewStateIdx];
@@ -380,6 +394,10 @@ export class CanvasEngine {
                 const dpr = window.devicePixelRatio || 1;
                 this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 this.ctx.translate(pt.x, pt.y);
+                
+                if (autoRotate && this.isRotated) {
+                    this.ctx.rotate(Math.PI / 2);
+                }
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
                 
