@@ -452,6 +452,56 @@ describe('GenericShortcut JSDOM Integration', () => {
         expect(shortcut.iconText.style.filter).toBe('');
         expect(shortcut.unavailableLine.style.display).toBe('none');
     });
+
+    it('should use custom availability_entity for unavailable check if specified in config', () => {
+        const scData = {
+            id: 'lamp_shortcut_custom_avail',
+            entity_id: 'light.desk_lamp',
+            position: [50, 50],
+            config: {
+                color: '#facaca',
+                icon: '💡',
+                availability_entity: 'button.desk_lamp_identify'
+            }
+        };
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const mapContext = {
+            _hass: {},
+            imgW: 1000,
+            imgH: 1000
+        };
+
+        const shortcut = new GenericShortcut(scData, svgNS, 1000, 1000, mapContext);
+        shortcut.render();
+
+        const mockHass = {
+            states: {
+                'light.desk_lamp': { state: 'off' },
+                'button.desk_lamp_identify': { state: 'unknown' }
+            }
+        };
+
+        // Even though light.desk_lamp is 'off', button.desk_lamp_identify is 'unknown',
+        // so it should show as unavailable!
+        shortcut.updateState(mockHass);
+
+        const expectedFilter = 'grayscale(100%) opacity(45%)';
+        expect(shortcut.bgGroup.style.filter).toBe(expectedFilter);
+        expect(shortcut.unavailableLine.style.display).toBe('block');
+
+        // Now mock both available
+        const mockHassAvailable = {
+            states: {
+                'light.desk_lamp': { state: 'off' },
+                'button.desk_lamp_identify': { state: 'identify' }
+            }
+        };
+
+        shortcut.updateState(mockHassAvailable);
+        expect(shortcut.bgGroup.style.filter).toBe('');
+        expect(shortcut.unavailableLine.style.display).toBe('none');
+    });
 });
 
 

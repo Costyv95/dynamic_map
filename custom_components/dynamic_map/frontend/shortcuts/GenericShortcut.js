@@ -210,8 +210,9 @@ export class GenericShortcut extends MapShortcut {
             });
         }
 
-        const isUnavailable = !!(this.sc.entity_id && hass.states[this.sc.entity_id] &&
-            (hass.states[this.sc.entity_id].state === 'unavailable' || hass.states[this.sc.entity_id].state === 'unknown'));
+        const availabilityEntity = this.config.availability_entity || this.sc.entity_id;
+        const isUnavailable = !!(availabilityEntity && hass.states[availabilityEntity] &&
+            (hass.states[availabilityEntity].state === 'unavailable' || hass.states[availabilityEntity].state === 'unknown'));
 
         let changed = false;
         if (this._lastColor !== color) { this._lastColor = color; changed = true; }

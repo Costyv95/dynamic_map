@@ -256,6 +256,7 @@ export class EditorUIManager {
         bindScProp('scAutoRotate', 'autoRotate', true, true);
         bindScProp('scHasBackground', 'transparent', true);
         bindScProp('vacuumRoomSensor', 'room_sensor');
+        bindScProp('scAvailabilityEntity', 'availability_entity');
 
         document.getElementById('saveShortcutBtn').addEventListener('click', async (e) => {
             if (this.state.selectedShortcutIdx !== -1) {
@@ -522,6 +523,7 @@ export class EditorUIManager {
             window.previewStateIdx = this.state.previewStateIdx;
             document.getElementById('scName').value = sc.name || '';
             document.getElementById('scEntity').value = sc.entity_id || '';
+            document.getElementById('scAvailabilityEntity').value = sc.config?.availability_entity || '';
             document.getElementById('scType').value = sc.type || 'generic';
             
             const scParentSelect = document.getElementById('scParent');
