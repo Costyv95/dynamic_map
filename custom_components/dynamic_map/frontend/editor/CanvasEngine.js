@@ -453,7 +453,7 @@ export class CanvasEngine {
                     if (cachedImg.complete && cachedImg.naturalWidth > 0 && !cachedImg._failed) {
                         const dim = 20 * Math.min(scaleX, scaleY) * currentScale;
                         this.ctx.drawImage(cachedImg, -dim/2, -dim/2, dim, dim);
-                    } else {
+                    } else if (cachedImg._failed) {
                         this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                         this.ctx.textBaseline = 'middle';
                         this.ctx.textAlign = 'center';

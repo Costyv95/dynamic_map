@@ -87,6 +87,15 @@ export class GenericShortcut extends MapShortcut {
         });
 
         this.iconGroup.appendChild(this.iconImage);
+
+        // Add a diagonal strike-through line overlay for inaccessible/unavailable states
+        this.unavailableLine = document.createElementNS(this.svgNS, 'line');
+        this.unavailableLine.setAttribute('stroke', '#ef4444');
+        this.unavailableLine.setAttribute('stroke-width', 2.5);
+        this.unavailableLine.setAttribute('stroke-linecap', 'round');
+        this.unavailableLine.style.pointerEvents = 'none';
+        this.unavailableLine.style.display = 'none';
+        this.iconGroup.appendChild(this.unavailableLine);
         
         // Let MapShortcut append the state badge to iconGroup
         this.iconGroup.appendChild(this.stateBadge);
@@ -201,11 +210,15 @@ export class GenericShortcut extends MapShortcut {
             });
         }
 
+        const isUnavailable = !!(this.sc.entity_id && hass.states[this.sc.entity_id] &&
+            (hass.states[this.sc.entity_id].state === 'unavailable' || hass.states[this.sc.entity_id].state === 'unknown'));
+
         let changed = false;
         if (this._lastColor !== color) { this._lastColor = color; changed = true; }
         if (this._lastIcon !== icon) { this._lastIcon = icon; changed = true; }
         if (this._lastImage !== finalImage) { this._lastImage = finalImage; changed = true; }
         if (this._lastTransparent !== !!this.config.transparent) { this._lastTransparent = !!this.config.transparent; changed = true; }
+        if (this._lastUnavailable !== isUnavailable) { this._lastUnavailable = isUnavailable; changed = true; }
         
         if (!changed && this._initialized) {
             const status = this._imgStatusCache && this._imgStatusCache[finalImage];
@@ -290,7 +303,10 @@ export class GenericShortcut extends MapShortcut {
                 this.iconImage.removeAttribute('href');
                 this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
                 this.iconImage.style.opacity = '0';
-                this.showFallbackIcon();
+                
+                // Hide fallback icon during active loading so default bulb doesn't creep in
+                this.iconText.textContent = '';
+                this.iconForeignObject.style.display = 'none';
                 
                 // Directly set the source on the SVG <image> tag to let the browser natively load it
                 this.iconImage.setAttribute('href', finalImage);
@@ -304,6 +320,33 @@ export class GenericShortcut extends MapShortcut {
             this.iconImage.removeAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href');
             this.iconImage.style.opacity = '0';
             this.showFallbackIcon();
+        }
+
+        // Apply visual desaturation and vibrant red diagonal strike-through if the device is unavailable/disconnected
+        // (isUnavailable is already computed above)
+
+        if (isUnavailable) {
+            const contentFilter = 'grayscale(100%) opacity(45%)';
+            this.bgGroup.style.filter = contentFilter;
+            if (this.iconImage) this.iconImage.style.filter = contentFilter;
+            if (this.iconForeignObject) this.iconForeignObject.style.filter = contentFilter;
+            if (this.iconText) this.iconText.style.filter = contentFilter;
+            
+            if (this.unavailableLine) {
+                this.unavailableLine.setAttribute('x1', -rx * 0.7);
+                this.unavailableLine.setAttribute('y1', -ry * 0.7);
+                this.unavailableLine.setAttribute('x2', rx * 0.7);
+                this.unavailableLine.setAttribute('y2', ry * 0.7);
+                this.unavailableLine.style.display = 'block';
+            }
+        } else {
+            this.bgGroup.style.filter = '';
+            if (this.iconImage) this.iconImage.style.filter = '';
+            if (this.iconForeignObject) this.iconForeignObject.style.filter = '';
+            if (this.iconText) this.iconText.style.filter = '';
+            if (this.unavailableLine) {
+                this.unavailableLine.style.display = 'none';
+            }
         }
         
         return true;

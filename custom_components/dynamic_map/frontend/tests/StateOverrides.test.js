@@ -211,7 +211,7 @@ describe('GenericShortcut JSDOM Integration', () => {
         // Verify shape color and fallback icon since native load has not resolved yet
         expect(shortcut.shape.getAttribute('fill')).toBe('#a17070');
         expect(shortcut.iconImage.style.opacity).toBe('0');
-        expect(shortcut.iconText.textContent).toBe('💡'); // fallback icon
+        expect(shortcut.iconText.textContent).toBe(''); // no fallback icon during loading
         expect(shortcut.iconImage.getAttribute('href')).toBe('/local/icons/lamp-off.png');
 
         // 2. Resolve the native load for Off state by dispatching standard load event
@@ -238,7 +238,7 @@ describe('GenericShortcut JSDOM Integration', () => {
         // Assert color changed, but image hidden initially because it's loading natively
         expect(shortcut.shape.getAttribute('fill')).toBe('#facaca');
         expect(shortcut.iconImage.style.opacity).toBe('0');
-        expect(shortcut.iconText.textContent).toBe('💡');
+        expect(shortcut.iconText.textContent).toBe(''); // no fallback icon during loading
         expect(shortcut.iconImage.getAttribute('href')).toBe('/local/icons/lamp-on.png');
 
         // 4. Fail the native load for On state (by dispatching error event)
@@ -392,6 +392,65 @@ describe('GenericShortcut JSDOM Integration', () => {
         shortcut.updateState(mockHassOff);
         expect(shortcut.getIsAutoRotateActive()).toBe(true);
         expect(shortcut.shape.getAttribute('r')).toBe('36'); // scaleY (3) * 12 = 36
+    });
+
+    it('should desaturate the background and icons, and draw a vibrant red diagonal strike-through if entity is unavailable', () => {
+        const scData = {
+            id: 'lamp_shortcut_unavailable',
+            entity_id: 'light.desk_lamp',
+            position: [50, 50],
+            config: {
+                color: '#facaca',
+                icon: '💡'
+            }
+        };
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const mapContext = {
+            _hass: {},
+            imgW: 1000,
+            imgH: 1000
+        };
+
+        const shortcut = new GenericShortcut(scData, svgNS, 1000, 1000, mapContext);
+        shortcut.render();
+
+        const mockHassUnavailable = {
+            states: {
+                'light.desk_lamp': { state: 'unavailable' }
+            }
+        };
+
+        const mockHassAvailable = {
+            states: {
+                'light.desk_lamp': { state: 'on' }
+            }
+        };
+
+        // 1. Initially when the device is unavailable:
+        // Grayscale filter should be applied, and red diagonal line should be displayed
+        shortcut.updateState(mockHassUnavailable);
+        
+        const expectedFilter = 'grayscale(100%) opacity(45%)';
+        expect(shortcut.bgGroup.style.filter).toBe(expectedFilter);
+        expect(shortcut.iconText.style.filter).toBe(expectedFilter);
+        expect(shortcut.unavailableLine.style.display).toBe('block');
+        
+        // Assert coordinates are populated correctly (rx = 12 * 1 = 12)
+        // x1/y1 should be -12 * 0.7 = -8.4
+        // x2/y2 should be 12 * 0.7 = 8.4
+        expect(Number(shortcut.unavailableLine.getAttribute('x1'))).toBeCloseTo(-8.4);
+        expect(Number(shortcut.unavailableLine.getAttribute('y1'))).toBeCloseTo(-8.4);
+        expect(Number(shortcut.unavailableLine.getAttribute('x2'))).toBeCloseTo(8.4);
+        expect(Number(shortcut.unavailableLine.getAttribute('y2'))).toBeCloseTo(8.4);
+
+        // 2. When the device becomes available again:
+        // Filters should be cleared, and red line hidden
+        shortcut.updateState(mockHassAvailable);
+        
+        expect(shortcut.bgGroup.style.filter).toBe('');
+        expect(shortcut.iconText.style.filter).toBe('');
+        expect(shortcut.unavailableLine.style.display).toBe('none');
     });
 });
 
