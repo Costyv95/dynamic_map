@@ -1,6 +1,7 @@
 import { GenericShortcut } from './GenericShortcut.js';
 import { VacuumShortcut } from './VacuumShortcut.js';
 import { LightShortcut } from './LightShortcut.js';
+import { SensorShortcut } from './SensorShortcut.js';
 
 export class ShortcutFactory {
     static create(scData, svgNS, imgW, imgH, mapContext) {
@@ -16,6 +17,7 @@ export class ShortcutFactory {
         switch (scData.type) {
             case 'vacuum': return new VacuumShortcut(scData, svgNS, imgW, imgH, mapContext);
             case 'light': return new LightShortcut(scData, svgNS, imgW, imgH, mapContext);
+            case 'sensor': return new SensorShortcut(scData, svgNS, imgW, imgH, mapContext);
             default: return new GenericShortcut(scData, svgNS, imgW, imgH, mapContext);
         }
     }

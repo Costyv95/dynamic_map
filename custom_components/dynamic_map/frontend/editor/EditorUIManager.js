@@ -164,6 +164,21 @@ export class EditorUIManager {
                             { id: `act_${Date.now()}_2`, type: 'SLIDER', trigger: 'overlay', action_entity: sc.entity_id || '' }
                         ];
                     }
+                } else if (sc.type === 'sensor') {
+                    if (!sc.config) sc.config = {};
+                    sc.config.temperature_entity = sc.config.temperature_entity || sc.entity_id || 'sensor.room_temperature';
+                    sc.config.humidity_entity = sc.config.humidity_entity || 'sensor.room_humidity';
+                    sc.config.default_measurement = sc.config.default_measurement || 'temperature';
+                    if (!sc.config.states || sc.config.states.length === 0) {
+                        sc.config.states = [
+                            { id: `st_${Date.now()}_temp_cold`, name: 'Temperature Cold', state_entity: sc.config.temperature_entity, operator: '<', value: '19', color: '#3b82f6', icon: '❄️' },
+                            { id: `st_${Date.now()}_temp_ok`, name: 'Temperature Comfort', state_entity: sc.config.temperature_entity, operator: 'between', value: '19-22', color: '#10b981', icon: '🌡️' },
+                            { id: `st_${Date.now()}_temp_hot`, name: 'Temperature Warm', state_entity: sc.config.temperature_entity, operator: '>', value: '22', color: '#f97316', icon: '🔥' },
+                            { id: `st_${Date.now()}_hum_dry`, name: 'Humidity Dry', state_entity: sc.config.humidity_entity, operator: '<', value: '40', color: '#eab308', icon: '🌵' },
+                            { id: `st_${Date.now()}_hum_ok`, name: 'Humidity Normal', state_entity: sc.config.humidity_entity, operator: 'between', value: '40-60', color: '#10b981', icon: '💧' },
+                            { id: `st_${Date.now()}_hum_wet`, name: 'Humidity Wet', state_entity: sc.config.humidity_entity, operator: '>', value: '60', color: '#3b82f6', icon: '🌧️' }
+                        ];
+                    }
                 }
                 this.state.saveState();
                 this.updateSidebar();
@@ -257,6 +272,8 @@ export class EditorUIManager {
         bindScProp('scHasBackground', 'transparent', true);
         bindScProp('vacuumRoomSensor', 'room_sensor');
         bindScProp('scAvailabilityEntity', 'availability_entity');
+        bindScProp('scTemperatureEntity', 'temperature_entity');
+        bindScProp('scHumidityEntity', 'humidity_entity');
 
         document.getElementById('saveShortcutBtn').addEventListener('click', async (e) => {
             if (this.state.selectedShortcutIdx !== -1) {
@@ -548,6 +565,14 @@ export class EditorUIManager {
                 renderVacuumRoomMapping(sc, this.state.rooms, this.state.lastFetchedVacuumOptions, (final) => this.handleShortcutChange(final));
             } else {
                 document.getElementById('vacuumOptions').style.display = 'none';
+            }
+
+            if (sc.type === 'sensor') {
+                document.getElementById('sensorOptions').style.display = 'block';
+                document.getElementById('scTemperatureEntity').value = sc.config?.temperature_entity || '';
+                document.getElementById('scHumidityEntity').value = sc.config?.humidity_entity || '';
+            } else {
+                document.getElementById('sensorOptions').style.display = 'none';
             }
             renderActionsAndStates(sc, (final) => this.handleShortcutChange(final));
         } else if (this.state.selectedRooms.length === 1) {

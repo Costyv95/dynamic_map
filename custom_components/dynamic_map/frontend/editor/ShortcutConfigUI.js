@@ -198,6 +198,11 @@ export function renderActionsAndStates(sc, onStateChange) {
                     <select class="st-op" style="margin: 0; padding: 4px; flex: 1;">
                         <option value="==" ${st.operator === '==' ? 'selected' : ''}>==</option>
                         <option value="!=" ${st.operator === '!=' ? 'selected' : ''}>!=</option>
+                        <option value="&lt;" ${st.operator === '<' ? 'selected' : ''}>&lt;</option>
+                        <option value="&lt;=" ${st.operator === '<=' ? 'selected' : ''}>&lt;=</option>
+                        <option value="&gt;" ${st.operator === '>' ? 'selected' : ''}>&gt;</option>
+                        <option value="&gt;=" ${st.operator === '>=' ? 'selected' : ''}>&gt;=</option>
+                        <option value="between" ${st.operator === 'between' ? 'selected' : ''}>between</option>
                     </select>
                     <input type="text" class="st-val" value="${st.value || ''}" placeholder="Value" style="flex: 2; margin: 0; padding: 4px;">
                 </div>

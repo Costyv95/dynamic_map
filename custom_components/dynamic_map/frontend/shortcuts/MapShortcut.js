@@ -113,8 +113,32 @@ export class MapShortcut {
             const actualVal = hass.states[entity].state;
             const targetVal = st.value;
             let matched = false;
-            if (st.operator === '==') matched = (actualVal == targetVal);
-            if (st.operator === '!=') matched = (actualVal != targetVal);
+            
+            const actualNum = parseFloat(actualVal);
+            const isActualNumeric = !isNaN(actualNum);
+            
+            if (st.operator === '==') {
+                matched = (actualVal == targetVal);
+            } else if (st.operator === '!=') {
+                matched = (actualVal != targetVal);
+            } else if (st.operator === '<' && isActualNumeric) {
+                matched = (actualNum < parseFloat(targetVal));
+            } else if (st.operator === '<=' && isActualNumeric) {
+                matched = (actualNum <= parseFloat(targetVal));
+            } else if (st.operator === '>' && isActualNumeric) {
+                matched = (actualNum > parseFloat(targetVal));
+            } else if (st.operator === '>=' && isActualNumeric) {
+                matched = (actualNum >= parseFloat(targetVal));
+            } else if (st.operator === 'between' && isActualNumeric) {
+                const parts = String(targetVal).split('-');
+                if (parts.length === 2) {
+                    const min = parseFloat(parts[0]);
+                    const max = parseFloat(parts[1]);
+                    if (!isNaN(min) && !isNaN(max)) {
+                        matched = (actualNum >= min && actualNum <= max);
+                    }
+                }
+            }
             if (matched) return st;
         }
         return null;

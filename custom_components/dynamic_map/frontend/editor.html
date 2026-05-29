@@ -76,6 +76,7 @@
                 <option value="generic">Generic Device</option>
                 <option value="vacuum">Roborock Vacuum</option>
                 <option value="light">Light Bulb</option>
+                <option value="sensor">Sensor (Temp/Hum)</option>
             </select>
             <div style="display: flex; gap: 5px; margin-top: 5px;">
                 <div style="flex: 1;">
@@ -127,6 +128,17 @@
                     <button id="fetchHABtn" style="width: auto; padding: 4px 8px; font-size: 11px; margin: 0; border-radius: 4px; background: #10b981; color: white; border: none;">Fetch HA</button>
                 </div>
                 <div id="roomMappingsList" style="margin-top: 5px;"></div>
+            </div>
+
+            <div id="sensorOptions" style="display: none; margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
+                <div style="margin-top: 5px; margin-bottom: 5px;">
+                    <label style="display:block;">Temperature Entity ID</label>
+                    <input type="text" id="scTemperatureEntity" placeholder="sensor.room_temperature" style="width: 100%; box-sizing: border-box; padding: 4px;">
+                </div>
+                <div style="margin-top: 5px; margin-bottom: 5px;">
+                    <label style="display:block;">Humidity Entity ID</label>
+                    <input type="text" id="scHumidityEntity" placeholder="sensor.room_humidity" style="width: 100%; box-sizing: border-box; padding: 4px;">
+                </div>
             </div>
 
             <div id="scActionsPanel" style="margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">

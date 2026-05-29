@@ -17,6 +17,139 @@ export class OverlayManager {
         mapContext.activeOverlay = document.createElement('div');
         mapContext.activeOverlay.style.position = 'absolute';
         
+        if (shortcut.sc && shortcut.sc.type === 'sensor') {
+            // Render Sensor Radial Gauges Popup
+            const sc = shortcut.sc;
+            const tempEntity = sc.config.temperature_entity || 'sensor.room_temperature';
+            const humEntity = sc.config.humidity_entity || 'sensor.room_humidity';
+            
+            const tempStateObj = mapContext._hass ? mapContext._hass.states[tempEntity] : null;
+            const humStateObj = mapContext._hass ? mapContext._hass.states[humEntity] : null;
+            
+            const tempVal = tempStateObj ? parseFloat(tempStateObj.state) : NaN;
+            const humVal = humStateObj ? parseFloat(humStateObj.state) : NaN;
+            
+            const tempValStr = !isNaN(tempVal) ? `${tempVal.toFixed(1)}°C` : '--';
+            const humValStr = !isNaN(humVal) ? `${humVal.toFixed(0)}%` : '--';
+            
+            // Comfort Colors
+            let tempColor = '#ef4444';
+            if (!isNaN(tempVal)) {
+                if (tempVal < 19) tempColor = '#3b82f6';
+                else if (tempVal >= 19 && tempVal <= 22) tempColor = '#10b981';
+                else tempColor = '#f97316';
+            }
+            
+            let humColor = '#3b82f6';
+            if (!isNaN(humVal)) {
+                if (humVal < 40) humColor = '#eab308';
+                else if (humVal >= 40 && humVal <= 60) humColor = '#10b981';
+                else humColor = '#3b82f6';
+            }
+            
+            // Map comfortable fill ratios (Temp 0-40, Hum 0-100)
+            const tempPct = !isNaN(tempVal) ? Math.max(0, Math.min(1, tempVal / 40)) : 0;
+            const humPct = !isNaN(humVal) ? Math.max(0, Math.min(1, humVal / 100)) : 0;
+            
+            const tempOffset = 188.5 - (188.5 * tempPct);
+            const humOffset = 188.5 - (188.5 * humPct);
+            
+            mapContext.activeOverlay.style.background = 'rgba(15, 23, 42, 0.95)';
+            mapContext.activeOverlay.style.backdropFilter = 'blur(10px)';
+            mapContext.activeOverlay.style.borderRadius = '16px';
+            mapContext.activeOverlay.style.border = '1px solid rgba(255, 255, 255, 0.15)';
+            mapContext.activeOverlay.style.boxShadow = '0 20px 40px rgba(0,0,0,0.6)';
+            mapContext.activeOverlay.style.padding = '16px 20px';
+            mapContext.activeOverlay.style.display = 'flex';
+            mapContext.activeOverlay.style.gap = '20px';
+            mapContext.activeOverlay.style.alignItems = 'center';
+            mapContext.activeOverlay.style.justifyContent = 'center';
+            mapContext.activeOverlay.style.zIndex = '1000';
+            mapContext.activeOverlay.style.color = '#fff';
+            
+            mapContext.activeOverlay.innerHTML = `
+                <!-- Temperature Column -->
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+                    <span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; font-family: sans-serif;">Temperature</span>
+                    <div style="position: relative; width: 70px; height: 70px;">
+                        <svg width="70" height="70" viewBox="0 0 70 70">
+                            <circle cx="35" cy="35" r="30" fill="none" stroke="rgba(255, 255, 255, 0.1)" stroke-width="4"></circle>
+                            <circle id="tempCircle" cx="35" cy="35" r="30" fill="none" stroke="${tempColor}" stroke-width="4" 
+                                    stroke-dasharray="188.5" stroke-dashoffset="188.5" stroke-linecap="round"
+                                    style="transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1); transform: rotate(-90deg); transform-origin: 35px 35px;"></circle>
+                        </svg>
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                            <ha-icon icon="mdi:thermometer" style="--mdc-icon-size: 24px; color: ${tempColor};"></ha-icon>
+                        </div>
+                    </div>
+                    <span style="font-size: 18px; font-weight: bold; color: #fff; font-family: sans-serif;">${tempValStr}</span>
+                </div>
+                <!-- Divider -->
+                <div style="width: 1px; height: 80px; background: rgba(255, 255, 255, 0.1);"></div>
+                <!-- Humidity Column -->
+                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
+                    <span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; font-family: sans-serif;">Humidity</span>
+                    <div style="position: relative; width: 70px; height: 70px;">
+                        <svg width="70" height="70" viewBox="0 0 70 70">
+                            <circle cx="35" cy="35" r="30" fill="none" stroke="rgba(255, 255, 255, 0.1)" stroke-width="4"></circle>
+                            <circle id="humCircle" cx="35" cy="35" r="30" fill="none" stroke="${humColor}" stroke-width="4" 
+                                    stroke-dasharray="188.5" stroke-dashoffset="188.5" stroke-linecap="round"
+                                    style="transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1); transform: rotate(-90deg); transform-origin: 35px 35px;"></circle>
+                        </svg>
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                            <ha-icon icon="mdi:water-percent" style="--mdc-icon-size: 24px; color: ${humColor};"></ha-icon>
+                        </div>
+                    </div>
+                    <span style="font-size: 18px; font-weight: bold; color: #fff; font-family: sans-serif;">${humValStr}</span>
+                </div>
+            `;
+            
+            mapContext.renderRoot.appendChild(mapContext.activeOverlay);
+            
+            // Smoothly animate the fill values upon mounting
+            setTimeout(() => {
+                const tempEl = mapContext.activeOverlay.querySelector('#tempCircle');
+                const humEl = mapContext.activeOverlay.querySelector('#humCircle');
+                if (tempEl) tempEl.style.strokeDashoffset = tempOffset.toString();
+                if (humEl) humEl.style.strokeDashoffset = humOffset.toString();
+            }, 50);
+            
+            // Clamp and position overlay
+            const rect = mapContext.renderRoot.getBoundingClientRect();
+            let posX = event.clientX - rect.left;
+            let posY = event.clientY - rect.top;
+            
+            const w = mapContext.activeOverlay.offsetWidth || 230;
+            const h = mapContext.activeOverlay.offsetHeight || 140;
+            
+            let finalX = posX;
+            let finalY = posY - 20;
+            let transX = -50;
+            let transY = -100;
+            
+            if (posX - w/2 < 10) {
+                transX = 0;
+                finalX = 10;
+            } else if (posX + w/2 > rect.width - 10) {
+                transX = -100;
+                finalX = rect.width - 10;
+            }
+            if (posY - h - 20 < 10) {
+                transY = 0;
+                finalY = posY + 20;
+                if (finalY + h > rect.height - 10) {
+                    finalY = rect.height - h - 10;
+                }
+            } else if (posY - 20 > rect.height - 10) {
+                finalY = rect.height - 10;
+            }
+            
+            mapContext.activeOverlay.style.left = `${finalX}px`;
+            mapContext.activeOverlay.style.top = `${finalY}px`;
+            mapContext.activeOverlay.style.transform = `translate(${transX}%, ${transY}%)`;
+            return;
+        }
+        
         // Calculate position relative to renderRoot
         const rect = mapContext.renderRoot.getBoundingClientRect();
         let posX = event.clientX - rect.left;
