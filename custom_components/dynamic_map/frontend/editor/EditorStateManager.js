@@ -1,5 +1,5 @@
-import { HistoryManager } from './HistoryManager.js?v=2.72';
-import { ApiManager } from '../shared/ApiManager.js?v=2.72';
+import { HistoryManager } from './HistoryManager.js?v=2.73';
+import { ApiManager } from '../shared/ApiManager.js?v=2.73';
 
 export class EditorStateManager {
     constructor(updateUICallback, requestDrawCallback) {

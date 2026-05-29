@@ -1,5 +1,5 @@
-import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=2.72';
-import { ApiManager } from '../shared/ApiManager.js?v=2.72';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=2.73';
+import { ApiManager } from '../shared/ApiManager.js?v=2.73';
 
 export class EditorUIManager {
     constructor(stateManager, engine) {
@@ -177,6 +177,11 @@ export class EditorUIManager {
                             { id: `st_${Date.now()}_hum_dry`, name: 'Humidity Dry', state_entity: sc.config.humidity_entity, operator: '<', value: '40', color: '#eab308', icon: '🌵' },
                             { id: `st_${Date.now()}_hum_ok`, name: 'Humidity Normal', state_entity: sc.config.humidity_entity, operator: 'between', value: '40-60', color: '#10b981', icon: '💧' },
                             { id: `st_${Date.now()}_hum_wet`, name: 'Humidity Wet', state_entity: sc.config.humidity_entity, operator: '>', value: '60', color: '#3b82f6', icon: '🌧️' }
+                        ];
+                    }
+                    if (!sc.config.actions || sc.config.actions.length === 0) {
+                        sc.config.actions = [
+                            { id: `act_${Date.now()}_1`, type: 'SENSOR_OVERLAY', trigger: 'long_press', action_entity: sc.entity_id || '' }
                         ];
                     }
                 }

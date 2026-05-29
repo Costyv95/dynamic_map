@@ -25,6 +25,7 @@ export function renderActionsAndStates(sc, onStateChange) {
         if (typeText === 'TOGGLE_OFF') typeText = 'Turn Off';
         if (typeText === 'CALL_SERVICE') typeText = 'Call Service';
         if (typeText === 'ROOM_SELECTOR') typeText = 'Select Rooms';
+        if (typeText === 'SENSOR_OVERLAY') typeText = 'Sensor Dials Overlay';
         
         const triggerText = (act.trigger === 'long_press' || act.trigger === 'overlay') ? 'Long Press' : 'Tap';
         const title = act.name || `${triggerText} - ${typeText}`;
@@ -62,6 +63,7 @@ export function renderActionsAndStates(sc, onStateChange) {
                         <option value="CALL_SERVICE" ${act.type === 'CALL_SERVICE' ? 'selected' : ''}>Call Service</option>
                         <option value="SLIDER" ${act.type === 'SLIDER' ? 'selected' : ''}>Slider (Brightness)</option>
                         <option value="ROOM_SELECTOR" ${act.type === 'ROOM_SELECTOR' ? 'selected' : ''}>Select Rooms on Map</option>
+                        <option value="SENSOR_OVERLAY" ${act.type === 'SENSOR_OVERLAY' ? 'selected' : ''}>Sensor Dials Overlay</option>
                     </select>
                 </div>
                 <div style="display: flex; gap: 5px; margin-bottom: 5px;">

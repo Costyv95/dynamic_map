@@ -17,7 +17,7 @@ export class OverlayManager {
         mapContext.activeOverlay = document.createElement('div');
         mapContext.activeOverlay.style.position = 'absolute';
         
-        if (shortcut.sc && shortcut.sc.type === 'sensor') {
+        if ((shortcut.sc && shortcut.sc.type === 'sensor') || (actions && actions.some(a => a.type === 'SENSOR_OVERLAY'))) {
             // Render Sensor Radial Gauges Popup
             const sc = shortcut.sc;
             const tempEntity = sc.config.temperature_entity || 'sensor.room_temperature';
