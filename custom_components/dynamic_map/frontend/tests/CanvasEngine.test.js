@@ -891,3 +891,67 @@ describe('CanvasEngine - State Override Resolution', () => {
         expect(result.finalImage).toBe('/local/icons/custom-icon.png');
     });
 });
+
+// -----------------------------------------------------------
+// Test Suite: draw() - Sensor Pill & Value Rendering
+// -----------------------------------------------------------
+describe('CanvasEngine - Sensor Rendering', () => {
+    let canvas, ctx, engine;
+
+    beforeEach(() => {
+        ctx = createMockCtx();
+        ctx.roundRect = vi.fn();
+        canvas = createMockCanvas(800, 600);
+        engine = new CanvasEngine(canvas, ctx);
+    });
+
+    it('should draw a rounded pill and render the resolved sensor value and icon', () => {
+        const bgImage = createMockBgImage({ naturalWidth: 1000, naturalHeight: 1000, width: 1000, height: 1000, complete: true });
+        const shortcuts = [
+            {
+                type: 'sensor',
+                position: [50, 50],
+                config: {
+                    color: '#10b981',
+                    states: [
+                        {
+                            name: 'Comfort Temp',
+                            unit: '°',
+                            color: '#10b981',
+                            icon: '🌡️',
+                            conditions: [
+                                { entity: 'input_boolean.sensor_living_room', operator: '==', value: 'on' },
+                                { entity: 'sensor.living_room_temperature', operator: 'between', value: '19-22' }
+                            ]
+                        }
+                    ]
+                }
+            }
+        ];
+
+        engine.calculateAutoCrop(bgImage, [], true);
+
+        const requestDraw = vi.fn();
+        engine.draw({
+            bgImage,
+            rooms: [],
+            selectedRooms: [],
+            isSplitting: false,
+            splitStart: null,
+            splitEnd: null,
+            shortcuts,
+            selectedShortcutIdx: 0,
+            previewStateIdx: 0,
+            isTransitioning: false,
+            requestDraw,
+        });
+
+        // The roundRect should be called since type is sensor
+        expect(ctx.roundRect).toHaveBeenCalled();
+
+        // The resolved preview value for 'between 19-22' should be 21 (midpoint) -> '21°'
+        expect(ctx.fillText).toHaveBeenCalledWith('🌡️', expect.any(Number), 0);
+        expect(ctx.fillText).toHaveBeenCalledWith('21°', expect.any(Number), 0);
+    });
+});
+

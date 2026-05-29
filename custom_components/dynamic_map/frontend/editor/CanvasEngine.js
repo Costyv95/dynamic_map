@@ -334,12 +334,23 @@ export class CanvasEngine {
                 this._lastLoggedPreview = null;
             }
 
-            const rx = 12 * scaleX;
-            const ry = 12 * scaleY;
+            let rx = 12 * scaleX;
+            let ry = 12 * scaleY;
+            if (sc.type === 'sensor') {
+                rx = 26 * scaleX;
+                ry = 12 * scaleY;
+            }
             const r = Math.max(rx, ry);
 
             this.ctx.beginPath();
-            if (shape === 'rect') {
+            if (sc.type === 'sensor') {
+                const borderRadius = 8 * Math.min(scaleX, scaleY);
+                if (this.ctx.roundRect) {
+                    this.ctx.roundRect(x - rx, y - ry, rx * 2, ry * 2, borderRadius);
+                } else {
+                    this.ctx.rect(x - rx, y - ry, rx * 2, ry * 2);
+                }
+            } else if (shape === 'rect') {
                 this.ctx.rect(x - rx, y - ry, rx*2, ry*2);
             } else {
                 this.ctx.arc(x, y, rx, 0, Math.PI*2);
@@ -401,71 +412,146 @@ export class CanvasEngine {
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
                 
-                const isUrlFn = (str) => str && (str.startsWith('http') || str.startsWith('/') || str.endsWith('.png') || str.endsWith('.svg') || str.endsWith('.jpg') || str.endsWith('.webp'));
-                let fallbackIcon = '💡';
-                if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
-                    const st = sc.config.states[previewStateIdx];
-                    if (st.icon && !isUrlFn(st.icon)) {
-                        fallbackIcon = st.icon;
+                if (sc.type === 'sensor') {
+                    // Resolve comfort icon and guessed value
+                    let valText = '--';
+                    let activeIcon = icon;
+                    let activeColor = color;
+                    
+                    let activeState = null;
+                    if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
+                        activeState = sc.config.states[previewStateIdx];
+                    } else if (sc.config?.states && sc.config.states.length > 0) {
+                        activeState = sc.config.states[0];
+                    }
+                    
+                    if (activeState) {
+                        if (activeState.color) activeColor = activeState.color;
+                        if (activeState.icon) activeIcon = activeState.icon;
+                        
+                        const unit = activeState.unit !== undefined ? activeState.unit : '°';
+                        let guessedVal = null;
+                        
+                        // Parse conditions
+                        const conds = activeState.conditions || [];
+                        for (const cond of conds) {
+                            const op = cond.operator || '==';
+                            const target = cond.value;
+                            if (op === '==' && !isNaN(parseFloat(target))) {
+                                guessedVal = parseFloat(target);
+                            } else if (op === '<') {
+                                guessedVal = parseFloat(target) - 1;
+                            } else if (op === '<=') {
+                                guessedVal = parseFloat(target);
+                            } else if (op === '>') {
+                                guessedVal = parseFloat(target) + 1;
+                            } else if (op === '>=') {
+                                guessedVal = parseFloat(target);
+                            } else if (op === 'between') {
+                                const parts = String(target).split('-');
+                                if (parts.length === 2) {
+                                    const min = parseFloat(parts[0]);
+                                    const max = parseFloat(parts[1]);
+                                    if (!isNaN(min) && !isNaN(max)) {
+                                        guessedVal = Math.round((min + max) / 2);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        if (guessedVal !== null && !isNaN(guessedVal)) {
+                            valText = `${guessedVal}${unit}`;
+                        } else {
+                            valText = `21${unit}`;
+                        }
+                    } else {
+                        activeIcon = sc.config?.icon || '🌡️';
+                        valText = '21°';
+                    }
+
+                    // Draw comfort icon on the left
+                    this.ctx.font = `${12 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillStyle = isTrans ? activeColor : 'white';
+                    
+                    const iconX = -12 * scaleX * currentScale;
+                    this.ctx.fillText(activeIcon, iconX, 0);
+
+                    // Draw formatted value text on the right
+                    this.ctx.font = `bold ${11 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.fillStyle = isTrans ? activeColor : 'white';
+                    
+                    const textX = 8 * scaleX * currentScale;
+                    this.ctx.fillText(valText, textX, 0);
+                } else {
+                    const isUrlFn = (str) => str && (str.startsWith('http') || str.startsWith('/') || str.endsWith('.png') || str.endsWith('.svg') || str.endsWith('.jpg') || str.endsWith('.webp'));
+                    let fallbackIcon = '💡';
+                    if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
+                        const st = sc.config.states[previewStateIdx];
+                        if (st.icon && !isUrlFn(st.icon)) {
+                            fallbackIcon = st.icon;
+                        } else if (sc.config?.icon && !isUrlFn(sc.config.icon)) {
+                            fallbackIcon = sc.config.icon;
+                        }
                     } else if (sc.config?.icon && !isUrlFn(sc.config.icon)) {
                         fallbackIcon = sc.config.icon;
                     }
-                } else if (sc.config?.icon && !isUrlFn(sc.config.icon)) {
-                    fallbackIcon = sc.config.icon;
-                }
 
+                    if (finalImage) {
+                        if (!sc._imgCache) sc._imgCache = {};
+                        let cachedImg = sc._imgCache[finalImage];
+                        
+                        if (cachedImg && !(cachedImg instanceof Image) && typeof cachedImg.src !== 'string') {
+                            console.log(`[DynamicMapDebug] CanvasEngine invalid cached image detected for: "${finalImage}", clearing cache`);
+                            delete sc._imgCache[finalImage];
+                            cachedImg = null;
+                        }
 
-                if (finalImage) {
-                    if (!sc._imgCache) sc._imgCache = {};
-                    let cachedImg = sc._imgCache[finalImage];
-                    
-                    if (cachedImg && !(cachedImg instanceof Image) && typeof cachedImg.src !== 'string') {
-                        console.log(`[DynamicMapDebug] CanvasEngine invalid cached image detected for: "${finalImage}", clearing cache`);
-                        delete sc._imgCache[finalImage];
-                        cachedImg = null;
-                    }
+                        if (cachedImg && cachedImg._failed && (Date.now() - (cachedImg._lastFailureTime || 0) > 15000)) {
+                            console.log(`[DynamicMapDebug] CanvasEngine retry cooldown elapsed for: "${finalImage}"`);
+                            delete sc._imgCache[finalImage];
+                            cachedImg = null;
+                        }
 
-                    if (cachedImg && cachedImg._failed && (Date.now() - (cachedImg._lastFailureTime || 0) > 15000)) {
-                        console.log(`[DynamicMapDebug] CanvasEngine retry cooldown elapsed for: "${finalImage}"`);
-                        delete sc._imgCache[finalImage];
-                        cachedImg = null;
-                    }
+                        if (!cachedImg) {
+                            console.log(`[DynamicMapDebug] CanvasEngine creating new Image for: "${finalImage}"`);
+                            const img = new Image();
+                            img._failed = false;
+                            img.onload = () => {
+                                console.log(`[DynamicMapDebug] CanvasEngine Image LOADED successfully: "${finalImage}"`);
+                                if (requestDraw) requestDraw();
+                            };
+                            img.onerror = (err) => {
+                                console.error(`[DynamicMapDebug] CanvasEngine Image FAILED to load for: "${finalImage}"`, err);
+                                img._failed = true;
+                                img._lastFailureTime = Date.now();
+                                if (requestDraw) requestDraw();
+                            };
+                            img.src = finalImage;
+                            sc._imgCache[finalImage] = img;
+                            cachedImg = img;
+                        }
 
-                    if (!cachedImg) {
-                        console.log(`[DynamicMapDebug] CanvasEngine creating new Image for: "${finalImage}"`);
-                        const img = new Image();
-                        img._failed = false;
-                        img.onload = () => {
-                            console.log(`[DynamicMapDebug] CanvasEngine Image LOADED successfully: "${finalImage}"`);
-                            if (requestDraw) requestDraw();
-                        };
-                        img.onerror = (err) => {
-                            console.error(`[DynamicMapDebug] CanvasEngine Image FAILED to load for: "${finalImage}"`, err);
-                            img._failed = true;
-                            img._lastFailureTime = Date.now();
-                            if (requestDraw) requestDraw();
-                        };
-                        img.src = finalImage;
-                        sc._imgCache[finalImage] = img;
-                        cachedImg = img;
-                    }
-
-                    if (cachedImg.complete && cachedImg.naturalWidth > 0 && !cachedImg._failed) {
-                        const dim = 20 * Math.min(scaleX, scaleY) * currentScale;
-                        this.ctx.drawImage(cachedImg, -dim/2, -dim/2, dim, dim);
-                    } else if (cachedImg._failed) {
+                        if (cachedImg.complete && cachedImg.naturalWidth > 0 && !cachedImg._failed) {
+                            const dim = 20 * Math.min(scaleX, scaleY) * currentScale;
+                            this.ctx.drawImage(cachedImg, -dim/2, -dim/2, dim, dim);
+                        } else if (cachedImg._failed) {
+                            this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
+                            this.ctx.textBaseline = 'middle';
+                            this.ctx.textAlign = 'center';
+                            this.ctx.fillStyle = isTrans ? color : 'white';
+                            this.ctx.fillText(fallbackIcon, 0, 0);
+                        }
+                    } else {
                         this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                         this.ctx.textBaseline = 'middle';
                         this.ctx.textAlign = 'center';
                         this.ctx.fillStyle = isTrans ? color : 'white';
                         this.ctx.fillText(fallbackIcon, 0, 0);
                     }
-                } else {
-                    this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
-                    this.ctx.textBaseline = 'middle';
-                    this.ctx.textAlign = 'center';
-                    this.ctx.fillStyle = isTrans ? color : 'white';
-                    this.ctx.fillText(fallbackIcon, 0, 0);
                 }
                 this.ctx.restore();
             }

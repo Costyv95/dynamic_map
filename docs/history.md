@@ -15,3 +15,17 @@ This document sequentially records the major technical and architectural decisio
 *   **Consequences:** 
     - **Benefits:** Transforms the map card from a simple toggle board into a data-rich home automation dashboard. The new mathematical comparison operators are highly reusable for other integrations.
     - **Trade-offs:** Slightly increases shortcut configuration state schema size, which is successfully mitigated by automatically populating smart presets in the editor sidebar.
+
+---
+
+## 002 Editor Canvas Sensor Drawing & Raw JSON Parsing Robustness
+*   **Date:** 2026-05-29
+*   **Status:** Accepted
+*   **Context:** Visual canvas updates did not occur for sensor shortcuts when configured via the editor, resulting in a fallback generic circle with a bulb icon. In addition, copying complete shortcut objects into the "Raw JSON" popup put key parameters inside the `config` property block instead of root shortcut keys, preventing proper polymorphic classification.
+*   **Decision:**
+    - Upgraded the canvas drawing loop (`CanvasEngine.js`) to support rounded pills (`roundRect`), and programmed a condition-parsing routine to guess and preview highly logical numerical values (midpoint, upper/lower bounds) inside the canvas pill.
+    - Enhanced the editor JSON parser to natively accept both raw `config` blocks and complete root shortcut definitions, cleanly separating top-level variables.
+*   **Consequences:**
+    - **Benefits:** Dramatically improves editor visual preview accuracy, creating a WYSIWYG experience for sensor widgets. Maximizes raw JSON parsing utility and robustness.
+    - **Trade-offs:** None. Preserves baseline Vitest coverage while expanding testing parameters.
+

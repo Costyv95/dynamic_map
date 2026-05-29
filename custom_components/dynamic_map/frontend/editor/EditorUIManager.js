@@ -363,7 +363,42 @@ export class EditorUIManager {
             if (this.state.selectedShortcutIdx !== -1) {
                 try {
                     const parsed = JSON.parse(jsonTextarea.value);
-                    this.state.shortcuts[this.state.selectedShortcutIdx].config = parsed;
+                    const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+                    
+                    if (parsed && typeof parsed === 'object') {
+                        if (parsed.config && typeof parsed.config === 'object') {
+                            // Full shortcut object pasted
+                            sc.config = parsed.config;
+                            if (parsed.type) sc.type = parsed.type;
+                            if (parsed.entity_id !== undefined) sc.entity_id = parsed.entity_id;
+                            if (parsed.name !== undefined) sc.name = parsed.name;
+                            if (parsed.scale !== undefined) sc.scale = parsed.scale;
+                            if (parsed.scaleX !== undefined) sc.scaleX = parsed.scaleX;
+                            if (parsed.scaleY !== undefined) sc.scaleY = parsed.scaleY;
+                            if (parsed.shape !== undefined) sc.shape = parsed.shape;
+                        } else {
+                            // standalone config block pasted
+                            sc.config = parsed;
+                            // Check if top-level properties are inline inside the pasted config block
+                            if (parsed.type) {
+                                sc.type = parsed.type;
+                                delete sc.config.type;
+                            }
+                            if (parsed.entity_id !== undefined) {
+                                sc.entity_id = parsed.entity_id;
+                                delete sc.config.entity_id;
+                            }
+                            if (parsed.name !== undefined) {
+                                sc.name = parsed.name;
+                                delete sc.config.name;
+                            }
+                            if (parsed.shape !== undefined) {
+                                sc.shape = parsed.shape;
+                                delete sc.config.shape;
+                            }
+                        }
+                    }
+                    
                     this.state.saveState();
                     this.updateSidebar();
                     this.state.requestDrawCallback();
