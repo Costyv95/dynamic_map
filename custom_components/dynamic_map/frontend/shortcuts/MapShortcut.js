@@ -256,6 +256,12 @@ export class MapShortcut {
     }
 
     onLongPress(e) {
+        if (this.sc.type === 'sensor') {
+            if (this.mapContext.showOverlay) {
+                this.mapContext.showOverlay(this, [], e);
+            }
+            return;
+        }
         if (!this.config.actions) return;
         const overlayActions = this.config.actions.filter(a => a.trigger === 'overlay' || a.trigger === 'long_press');
         if (overlayActions.length > 0 && this.mapContext.showOverlay) {

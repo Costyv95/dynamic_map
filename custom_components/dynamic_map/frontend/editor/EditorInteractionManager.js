@@ -88,8 +88,10 @@ export class EditorInteractionManager {
             const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
             const scX = (sc.position[0]/100)*bgW;
             const scY = (sc.position[1]/100)*bgH;
-            const rx = 12 * (sc.scaleX || sc.scale || 1);
-            const ry = 12 * (sc.scaleY || sc.scale || 1);
+            const baseRx = sc.type === 'sensor' ? 26 : 12;
+            const baseRy = 12;
+            const rx = baseRx * (sc.scaleX || sc.scale || 1);
+            const ry = baseRy * (sc.scaleY || sc.scale || 1);
             const currentScale = Math.hypot(this.engine.viewTransform.a, this.engine.viewTransform.b);
             const hSize = 8 / currentScale;
 
@@ -110,10 +112,12 @@ export class EditorInteractionManager {
             const sc = this.state.shortcuts[i];
             const scX = (sc.position[0]/100)*bgW;
             const scY = (sc.position[1]/100)*bgH;
-            const rx = 12 * (sc.scaleX || sc.scale || 1);
-            const ry = 12 * (sc.scaleY || sc.scale || 1);
+            const baseRx = sc.type === 'sensor' ? 26 : 12;
+            const baseRy = 12;
+            const rx = baseRx * (sc.scaleX || sc.scale || 1);
+            const ry = baseRy * (sc.scaleY || sc.scale || 1);
             
-            const shape = sc.config?.shape || sc.shape || 'circle';
+            const shape = sc.type === 'sensor' ? 'rect' : (sc.config?.shape || sc.shape || 'circle');
             if (shape === 'rect') {
                 if (Math.abs(this.dragStart.x - scX) <= rx && Math.abs(this.dragStart.y - scY) <= ry) {
                     overScIdx = i; break;
@@ -178,8 +182,10 @@ export class EditorInteractionManager {
                 const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
                 const scX = (sc.position[0]/100)*bgW;
                 const scY = (sc.position[1]/100)*bgH;
-                const rx = 12 * (sc.scaleX || sc.scale || 1);
-                const ry = 12 * (sc.scaleY || sc.scale || 1);
+                const baseRx = sc.type === 'sensor' ? 26 : 12;
+                const baseRy = 12;
+                const rx = baseRx * (sc.scaleX || sc.scale || 1);
+                const ry = baseRy * (sc.scaleY || sc.scale || 1);
                 const currentScale = Math.hypot(this.engine.viewTransform.a, this.engine.viewTransform.b);
                 const hSize = 8 / currentScale;
 
@@ -201,10 +207,12 @@ export class EditorInteractionManager {
                     const sc = this.state.shortcuts[i];
                     const scX = (sc.position[0]/100)*bgW;
                     const scY = (sc.position[1]/100)*bgH;
-                    const rx = 12 * (sc.scaleX || sc.scale || 1);
-                    const ry = 12 * (sc.scaleY || sc.scale || 1);
+                    const baseRx = sc.type === 'sensor' ? 26 : 12;
+                    const baseRy = 12;
+                    const rx = baseRx * (sc.scaleX || sc.scale || 1);
+                    const ry = baseRy * (sc.scaleY || sc.scale || 1);
                     
-                    const shape = sc.config?.shape || sc.shape || 'circle';
+                    const shape = sc.type === 'sensor' ? 'rect' : (sc.config?.shape || sc.shape || 'circle');
                     if (shape === 'rect') {
                         if (Math.abs(worldPos.x - scX) <= rx && Math.abs(worldPos.y - scY) <= ry) {
                             overShortcut = true; break;
@@ -249,12 +257,14 @@ export class EditorInteractionManager {
             const dx = Math.abs(worldPos.x - scX);
             const dy = Math.abs(worldPos.y - scY);
             
+            const divisorRx = sc.type === 'sensor' ? 26 : 12;
+            const divisorRy = 12;
             if (this.resizeHandle.includes('E') || this.resizeHandle.includes('W')) {
-                sc.scaleX = Math.max(0.5, dx / 12);
+                sc.scaleX = Math.max(0.5, dx / divisorRx);
                 sc.scale = sc.scaleX;
             }
             if (this.resizeHandle.includes('N') || this.resizeHandle.includes('S')) {
-                sc.scaleY = Math.max(0.5, dy / 12);
+                sc.scaleY = Math.max(0.5, dy / divisorRy);
                 sc.scale = sc.scaleY;
             }
             this.state.requestDrawCallback();

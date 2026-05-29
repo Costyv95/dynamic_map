@@ -29,3 +29,17 @@ This document sequentially records the major technical and architectural decisio
     - **Benefits:** Dramatically improves editor visual preview accuracy, creating a WYSIWYG experience for sensor widgets. Maximizes raw JSON parsing utility and robustness.
     - **Trade-offs:** None. Preserves baseline Vitest coverage while expanding testing parameters.
 
+---
+
+## 003 Native Sensor Long-Press & Custom Resize Handle Calibration
+*   **Date:** 2026-05-29
+*   **Status:** Accepted
+*   **Context:** Newly configured sensor shortcuts lacked custom actions inside `this.config.actions` by default, causing the overlay trigger in `onLongPress` to early-return and prevent the glassmorphic radial comfort overlay from opening. Additionally, the visual pill width `rx = 26` was hardcoded inside `CanvasEngine.js` but `EditorInteractionManager.js` hardcoded `rx = 12` during hit-testing, causing the top/bottom and corner resize handle mouse intercepts to fail completely.
+*   **Decision:**
+    - Modified `MapShortcut.js` to natively intercept and call `showOverlay` on long presses if `sc.type === 'sensor'`, ignoring the presence of custom action arrays.
+    - Updated `EditorInteractionManager.js` to dynamically compute shortcut dimensions (`rx = 26`, `ry = 12`) when `sc.type === 'sensor'` and treat its interactive hover shape as a `'rect'`, syncing the mouse hit-boxes perfectly with the visual handle squares. Added aligned divisors so scaling is proportional to dragging speed.
+*   **Consequences:**
+    - **Benefits:** Restores immediate, out-of-the-box long-press menu rendering for sensors. Aligns visual draw scales with mouse tracking grids for a seamless, pixel-perfect WYSIWYG dragging/resizing experience.
+    - **Trade-offs:** None. Preserves green Vitest test standards.
+
+
