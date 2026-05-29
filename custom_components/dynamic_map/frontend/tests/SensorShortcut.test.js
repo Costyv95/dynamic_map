@@ -181,7 +181,17 @@ describe('SensorShortcut', () => {
             isRotated: false
         };
 
-        const shortcut = new SensorShortcut(scData, svgNS, 1000, 1000, customMapContext);
+        const scDataWithActions = {
+            ...scData,
+            config: {
+                ...scData.config,
+                actions: [
+                    { type: 'TOGGLE', trigger: 'tap', action_entity: 'input_boolean.sensor_living_room' }
+                ]
+            }
+        };
+
+        const shortcut = new SensorShortcut(scDataWithActions, svgNS, 1000, 1000, customMapContext);
         shortcut.render();
         shortcut.onClick({});
 

@@ -181,7 +181,8 @@ export class EditorUIManager {
                     }
                     if (!sc.config.actions || sc.config.actions.length === 0) {
                         sc.config.actions = [
-                            { id: `act_${Date.now()}_1`, type: 'SENSOR_OVERLAY', trigger: 'long_press', action_entity: sc.entity_id || '' }
+                            { id: `act_${Date.now()}_1`, type: 'TOGGLE', trigger: 'tap', action_entity: sc.entity_id || '' },
+                            { id: `act_${Date.now()}_2`, type: 'SENSOR_OVERLAY', trigger: 'long_press', action_entity: sc.entity_id || '' }
                         ];
                     }
                 }
