@@ -171,7 +171,21 @@ export function renderActionsAndStates(sc, onStateChange) {
     
     sc.config.states.forEach((st, idx) => {
         const isExpanded = st._expanded === true; // folded by default
-        const title = st.name || st.state_entity || 'New State';
+
+        // Initialize conditions array for backward compatibility
+        if (!st.conditions) {
+            if (st.state_entity || st.operator || st.value) {
+                st.conditions = [{
+                    state_entity: st.state_entity || '',
+                    operator: st.operator || '==',
+                    value: st.value || ''
+                }];
+            } else {
+                st.conditions = [];
+            }
+        }
+
+        const title = st.name || st.state_entity || (st.conditions[0]?.state_entity) || 'New State';
         
         const div = document.createElement('div');
         div.style.background = window.previewStateIdx === idx ? 'rgba(14, 165, 233, 0.1)' : 'var(--input-bg)';
@@ -180,6 +194,26 @@ export function renderActionsAndStates(sc, onStateChange) {
         div.style.border = window.previewStateIdx === idx ? '2px solid var(--accent)' : '1px solid var(--input-border)';
         div.style.userSelect = 'none';
         
+        let conditionsHtml = '';
+        st.conditions.forEach((cond, condIdx) => {
+            conditionsHtml += `
+                <div class="cond-row" data-cond-idx="${condIdx}" style="display: flex; gap: 4px; margin-bottom: 6px; align-items: center;">
+                    <input type="text" class="cond-entity" list="entityList" value="${cond.state_entity || cond.entity || ''}" placeholder="Entity ID (optional)" style="flex: 2; margin: 0; padding: 4px; font-size: 12px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 4px;">
+                    <select class="cond-op" style="margin: 0; padding: 4px; flex: 1.2; font-size: 12px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 4px;">
+                        <option value="==" ${cond.operator === '==' ? 'selected' : ''}>==</option>
+                        <option value="!=" ${cond.operator === '!=' ? 'selected' : ''}>!=</option>
+                        <option value="&lt;" ${cond.operator === '<' ? 'selected' : ''}>&lt;</option>
+                        <option value="&lt;=" ${cond.operator === '<=' ? 'selected' : ''}>&lt;=</option>
+                        <option value="&gt;" ${cond.operator === '>' ? 'selected' : ''}>&gt;</option>
+                        <option value="&gt;=" ${cond.operator === '>=' ? 'selected' : ''}>&gt;=</option>
+                        <option value="between" ${cond.operator === 'between' ? 'selected' : ''}>between</option>
+                    </select>
+                    <input type="text" class="cond-val" value="${cond.value || ''}" placeholder="Value" style="flex: 1.5; margin: 0; padding: 4px; font-size: 12px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 4px;">
+                    <button class="del-cond" data-cond-idx="${condIdx}" style="width: auto; margin: 0; padding: 4px 6px; font-size: 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">X</button>
+                </div>
+            `;
+        });
+
         div.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="st-header expandable-header">
                 <div>
@@ -192,20 +226,18 @@ export function renderActionsAndStates(sc, onStateChange) {
                 </div>
             </div>
             <div class="st-body" style="display: ${isExpanded ? 'block' : 'none'}; margin-top: 10px; border-top: 1px solid var(--input-border); padding-top: 10px;">
-                <input type="text" class="st-name" value="${st.name || ''}" placeholder="State Name" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
-                <input type="text" class="st-entity" list="entityList" value="${st.state_entity || ''}" placeholder="State Entity ID" style="width: 100%; margin: 0 0 5px 0; padding: 4px;">
-                <div style="display: flex; gap: 5px; margin-bottom: 5px;">
-                    <select class="st-op" style="margin: 0; padding: 4px; flex: 1;">
-                        <option value="==" ${st.operator === '==' ? 'selected' : ''}>==</option>
-                        <option value="!=" ${st.operator === '!=' ? 'selected' : ''}>!=</option>
-                        <option value="&lt;" ${st.operator === '<' ? 'selected' : ''}>&lt;</option>
-                        <option value="&lt;=" ${st.operator === '<=' ? 'selected' : ''}>&lt;=</option>
-                        <option value="&gt;" ${st.operator === '>' ? 'selected' : ''}>&gt;</option>
-                        <option value="&gt;=" ${st.operator === '>=' ? 'selected' : ''}>&gt;=</option>
-                        <option value="between" ${st.operator === 'between' ? 'selected' : ''}>between</option>
-                    </select>
-                    <input type="text" class="st-val" value="${st.value || ''}" placeholder="Value" style="flex: 2; margin: 0; padding: 4px;">
+                <input type="text" class="st-name" value="${st.name || ''}" placeholder="State Name" style="width: 100%; margin: 0 0 8px 0; padding: 4px;">
+                
+                <div style="margin-bottom: 8px; border: 1px solid var(--input-border); border-radius: 6px; padding: 8px; background: rgba(0,0,0,0.15);">
+                    <div style="font-size: 11px; font-weight: bold; color: var(--text); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+                        <span>CONDITIONS</span>
+                    </div>
+                    <div class="st-conditions-list">
+                        ${conditionsHtml || '<div style="font-size: 11px; color: #888; text-align: center; padding: 4px;">No conditions added. Always matches.</div>'}
+                    </div>
+                    <button class="add-cond-btn" style="width: 100%; margin: 6px 0 0 0; padding: 5px; font-size: 11px; border: 1px dashed var(--accent); color: var(--accent); background: transparent; border-radius: 4px; cursor: pointer; font-weight: bold;">+ Add Condition</button>
                 </div>
+
                 <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 5px;">
                     <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
                         <input type="color" class="st-color" value="${st.color || '#ffffff'}" style="width: 30px; height: 28px; padding: 0; border: 1px solid var(--input-border); border-radius: 4px; cursor: pointer; flex-shrink: 0;">
@@ -309,14 +341,102 @@ export function renderActionsAndStates(sc, onStateChange) {
             });
         }
 
-        // Generic inputs (excluding the color swatch and text hex input)
+        // Bind dynamic inputs inside each cond-row to keep conditions array and top-level synced in real-time
+        div.querySelectorAll('.cond-row').forEach(row => {
+            const condIdx = parseInt(row.getAttribute('data-cond-idx'));
+            const cond = st.conditions[condIdx];
+            
+            const entityInput = row.querySelector('.cond-entity');
+            const opSelect = row.querySelector('.cond-op');
+            const valInput = row.querySelector('.cond-val');
+            
+            const updateCond = () => {
+                cond.state_entity = entityInput.value;
+                cond.entity = entityInput.value; // set both for compatibility
+                cond.operator = opSelect.value;
+                cond.value = valInput.value;
+                
+                // Synchronize the first condition to the top-level keys
+                if (st.conditions.length > 0) {
+                    st.state_entity = st.conditions[0].state_entity || '';
+                    st.operator = st.conditions[0].operator || '==';
+                    st.value = st.conditions[0].value || '';
+                }
+            };
+            
+            entityInput.addEventListener('input', () => {
+                updateCond();
+                if (onStateChange) onStateChange(false);
+            });
+            entityInput.addEventListener('change', () => {
+                updateCond();
+                if (onStateChange) onStateChange(true);
+            });
+            
+            opSelect.addEventListener('change', () => {
+                updateCond();
+                if (onStateChange) onStateChange(true);
+            });
+            
+            valInput.addEventListener('input', () => {
+                updateCond();
+                if (onStateChange) onStateChange(false);
+            });
+            valInput.addEventListener('change', () => {
+                updateCond();
+                if (onStateChange) onStateChange(true);
+            });
+            
+            row.querySelector('.del-cond').addEventListener('click', (e) => {
+                e.stopPropagation();
+                st.conditions.splice(condIdx, 1);
+                
+                // Synchronize the first condition or clear
+                if (st.conditions.length > 0) {
+                    st.state_entity = st.conditions[0].state_entity || '';
+                    st.operator = st.conditions[0].operator || '==';
+                    st.value = st.conditions[0].value || '';
+                } else {
+                    st.state_entity = '';
+                    st.operator = '==';
+                    st.value = '';
+                }
+                
+                if (onStateChange) onStateChange(true);
+                renderActionsAndStates(sc, onStateChange);
+            });
+        });
+
+        // Add condition button listener
+        const addCondBtn = div.querySelector('.add-cond-btn');
+        if (addCondBtn) {
+            addCondBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                st.conditions.push({
+                    state_entity: '',
+                    operator: '==',
+                    value: ''
+                });
+                
+                // Synchronize if it is the first condition
+                if (st.conditions.length === 1) {
+                    st.state_entity = st.conditions[0].state_entity || '';
+                    st.operator = st.conditions[0].operator || '==';
+                    st.value = st.conditions[0].value || '';
+                }
+                
+                if (onStateChange) onStateChange(true);
+                renderActionsAndStates(sc, onStateChange);
+            });
+        }
+
+        // Generic inputs (excluding the color swatch, text hex, and condition rows)
         div.querySelectorAll('.st-body input, .st-body select').forEach(el => {
             if (el.classList.contains('st-color') || el.classList.contains('st-color-text')) return;
+            if (el.closest('.cond-row') || el.classList.contains('add-cond-btn')) return;
+            
             const updateStateObj = () => {
                 st.name = div.querySelector('.st-name').value;
-                st.state_entity = div.querySelector('.st-entity').value;
-                st.operator = div.querySelector('.st-op').value;
-                st.value = div.querySelector('.st-val').value;
                 st.icon = div.querySelector('.st-icon').value;
                 st.image = div.querySelector('.st-image').value;
                 st.autoRotate = div.querySelector('.st-autorotate').checked;

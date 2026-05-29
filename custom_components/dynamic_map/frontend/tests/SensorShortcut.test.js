@@ -162,4 +162,32 @@ describe('SensorShortcut', () => {
         expect(shortcut.bgGroup.style.filter).toBe(expectedFilter);
         expect(shortcut.unavailableLine.style.display).toBe('block');
     });
+
+    it('should toggle root helper boolean entity on click', async () => {
+        let calledDomain = null;
+        let calledService = null;
+        let calledPayload = null;
+
+        const customMapContext = {
+            _hass: {
+                callService: async (domain, service, payload) => {
+                    calledDomain = domain;
+                    calledService = service;
+                    calledPayload = payload;
+                }
+            },
+            imgW: 1000,
+            imgH: 1000,
+            isRotated: false
+        };
+
+        const shortcut = new SensorShortcut(scData, svgNS, 1000, 1000, customMapContext);
+        shortcut.render();
+        shortcut.onClick({});
+
+        expect(calledDomain).toBe('input_boolean');
+        expect(calledService).toBe('toggle');
+        expect(calledPayload).toEqual({ entity_id: 'input_boolean.sensor_living_room' });
+    });
 });
+

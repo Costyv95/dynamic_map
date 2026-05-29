@@ -212,4 +212,16 @@ export class SensorShortcut extends MapShortcut {
         }
         return !!(this.config && this.config.autoRotate);
     }
+
+    onClick(e) {
+        if (this.sc.entity_id && this.mapContext._hass) {
+            const domain = this.sc.entity_id.split('.')[0];
+            this.mapContext._hass.callService(domain, 'toggle', { entity_id: this.sc.entity_id }).catch(err => {
+                console.error("[DynamicMap] Sensor tap toggle error:", err);
+            });
+        } else {
+            super.onClick(e);
+        }
+    }
 }
+
