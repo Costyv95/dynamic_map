@@ -10,6 +10,7 @@
 - [ ] **Iconography:** Allow users to select different icons instead of defaulting to the hardcoded `💡` or vacuum icons.
 - [ ] **Shortcut Deletion Safety:** Add a confirmation dialog before deleting rooms or shortcuts to prevent accidental data loss.
 - [ ] **Custom Lovelace Card:** The `custom-svg-map.js` currently requires manual YAML configuration. Build a custom Lovelace visual card editor (a `custom-svg-map-editor.js`) so users can configure the card purely via the UI instead of pasting the YAML output.
+- [ ] **Dual-Orientation Positioning:** Design a generic, elegant mechanism inside the editor and card to handle independent positioning coordinates or smart adaptive alignment for shortcuts when rotated between vertical and horizontal orientations. Currently, adjusting coordinates manually for flipped/rotated map layouts is highly cumbersome.
 
 ## 3. Deployment & CI/CD
 - [ ] **HACS Testing:** Perform a full clean install of the repository via HACS on a secondary Home Assistant instance to verify all static paths resolve correctly.
