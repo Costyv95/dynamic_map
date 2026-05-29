@@ -120,7 +120,7 @@ export class SensorShortcut extends MapShortcut {
         }
         
         // Dynamic value entity resolution from activeState display_entity or fallback to root entity_id
-        const displayEntity = this.activeState?.display_entity || this.sc.entity_id;
+        const displayEntity = this.activeState?.display_entity || this.config.temperature_entity || this.config.humidity_entity || this.sc.entity_id;
         const stateObj = displayEntity ? hass.states[displayEntity] : null;
         const val = stateObj ? stateObj.state : '--';
         const isUnavailable = !!(displayEntity && hass.states[displayEntity] &&
