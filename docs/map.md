@@ -1,4 +1,4 @@
-> Auto-generated 2026-05-22 14:06. Regenerate with /map.
+> Auto-generated 2026-05-29 23:12. Regenerate with /map.
 
 # Dynamic Map Project Map
 
@@ -26,6 +26,8 @@ The **Dynamic Map** project is a custom Home Assistant integration that renders 
     - `MapShortcut.js`: Base class for position tracking and event handling.
     - `GenericShortcut.js`: General-purpose shortcuts (Buttons, Toggles) with `<ha-icon>` support.
     - `VacuumShortcut.js`: Specialized shortcut for Roborock zone/room cleaning.
+    - `SensorShortcut.js`: Polymorphic shortcut rendering rounded comfort temp/humidity pills on map.
+
   - **`/shared/`**: Code shared between the Card and the Editor.
     - `ApiManager.js`: Handles HTTP requests to the HA backend to save configurations.
   - **`/tests/`**: Unit testing suite (Vitest).

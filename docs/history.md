@@ -42,4 +42,20 @@ This document sequentially records the major technical and architectural decisio
     - **Benefits:** Restores immediate, out-of-the-box long-press menu rendering for sensors. Aligns visual draw scales with mouse tracking grids for a seamless, pixel-perfect WYSIWYG dragging/resizing experience.
     - **Trade-offs:** None. Preserves green Vitest test standards.
 
+---
+
+## 004 Generic Multi-Condition UI Sidebar Editor & Decoupled Data-Driven Sensor Tapping
+*   **Date:** 2026-05-29
+*   **Status:** Accepted
+*   **Context:** State conditions were hidden behind the editor UI sidebar (only supporting single static top-level entity/operator/value inputs), hiding nested or complex multi-condition logic (like temperature/humidity comfort intervals). In addition, tapping a sensor pill hardcoded click-to-toggle logic in JS instead of behaving as a decoupled, standard, data-driven custom action inside `config.actions`.
+*   **Decision:**
+    - Replaced the single condition input fields in `ShortcutConfigUI.js` with a generic, dynamic nested **"Conditions"** list section, allowing adding (`+ Add Condition`) and deleting (`X`) multiple conditions visually.
+    - Synchronized the first item inside `st.conditions` to the top-level keys (`st.state_entity`, `st.operator`, `st.value`) to preserve Lovelace backward-compatibility.
+    - Added support for `"SENSOR_OVERLAY"` as a standard visual action in the select dropdown and the sidebar, pre-populating both the helper boolean `"TOGGLE"` action on tap and the `"SENSOR_OVERLAY"` action on hold out-of-the-box when a shortcut is switched to type sensor.
+    - Reverted the hardcoded `onClick(e)` override inside `SensorShortcut.js` to rely entirely on standard, generic data-driven click actions.
+*   **Consequences:**
+    - **Benefits:** Maximizes visual editor transparency, making multi-condition logic fully visual and editable. Cleanly decouples shortcut click behaviors.
+    - **Trade-offs:** Requires cache-busting version bumps inside backend Python panel configurations (`__init__.py`) to bypass aggressive Home Assistant panel caching.
+
+
 

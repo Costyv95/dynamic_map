@@ -8,43 +8,42 @@ Shortcuts are stored in `shortcuts_floorX.json`. The schema strictly separates s
 
 ```json
 {
-  "id": "sc_123456",
-  "name": "Living Room TV",
-  "type": "tv",
-  "entity_id": "media_player.living_room_tv",
-  "parent": "room_789",
-  "position": [45.5, 60.2],
-  "scaleX": 1.0,
-  "scaleY": 1.0,
+  "id": "sc_1",
+  "type": "sensor",         // generic, light, vacuum, sensor
+  "entity_id": "input_boolean.sensor_bedroom",
+  "position": [25.4, 42.1], // Percentage coordinate on canvas
+  "scaleX": 1.2,
+  "scaleY": 1.2,
+  "parent": "room_bedroom", // Aligns coordinate system (global/local)
   "config": {
-    "shape": "rect",
-    "color": "#000000",
     "transparent": false,
-    "menuWidth": 250,
-    "menuHeight": 300,
-    "room_mapping": {},
+    "color": "#0ea5e9",
+    "icon": "🌡️",
+    "temperature_entity": "sensor.somneo_temperature",
+    "humidity_entity": "sensor.somneo_humidity",
     "actions": [
       {
-        "id": "act_1",
-        "type": "TOGGLE_ON", // TOGGLE_ON, TOGGLE_OFF, TOGGLE, CALL_SERVICE, SLIDER
-        "action_entity": "media_player.living_room_tv",
-        "service": "",       // Used if type == CALL_SERVICE
-        "trigger": "tap",    // tap, overlay, double_tap
-        "icon": "mdi:power",
-        "name": "Turn On",
-        "_expanded": false
+        "type": "TOGGLE",
+        "trigger": "tap",
+        "action_entity": "input_boolean.sensor_bedroom"
+      },
+      {
+        "type": "SENSOR_OVERLAY",
+        "trigger": "long_press"
       }
     ],
     "states": [
       {
-        "id": "st_1",
-        "state_entity": "media_player.living_room_tv",
-        "operator": "==", // ==, !=, in, not_in
-        "value": "playing",
-        "icon": "mdi:music",
-        "color": "#10b981",
-        "animation": "pulse",
-        "_expanded": false
+        "id": "st_temp_cold",
+        "name": "Cold Temp",
+        "display_entity": "sensor.somneo_temperature",
+        "unit": "°",
+        "color": "#3b82f6",
+        "icon": "❄️",
+        "conditions": [
+          { "state_entity": "input_boolean.sensor_bedroom", "operator": "==", "value": "on" },
+          { "state_entity": "sensor.somneo_temperature", "operator": "<", "value": "20" }
+        ]
       }
     ]
   }
