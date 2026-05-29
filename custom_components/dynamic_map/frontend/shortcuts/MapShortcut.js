@@ -108,35 +108,85 @@ export class MapShortcut {
     evaluateStates(hass) {
         if (!this.config.states || !this.config.states.length) return null;
         for (const st of this.config.states) {
-            const entity = st.state_entity;
-            if (!entity || !hass.states[entity]) continue;
-            const actualVal = hass.states[entity].state;
-            const targetVal = st.value;
-            let matched = false;
+            let matched = true;
             
-            const actualNum = parseFloat(actualVal);
-            const isActualNumeric = !isNaN(actualNum);
-            
-            if (st.operator === '==') {
-                matched = (actualVal == targetVal);
-            } else if (st.operator === '!=') {
-                matched = (actualVal != targetVal);
-            } else if (st.operator === '<' && isActualNumeric) {
-                matched = (actualNum < parseFloat(targetVal));
-            } else if (st.operator === '<=' && isActualNumeric) {
-                matched = (actualNum <= parseFloat(targetVal));
-            } else if (st.operator === '>' && isActualNumeric) {
-                matched = (actualNum > parseFloat(targetVal));
-            } else if (st.operator === '>=' && isActualNumeric) {
-                matched = (actualNum >= parseFloat(targetVal));
-            } else if (st.operator === 'between' && isActualNumeric) {
-                const parts = String(targetVal).split('-');
-                if (parts.length === 2) {
-                    const min = parseFloat(parts[0]);
-                    const max = parseFloat(parts[1]);
-                    if (!isNaN(min) && !isNaN(max)) {
-                        matched = (actualNum >= min && actualNum <= max);
+            if (st.conditions && st.conditions.length > 0) {
+                for (const cond of st.conditions) {
+                    const entity = cond.state_entity || cond.entity || st.state_entity || this.sc.entity_id;
+                    if (!entity || !hass.states[entity]) {
+                        matched = false;
+                        break;
                     }
+                    const actualVal = hass.states[entity].state;
+                    const targetVal = cond.value;
+                    const actualNum = parseFloat(actualVal);
+                    const isActualNumeric = !isNaN(actualNum);
+                    
+                    let condMatched = false;
+                    const op = cond.operator || '==';
+                    if (op === '==') {
+                        condMatched = (actualVal == targetVal);
+                    } else if (op === '!=') {
+                        condMatched = (actualVal != targetVal);
+                    } else if (op === '<' && isActualNumeric) {
+                        condMatched = (actualNum < parseFloat(targetVal));
+                    } else if (op === '<=' && isActualNumeric) {
+                        condMatched = (actualNum <= parseFloat(targetVal));
+                    } else if (op === '>' && isActualNumeric) {
+                        condMatched = (actualNum > parseFloat(targetVal));
+                    } else if (op === '>=' && isActualNumeric) {
+                        condMatched = (actualNum >= parseFloat(targetVal));
+                    } else if (op === 'between' && isActualNumeric) {
+                        const parts = String(targetVal).split('-');
+                        if (parts.length === 2) {
+                            const min = parseFloat(parts[0]);
+                            const max = parseFloat(parts[1]);
+                            if (!isNaN(min) && !isNaN(max)) {
+                                condMatched = (actualNum >= min && actualNum <= max);
+                            }
+                        }
+                    }
+                    
+                    if (!condMatched) {
+                        matched = false;
+                        break;
+                    }
+                }
+            } else {
+                const entity = st.state_entity || this.sc.entity_id;
+                if (!entity || !hass.states[entity]) {
+                    matched = false;
+                } else {
+                    const actualVal = hass.states[entity].state;
+                    const targetVal = st.value;
+                    const actualNum = parseFloat(actualVal);
+                    const isActualNumeric = !isNaN(actualNum);
+                    
+                    let singleMatched = false;
+                    const op = st.operator || '==';
+                    if (op === '==') {
+                        singleMatched = (actualVal == targetVal);
+                    } else if (op === '!=') {
+                        singleMatched = (actualVal != targetVal);
+                    } else if (op === '<' && isActualNumeric) {
+                        singleMatched = (actualNum < parseFloat(targetVal));
+                    } else if (op === '<=' && isActualNumeric) {
+                        singleMatched = (actualNum <= parseFloat(targetVal));
+                    } else if (op === '>' && isActualNumeric) {
+                        singleMatched = (actualNum > parseFloat(targetVal));
+                    } else if (op === '>=' && isActualNumeric) {
+                        singleMatched = (actualNum >= parseFloat(targetVal));
+                    } else if (op === 'between' && isActualNumeric) {
+                        const parts = String(targetVal).split('-');
+                        if (parts.length === 2) {
+                            const min = parseFloat(parts[0]);
+                            const max = parseFloat(parts[1]);
+                            if (!isNaN(min) && !isNaN(max)) {
+                                singleMatched = (actualNum >= min && actualNum <= max);
+                            }
+                        }
+                    }
+                    matched = singleMatched;
                 }
             }
             if (matched) return st;

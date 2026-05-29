@@ -1,14 +1,6 @@
 import { MapShortcut } from './MapShortcut.js';
 
 export class SensorShortcut extends MapShortcut {
-    constructor(scData, svgNS, imgW, imgH, mapContext) {
-        super(scData, svgNS, imgW, imgH, mapContext);
-        
-        // Default display measurement
-        this.activeMeasurement = this.config.default_measurement || 'temperature';
-        this._initialized = false;
-    }
-
     render() {
         // Renders a premium rounded pill shape
         this.shape = document.createElementNS(this.svgNS, 'rect');
@@ -79,64 +71,8 @@ export class SensorShortcut extends MapShortcut {
         
         return this.group;
     }
-    
-    getActiveEntity() {
-        if (this.activeMeasurement === 'humidity') {
-            return this.config.humidity_entity || 'sensor.room_humidity';
-        }
-        return this.config.temperature_entity || this.sc.entity_id || 'sensor.room_temperature';
-    }
-
-    evaluateStates(hass) {
-        if (!this.config.states || !this.config.states.length) return null;
-        
-        const activeEntity = this.getActiveEntity();
-        if (!activeEntity || !hass.states[activeEntity]) return null;
-        
-        // Filter states specifically matching our active measurement entity
-        const filteredStates = this.config.states.filter(st => st.state_entity === activeEntity);
-        
-        for (const st of filteredStates) {
-            const actualVal = hass.states[activeEntity].state;
-            const targetVal = st.value;
-            let matched = false;
-            
-            const actualNum = parseFloat(actualVal);
-            const isActualNumeric = !isNaN(actualNum);
-            
-            if (st.operator === '==') {
-                matched = (actualVal == targetVal);
-            } else if (st.operator === '!=') {
-                matched = (actualVal != targetVal);
-            } else if (st.operator === '<' && isActualNumeric) {
-                matched = (actualNum < parseFloat(targetVal));
-            } else if (st.operator === '<=' && isActualNumeric) {
-                matched = (actualNum <= parseFloat(targetVal));
-            } else if (st.operator === '>' && isActualNumeric) {
-                matched = (actualNum > parseFloat(targetVal));
-            } else if (st.operator === '>=' && isActualNumeric) {
-                matched = (actualNum >= parseFloat(targetVal));
-            } else if (st.operator === 'between' && isActualNumeric) {
-                const parts = String(targetVal).split('-');
-                if (parts.length === 2) {
-                    const min = parseFloat(parts[0]);
-                    const max = parseFloat(parts[1]);
-                    if (!isNaN(min) && !isNaN(max)) {
-                        matched = (actualNum >= min && actualNum <= max);
-                    }
-                }
-            }
-            if (matched) return st;
-        }
-        return null;
-    }
 
     updateState(hass) {
-        const toggleEntity = this.sc.entity_id;
-        if (toggleEntity && hass.states[toggleEntity] && toggleEntity.startsWith('input_boolean.')) {
-            this.activeMeasurement = hass.states[toggleEntity].state === 'on' ? 'temperature' : 'humidity';
-        }
-
         super.updateState(hass);
         
         let activeScaleX = this.scaleX;
@@ -183,27 +119,33 @@ export class SensorShortcut extends MapShortcut {
             }
         }
         
-        const activeEntity = this.getActiveEntity();
-        const stateObj = hass.states[activeEntity];
+        // Dynamic value entity resolution from activeState display_entity or fallback to root entity_id
+        const displayEntity = this.activeState?.display_entity || this.sc.entity_id;
+        const stateObj = displayEntity ? hass.states[displayEntity] : null;
         const val = stateObj ? stateObj.state : '--';
-        const isUnavailable = !!(activeEntity && hass.states[activeEntity] &&
-            (hass.states[activeEntity].state === 'unavailable' || hass.states[activeEntity].state === 'unknown'));
+        const isUnavailable = !!(displayEntity && hass.states[displayEntity] &&
+            (hass.states[displayEntity].state === 'unavailable' || hass.states[displayEntity].state === 'unknown'));
 
-        // Format state value based on active measurement
+        // Format state value based on unit configured in activeState or read from HA state attributes
+        let unit = '';
+        if (this.activeState && this.activeState.unit !== undefined) {
+            unit = this.activeState.unit;
+        } else if (stateObj && stateObj.attributes && stateObj.attributes.unit_of_measurement) {
+            unit = stateObj.attributes.unit_of_measurement;
+        }
+        
         let formattedVal = val;
         const numericVal = parseFloat(val);
         if (!isNaN(numericVal)) {
-            if (this.activeMeasurement === 'temperature') {
-                formattedVal = `${numericVal.toFixed(0)}°`;
-            } else {
-                formattedVal = `${numericVal.toFixed(0)}%`;
-            }
+            formattedVal = `${numericVal.toFixed(0)}${unit}`;
+        } else if (val !== '--') {
+            formattedVal = `${val}${unit}`;
         }
         this.iconText.textContent = formattedVal;
 
         // Resolve colors and icons
-        let color = this.config.color || (this.activeMeasurement === 'temperature' ? '#ef4444' : '#3b82f6');
-        let icon = this.activeMeasurement === 'temperature' ? '🌡️' : '💧';
+        let color = this.config.color || '#0ea5e9';
+        let icon = this.config.icon || '🌡️';
         
         if (this.activeState) {
             if (this.activeState.color) color = this.activeState.color;
@@ -269,24 +211,5 @@ export class SensorShortcut extends MapShortcut {
             return !!this.activeState.autoRotate;
         }
         return !!(this.config && this.config.autoRotate);
-    }
-
-    onClick(e) {
-        const toggleEntity = this.sc.entity_id;
-        if (toggleEntity && toggleEntity.startsWith('input_boolean.')) {
-            if (this.mapContext._hass) {
-                const domain = toggleEntity.split('.')[0];
-                this.mapContext._hass.callService(domain, 'toggle', { entity_id: toggleEntity });
-            }
-        } else {
-            // Local fallback toggle
-            this.activeMeasurement = this.activeMeasurement === 'temperature' ? 'humidity' : 'temperature';
-            if (this.mapContext._hass) {
-                this.updateState(this.mapContext._hass);
-            }
-        }
-        
-        // If there are other action overrides configured on tap, let them also run
-        super.onClick(e);
     }
 }

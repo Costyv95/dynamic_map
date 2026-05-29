@@ -4,57 +4,58 @@ import { SensorShortcut } from '../shortcuts/SensorShortcut.js';
 describe('SensorShortcut', () => {
     const scData = {
         id: 'sensor_sc_123',
-        entity_id: 'sensor.living_room_temperature',
+        entity_id: 'input_boolean.sensor_living_room',
         position: [40, 60],
         config: {
-            temperature_entity: 'sensor.living_room_temperature',
-            humidity_entity: 'sensor.living_room_humidity',
-            default_measurement: 'temperature',
+            color: '#10b981',
             states: [
                 {
                     id: 'st_t_cold',
                     name: 'Cold Temp',
-                    state_entity: 'sensor.living_room_temperature',
-                    operator: '<',
-                    value: '19',
+                    display_entity: 'sensor.living_room_temperature',
+                    unit: '°',
                     color: '#3b82f6',
-                    icon: '❄️'
+                    icon: '❄️',
+                    conditions: [
+                        { entity: 'input_boolean.sensor_living_room', operator: '==', value: 'on' },
+                        { entity: 'sensor.living_room_temperature', operator: '<', value: '19' }
+                    ]
                 },
                 {
-                    id: 'st_t_ok',
+                    id: 'st_t_comfort',
                     name: 'Comfort Temp',
-                    state_entity: 'sensor.living_room_temperature',
-                    operator: 'between',
-                    value: '19-22',
+                    display_entity: 'sensor.living_room_temperature',
+                    unit: '°',
                     color: '#10b981',
-                    icon: '🌡️'
-                },
-                {
-                    id: 'st_t_hot',
-                    name: 'Hot Temp',
-                    state_entity: 'sensor.living_room_temperature',
-                    operator: '>',
-                    value: '22',
-                    color: '#f97316',
-                    icon: '🔥'
+                    icon: '🌡️',
+                    conditions: [
+                        { entity: 'input_boolean.sensor_living_room', operator: '==', value: 'on' },
+                        { entity: 'sensor.living_room_temperature', operator: 'between', value: '19-22' }
+                    ]
                 },
                 {
                     id: 'st_h_dry',
                     name: 'Dry Hum',
-                    state_entity: 'sensor.living_room_humidity',
-                    operator: '<=',
-                    value: '35',
+                    display_entity: 'sensor.living_room_humidity',
+                    unit: '%',
                     color: '#eab308',
-                    icon: '🌵'
+                    icon: '🌵',
+                    conditions: [
+                        { entity: 'input_boolean.sensor_living_room', operator: '==', value: 'off' },
+                        { entity: 'sensor.living_room_humidity', operator: '<=', value: '35' }
+                    ]
                 },
                 {
                     id: 'st_h_ok',
                     name: 'Comfort Hum',
-                    state_entity: 'sensor.living_room_humidity',
-                    operator: 'between',
-                    value: '36-60',
+                    display_entity: 'sensor.living_room_humidity',
+                    unit: '%',
                     color: '#10b981',
-                    icon: '💧'
+                    icon: '💧',
+                    conditions: [
+                        { entity: 'input_boolean.sensor_living_room', operator: '==', value: 'off' },
+                        { entity: 'sensor.living_room_humidity', operator: 'between', value: '36-60' }
+                    ]
                 }
             ]
         }
@@ -82,12 +83,13 @@ describe('SensorShortcut', () => {
         expect(shortcut.shape.getAttribute('ry')).toBe('8');
     });
 
-    it('should display active temperature value and apply correct comfortable range state', () => {
+    it('should display active temperature value and apply correct range state when input_boolean is on', () => {
         const shortcut = new SensorShortcut(scData, svgNS, 1000, 1000, mapContext);
         shortcut.render();
         
         const mockHass = {
             states: {
+                'input_boolean.sensor_living_room': { state: 'on' },
                 'sensor.living_room_temperature': { state: '21.4' },
                 'sensor.living_room_humidity': { state: '45' }
             }
@@ -95,19 +97,20 @@ describe('SensorShortcut', () => {
 
         shortcut.updateState(mockHass);
 
-        // Under 21.4 degrees, Temp Comfort (19-22) matches -> color #10b981, icon 🌡️
-        expect(shortcut.activeMeasurement).toBe('temperature');
+        // When input_boolean is 'on' and temp is 21.4, Comfort Temp matches -> color #10b981, icon 🌡️, value 21°
+        expect(shortcut.activeState.id).toBe('st_t_comfort');
         expect(shortcut.iconText.textContent).toBe('21°');
         expect(shortcut.shape.getAttribute('fill')).toBe('#10b981');
         expect(shortcut.emojiText.textContent).toBe('🌡️');
     });
 
-    it('should match cold range state for temperature under 19', () => {
+    it('should display cold temperature range when input_boolean is on and temperature is low', () => {
         const shortcut = new SensorShortcut(scData, svgNS, 1000, 1000, mapContext);
         shortcut.render();
         
         const mockHass = {
             states: {
+                'input_boolean.sensor_living_room': { state: 'on' },
                 'sensor.living_room_temperature': { state: '17.8' },
                 'sensor.living_room_humidity': { state: '45' }
             }
@@ -115,41 +118,32 @@ describe('SensorShortcut', () => {
 
         shortcut.updateState(mockHass);
 
-        // Temp Cold matches -> color #3b82f6, icon ❄️
+        // Cold Temp matches -> color #3b82f6, icon ❄️, value 18°
+        expect(shortcut.activeState.id).toBe('st_t_cold');
         expect(shortcut.iconText.textContent).toBe('18°');
         expect(shortcut.shape.getAttribute('fill')).toBe('#3b82f6');
         expect(shortcut.emojiText.textContent).toBe('❄️');
     });
 
-    it('should cycle measurement type and update rendering on click', () => {
+    it('should display humidity range when input_boolean is off', () => {
         const shortcut = new SensorShortcut(scData, svgNS, 1000, 1000, mapContext);
         shortcut.render();
         
         const mockHass = {
             states: {
+                'input_boolean.sensor_living_room': { state: 'off' },
                 'sensor.living_room_temperature': { state: '21.4' },
                 'sensor.living_room_humidity': { state: '32.1' }
             }
         };
-        mapContext._hass = mockHass;
 
         shortcut.updateState(mockHass);
-        expect(shortcut.activeMeasurement).toBe('temperature');
-        expect(shortcut.iconText.textContent).toBe('21°');
 
-        // Click the shortcut to cycle to humidity
-        shortcut.onClick(new window.Event('click'));
-
-        expect(shortcut.activeMeasurement).toBe('humidity');
-        // Under 32.1% humidity, Dry Hum (<= 35) matches -> color #eab308, icon 🌵
+        // When input_boolean is 'off' and humidity is 32.1, Dry Hum matches -> color #eab308, icon 🌵, value 32%
+        expect(shortcut.activeState.id).toBe('st_h_dry');
         expect(shortcut.iconText.textContent).toBe('32%');
         expect(shortcut.shape.getAttribute('fill')).toBe('#eab308');
         expect(shortcut.emojiText.textContent).toBe('🌵');
-
-        // Click again to cycle back to temperature
-        shortcut.onClick(new window.Event('click'));
-        expect(shortcut.activeMeasurement).toBe('temperature');
-        expect(shortcut.iconText.textContent).toBe('21°');
     });
 
     it('should apply desaturation filter and strike-through on unavailable sensor state', () => {
@@ -158,7 +152,7 @@ describe('SensorShortcut', () => {
         
         const mockHass = {
             states: {
-                'sensor.living_room_temperature': { state: 'unavailable' }
+                'input_boolean.sensor_living_room': { state: 'unavailable' }
             }
         };
 
