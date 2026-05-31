@@ -346,6 +346,7 @@ class CustomSvgMap extends HTMLElement {
         let scaleY = 1;
         const finalIsHorizontal = isMapLandscape !== this.isRotated;
         const activeMode = finalIsHorizontal ? 'horizontal' : 'vertical';
+        this.activeMode = activeMode;
         
         const currentFlips = this.flips[activeMode];
         if (this.isRotated) {
@@ -382,6 +383,10 @@ class CustomSvgMap extends HTMLElement {
                     if (this.isRotated && !isAutoRotate) scTransformStr += `rotate(-90) `;
                     if (scObj.setTransformStr) scObj.setTransformStr(scTransformStr.trim());
                     else if (scObj.setRotation) scObj.setRotation((this.isRotated && !isAutoRotate) ? -90 : 0);
+                    
+                    if (scObj.updateCoordinates) {
+                        scObj.updateCoordinates();
+                    }
                 });
             }
 
@@ -400,6 +405,10 @@ class CustomSvgMap extends HTMLElement {
                 Object.values(this.shortcutElements).forEach(scObj => {
                     if (scObj.setTransformStr) scObj.setTransformStr('');
                     else if (scObj.setRotation) scObj.setRotation(0);
+                    
+                    if (scObj.updateCoordinates) {
+                        scObj.updateCoordinates();
+                    }
                 });
             }
         }
