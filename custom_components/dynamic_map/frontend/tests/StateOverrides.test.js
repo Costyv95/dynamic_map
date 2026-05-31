@@ -385,11 +385,10 @@ describe('MapShortcut JSDOM Integration', () => {
         expect(shortcut.shape.getAttribute('r')).toBe('24'); // scaleX (2) * 12 = 24
 
         // 2. When state is "off", autoRotate inherits root true.
-        // It SHOULD swap scales because autoRotate is true and map is rotated.
-        // ActiveScaleX becomes scaleY (3), activeScaleY becomes scaleX (2).
+        // It should NOT swap scales even when autoRotate is true and map is rotated.
         shortcut.updateState(mockHassOff);
         expect(shortcut.getIsAutoRotateActive()).toBe(true);
-        expect(shortcut.shape.getAttribute('r')).toBe('36'); // scaleY (3) * 12 = 36
+        expect(shortcut.shape.getAttribute('r')).toBe('24'); // scaleX (2) * 12 = 24
     });
 
     it('should desaturate the background and icons, and draw a vibrant red diagonal strike-through if entity is unavailable', () => {

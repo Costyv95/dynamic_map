@@ -768,12 +768,12 @@ describe('CanvasEngine.draw - Coordinate Mapping', () => {
         // 1. Check if ctx.rotate was called with Math.PI / 2
         expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
 
-        // 2. Check if scales were swapped (rx should be 12 * 3 = 36, ry should be 12 * 2 = 24 instead of 24 and 36)
+        // 2. Check that scales were NOT swapped (rx = 12 * 2 = 24, ry = 12 * 3 = 36)
         // x = 0.5 * 1280 = 640
         // y = 0.5 * 1920 = 960
-        // rx = 36, ry = 24
-        // x - rx = 604, y - ry = 936, rx*2 = 72, ry*2 = 48
-        expect(ctx.rect).toHaveBeenCalledWith(604, 936, 72, 48);
+        // rx = 24, ry = 36
+        // x - rx = 616, y - ry = 924, rx*2 = 48, ry*2 = 72
+        expect(ctx.rect).toHaveBeenCalledWith(616, 924, 48, 72);
     });
 });
 

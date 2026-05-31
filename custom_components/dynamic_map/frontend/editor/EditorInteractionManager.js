@@ -287,13 +287,20 @@ export class EditorInteractionManager {
             
             const divisorRx = sc.type === 'sensor' ? 26 : 12;
             const divisorRy = 12;
+            const isUniform = sc.type === 'sensor' || (sc.config?.shape !== 'rect' && sc.shape !== 'rect');
             if (this.resizeHandle.includes('E') || this.resizeHandle.includes('W')) {
                 sc.scaleX = Math.max(0.5, dx / divisorRx);
                 sc.scale = sc.scaleX;
+                if (isUniform) {
+                    sc.scaleY = sc.scaleX;
+                }
             }
             if (this.resizeHandle.includes('N') || this.resizeHandle.includes('S')) {
                 sc.scaleY = Math.max(0.5, dy / divisorRy);
                 sc.scale = sc.scaleY;
+                if (isUniform) {
+                    sc.scaleX = sc.scaleY;
+                }
             }
             this.state.requestDrawCallback();
             return;

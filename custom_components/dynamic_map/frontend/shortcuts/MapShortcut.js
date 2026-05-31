@@ -99,12 +99,6 @@ export class MapShortcut {
             let scaleX = this.scaleX || this.sc.scaleX || scale;
             let scaleY = this.scaleY || this.sc.scaleY || scale;
             
-            if (this.getIsAutoRotateActive() && this.mapContext.isRotated) {
-                const temp = scaleX;
-                scaleX = scaleY;
-                scaleY = temp;
-            }
-            
             const w = 24 * scaleX;
             const h = 24 * scaleY;
             

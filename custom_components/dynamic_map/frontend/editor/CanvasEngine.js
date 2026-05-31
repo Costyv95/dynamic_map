@@ -295,12 +295,6 @@ export class CanvasEngine {
                 autoRotate = sc.config?.autoRotate || false;
             }
 
-            if (autoRotate && this.isRotated) {
-                const temp = scaleX;
-                scaleX = scaleY;
-                scaleY = temp;
-            }
-
             if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
                 const st = sc.config.states[previewStateIdx];
                 if (st.color) color = st.color;
@@ -543,8 +537,13 @@ export class CanvasEngine {
                         }
 
                         if (cachedImg.complete && cachedImg.naturalWidth > 0 && !cachedImg._failed) {
-                            const dim = 20 * Math.min(scaleX, scaleY) * currentScale;
-                            this.ctx.drawImage(cachedImg, -dim/2, -dim/2, dim, dim);
+                            let imgW = 20 * Math.min(scaleX, scaleY) * currentScale;
+                            let imgH = imgW;
+                            if (shape === 'rect' || sc.type === 'sensor') {
+                                imgW = rx * 2 * 0.8 * currentScale;
+                                imgH = ry * 2 * 0.8 * currentScale;
+                            }
+                            this.ctx.drawImage(cachedImg, -imgW/2, -imgH/2, imgW, imgH);
                         } else if (cachedImg._failed) {
                             this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                             this.ctx.textBaseline = 'middle';

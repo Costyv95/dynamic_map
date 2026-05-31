@@ -72,6 +72,38 @@ This document sequentially records the major technical and architectural decisio
     - **Benefits:** Maximizes shortcut customizability without requiring Javascript alterations. Guarantees beautiful, pixel-perfect alignment on both landscape wall-mounted tablets and vertical mobile phone apps.
     - **Trade-offs:** Increases the data schema of the positioning coordinates, successfully abstracted by the Map Editor.
 
+---
+
+## 006 Scale Swapping Elimination and Uniform Resize Standardization
+*   **Date:** 2026-05-31
+*   **Status:** Accepted
+*   **Context:** If `autoRotate` is true and the map rotates 90 degrees, the compositing engines in both `MapShortcut.js` and `CanvasEngine.js` swapped the `scaleX` and `scaleY` dimensions of the shortcuts. This aspect ratio swap counteracted the map's natural 90-degree rotation transform, preventing rectangular lines (like fairy lights or led strips) from visually rotating with the house and keeping them locked screen-horizontal. Additionally, resizing sensors or circular shapes in the editor only updated the specific dragged handle axis, causing `scaleY` and `scaleX` to drift and resulting in giant square sensors on the floorplan.
+*   **Decision:**
+    - Removed the scale swapping logic in both `MapShortcut.js` and `CanvasEngine.js`, allowing auto-rotated shortcuts to visually rotate naturally with the map.
+    - Updated the Vitest suites (`StateOverrides.test.js` and `CanvasEngine.test.js`) to assert correct, unswapped visual dimensions and bounds.
+    - Implemented uniform resizing inside `EditorInteractionManager.js` so that circular shapes and sensors maintain equal `scaleX` and `scaleY` dimensions when dragged along any handle.
+*   **Consequences:**
+    - **Benefits:** Ensures fairy lights and LED strips rotate seamlessly, matching the house alignment perfectly. Restores beautifully proportioned horizontal pill shapes for sensors, eliminating giant square glitches.
+    - **Trade-offs:** Mismatched sensor coordinates from past editor sessions must be resized once in the editor to sync up, or loaded from a sanitized config.
+
+---
+
+## 007 Fairy Lights Vertical Scale-Swap Alignment & Outside Sensor Dimensions
+*   **Date:** 2026-05-31
+*   **Status:** Accepted
+*   **Context:**
+    - The Fairy Lights (`sc_1779223727173`) are defined horizontally wide (`scaleX = 7.7`, `scaleY = 1.49`) in the JSON configuration, but they reside on a portrait (vertical) balcony wall on the second floor.
+    - This mismatch meant that in horizontal layouts (rotated map 90° clockwise), they rotated to vertical (becoming perpendicular to the horizontal screen wall), and in vertical layouts, they stayed horizontal (perpendicular to the vertical screen wall).
+    - Furthermore, `CanvasEngine.js` rendered shortcut preview images as squares rather than scaling to the rectangular shortcut bounding box, and the Outside Temperature sensor had a tiny scale factor (`1.71` vs `3.99`).
+*   **Decision:**
+    - Swapped the scale parameters (`scaleX` and `scaleY`) of the Fairy Lights in the compiler so that they are drawn vertically relative to the unrotated portrait map, causing them to align perfectly with the balcony wall in both horizontal (rotated) and vertical (unrotated) views.
+    - Standardized the Outside Temperature sensor scale to `3.99` to align its physical dimensions with the rest of the dashboard widgets.
+    - Enhanced the `CanvasEngine.js` image preview renderer to scale to the full aspect ratio of rectangular shape shortcuts (`imgW` and `imgH` match `rx` and `ry` bounds), matching the live floorplan view exactly.
+*   **Consequences:**
+    - **Benefits:** Guaranteed perfect visual alignment of the fairy lights balcony widget on both tablets and mobile phones. Restored uniform, clean proportions to all temperature widgets.
+    - **Trade-offs:** None. All 88 tests pass successfully.
+
+
 
 
 
