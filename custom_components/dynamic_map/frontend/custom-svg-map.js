@@ -290,7 +290,7 @@ class CustomSvgMap extends HTMLElement {
         versionBadge.style.display = 'flex';
         versionBadge.style.alignItems = 'center';
         versionBadge.style.justifyContent = 'center';
-        versionBadge.textContent = "3.0.1";
+        versionBadge.textContent = "3.0.3";
         if (this.topLeftUI) this.topLeftUI.appendChild(versionBadge);
 
         if (this.cameraManager) this.cameraManager.destroy();

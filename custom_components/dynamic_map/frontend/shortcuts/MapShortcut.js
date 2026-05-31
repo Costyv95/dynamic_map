@@ -231,7 +231,12 @@ export class MapShortcut {
                             baseCopy.push(contentEl);
                         }
                         if (contentEl) {
-                            if (matchedState.icon) {
+                            if (matchedState.image) {
+                                contentEl.type = 'image';
+                                contentEl.value = matchedState.image;
+                                contentEl.width = (baseCopy[0].width || 24) * 0.8;
+                                contentEl.height = (baseCopy[0].height || 24) * 0.8;
+                            } else if (matchedState.icon) {
                                 contentEl.type = 'icon';
                                 contentEl.value = matchedState.icon;
                                 if (this.config.transparent) {
@@ -239,11 +244,6 @@ export class MapShortcut {
                                 } else {
                                     contentEl.color = 'white';
                                 }
-                            } else if (matchedState.image) {
-                                contentEl.type = 'image';
-                                contentEl.value = matchedState.image;
-                                contentEl.width = (baseCopy[0].width || 24) * 0.8;
-                                contentEl.height = (baseCopy[0].height || 24) * 0.8;
                             }
                         }
                     }
@@ -320,7 +320,6 @@ export class MapShortcut {
                     let fillColor = comp.color || 'white';
                     if (fillColor === '#ffffff') fillColor = 'white';
                     this.iconText.setAttribute('fill', fillColor);
-                    this.iconText.textContent = '';
                     
                     // Style setter mock override for JSDOM
                     if (this.haIcon) {
@@ -330,6 +329,20 @@ export class MapShortcut {
                             configurable: true
                         });
                         this.haIcon.style.color = fillColor;
+                    }
+                    
+                    const isMdi = comp.value && comp.value.includes(':');
+                    if (isMdi) {
+                        this.iconText.textContent = '';
+                        if (this.haIcon) {
+                            this.haIcon.style.display = 'block';
+                        }
+                    } else {
+                        // Render plain text emoji directly inside SVG text element
+                        this.iconText.textContent = comp.value || '';
+                        if (this.haIcon) {
+                            this.haIcon.style.display = 'none';
+                        }
                     }
                     this.bgGroup.appendChild(this.iconText);
                 } else if (comp.type === 'image') {
