@@ -1,5 +1,5 @@
-import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=3.0.3-491847c-dev-180248';
-import { ApiManager } from '../shared/ApiManager.js?v=3.0.3-491847c-dev-180248';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=3.0.3-b7c3193-dev-182821';
+import { ApiManager } from '../shared/ApiManager.js?v=3.0.3-b7c3193-dev-182821';
 
 export class EditorUIManager {
     constructor(stateManager, engine) {
@@ -280,6 +280,59 @@ export class EditorUIManager {
         bindScProp('scAvailabilityEntity', 'availability_entity');
         bindScProp('scTemperatureEntity', 'temperature_entity');
         bindScProp('scHumidityEntity', 'humidity_entity');
+
+        const scaleXIn = document.getElementById('scScaleXInput');
+        const scaleYIn = document.getElementById('scScaleYInput');
+        const rotIn = document.getElementById('scRotationInput');
+
+        if (scaleXIn) {
+            scaleXIn.addEventListener('input', (e) => {
+                if (this.state.selectedShortcutIdx !== -1) {
+                    const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+                    this.setShortcutScale(sc, 'scaleX', parseFloat(e.target.value) || 1.0);
+                    
+                    const shape = sc.config?.shape || sc.shape || 'circle';
+                    if (shape === 'circle') {
+                        if (scaleYIn) {
+                            scaleYIn.value = e.target.value;
+                        }
+                    }
+                    this.state.requestDrawCallback();
+                }
+            });
+            scaleXIn.addEventListener('change', () => this.state.saveState());
+        }
+        if (scaleYIn) {
+            scaleYIn.addEventListener('input', (e) => {
+                if (this.state.selectedShortcutIdx !== -1) {
+                    const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+                    this.setShortcutScale(sc, 'scaleY', parseFloat(e.target.value) || 1.0);
+                    this.state.requestDrawCallback();
+                }
+            });
+            scaleYIn.addEventListener('change', () => this.state.saveState());
+        }
+        if (rotIn) {
+            rotIn.addEventListener('input', (e) => {
+                if (this.state.selectedShortcutIdx !== -1) {
+                    const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+                    this.setShortcutRotation(sc, parseFloat(e.target.value) || 0);
+                    this.state.requestDrawCallback();
+                }
+            });
+            rotIn.addEventListener('change', () => this.state.saveState());
+        }
+
+        const advancedPosHeader = document.getElementById('toggleAdvancedPosHeader');
+        const advancedPosContent = document.getElementById('advancedPosContent');
+        const advancedChevron = document.getElementById('advancedChevron');
+        if (advancedPosHeader && advancedPosContent && advancedChevron) {
+            advancedPosHeader.addEventListener('click', () => {
+                const isOpen = advancedPosContent.style.display === 'block';
+                advancedPosContent.style.display = isOpen ? 'none' : 'block';
+                advancedChevron.textContent = isOpen ? '▶' : '▼';
+            });
+        }
 
         document.getElementById('saveShortcutBtn').addEventListener('click', async (e) => {
             if (this.state.selectedShortcutIdx !== -1) {
@@ -600,6 +653,20 @@ export class EditorUIManager {
             document.getElementById('scAutoRotate').checked = !!(sc.config?.autoRotate);
             document.getElementById('scHasBackground').checked = !(sc.config?.transparent);
             
+            const scScale = this.getShortcutScale(sc);
+            const scRot = this.getShortcutRotation(sc);
+            document.getElementById('scScaleXInput').value = scScale.scaleX;
+            document.getElementById('scScaleYInput').value = scScale.scaleY;
+            document.getElementById('scRotationInput').value = scRot;
+
+            const shape = sc.config?.shape || sc.shape || 'circle';
+            const isCircle = shape === 'circle';
+            const scaleYInput = document.getElementById('scScaleYInput');
+            if (scaleYInput) {
+                scaleYInput.disabled = isCircle;
+                scaleYInput.style.opacity = isCircle ? '0.5' : '1.0';
+            }
+            
             if (sc.type === 'vacuum') {
                 document.getElementById('vacuumOptions').style.display = 'block';
                 document.getElementById('vacuumRoomSensor').value = sc.config?.room_sensor || '';
@@ -628,5 +695,97 @@ export class EditorUIManager {
         } else if (this.state.selectedRooms.length === 2) {
             document.getElementById('mergeUI').style.display = 'block';
         }
+    }
+
+    getShortcutScale(sc) {
+        const activeMode = this.engine.activeMode || 'horizontal';
+        
+        let scScale = 1.0;
+        if (sc.scale !== undefined) {
+            if (typeof sc.scale === 'object' && !Array.isArray(sc.scale)) {
+                scScale = sc.scale[activeMode] !== undefined ? sc.scale[activeMode] : (sc.scale.horizontal || 1.0);
+            } else {
+                scScale = sc.scale;
+            }
+        }
+        
+        let scaleX = scScale;
+        if (sc.scaleX !== undefined) {
+            if (typeof sc.scaleX === 'object' && !Array.isArray(sc.scaleX)) {
+                scaleX = sc.scaleX[activeMode] !== undefined ? sc.scaleX[activeMode] : (sc.scaleX.horizontal || scScale);
+            } else {
+                scaleX = sc.scaleX;
+            }
+        }
+        
+        let scaleY = scScale;
+        if (sc.scaleY !== undefined) {
+            if (typeof sc.scaleY === 'object' && !Array.isArray(sc.scaleY)) {
+                scaleY = sc.scaleY[activeMode] !== undefined ? sc.scaleY[activeMode] : (sc.scaleY.horizontal || scScale);
+            } else {
+                scaleY = sc.scaleY;
+            }
+        }
+        
+        const shape = sc.config?.shape || sc.shape || 'circle';
+        if (shape === 'circle') {
+            const uniformScale = scaleX;
+            return { scale: uniformScale, scaleX: uniformScale, scaleY: uniformScale };
+        }
+        
+        return { scale: scScale, scaleX, scaleY };
+    }
+
+    setShortcutScale(sc, prop, value) {
+        const activeMode = this.engine.activeMode || 'horizontal';
+        const shape = sc.config?.shape || sc.shape || 'circle';
+        
+        if (shape === 'circle') {
+            ['scale', 'scaleX', 'scaleY'].forEach(p => {
+                if (sc[p] === undefined || typeof sc[p] !== 'object' || Array.isArray(sc[p])) {
+                    const oldVal = sc[p] !== undefined ? sc[p] : 1.0;
+                    sc[p] = {
+                        horizontal: oldVal,
+                        vertical: oldVal
+                    };
+                }
+                sc[p][activeMode] = value;
+            });
+            return;
+        }
+
+        if (sc[prop] === undefined || typeof sc[prop] !== 'object' || Array.isArray(sc[prop])) {
+            const oldVal = sc[prop] !== undefined ? sc[prop] : 1.0;
+            sc[prop] = {
+                horizontal: oldVal,
+                vertical: oldVal
+            };
+        }
+        sc[prop][activeMode] = value;
+    }
+
+    getShortcutRotation(sc) {
+        const activeMode = this.engine.activeMode || 'horizontal';
+        let rot = 0;
+        if (sc.rotation !== undefined) {
+            if (typeof sc.rotation === 'object' && !Array.isArray(sc.rotation)) {
+                rot = sc.rotation[activeMode] !== undefined ? sc.rotation[activeMode] : (sc.rotation.horizontal || 0);
+            } else {
+                rot = sc.rotation;
+            }
+        }
+        return rot;
+    }
+
+    setShortcutRotation(sc, value) {
+        const activeMode = this.engine.activeMode || 'horizontal';
+        if (sc.rotation === undefined || typeof sc.rotation !== 'object' || Array.isArray(sc.rotation)) {
+            const oldVal = sc.rotation !== undefined ? sc.rotation : 0;
+            sc.rotation = {
+                horizontal: oldVal,
+                vertical: oldVal
+            };
+        }
+        sc.rotation[activeMode] = value;
     }
 }

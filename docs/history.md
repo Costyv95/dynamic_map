@@ -140,3 +140,21 @@ This document sequentially records the major technical and architectural decisio
     - **Benefits:** Completely resolves all caching issues, making local developments visible in the browser instantly. Guarantees beautiful vacuum assets render out-of-the-box. Restores perfect WYSIWYG handle dragging symmetry in rotated map views.
     - **Trade-offs:** None.
 
+---
+
+## 010 Dynamic Multi-Layout Scales & Rotations, and Symmetrical Circle Scaling
+*   **Date:** 2026-05-31
+*   **Status:** Accepted
+*   **Context:**
+    - Visual resizing and custom rotations were written to flat properties in the JSON database, causing edits made in portrait mode to overwrite landscape values, and vice versa.
+    - Drag resizing of shortcut circles could cause `scaleX` and `scaleY` to drift unproportionally if dragged along side handles or initialized with legacy rect scale offsets, leading to mismatched resize handle boxes and oval-shaped boundaries.
+    - Visual settings for shortcut scales and custom rotations were completely hidden from the visual editor sidebar, forcing users to edit raw JSON to configure them.
+*   **Decision:**
+    - **Orientation-Aware Scaling & Custom Rotations**: Updated `EditorInteractionManager.js` to read and write scales (`scale`, `scaleX`, `scaleY`) and custom rotations (`rotation`) orientation-safely to layout-specific objects using refined helpers (`getShortcutScale`, `setShortcutScale`, `getShortcutRotation`, `setShortcutRotation`). Added 2D rotation matrix vector transforms to align resizing bounding boxes and select hit-testing with custom rotated axes.
+    - **Symmetrical Circle Scale Clamp**: Refined `isUniform` rules to apply strictly to circles, and implemented scale clamping guards in both the editor (`CanvasEngine.js`) and HA card (`MapShortcut.js`) so that circles automatically force `scaleY = scaleX`, guaranteeing perfect symmetry. Enabled unproportional scaling for rectangle pills and sensors (allowing users to stretch them wider).
+    - **Advanced Positioning Sidebar Panel**: Integrated a clean collapsible panel ("Size & Rotation") inside `editor.html` and `EditorUIManager.js` that displays and synchronizes `Scale X`, `Scale Y`, and `Rotation` values for the active orientation in real-time, disabling and grey-shading `Scale Y` dynamically when the circle shape is active to make the constraint visually intuitive.
+*   **Consequences:**
+    - **Benefits:** Restores fully independent coordinate, size, and rotation configurations across multiple layout aspects. Guarantees perfect round shapes and matching resize bounding boxes for circles, while giving full sizing freedom to pill widgets. Eliminates "hidden properties" entirely by exposing size and rotation parameters transparently to the visual sidebar editor.
+    - **Trade-offs:** None. All 88 tests pass successfully.
+
+

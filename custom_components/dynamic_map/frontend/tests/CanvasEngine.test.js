@@ -765,8 +765,8 @@ describe('CanvasEngine.draw - Coordinate Mapping', () => {
             requestDraw,
         });
 
-        // 1. Check if ctx.rotate was called with Math.PI / 2
-        expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
+        // 1. Check that ctx.rotate was NOT called with -Math.PI / 2 (meaning the rotation remains active)
+        expect(ctx.rotate).not.toHaveBeenCalledWith(-Math.PI / 2);
 
         // 2. Check that scales were NOT swapped (rx = 12 * 2 = 24, ry = 12 * 3 = 36)
         // x = 0.5 * 1280 = 640

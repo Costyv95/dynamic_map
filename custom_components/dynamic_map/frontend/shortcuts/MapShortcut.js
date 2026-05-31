@@ -1,5 +1,5 @@
-import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-491847c-dev-180248';
-import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-491847c-dev-180248';
+import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-b7c3193-dev-182821';
+import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-b7c3193-dev-182821';
 
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {
@@ -18,6 +18,9 @@ export class MapShortcut {
         // Backwards compatibility elements
         this.bgGroup = document.createElementNS(svgNS, 'g');
         this.group.appendChild(this.bgGroup);
+        
+        this.contentGroup = document.createElementNS(svgNS, 'g');
+        this.group.appendChild(this.contentGroup);
         
         this.unavailableLine = document.createElementNS(svgNS, 'line');
         this.unavailableLine.setAttribute('stroke', '#ef4444');
@@ -63,8 +66,18 @@ export class MapShortcut {
         this.px = (pos[0] / 100) * this.imgW;
         this.py = (pos[1] / 100) * this.imgH;
         
+        let customRot = 0;
+        if (this.sc.rotation !== undefined) {
+            if (typeof this.sc.rotation === 'object' && !Array.isArray(this.sc.rotation)) {
+                customRot = this.sc.rotation[activeMode] !== undefined ? this.sc.rotation[activeMode] : (this.sc.rotation.horizontal || 0);
+            } else {
+                customRot = this.sc.rotation;
+            }
+        }
+        
         const extra = this.extraTransformStr || '';
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${extra}`.trim());
+        const rotStr = customRot ? `rotate(${customRot})` : '';
+        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${rotStr} ${extra}`.trim());
     }
     
     getIsAutoRotateActive() {
@@ -95,9 +108,41 @@ export class MapShortcut {
         
         // Legacy fallback structures
         if (activeLayout.length === 0) {
-            const scale = this.sc.scale || 1.0;
-            let scaleX = this.scaleX || this.sc.scaleX || scale;
-            let scaleY = this.scaleY || this.sc.scaleY || scale;
+            const activeMode = this.mapContext.activeMode || 'horizontal';
+            let scaleVal = 1.0;
+            if (this.sc.scale !== undefined) {
+                if (typeof this.sc.scale === 'object' && !Array.isArray(this.sc.scale)) {
+                    scaleVal = this.sc.scale[activeMode] !== undefined ? this.sc.scale[activeMode] : (this.sc.scale.horizontal || 1.0);
+                } else {
+                    scaleVal = this.sc.scale;
+                }
+            }
+            
+            let scaleXVal = this.scaleX !== undefined ? this.scaleX : scaleVal;
+            if (this.sc.scaleX !== undefined) {
+                if (typeof this.sc.scaleX === 'object' && !Array.isArray(this.sc.scaleX)) {
+                    scaleXVal = this.sc.scaleX[activeMode] !== undefined ? this.sc.scaleX[activeMode] : (this.sc.scaleX.horizontal || scaleVal);
+                } else {
+                    scaleXVal = this.sc.scaleX;
+                }
+            }
+            
+            let scaleYVal = this.scaleY !== undefined ? this.scaleY : scaleVal;
+            if (this.sc.scaleY !== undefined) {
+                if (typeof this.sc.scaleY === 'object' && !Array.isArray(this.sc.scaleY)) {
+                    scaleYVal = this.sc.scaleY[activeMode] !== undefined ? this.sc.scaleY[activeMode] : (this.sc.scaleY.horizontal || scaleVal);
+                } else {
+                    scaleYVal = this.sc.scaleY;
+                }
+            }
+            
+            const shape = this.config.shape || (isSensor ? 'rect' : 'circle');
+            const scaleX = scaleXVal;
+            let scaleY = scaleYVal;
+            if (shape === 'circle') {
+                scaleY = scaleX;
+            }
+            const scale = Math.min(scaleX, scaleY);
             
             const w = 24 * scaleX;
             const h = 24 * scaleY;
@@ -314,9 +359,12 @@ export class MapShortcut {
     }
     
     renderComponents(layout, hass) {
-        // Clear old children from the bgGroup
+        // Clear old children from groups
         while (this.bgGroup.firstChild) {
             this.bgGroup.removeChild(this.bgGroup.firstChild);
+        }
+        while (this.contentGroup.firstChild) {
+            this.contentGroup.removeChild(this.contentGroup.firstChild);
         }
         
         let hasFailedImage = false;
@@ -333,6 +381,9 @@ export class MapShortcut {
                 // Track standard elements for backwards compatibility tests
                 if (comp.type === 'rect' || comp.type === 'circle') {
                     this.shape = el;
+                    this.bgGroup.appendChild(el);
+                } else {
+                    this.contentGroup.appendChild(el);
                 }
                 
                 if (comp.id === 'sensor_value') {
@@ -371,7 +422,7 @@ export class MapShortcut {
                             this.haIcon.style.display = 'none';
                         }
                     }
-                    this.bgGroup.appendChild(this.iconText);
+                    this.contentGroup.appendChild(this.iconText);
                 } else if (comp.type === 'image') {
                     this.iconImage = el;
                     
@@ -423,8 +474,6 @@ export class MapShortcut {
                     const existingTransform = el.getAttribute('transform') || '';
                     el.setAttribute('transform', `scale(${inverseScale}) ${existingTransform}`.trim());
                 }
-                
-                this.bgGroup.appendChild(el);
             }
         });
         
@@ -436,7 +485,7 @@ export class MapShortcut {
                 fallbackIcon = this.config.icon;
             }
             this.iconText.textContent = fallbackIcon;
-            this.bgGroup.appendChild(this.iconText);
+            this.contentGroup.appendChild(this.iconText);
         } else {
             if (this.iconText && this.iconText.id !== 'sensor_value') {
                 this.iconText.textContent = '';
@@ -446,7 +495,28 @@ export class MapShortcut {
     
     setTransformStr(str) {
         this.extraTransformStr = str;
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${str}`.trim());
+        
+        let customRot = 0;
+        const activeMode = this.mapContext.activeMode || 'horizontal';
+        if (this.sc.rotation !== undefined) {
+            if (typeof this.sc.rotation === 'object' && !Array.isArray(this.sc.rotation)) {
+                customRot = this.sc.rotation[activeMode] !== undefined ? this.sc.rotation[activeMode] : (this.sc.rotation.horizontal || 0);
+            } else {
+                customRot = this.sc.rotation;
+            }
+        }
+        const rotStr = customRot ? `rotate(${customRot})` : '';
+        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${rotStr} ${str}`.trim());
+        
+        // Decouple outer rotation from inner content rotation:
+        // By default, text/icons/images stay vertical (upright) even when the outer map/shape rotates!
+        const isRotated = this.mapContext.isRotated;
+        const isAutoRotate = this.getIsAutoRotateActive();
+        if (isRotated && isAutoRotate) {
+            this.contentGroup.setAttribute('transform', 'rotate(-90)');
+        } else {
+            this.contentGroup.setAttribute('transform', '');
+        }
     }
     
     setupInteractions() {

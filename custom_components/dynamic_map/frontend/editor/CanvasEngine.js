@@ -1,4 +1,4 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-491847c-dev-180248';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-b7c3193-dev-182821';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -278,10 +278,46 @@ export class CanvasEngine {
 
             const x = (pos[0] / 100) * bgW;
             const y = (pos[1] / 100) * bgH;
-            let scaleX = sc.scaleX || sc.scale || 1;
-            let scaleY = sc.scaleY || sc.scale || 1;
+            let scScale = 1.0;
+            if (sc.scale !== undefined) {
+                if (typeof sc.scale === 'object' && !Array.isArray(sc.scale)) {
+                    scScale = sc.scale[activeMode] !== undefined ? sc.scale[activeMode] : (sc.scale.horizontal || 1.0);
+                } else {
+                    scScale = sc.scale;
+                }
+            }
+            
+            let scaleX = scScale;
+            if (sc.scaleX !== undefined) {
+                if (typeof sc.scaleX === 'object' && !Array.isArray(sc.scaleX)) {
+                    scaleX = sc.scaleX[activeMode] !== undefined ? sc.scaleX[activeMode] : (sc.scaleX.horizontal || scScale);
+                } else {
+                    scaleX = sc.scaleX;
+                }
+            }
+            
+            let scaleY = scScale;
+            if (sc.scaleY !== undefined) {
+                if (typeof sc.scaleY === 'object' && !Array.isArray(sc.scaleY)) {
+                    scaleY = sc.scaleY[activeMode] !== undefined ? sc.scaleY[activeMode] : (sc.scaleY.horizontal || scScale);
+                } else {
+                    scaleY = sc.scaleY;
+                }
+            }
+            
+            let scRotation = 0;
+            if (sc.rotation !== undefined) {
+                if (typeof sc.rotation === 'object' && !Array.isArray(sc.rotation)) {
+                    scRotation = sc.rotation[activeMode] !== undefined ? sc.rotation[activeMode] : (sc.rotation.horizontal || 0);
+                } else {
+                    scRotation = sc.rotation;
+                }
+            }
             
             let shape = sc.config?.shape || sc.shape || 'circle';
+            if (shape === 'circle') {
+                scaleY = scaleX;
+            }
             let color = sc.config?.color || sc.color || '#0ea5e9';
             let isTrans = sc.config?.transparent || sc.transparent || false;
             let icon = sc.config?.icon || '💡';
@@ -344,12 +380,16 @@ export class CanvasEngine {
             const r = Math.max(rx, ry);
 
             this.ctx.save();
-            if (this.isRotated && !autoRotate) {
+            if (!autoRotate && this.isRotated) {
                 this.ctx.translate(x, y);
                 this.ctx.rotate(-Math.PI / 2);
                 this.ctx.translate(-x, -y);
             }
-
+            if (scRotation) {
+                this.ctx.translate(x, y);
+                this.ctx.rotate((scRotation * Math.PI) / 180);
+                this.ctx.translate(-x, -y);
+            }
             this.ctx.beginPath();
             if (sc.type === 'sensor') {
                 const borderRadius = 8 * Math.min(scaleX, scaleY);
@@ -415,8 +455,8 @@ export class CanvasEngine {
                 this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 this.ctx.translate(pt.x, pt.y);
                 
-                if (autoRotate && this.isRotated) {
-                    this.ctx.rotate(Math.PI / 2);
+                if (scRotation) {
+                    this.ctx.rotate((scRotation * Math.PI) / 180);
                 }
                 
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);

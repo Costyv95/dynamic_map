@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:,">
     <title>Dynamic Map Editor</title>
-    <link rel="stylesheet" href="editor.css?v=3.0.3-491847c-dev-180248">
+    <link rel="stylesheet" href="editor.css?v=3.0.3-b7c3193-dev-182821">
     <script src="polybool.min.js"></script>
 </head>
 <body>
@@ -115,6 +115,33 @@
                 <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
                     <input type="checkbox" id="scHasBackground" style="width: auto; margin: 0;" checked> Show Background Shape
                 </label>
+            </div>
+
+            <!-- Size & Custom Rotation (Per Orientation) -->
+            <div style="margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
+                <div style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" id="toggleAdvancedPosHeader">
+                    <span style="font-weight: bold; font-size: 13px; color: var(--text);">📐 Size & Rotation (Per Layout)</span>
+                    <span id="advancedChevron">▶</span>
+                </div>
+                <div id="advancedPosContent" style="display: none; margin-top: 10px;">
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px;">Scale X</label>
+                            <input type="number" id="scScaleXInput" step="0.05" style="padding: 4px; box-sizing: border-box; width: 100%;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px;">Scale Y</label>
+                            <input type="number" id="scScaleYInput" step="0.05" style="padding: 4px; box-sizing: border-box; width: 100%;">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px;">Rotation (deg)</label>
+                            <input type="number" id="scRotationInput" step="15" min="0" max="360" style="padding: 4px; box-sizing: border-box; width: 100%;">
+                        </div>
+                    </div>
+                    <label style="font-size: 11px; color: #888; display: block; margin-top: 5px;">These values apply specifically to the active Simulated Layout orientation (🌅 Land / 📱 Port).</label>
+                </div>
             </div>
 
             <div id="vacuumOptions" style="display: none; margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
@@ -295,6 +322,6 @@
         </div>
     </div>
 
-    <script type="module" src="editor.js?v=3.0.3-491847c-dev-180248"></script>
+    <script type="module" src="editor.js?v=3.0.3-b7c3193-dev-182821"></script>
 </body>
 </html>

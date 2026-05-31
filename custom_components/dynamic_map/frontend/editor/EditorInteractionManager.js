@@ -1,5 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-491847c-dev-180248';
-import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-491847c-dev-180248';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-b7c3193-dev-182821';
+import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-b7c3193-dev-182821';
 
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {
@@ -47,6 +47,77 @@ export class EditorInteractionManager {
             };
             sc.position[activeMode] = [pctX, pctY];
         }
+    }
+
+    getShortcutScale(sc) {
+        const activeMode = this.engine.activeMode || 'horizontal';
+        
+        let scScale = 1.0;
+        if (sc.scale !== undefined) {
+            if (typeof sc.scale === 'object' && !Array.isArray(sc.scale)) {
+                scScale = sc.scale[activeMode] !== undefined ? sc.scale[activeMode] : (sc.scale.horizontal || 1.0);
+            } else {
+                scScale = sc.scale;
+            }
+        }
+        
+        let scaleX = scScale;
+        if (sc.scaleX !== undefined) {
+            if (typeof sc.scaleX === 'object' && !Array.isArray(sc.scaleX)) {
+                scaleX = sc.scaleX[activeMode] !== undefined ? sc.scaleX[activeMode] : (sc.scaleX.horizontal || scScale);
+            } else {
+                scaleX = sc.scaleX;
+            }
+        }
+        
+        let scaleY = scScale;
+        if (sc.scaleY !== undefined) {
+            if (typeof sc.scaleY === 'object' && !Array.isArray(sc.scaleY)) {
+                scaleY = sc.scaleY[activeMode] !== undefined ? sc.scaleY[activeMode] : (sc.scaleY.horizontal || scScale);
+            } else {
+                scaleY = sc.scaleY;
+            }
+        }
+        
+        return { scale: scScale, scaleX, scaleY };
+    }
+
+    setShortcutScale(sc, prop, value) {
+        const activeMode = this.engine.activeMode || 'horizontal';
+        
+        if (sc[prop] === undefined || typeof sc[prop] !== 'object' || Array.isArray(sc[prop])) {
+            const oldVal = sc[prop] !== undefined ? sc[prop] : 1.0;
+            sc[prop] = {
+                horizontal: oldVal,
+                vertical: oldVal
+            };
+        }
+        sc[prop][activeMode] = value;
+    }
+
+    getShortcutRotation(sc) {
+        const activeMode = this.engine.activeMode || 'horizontal';
+        let rot = 0;
+        if (sc.rotation !== undefined) {
+            if (typeof sc.rotation === 'object' && !Array.isArray(sc.rotation)) {
+                rot = sc.rotation[activeMode] !== undefined ? sc.rotation[activeMode] : (sc.rotation.horizontal || 0);
+            } else {
+                rot = sc.rotation;
+            }
+        }
+        return rot;
+    }
+
+    setShortcutRotation(sc, value) {
+        const activeMode = this.engine.activeMode || 'horizontal';
+        if (sc.rotation === undefined || typeof sc.rotation !== 'object' || Array.isArray(sc.rotation)) {
+            const oldVal = sc.rotation !== undefined ? sc.rotation : 0;
+            sc.rotation = {
+                horizontal: oldVal,
+                vertical: oldVal
+            };
+        }
+        sc.rotation[activeMode] = value;
     }
 
     bindEvents() {
@@ -114,8 +185,12 @@ export class EditorInteractionManager {
             const scY = (pos[1]/100)*bgH;
             const baseRx = sc.type === 'sensor' ? 26 : 12;
             const baseRy = 12;
-            const rx = baseRx * (sc.scaleX || sc.scale || 1);
-            const ry = baseRy * (sc.scaleY || sc.scale || 1);
+            
+            const scScale = this.getShortcutScale(sc);
+            const rx = baseRx * scScale.scaleX;
+            const ry = baseRy * scScale.scaleY;
+            const scRotation = this.getShortcutRotation(sc);
+            
             const currentScale = Math.hypot(this.engine.viewTransform.a, this.engine.viewTransform.b);
             const hSize = 8 / currentScale;
 
@@ -129,6 +204,16 @@ export class EditorInteractionManager {
                 const dy = this.dragStart.y - scY;
                 checkX = scX - dy;
                 checkY = scY + dx;
+            }
+            
+            if (scRotation) {
+                const dx = checkX - scX;
+                const dy = checkY - scY;
+                const rad = (-scRotation * Math.PI) / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                checkX = scX + (dx * cos - dy * sin);
+                checkY = scY + (dx * sin + dy * cos);
             }
 
             if (hitTest(checkX, checkY, scX - rx, scY - ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'NW'; return; }
@@ -149,8 +234,9 @@ export class EditorInteractionManager {
             const scY = (pos[1]/100)*bgH;
             const baseRx = sc.type === 'sensor' ? 26 : 12;
             const baseRy = 12;
-            const rx = baseRx * (sc.scaleX || sc.scale || 1);
-            const ry = baseRy * (sc.scaleY || sc.scale || 1);
+            const scScale = this.getShortcutScale(sc);
+            const rx = baseRx * scScale.scaleX;
+            const ry = baseRy * scScale.scaleY;
             
             const shape = sc.type === 'sensor' ? 'rect' : (sc.config?.shape || sc.shape || 'circle');
             
@@ -162,6 +248,17 @@ export class EditorInteractionManager {
                 const dy = this.dragStart.y - scY;
                 checkX = scX - dy;
                 checkY = scY + dx;
+            }
+
+            const scRotation = this.getShortcutRotation(sc);
+            if (scRotation) {
+                const dx = checkX - scX;
+                const dy = checkY - scY;
+                const rad = (-scRotation * Math.PI) / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                checkX = scX + (dx * cos - dy * sin);
+                checkY = scY + (dx * sin + dy * cos);
             }
 
             if (shape === 'rect') {
@@ -231,8 +328,9 @@ export class EditorInteractionManager {
                 const scY = (pos[1]/100)*bgH;
                 const baseRx = sc.type === 'sensor' ? 26 : 12;
                 const baseRy = 12;
-                const rx = baseRx * (sc.scaleX || sc.scale || 1);
-                const ry = baseRy * (sc.scaleY || sc.scale || 1);
+                const scScale = this.getShortcutScale(sc);
+                const rx = baseRx * scScale.scaleX;
+                const ry = baseRy * scScale.scaleY;
                 const currentScale = Math.hypot(this.engine.viewTransform.a, this.engine.viewTransform.b);
                 const hSize = 8 / currentScale;
 
@@ -246,6 +344,17 @@ export class EditorInteractionManager {
                     const dy = worldPos.y - scY;
                     checkX = scX - dy;
                     checkY = scY + dx;
+                }
+
+                const scRotation = this.getShortcutRotation(sc);
+                if (scRotation) {
+                    const dx = checkX - scX;
+                    const dy = checkY - scY;
+                    const rad = (-scRotation * Math.PI) / 180;
+                    const cos = Math.cos(rad);
+                    const sin = Math.sin(rad);
+                    checkX = scX + (dx * cos - dy * sin);
+                    checkY = scY + (dx * sin + dy * cos);
                 }
 
                 if (hitTest(checkX, checkY, scX - rx, scY - ry) || hitTest(checkX, checkY, scX + rx, scY + ry)) {
@@ -267,8 +376,9 @@ export class EditorInteractionManager {
                     const scY = (pos[1]/100)*bgH;
                     const baseRx = sc.type === 'sensor' ? 26 : 12;
                     const baseRy = 12;
-                    const rx = baseRx * (sc.scaleX || sc.scale || 1);
-                    const ry = baseRy * (sc.scaleY || sc.scale || 1);
+                    const scScale = this.getShortcutScale(sc);
+                    const rx = baseRx * scScale.scaleX;
+                    const ry = baseRy * scScale.scaleY;
                     
                     const shape = sc.type === 'sensor' ? 'rect' : (sc.config?.shape || sc.shape || 'circle');
                     
@@ -280,6 +390,17 @@ export class EditorInteractionManager {
                         const dy = worldPos.y - scY;
                         checkX = scX - dy;
                         checkY = scY + dx;
+                    }
+
+                    const scRotation = this.getShortcutRotation(sc);
+                    if (scRotation) {
+                        const dx = checkX - scX;
+                        const dy = checkY - scY;
+                        const rad = (-scRotation * Math.PI) / 180;
+                        const cos = Math.cos(rad);
+                        const sin = Math.sin(rad);
+                        checkX = scX + (dx * cos - dy * sin);
+                        checkY = scY + (dx * sin + dy * cos);
                     }
 
                     if (shape === 'rect') {
@@ -339,20 +460,26 @@ export class EditorInteractionManager {
             
             const divisorRx = sc.type === 'sensor' ? 26 : 12;
             const divisorRy = 12;
-            const isUniform = sc.type === 'sensor' || (sc.config?.shape !== 'rect' && sc.shape !== 'rect');
+            const shape = sc.config?.shape || sc.shape || 'circle';
+            const isUniform = shape === 'circle';
             if (this.resizeHandle.includes('E') || this.resizeHandle.includes('W')) {
-                sc.scaleX = Math.max(0.5, dx / divisorRx);
-                sc.scale = sc.scaleX;
+                const val = Math.max(0.5, dx / divisorRx);
+                this.setShortcutScale(sc, 'scaleX', val);
+                this.setShortcutScale(sc, 'scale', val);
                 if (isUniform) {
-                    sc.scaleY = sc.scaleX;
+                    this.setShortcutScale(sc, 'scaleY', val);
                 }
             }
             if (this.resizeHandle.includes('N') || this.resizeHandle.includes('S')) {
-                sc.scaleY = Math.max(0.5, dy / divisorRy);
-                sc.scale = sc.scaleY;
+                const val = Math.max(0.5, dy / divisorRy);
+                this.setShortcutScale(sc, 'scaleY', val);
+                this.setShortcutScale(sc, 'scale', val);
                 if (isUniform) {
-                    sc.scaleX = sc.scaleY;
+                    this.setShortcutScale(sc, 'scaleX', val);
                 }
+            }
+            if (this.state.updateUICallback) {
+                this.state.updateUICallback();
             }
             this.state.requestDrawCallback();
             return;
