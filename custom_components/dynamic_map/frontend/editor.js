@@ -1,10 +1,10 @@
-import { ApiManager } from './shared/ApiManager.js?v=3.0.3-b7c3193-dev-182821';
-import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-b7c3193-dev-182821';
-import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-b7c3193-dev-182821';
-import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-b7c3193-dev-182821';
-import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-b7c3193-dev-182821';
+import { ApiManager } from './shared/ApiManager.js?v=3.0.3-a6366a0-dev-185153';
+import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-a6366a0-dev-185153';
+import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-a6366a0-dev-185153';
+import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-a6366a0-dev-185153';
+import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-a6366a0-dev-185153';
 
-console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-b7c3193-dev-182821)');
+console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-a6366a0-dev-185153)');
 
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');

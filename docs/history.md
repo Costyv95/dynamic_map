@@ -142,19 +142,18 @@ This document sequentially records the major technical and architectural decisio
 
 ---
 
-## 010 Dynamic Multi-Layout Scales & Rotations, and Symmetrical Circle Scaling
+## 010 Dynamic Multi-Layout Scales & Rotations, and Aspect Ratio Locking
 *   **Date:** 2026-05-31
 *   **Status:** Accepted
 *   **Context:**
     - Visual resizing and custom rotations were written to flat properties in the JSON database, causing edits made in portrait mode to overwrite landscape values, and vice versa.
     - Drag resizing of shortcut circles could cause `scaleX` and `scaleY` to drift unproportionally if dragged along side handles or initialized with legacy rect scale offsets, leading to mismatched resize handle boxes and oval-shaped boundaries.
     - Visual settings for shortcut scales and custom rotations were completely hidden from the visual editor sidebar, forcing users to edit raw JSON to configure them.
+    - Users lacked direct visual control to explicitly toggle proportional aspect ratio locking on or off.
 *   **Decision:**
-    - **Orientation-Aware Scaling & Custom Rotations**: Updated `EditorInteractionManager.js` to read and write scales (`scale`, `scaleX`, `scaleY`) and custom rotations (`rotation`) orientation-safely to layout-specific objects using refined helpers (`getShortcutScale`, `setShortcutScale`, `getShortcutRotation`, `setShortcutRotation`). Added 2D rotation matrix vector transforms to align resizing bounding boxes and select hit-testing with custom rotated axes.
-    - **Symmetrical Circle Scale Clamp**: Refined `isUniform` rules to apply strictly to circles, and implemented scale clamping guards in both the editor (`CanvasEngine.js`) and HA card (`MapShortcut.js`) so that circles automatically force `scaleY = scaleX`, guaranteeing perfect symmetry. Enabled unproportional scaling for rectangle pills and sensors (allowing users to stretch them wider).
-    - **Advanced Positioning Sidebar Panel**: Integrated a clean collapsible panel ("Size & Rotation") inside `editor.html` and `EditorUIManager.js` that displays and synchronizes `Scale X`, `Scale Y`, and `Rotation` values for the active orientation in real-time, disabling and grey-shading `Scale Y` dynamically when the circle shape is active to make the constraint visually intuitive.
+    - **Orientation-Aware Scaling & Custom Rotations**: Updated `EditorInteractionManager.js` to read and write scales (`scale`, `scaleX`, `scaleY`) and custom rotations (`rotation`) orientation-safely to layout-specific objects using refined helpers. Added 2D rotation matrix vector transforms to align resizing bounding boxes and select hit-testing with custom rotated axes.
+    - **Dynamic Aspect Ratio Locking**: Added a **Lock Aspect Ratio (Proportional)** checkbox (`proportional`) inside the sidebar configuration forms (`editor.html` and `EditorUIManager.js`). When checked, it locks horizontal and vertical dimensions proportionally during drag resizing and manual updates, disabling and grey-shading the `Scale Y` input visually. When unchecked, it enables free-form independent scaling.
+    - **Flexible Symmetrical Ellipses**: Standardized the system default to locked aspect ratio scaling for circles and free-form unproportional scaling for rectangles, pills, and sensors. Modified `renderCircle.js` and `CanvasEngine.js` to dynamically draw perfect, beautiful SVG `<ellipse>` tags and canvas ellipses if a circle's aspect ratio is unlocked and `Scale X` differs from `Scale Y`, eliminating visual mismatches.
 *   **Consequences:**
-    - **Benefits:** Restores fully independent coordinate, size, and rotation configurations across multiple layout aspects. Guarantees perfect round shapes and matching resize bounding boxes for circles, while giving full sizing freedom to pill widgets. Eliminates "hidden properties" entirely by exposing size and rotation parameters transparently to the visual sidebar editor.
+    - **Benefits:** Restores fully independent size and rotation layouts across multiple orientations. Gives users complete aspect ratio locking flexibility for any shape, with intuitive visual cues. Gracefully handles unproportional scaling of circles by automatically upgrading them to ellipses.
     - **Trade-offs:** None. All 88 tests pass successfully.
-
-

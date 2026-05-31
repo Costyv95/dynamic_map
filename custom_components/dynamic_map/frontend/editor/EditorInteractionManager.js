@@ -1,5 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-b7c3193-dev-182821';
-import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-b7c3193-dev-182821';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-a6366a0-dev-185153';
+import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-a6366a0-dev-185153';
 
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {
@@ -79,12 +79,37 @@ export class EditorInteractionManager {
             }
         }
         
+        const shape = sc.config?.shape || sc.shape || 'circle';
+        const propDefault = (shape === 'circle');
+        const isProportional = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
+        if (isProportional) {
+            const uniformScale = scaleX;
+            return { scale: uniformScale, scaleX: uniformScale, scaleY: uniformScale };
+        }
+        
         return { scale: scScale, scaleX, scaleY };
     }
 
     setShortcutScale(sc, prop, value) {
         const activeMode = this.engine.activeMode || 'horizontal';
+        const shape = sc.config?.shape || sc.shape || 'circle';
+        const propDefault = (shape === 'circle');
+        const isProportional = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
         
+        if (isProportional) {
+            ['scale', 'scaleX', 'scaleY'].forEach(p => {
+                if (sc[p] === undefined || typeof sc[p] !== 'object' || Array.isArray(sc[p])) {
+                    const oldVal = sc[p] !== undefined ? sc[p] : 1.0;
+                    sc[p] = {
+                        horizontal: oldVal,
+                        vertical: oldVal
+                    };
+                }
+                sc[p][activeMode] = value;
+            });
+            return;
+        }
+
         if (sc[prop] === undefined || typeof sc[prop] !== 'object' || Array.isArray(sc[prop])) {
             const oldVal = sc[prop] !== undefined ? sc[prop] : 1.0;
             sc[prop] = {
@@ -461,7 +486,8 @@ export class EditorInteractionManager {
             const divisorRx = sc.type === 'sensor' ? 26 : 12;
             const divisorRy = 12;
             const shape = sc.config?.shape || sc.shape || 'circle';
-            const isUniform = shape === 'circle';
+            const propDefault = (shape === 'circle');
+            const isUniform = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
             if (this.resizeHandle.includes('E') || this.resizeHandle.includes('W')) {
                 const val = Math.max(0.5, dx / divisorRx);
                 this.setShortcutScale(sc, 'scaleX', val);

@@ -1,5 +1,5 @@
-import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-b7c3193-dev-182821';
-import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-b7c3193-dev-182821';
+import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-a6366a0-dev-185153';
+import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-a6366a0-dev-185153';
 
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {
@@ -137,9 +137,11 @@ export class MapShortcut {
             }
             
             const shape = this.config.shape || (isSensor ? 'rect' : 'circle');
+            const propDefault = (shape === 'circle');
+            const isProportional = this.config.proportional !== undefined ? this.config.proportional : propDefault;
             const scaleX = scaleXVal;
             let scaleY = scaleYVal;
-            if (shape === 'circle') {
+            if (isProportional) {
                 scaleY = scaleX;
             }
             const scale = Math.min(scaleX, scaleY);
@@ -189,6 +191,8 @@ export class MapShortcut {
                         id: 'fallback_bg',
                         type: isRect ? 'rect' : 'circle',
                         radius: 12 * scaleX,
+                        radiusX: 12 * scaleX,
+                        radiusY: 12 * scaleY,
                         width: w,
                         height: h,
                         color: this.config.color || '#0ea5e9',

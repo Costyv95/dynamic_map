@@ -1,4 +1,4 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-b7c3193-dev-182821';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-a6366a0-dev-185153';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -315,7 +315,9 @@ export class CanvasEngine {
             }
             
             let shape = sc.config?.shape || sc.shape || 'circle';
-            if (shape === 'circle') {
+            const propDefault = (shape === 'circle');
+            const isProportional = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
+            if (isProportional) {
                 scaleY = scaleX;
             }
             let color = sc.config?.color || sc.color || '#0ea5e9';
@@ -401,7 +403,11 @@ export class CanvasEngine {
             } else if (shape === 'rect') {
                 this.ctx.rect(x - rx, y - ry, rx*2, ry*2);
             } else {
-                this.ctx.arc(x, y, rx, 0, Math.PI*2);
+                if (this.ctx.ellipse && rx !== ry) {
+                    this.ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI*2);
+                } else {
+                    this.ctx.arc(x, y, rx, 0, Math.PI*2);
+                }
             }
 
             if (idx === selectedShortcutIdx) {

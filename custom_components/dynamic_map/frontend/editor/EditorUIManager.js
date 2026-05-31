@@ -1,5 +1,5 @@
-import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=3.0.3-b7c3193-dev-182821';
-import { ApiManager } from '../shared/ApiManager.js?v=3.0.3-b7c3193-dev-182821';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=3.0.3-a6366a0-dev-185153';
+import { ApiManager } from '../shared/ApiManager.js?v=3.0.3-a6366a0-dev-185153';
 
 export class EditorUIManager {
     constructor(stateManager, engine) {
@@ -276,6 +276,15 @@ export class EditorUIManager {
         bindScProp('scImage', 'image');
         bindScProp('scAutoRotate', 'autoRotate', true, true);
         bindScProp('scHasBackground', 'transparent', true);
+        bindScProp('scProportionalScale', 'proportional', true, true);
+        
+        const propScaleIn = document.getElementById('scProportionalScale');
+        if (propScaleIn) {
+            propScaleIn.addEventListener('change', () => {
+                this.updateSidebar();
+            });
+        }
+        
         bindScProp('vacuumRoomSensor', 'room_sensor');
         bindScProp('scAvailabilityEntity', 'availability_entity');
         bindScProp('scTemperatureEntity', 'temperature_entity');
@@ -660,11 +669,18 @@ export class EditorUIManager {
             document.getElementById('scRotationInput').value = scRot;
 
             const shape = sc.config?.shape || sc.shape || 'circle';
-            const isCircle = shape === 'circle';
+            const propDefault = (shape === 'circle');
+            const isProportional = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
+            
+            const propScaleCheckbox = document.getElementById('scProportionalScale');
+            if (propScaleCheckbox) {
+                propScaleCheckbox.checked = isProportional;
+            }
+
             const scaleYInput = document.getElementById('scScaleYInput');
             if (scaleYInput) {
-                scaleYInput.disabled = isCircle;
-                scaleYInput.style.opacity = isCircle ? '0.5' : '1.0';
+                scaleYInput.disabled = isProportional;
+                scaleYInput.style.opacity = isProportional ? '0.5' : '1.0';
             }
             
             if (sc.type === 'vacuum') {
@@ -728,7 +744,9 @@ export class EditorUIManager {
         }
         
         const shape = sc.config?.shape || sc.shape || 'circle';
-        if (shape === 'circle') {
+        const propDefault = (shape === 'circle');
+        const isProportional = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
+        if (isProportional) {
             const uniformScale = scaleX;
             return { scale: uniformScale, scaleX: uniformScale, scaleY: uniformScale };
         }
@@ -739,8 +757,10 @@ export class EditorUIManager {
     setShortcutScale(sc, prop, value) {
         const activeMode = this.engine.activeMode || 'horizontal';
         const shape = sc.config?.shape || sc.shape || 'circle';
+        const propDefault = (shape === 'circle');
+        const isProportional = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
         
-        if (shape === 'circle') {
+        if (isProportional) {
             ['scale', 'scaleX', 'scaleY'].forEach(p => {
                 if (sc[p] === undefined || typeof sc[p] !== 'object' || Array.isArray(sc[p])) {
                     const oldVal = sc[p] !== undefined ? sc[p] : 1.0;
