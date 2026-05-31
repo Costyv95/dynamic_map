@@ -205,7 +205,7 @@ export class OverlayManager {
                 const isSymmetric = act.symmetric_scale === true;
 
                 if (mapContext._hass && mapContext._hass.states[target]) {
-                    if (target.startsWith('input_number.')) {
+                    if (target.startsWith('input_number.') || target.startsWith('number.')) {
                         const attrs = mapContext._hass.states[target].attributes;
                         if (!isSymmetric) {
                             if (attrs.min !== undefined) sMin = attrs.min;
@@ -242,14 +242,14 @@ export class OverlayManager {
                 slider.addEventListener('change', (e) => {
                     if (!mapContext._hass) return;
                     const domain = target.split('.')[0];
-                    if (domain === 'input_number') {
+                    if (domain === 'input_number' || domain === 'number') {
                         let finalVal = parseFloat(e.target.value);
                         if (isSymmetric) {
                             let v = finalVal;
                             if (v >= 0) finalVal = v + 1;
                             else finalVal = 1 / (-v + 1);
                         }
-                        mapContext._hass.callService('input_number', 'set_value', {
+                        mapContext._hass.callService(domain, 'set_value', {
                             entity_id: target,
                             value: finalVal
                         });
