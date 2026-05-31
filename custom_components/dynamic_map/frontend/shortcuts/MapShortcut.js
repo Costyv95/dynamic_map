@@ -491,7 +491,7 @@ export class MapShortcut {
                         if (domain === 'vacuum') {
                             if (service === 'turn_on') service = 'start';
                             else if (service === 'turn_off') service = 'return_to_base';
-                            else if (service === 'toggle') service = 'start_pause';
+                            // vacuum.toggle is valid in modern HA; no remap needed
                         }
                         
                         this.mapContext._hass.callService(domain, service, { entity_id: target });

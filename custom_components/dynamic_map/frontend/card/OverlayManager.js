@@ -339,7 +339,7 @@ export class OverlayManager {
                     if (!mapContext._hass) return;
                     const domain = target.split('.')[0];
                     let service = 'toggle';
-                    if (domain === 'vacuum') service = 'start_pause';
+                    // vacuum.toggle is valid in modern HA; no domain-specific remap needed
                     mapContext._hass.callService(domain, service, { entity_id: target });
                     
                     // Optimistic update

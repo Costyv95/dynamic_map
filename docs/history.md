@@ -103,7 +103,19 @@ This document sequentially records the major technical and architectural decisio
     - **Benefits:** Guaranteed perfect visual alignment of the fairy lights balcony widget on both tablets and mobile phones. Restored uniform, clean proportions to all temperature widgets.
     - **Trade-offs:** None. All 88 tests pass successfully.
 
+---
 
-
-
-
+## 008 Vacuum Toggle Standardization, Catch-All State Evaluation, and Bedroom Sensor Scale Normalization
+*   **Date:** 2026-05-31
+*   **Status:** Accepted
+*   **Context:**
+    - In newer versions of Home Assistant, the custom service remapping from `vacuum.toggle` to `vacuum.start_pause` resulted in "Service vacuum.start_pause not found" errors, preventing proper click/tap control of vacuums.
+    - Vacuums did not render any skins or images when in states like `idle` or `docked` because only `charging`, `cleaning`, and `error` states were explicitly configured, leading to blank or missing entities on the floorplan.
+    - The bedroom sensor was oversized due to scale parameter drift (`4.33` vs. `3.98` standard scale).
+*   **Decision:**
+    - Removed the custom vacuum toggle-to-start_pause service remapping inside `MapShortcut.js` and `OverlayManager.js` to natively leverage standard `vacuum.toggle`, fully resolving newer HA version service compatibility.
+    - Added a fourth catch-all "Idle" state using the inequality comparison operator (`!= unavailable`) to `shortcuts_floor2.json` for the Roborock vacuum, placed at the end of the state evaluation array so that it acts as a fallback skin when the vacuum is not charging, cleaning, or in error.
+    - Unified and normalized the bedroom sensor `scaleX`/`scaleY`/`scale` configuration parameters in `shortcuts_floor2.json` to exactly `3.9815078588427864` to match the Living Room Sensor.
+*   **Consequences:**
+    - **Benefits:** Restores fully functional tap-to-toggle vacuum actions in newer HA instances. Guarantees beautiful Roborock image assets render on the map under all possible states. Restores perfect visual styling symmetry for all environment sensors.
+    - **Trade-offs:** None.
