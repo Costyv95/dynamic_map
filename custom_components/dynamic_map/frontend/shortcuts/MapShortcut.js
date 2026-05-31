@@ -113,28 +113,28 @@ export class MapShortcut {
                     {
                         id: 'sensor_bg',
                         type: 'rect',
-                        width: 52 * scale,
-                        height: 24 * scale,
-                        rx: 8,
-                        ry: 8,
+                        width: 52 * scaleX,
+                        height: 24 * scaleY,
+                        rx: 8 * Math.min(scaleX, scaleY),
+                        ry: 8 * Math.min(scaleX, scaleY),
                         color: this.config.color || '#10b981'
                     },
                     {
                         id: 'sensor_emoji',
                         type: 'text',
-                        x: -14 * scale,
+                        x: -12 * scaleX,
                         y: 0,
                         value: this.config.icon || '🌡️',
-                        font_size: 14 * scale,
+                        font_size: 14 * Math.min(scaleX, scaleY),
                         align: 'middle'
                     },
                     {
                         id: 'sensor_value',
                         type: 'text',
-                        x: 10 * scale,
+                        x: 8 * scaleX,
                         y: 0,
                         value: '',
-                        font_size: 12 * scale,
+                        font_size: 12 * Math.min(scaleX, scaleY),
                         align: 'middle',
                         font_weight: 'bold'
                     }
@@ -272,11 +272,13 @@ export class MapShortcut {
             this.unavailableLine.style.display = 'block';
             
             const scale = this.sc.scale || 1.0;
-            const lineRx = (isSensor ? 26 : 12) * scale;
+            const sX = this.scaleX || this.sc.scaleX || scale;
+            const sY = this.scaleY || this.sc.scaleY || scale;
+            const lineRx = (isSensor ? 26 : 12) * sX;
             this.unavailableLine.setAttribute('x1', -lineRx * 0.7);
-            this.unavailableLine.setAttribute('y1', -12 * scale * 0.7);
+            this.unavailableLine.setAttribute('y1', -12 * sY * 0.7);
             this.unavailableLine.setAttribute('x2', lineRx * 0.7);
-            this.unavailableLine.setAttribute('y2', 12 * scale * 0.7);
+            this.unavailableLine.setAttribute('y2', 12 * sY * 0.7);
         } else {
             this.bgGroup.style.filter = '';
             if (this.iconText) this.iconText.style.filter = '';
@@ -346,6 +348,11 @@ export class MapShortcut {
                     
                     if (state.status === 'loading') {
                         el.style.opacity = '0';
+                        
+                        // Temporarily remove href before binding listeners to prevent missing the cached load event
+                        el.removeAttribute('href');
+                        el.removeAttributeNS('http://www.w3.org/1999/xlink', 'href');
+                        
                         el.addEventListener('load', () => {
                             state.status = 'loaded';
                             el.style.opacity = '1';
@@ -356,6 +363,12 @@ export class MapShortcut {
                             el.style.opacity = '0';
                             this.updateState(hass);
                         });
+                        
+                        // Restore href to trigger the load event sequentially after binding is complete
+                        if (href) {
+                            el.setAttribute('href', href);
+                            el.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', href);
+                        }
                     } else if (state.status === 'loaded') {
                         el.style.opacity = '1';
                     } else if (state.status === 'failed') {
