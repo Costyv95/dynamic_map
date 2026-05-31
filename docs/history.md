@@ -57,5 +57,21 @@ This document sequentially records the major technical and architectural decisio
     - **Benefits:** Maximizes visual editor transparency, making multi-condition logic fully visual and editable. Cleanly decouples shortcut click behaviors.
     - **Trade-offs:** Requires cache-busting version bumps inside backend Python panel configurations (`__init__.py`) to bypass aggressive Home Assistant panel caching.
 
+---
+
+## 005 Generalized Declarative Shortcuts & Dual-Orientation Viewport Layouts
+*   **Date:** 2026-05-31
+*   **Status:** Proposed
+*   **Context:**
+    - Visual smart home shortcut elements currently rely on subclass overrides and hardcoded logic inside the frontend for specific domains (like symmetric speed calculations, vacuums, or progress ring gauges).
+    - Hardcoded single percentage coordinates (`position: [X, Y]`) degrade visual alignment and aspect ratio fits when rotating screen viewports between vertical (portrait) and horizontal (landscape) modes.
+*   **Decision:**
+    - **Generalized Declarative Abstractions**: Proposed data-driven absolute vs. relative scaling (`scale_mode: "absolute" | "relative"`) utilizing inverse view transform multipliers, generic service and payload-templated actions, and modular progress gauges (`config.gauge`).
+    - **Dual-Orientation Coordinate Maps**: Proposed orientation-specific coordinate objects (`position: { horizontal: [X,Y], vertical: [X,Y] }`) dynamically selected by the map's aspect ratios, combined with a WYSIWYG editor auto-write routing system to save edits to the active layout mode.
+*   **Consequences:**
+    - **Benefits:** Maximizes shortcut customizability without requiring Javascript alterations. Guarantees beautiful, pixel-perfect alignment on both landscape wall-mounted tablets and vertical mobile phone apps.
+    - **Trade-offs:** Increases the data schema of the positioning coordinates, successfully abstracted by the Map Editor.
+
+
 
 
