@@ -1,4 +1,4 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-707e36e-dev-132257';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-491847c-dev-180248';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -92,8 +92,8 @@ export class CanvasEngine {
         let viewW = this.isRotated ? h : w;
         let viewH = this.isRotated ? w : h;
 
-        const zoomX = (cssWidth * 0.75) / viewW;
-        const zoomY = (cssHeight * 0.75) / viewH;
+        const zoomX = (cssWidth * 0.92) / viewW;
+        const zoomY = (cssHeight * 0.92) / viewH;
         this.minScale = Math.min(zoomX, zoomY);
         
         const cx = minX + w/2;

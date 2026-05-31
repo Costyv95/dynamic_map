@@ -1,10 +1,10 @@
-import { ApiManager } from './shared/ApiManager.js?v=3.0.3-707e36e-dev-132257';
-import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-707e36e-dev-132257';
-import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-707e36e-dev-132257';
-import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-707e36e-dev-132257';
-import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-707e36e-dev-132257';
+import { ApiManager } from './shared/ApiManager.js?v=3.0.3-491847c-dev-180248';
+import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-491847c-dev-180248';
+import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-491847c-dev-180248';
+import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-491847c-dev-180248';
+import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-491847c-dev-180248';
 
-console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-707e36e-dev-132257)');
+console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-491847c-dev-180248)');
 
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');
@@ -157,7 +157,7 @@ async function loadFloor(floorNum) {
             if (data.config.rotation_mode) engine.rotationMode = data.config.rotation_mode;
             if (data.config.flips) engine.flips = data.config.flips;
         } else {
-            engine.rotationMode = 'horizontal';
+            engine.rotationMode = 'auto';
             engine.flips = { horizontal: { h: false, v: false }, vertical: { h: false, v: false } };
         }
         stateManager.saveState();
@@ -368,7 +368,7 @@ document.getElementById('toggleHorizontalBtn').addEventListener('click', (e) => 
     e.stopPropagation();
     
     canvasContainer.style.width = '100%';
-    canvasContainer.style.height = '70vh';
+    canvasContainer.style.height = '100%';
     canvasContainer.style.margin = '0';
     
     document.getElementById('toggleHorizontalBtn').classList.add('active');

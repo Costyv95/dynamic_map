@@ -1,8 +1,8 @@
-import { ShortcutFactory } from './shortcuts/ShortcutFactory.js?v=3.0.3-707e36e-dev-132257';
-import { CameraManager } from './card/CameraManager.js?v=3.0.3-707e36e-dev-132257';
-import { MapGeometry } from './shared/MapGeometry.js?v=3.0.3-707e36e-dev-132257';
-import { OverlayManager } from './card/OverlayManager.js?v=3.0.3-707e36e-dev-132257';
-import { MapBuilder } from './card/MapBuilder.js?v=3.0.3-707e36e-dev-132257';
+import { ShortcutFactory } from './shortcuts/ShortcutFactory.js?v=3.0.3-491847c-dev-180248';
+import { CameraManager } from './card/CameraManager.js?v=3.0.3-491847c-dev-180248';
+import { MapGeometry } from './shared/MapGeometry.js?v=3.0.3-491847c-dev-180248';
+import { OverlayManager } from './card/OverlayManager.js?v=3.0.3-491847c-dev-180248';
+import { MapBuilder } from './card/MapBuilder.js?v=3.0.3-491847c-dev-180248';
 
 class CustomSvgMap extends HTMLElement {
     constructor() {
@@ -290,7 +290,7 @@ class CustomSvgMap extends HTMLElement {
         versionBadge.style.display = 'flex';
         versionBadge.style.alignItems = 'center';
         versionBadge.style.justifyContent = 'center';
-        versionBadge.textContent = "3.0.3-707e36e-dev-132257";
+        versionBadge.textContent = "3.0.3-491847c-dev-180248";
         if (this.topLeftUI) this.topLeftUI.appendChild(versionBadge);
 
         if (this.cameraManager) this.cameraManager.destroy();
