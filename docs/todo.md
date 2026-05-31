@@ -10,8 +10,8 @@
 - [ ] **Iconography:** Allow users to select different icons instead of defaulting to the hardcoded `💡` or vacuum icons.
 - [ ] **Shortcut Deletion Safety:** Add a confirmation dialog before deleting rooms or shortcuts to prevent accidental data loss.
 - [ ] **Custom Lovelace Card:** The `custom-svg-map.js` currently requires manual YAML configuration. Build a custom Lovelace visual card editor (a `custom-svg-map-editor.js`) so users can configure the card purely via the UI instead of pasting the YAML output.
-- [ ] **Dual-Orientation Coordinate Maps**: Implement dynamic vertical vs. horizontal coordinate positioning arrays in `position: { horizontal: [], vertical: [] }` and program `CanvasEngine.js` and `EditorInteractionManager.js` to automatically read/write to the active layout mode.
-- [ ] **Generalized Declarative Shortcuts**: Implement the schema and parser for size-constraining modes (`scale_mode: "absolute" | "relative"`), generic service and payload-templated slider actions, and declarative gauge rings (`config.gauge`).
+- [x] **Dual-Orientation Coordinate Maps**: Implement dynamic vertical vs. horizontal coordinate positioning arrays in `position: { horizontal: [], vertical: [] }` and program `CanvasEngine.js` and `EditorInteractionManager.js` to automatically read/write to the active layout mode.
+- [x] **Generalized Declarative Shortcuts**: Implement the schema and parser for size-constraining modes (`scale_mode: "absolute" | "relative"`), generic service and payload-templated slider actions, and declarative gauge rings (`config.gauge`).
 
 ## 3. Deployment & CI/CD
 - [ ] **HACS Testing:** Perform a full clean install of the repository via HACS on a secondary Home Assistant instance to verify all static paths resolve correctly.
