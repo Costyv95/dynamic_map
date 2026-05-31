@@ -4,62 +4,49 @@ This document details the complete system architecture, data schemas, UI mockups
 
 ---
 
-## 🏛️ 1. Elegant, Subclass-Free Polymorphic Architecture (DRY & KISS)
+## 🏛️ 1. Modular, Subclass-Free Directory Structure (DRY & KISS)
 
-To achieve maximum elegance, eliminate repeated blocks of code, and make the shortcut system easily extendable, we are **deleting all legacy device-specific subclasses entirely**:
+To achieve maximum elegance, eliminate repeated blocks of code, and split logic into small, single-responsibility modules, we are **deleting all legacy device-specific subclasses entirely**:
 * **[DELETE]** `SensorShortcut.js`
 * **[DELETE]** `VacuumShortcut.js`
 * **[DELETE]** `LightShortcut.js`
 
-### A. The Single Source of Truth: `ComponentRegistry.js` [NEW]
-We introduce a micro-extendable, registry-driven component rendering architecture. Rather than hardcoding rendering loops inside a single file, a new `ComponentRegistry.js` allows registering standalone, highly specialized drawing primitives. 
+We will split the frontend shortcut subsystem into a clean, highly modular **directory structure**:
 
-If you want to add a new visual type in the future (e.g. `camera_stream` or `circular_knob`), you simply add a tiny, isolated rendering function to this registry, requiring **zero modifications to the core drawing loops**:
-
-```javascript
-export const ComponentRegistry = {
-    circle: (svgNS, props) => {
-        const el = document.createElementNS(svgNS, 'circle');
-        el.setAttribute('cx', props.x || 0);
-        el.setAttribute('cy', props.y || 0);
-        el.setAttribute('r', props.radius || 12);
-        el.setAttribute('fill', props.color || '#475569');
-        return el;
-    },
-    
-    rect: (svgNS, props) => {
-        const el = document.createElementNS(svgNS, 'rect');
-        el.setAttribute('x', (props.x || 0) - (props.width || 24)/2);
-        el.setAttribute('y', (props.y || 0) - (props.height || 24)/2);
-        el.setAttribute('width', props.width || 24);
-        el.setAttribute('height', props.height || 24);
-        el.setAttribute('rx', props.rx || 0);
-        el.setAttribute('ry', props.ry || 0);
-        el.setAttribute('fill', props.color || '#475569');
-        return el;
-    },
-
-    image: (svgNS, props) => {
-        const el = document.createElementNS(svgNS, 'image');
-        el.setAttribute('x', (props.x || 0) - (props.width || 24)/2);
-        el.setAttribute('y', (props.y || 0) - (props.height || 24)/2);
-        el.setAttribute('width', props.width || 24);
-        el.setAttribute('height', props.height || 24);
-        el.setAttribute('href', props.value || '');
-        return el;
-    }
-};
+```text
+custom_components/dynamic_map/frontend/
+├── shortcuts/
+│   ├── MapShortcut.js             # Generic Compositor (Orchestration & Events only)
+│   ├── ComponentRegistry.js       # Mapping entry point for primitives
+│   ├── ConditionEvaluator.js      # Isolated nested AND/OR logic rules evaluator
+│   └── components/                # Micro-extendable rendering modules
+│       ├── renderShape.js         # Draws circular, rectangular, & pill shapes
+│       ├── renderIcon.js          # Draws SVG-based <foreignObject> icons
+│       ├── renderImage.js         # Draws static and dynamic PNG/SVG images
+│       ├── renderText.js          # Handles dynamic Jinja templated text strings
+│       ├── renderGauge.js         # Draws progress rings & radial gauges
+│       └── renderSelector.js      # Draws custom vacuum room outlines
+└── card/
+    ├── OverlayManager.js          # Overlay entry-point manager
+    └── overlays/                  # Specialized overlay widgets
+        ├── SliderOverlay.js       # Clean, isolated slider popups
+        └── RoomPickerOverlay.js   # Clean, isolated room selectors
 ```
 
-### B. The Unified Compositor: `MapShortcut.js` [REFACTOR]
-`MapShortcut.js` becomes an elegant, type-agnostic **Compositor**:
+### A. The Compositor: `MapShortcut.js` [REFACTOR]
+`MapShortcut.js` is now a slim orchestrator (less than 100 lines) with **zero rendering code**:
 1. **Coordinate Translations**: Translates position maps relative to active horizontal/vertical aspect ratios.
-2. **Generic Pointer Listeners**: Binds a single, shared interaction module for tap, double tap, hover, and long press events.
-3. **State Rule Evaluator**: Invokes the recursive composite `AND`/`OR` rules evaluator.
-4. **Element Compositing Loop**:
-   * Reads the active components list (from matched state `layout_override` or `default_layout`).
-   * Iterates through the list, pulls the drawing primitive from `ComponentRegistry.js`, and injects it into the DOM.
-   * Compares component IDs to perform **in-place DOM attribute updates** (instead of heavy, screen-flickering re-creations) for smooth visual changes.
+2. **Pointer Listeners**: Binds a single, shared interaction module for tap, double tap, hover, and long press events.
+3. **Loop Compositing**: Resolves the layout based on `ConditionEvaluator.js`, queries `ComponentRegistry.js` to fetch individual element nodes, and appends them to the canvas.
+
+### B. The Logical Core: `ConditionEvaluator.js` [NEW]
+A standalone, 100% self-contained module dedicated purely to evaluating recursive composite logic (`AND`/`OR` rules groups). Because it has **zero DOM dependencies**, it is trivially easy to write exhaustive unit tests for.
+
+### C. The Micro-Renderers: `components/` [NEW]
+Every visual primitive is housed in its own dedicated, single-responsibility file:
+* **`renderShape.js`**: Handles `<circle>` and `<rect>` creations.
+* **`renderText.js`**: Resolves Home Assistant states inside strings (e.g. `{{ states(T) }}°`) and injects SVG `<text>` elements.
+* **`renderGauge.js`**: Renders smooth circular dashboards with SVG `stroke-dashoffset` timers.
 
 ---
 
