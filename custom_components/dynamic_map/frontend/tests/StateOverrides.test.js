@@ -154,9 +154,9 @@ describe('State Overrides Priority', () => {
     });
 });
 
-import { GenericShortcut } from '../shortcuts/GenericShortcut.js';
+import { MapShortcut } from '../shortcuts/MapShortcut.js';
 
-describe('GenericShortcut JSDOM Integration', () => {
+describe('MapShortcut JSDOM Integration', () => {
     it('should initialize and handle native SVG tag load and error states correctly', async () => {
         const scData = {
             id: 'lamp_shortcut',
@@ -193,11 +193,11 @@ describe('GenericShortcut JSDOM Integration', () => {
             imgH: 1000
         };
 
-        // Instantiate GenericShortcut
-        const shortcut = new GenericShortcut(scData, svgNS, 1000, 1000, mapContext);
+        // Instantiate MapShortcut
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
         
         // Render SVG elements
-        shortcut.render();
+        shortcut.updateState({ states: { 'light.desk_lamp': { state: 'off' } } });
 
         // 1. Initial State: lamp is "off" (fallback icon should show while loading natively)
         const mockHass = {
@@ -301,8 +301,7 @@ describe('GenericShortcut JSDOM Integration', () => {
             imgH: 1000
         };
 
-        const shortcut = new GenericShortcut(scData, svgNS, 1000, 1000, mapContext);
-        shortcut.render();
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
 
         const mockHass = {
             states: {
@@ -363,10 +362,9 @@ describe('GenericShortcut JSDOM Integration', () => {
             isRotated: true
         };
 
-        const shortcut = new GenericShortcut(scData, svgNS, 1000, 1000, mapContext);
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
         shortcut.scaleX = 2;
         shortcut.scaleY = 3;
-        shortcut.render();
 
         const mockHassOn = {
             states: {
@@ -412,8 +410,7 @@ describe('GenericShortcut JSDOM Integration', () => {
             imgH: 1000
         };
 
-        const shortcut = new GenericShortcut(scData, svgNS, 1000, 1000, mapContext);
-        shortcut.render();
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
 
         const mockHassUnavailable = {
             states: {
@@ -472,8 +469,7 @@ describe('GenericShortcut JSDOM Integration', () => {
             imgH: 1000
         };
 
-        const shortcut = new GenericShortcut(scData, svgNS, 1000, 1000, mapContext);
-        shortcut.render();
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
 
         const mockHass = {
             states: {
@@ -503,5 +499,6 @@ describe('GenericShortcut JSDOM Integration', () => {
         expect(shortcut.unavailableLine.style.display).toBe('none');
     });
 });
+
 
 

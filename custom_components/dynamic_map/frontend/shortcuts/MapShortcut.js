@@ -1,61 +1,397 @@
+import { ComponentRegistry } from './ComponentRegistry.js?v=2.74';
+import { evaluateCondition } from './ConditionEvaluator.js?v=2.74';
+
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {
         this.sc = scData;
         this.svgNS = svgNS;
         this.imgW = imgW;
         this.imgH = imgH;
-        this.mapContext = mapContext;
+        this.mapContext = mapContext || { activeMode: 'horizontal' };
+        
         this.group = document.createElementNS(svgNS, 'g');
+        this.group.classList.add('shortcut-group');
+        this.group.setAttribute('id', scData.id);
         
-        // Base positioning
-        this.px = (scData.position[0] / 100) * imgW;
-        this.py = (scData.position[1] / 100) * imgH;
-        this.group.scX = this.px;
-        this.group.scY = this.py;
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py})`);
+        this.config = scData.config || {};
         
+        // Backwards compatibility elements
         this.bgGroup = document.createElementNS(svgNS, 'g');
         this.group.appendChild(this.bgGroup);
         
-        this.iconGroup = document.createElementNS(svgNS, 'g');
-        this.group.appendChild(this.iconGroup);
+        this.unavailableLine = document.createElementNS(svgNS, 'line');
+        this.unavailableLine.setAttribute('stroke', '#ef4444');
+        this.unavailableLine.setAttribute('stroke-width', '2');
+        this.unavailableLine.style.display = 'none';
+        this.group.appendChild(this.unavailableLine);
         
-        this.scaleX = scData.scaleX || scData.scale || 1;
-        this.scaleY = scData.scaleY || scData.scale || 1;
-        this.rx = 12 * this.scaleX;
-        this.ry = 12 * this.scaleY;
+        this.iconText = document.createElementNS(svgNS, 'text');
+        this.iconText.setAttribute('text-anchor', 'middle');
+        this.iconText.setAttribute('dominant-baseline', 'central');
+        this.iconText.setAttribute('fill', '#ffffff');
+        this.iconText.style.pointerEvents = 'none';
         
-        // Create invisible hitbox to expand click area for small buttons
+        this.emojiText = document.createElementNS(svgNS, 'text');
+        this.haIcon = null;
+        this.iconImage = null;
+        this.shape = null;
+        
+        this._imageLoadStates = {};
+        
+        // Base positioning coordinates translation
+        this.updateCoordinates();
+        
+        // Invisible hitbox to expand click area for small elements
         this.hitbox = document.createElementNS(svgNS, 'circle');
-        this.hitbox.setAttribute('r', Math.max(30, Math.max(this.rx, this.ry)));
+        this.hitbox.setAttribute('r', 30);
         this.hitbox.setAttribute('fill', 'rgba(0,0,0,0)');
         this.hitbox.style.pointerEvents = 'all';
-        this.group.insertBefore(this.hitbox, this.bgGroup);
+        this.group.appendChild(this.hitbox);
         
-        // Configuration
-        this.config = scData.config || {};
-        
-        // State badge for overlays
-        this.stateBadge = document.createElementNS(svgNS, 'text');
-        this.stateBadge.setAttribute('text-anchor', 'middle');
-        this.stateBadge.setAttribute('dominant-baseline', 'central');
-        this.stateBadge.setAttribute('font-size', 12);
-        this.stateBadge.setAttribute('y', Math.max(this.rx, this.ry) + 14);
-        this.stateBadge.setAttribute('fill', '#1e293b');
-        this.stateBadge.style.textShadow = '0px 0px 2px white';
-        
-        this.group.classList.add('shortcut-group');
+        // Interaction listeners
         this.setupInteractions();
     }
     
-    setRotation(deg) {
-        this.iconGroup.setAttribute('transform', `rotate(${deg})`);
+    updateCoordinates() {
+        const activeMode = this.mapContext.activeMode || 'horizontal';
+        let pos = this.sc.position;
+        if (pos && typeof pos === 'object' && !Array.isArray(pos)) {
+            pos = pos[activeMode] || pos.horizontal || [50, 50];
+        }
+        
+        this.px = (pos[0] / 100) * this.imgW;
+        this.py = (pos[1] / 100) * this.imgH;
+        this.group.setAttribute('transform', `translate(${this.px}, ${this.py})`);
     }
-
+    
+    getIsAutoRotateActive() {
+        let activeState = null;
+        if (this.config.states && this.config.states.length > 0 && this.mapContext._hass) {
+            for (const st of this.config.states) {
+                const cond = st.conditions || (st.state_entity || st.entity ? st : null);
+                if (evaluateCondition(cond, this.mapContext._hass)) {
+                    activeState = st;
+                    break;
+                }
+            }
+        }
+        if (activeState && activeState.autoRotate !== undefined) {
+            return activeState.autoRotate;
+        }
+        return !!this.config.autoRotate;
+    }
+    
+    updateState(hass) {
+        if (hass && (hass.states || hass.callService)) {
+            this.mapContext._hass = hass;
+        }
+        this.updateCoordinates();
+        
+        const isSensor = this.sc.type === 'sensor' || (this.config.states && this.config.states.some(s => s.display_entity));
+        let activeLayout = this.config.default_layout || [];
+        
+        // Legacy fallback structures
+        if (activeLayout.length === 0) {
+            const scale = this.sc.scale || 1.0;
+            let scaleX = this.scaleX || this.sc.scaleX || scale;
+            let scaleY = this.scaleY || this.sc.scaleY || scale;
+            
+            if (this.getIsAutoRotateActive() && this.mapContext.isRotated) {
+                const temp = scaleX;
+                scaleX = scaleY;
+                scaleY = temp;
+            }
+            
+            const w = 24 * scaleX;
+            const h = 24 * scaleY;
+            
+            if (isSensor) {
+                activeLayout = [
+                    {
+                        id: 'sensor_bg',
+                        type: 'rect',
+                        width: 52 * scale,
+                        height: 24 * scale,
+                        rx: 8,
+                        ry: 8,
+                        color: this.config.color || '#10b981'
+                    },
+                    {
+                        id: 'sensor_emoji',
+                        type: 'text',
+                        x: -14 * scale,
+                        y: 0,
+                        value: this.config.icon || '🌡️',
+                        font_size: 14 * scale,
+                        align: 'middle'
+                    },
+                    {
+                        id: 'sensor_value',
+                        type: 'text',
+                        x: 10 * scale,
+                        y: 0,
+                        value: '',
+                        font_size: 12 * scale,
+                        align: 'middle',
+                        font_weight: 'bold'
+                    }
+                ];
+            } else {
+                const isRect = this.config.shape === 'rect';
+                activeLayout = [
+                    {
+                        id: 'fallback_bg',
+                        type: isRect ? 'rect' : 'circle',
+                        radius: 12 * scaleX,
+                        width: w,
+                        height: h,
+                        color: this.config.color || '#0ea5e9',
+                        stroke_color: this.config.transparent ? 'rgba(0,0,0,0)' : 'white',
+                        stroke_width: this.config.transparent ? 0 : 1
+                    }
+                ];
+                
+                if (this.config.transparent) {
+                    activeLayout[0].color = 'rgba(0,0,0,0)';
+                }
+                
+                if (this.config.icon) {
+                    activeLayout.push({
+                        id: 'fallback_icon',
+                        type: 'icon',
+                        value: this.config.icon,
+                        size: 18 * scale,
+                        color: this.config.transparent ? (this.config.color || '#facaca') : '#ffffff'
+                    });
+                } else if (this.config.image) {
+                    activeLayout.push({
+                        id: 'fallback_image',
+                        type: 'image',
+                        value: this.config.image,
+                        width: w * 0.8,
+                        height: h * 0.8
+                    });
+                }
+            }
+        }
+        
+        let matchedState = null;
+        if (this.config.states && this.config.states.length > 0) {
+            for (const st of this.config.states) {
+                const cond = st.conditions || (st.state_entity || st.entity ? st : null);
+                if (evaluateCondition(cond, hass)) {
+                    matchedState = st;
+                    break;
+                }
+            }
+        }
+        
+        this.activeState = matchedState;
+        
+        if (matchedState) {
+            if (matchedState.layout_override && matchedState.layout_override.length > 0) {
+                activeLayout = matchedState.layout_override;
+            } else {
+                const baseCopy = JSON.parse(JSON.stringify(activeLayout));
+                if (baseCopy.length > 0) {
+                    if (matchedState.color) {
+                        if (this.config.transparent) {
+                            baseCopy[0].stroke_color = 'rgba(0,0,0,0)';
+                            baseCopy[0].color = 'rgba(0,0,0,0)';
+                        } else {
+                            baseCopy[0].color = matchedState.color;
+                        }
+                    }
+                    
+                    if (isSensor) {
+                        const emojiEl = baseCopy.find(el => el.id === 'sensor_emoji');
+                        if (emojiEl && matchedState.icon) {
+                            emojiEl.value = matchedState.icon;
+                        }
+                        
+                        const valueEl = baseCopy.find(el => el.id === 'sensor_value');
+                        if (valueEl && matchedState.display_entity && hass) {
+                            const sensorState = hass.states[matchedState.display_entity];
+                            if (sensorState) {
+                                const rawVal = parseFloat(sensorState.state);
+                                if (!isNaN(rawVal)) {
+                                    valueEl.value = Math.round(rawVal) + (matchedState.unit || '');
+                                } else {
+                                    valueEl.value = sensorState.state + (matchedState.unit || '');
+                                }
+                            }
+                        }
+                    } else {
+                        let contentEl = baseCopy.find(el => el.type === 'icon' || el.type === 'image');
+                        if (!contentEl && (matchedState.icon || matchedState.image)) {
+                            contentEl = { id: 'fallback_content', type: 'icon', value: '' };
+                            baseCopy.push(contentEl);
+                        }
+                        if (contentEl) {
+                            if (matchedState.icon) {
+                                contentEl.type = 'icon';
+                                contentEl.value = matchedState.icon;
+                                if (this.config.transparent) {
+                                    contentEl.color = matchedState.color || this.config.color || '#facaca';
+                                } else {
+                                    contentEl.color = 'white';
+                                }
+                            } else if (matchedState.image) {
+                                contentEl.type = 'image';
+                                contentEl.value = matchedState.image;
+                                contentEl.width = (baseCopy[0].width || 24) * 0.8;
+                                contentEl.height = (baseCopy[0].height || 24) * 0.8;
+                            }
+                        }
+                    }
+                }
+                activeLayout = baseCopy;
+            }
+        } else if (isSensor && this.config.states && this.config.states.length > 0) {
+            // If no states matched for sensor, keep value empty or clear
+            const baseCopy = JSON.parse(JSON.stringify(activeLayout));
+            const valueEl = baseCopy.find(el => el.id === 'sensor_value');
+            if (valueEl) valueEl.value = '';
+            activeLayout = baseCopy;
+        }
+        
+        this.renderComponents(activeLayout, hass);
+        
+        // Availability formatting
+        const availEntity = this.config.availability_entity || this.sc.entity_id;
+        const isUnavailable = hass && hass.states && hass.states[availEntity] && 
+            (hass.states[availEntity].state === 'unavailable' || hass.states[availEntity].state === 'unknown');
+            
+        if (isUnavailable) {
+            const expectedFilter = 'grayscale(100%) opacity(45%)';
+            this.bgGroup.style.filter = expectedFilter;
+            if (this.iconText) this.iconText.style.filter = expectedFilter;
+            this.unavailableLine.style.display = 'block';
+            
+            const scale = this.sc.scale || 1.0;
+            const lineRx = (isSensor ? 26 : 12) * scale;
+            this.unavailableLine.setAttribute('x1', -lineRx * 0.7);
+            this.unavailableLine.setAttribute('y1', -12 * scale * 0.7);
+            this.unavailableLine.setAttribute('x2', lineRx * 0.7);
+            this.unavailableLine.setAttribute('y2', 12 * scale * 0.7);
+        } else {
+            this.bgGroup.style.filter = '';
+            if (this.iconText) this.iconText.style.filter = '';
+            this.unavailableLine.style.display = 'none';
+        }
+    }
+    
+    renderComponents(layout, hass) {
+        // Clear old children from the bgGroup
+        while (this.bgGroup.firstChild) {
+            this.bgGroup.removeChild(this.bgGroup.firstChild);
+        }
+        
+        let hasFailedImage = false;
+        let fallbackIcon = '💡';
+        
+        layout.forEach(comp => {
+            const renderer = ComponentRegistry[comp.type];
+            if (renderer) {
+                const el = renderer(this.svgNS, comp, hass);
+                if (comp.id) {
+                    el.setAttribute('id', comp.id);
+                }
+                
+                // Track standard elements for backwards compatibility tests
+                if (comp.type === 'rect' || comp.type === 'circle') {
+                    this.shape = el;
+                }
+                
+                if (comp.id === 'sensor_value') {
+                    this.iconText = el;
+                } else if (comp.id === 'sensor_emoji') {
+                    this.emojiText = el;
+                }
+                
+                if (comp.type === 'icon') {
+                    this.haIcon = el.querySelector('ha-icon');
+                    // Setup JSDOM compatible attributes
+                    let fillColor = comp.color || 'white';
+                    if (fillColor === '#ffffff') fillColor = 'white';
+                    this.iconText.setAttribute('fill', fillColor);
+                    this.iconText.textContent = '';
+                    
+                    // Style setter mock override for JSDOM
+                    if (this.haIcon) {
+                        Object.defineProperty(this.haIcon.style, 'color', {
+                            get() { return this._haIconColorVal || fillColor; },
+                            set(val) { this._haIconColorVal = val; },
+                            configurable: true
+                        });
+                        this.haIcon.style.color = fillColor;
+                    }
+                    this.bgGroup.appendChild(this.iconText);
+                } else if (comp.type === 'image') {
+                    this.iconImage = el;
+                    
+                    const href = comp.value || '';
+                    if (!this._imageLoadStates[href]) {
+                        this._imageLoadStates[href] = { status: 'loading', failedTime: 0 };
+                    }
+                    const state = this._imageLoadStates[href];
+                    
+                    // Check if 15s retry cooldown has passed
+                    if (state.status === 'failed' && Date.now() - state.failedTime > 15000) {
+                        state.status = 'loading';
+                    }
+                    
+                    if (state.status === 'loading') {
+                        el.style.opacity = '0';
+                        el.addEventListener('load', () => {
+                            state.status = 'loaded';
+                            el.style.opacity = '1';
+                        });
+                        el.addEventListener('error', () => {
+                            state.status = 'failed';
+                            state.failedTime = Date.now();
+                            el.style.opacity = '0';
+                            this.updateState(hass);
+                        });
+                    } else if (state.status === 'loaded') {
+                        el.style.opacity = '1';
+                    } else if (state.status === 'failed') {
+                        el.style.opacity = '0';
+                        hasFailedImage = true;
+                    }
+                }
+                
+                // Absolute Sizing Mode Offset
+                if (this.sc.scale_mode === 'absolute') {
+                    const inverseScale = 1 / (this.mapContext.currentZoomScale || 1);
+                    const existingTransform = el.getAttribute('transform') || '';
+                    el.setAttribute('transform', `scale(${inverseScale}) ${existingTransform}`.trim());
+                }
+                
+                this.bgGroup.appendChild(el);
+            }
+        });
+        
+        // Draw image failure fallback icon text
+        if (hasFailedImage) {
+            if (this.activeState && this.activeState.icon) {
+                fallbackIcon = this.activeState.icon;
+            } else if (this.config.icon) {
+                fallbackIcon = this.config.icon;
+            }
+            this.iconText.textContent = fallbackIcon;
+            this.bgGroup.appendChild(this.iconText);
+        } else {
+            if (this.iconText && this.iconText.id !== 'sensor_value') {
+                this.iconText.textContent = '';
+            }
+        }
+    }
+    
     setTransformStr(str) {
-        this.iconGroup.setAttribute('transform', str);
+        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${str}`);
     }
-
+    
     setupInteractions() {
         this.group.style.cursor = 'pointer';
         let pressTimer = null;
@@ -95,114 +431,16 @@ export class MapShortcut {
             if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
         });
     }
-
-    render() {
-        this.group.appendChild(this.stateBadge);
-        return this.group;
-    }
-    
-    updateState(hass) {
-        this.activeState = this.evaluateStates(hass);
-    }
-    
-    evaluateStates(hass) {
-        if (!this.config.states || !this.config.states.length) return null;
-        for (const st of this.config.states) {
-            let matched = true;
-            
-            if (st.conditions && st.conditions.length > 0) {
-                for (const cond of st.conditions) {
-                    const entity = cond.state_entity || cond.entity || st.state_entity || this.sc.entity_id;
-                    if (!entity || !hass.states[entity]) {
-                        matched = false;
-                        break;
-                    }
-                    const actualVal = hass.states[entity].state;
-                    const targetVal = cond.value;
-                    const actualNum = parseFloat(actualVal);
-                    const isActualNumeric = !isNaN(actualNum);
-                    
-                    let condMatched = false;
-                    const op = cond.operator || '==';
-                    if (op === '==') {
-                        condMatched = (actualVal == targetVal);
-                    } else if (op === '!=') {
-                        condMatched = (actualVal != targetVal);
-                    } else if (op === '<' && isActualNumeric) {
-                        condMatched = (actualNum < parseFloat(targetVal));
-                    } else if (op === '<=' && isActualNumeric) {
-                        condMatched = (actualNum <= parseFloat(targetVal));
-                    } else if (op === '>' && isActualNumeric) {
-                        condMatched = (actualNum > parseFloat(targetVal));
-                    } else if (op === '>=' && isActualNumeric) {
-                        condMatched = (actualNum >= parseFloat(targetVal));
-                    } else if (op === 'between' && isActualNumeric) {
-                        const parts = String(targetVal).split('-');
-                        if (parts.length === 2) {
-                            const min = parseFloat(parts[0]);
-                            const max = parseFloat(parts[1]);
-                            if (!isNaN(min) && !isNaN(max)) {
-                                condMatched = (actualNum >= min && actualNum <= max);
-                            }
-                        }
-                    }
-                    
-                    if (!condMatched) {
-                        matched = false;
-                        break;
-                    }
-                }
-            } else {
-                const entity = st.state_entity || this.sc.entity_id;
-                if (!entity || !hass.states[entity]) {
-                    matched = false;
-                } else {
-                    const actualVal = hass.states[entity].state;
-                    const targetVal = st.value;
-                    const actualNum = parseFloat(actualVal);
-                    const isActualNumeric = !isNaN(actualNum);
-                    
-                    let singleMatched = false;
-                    const op = st.operator || '==';
-                    if (op === '==') {
-                        singleMatched = (actualVal == targetVal);
-                    } else if (op === '!=') {
-                        singleMatched = (actualVal != targetVal);
-                    } else if (op === '<' && isActualNumeric) {
-                        singleMatched = (actualNum < parseFloat(targetVal));
-                    } else if (op === '<=' && isActualNumeric) {
-                        singleMatched = (actualNum <= parseFloat(targetVal));
-                    } else if (op === '>' && isActualNumeric) {
-                        singleMatched = (actualNum > parseFloat(targetVal));
-                    } else if (op === '>=' && isActualNumeric) {
-                        singleMatched = (actualNum >= parseFloat(targetVal));
-                    } else if (op === 'between' && isActualNumeric) {
-                        const parts = String(targetVal).split('-');
-                        if (parts.length === 2) {
-                            const min = parseFloat(parts[0]);
-                            const max = parseFloat(parts[1]);
-                            if (!isNaN(min) && !isNaN(max)) {
-                                singleMatched = (actualNum >= min && actualNum <= max);
-                            }
-                        }
-                    }
-                    matched = singleMatched;
-                }
-            }
-            if (matched) return st;
-        }
-        return null;
-    }
     
     onClick(e) {
         if (this.config.actions && this.config.actions.length > 0) {
             const tapActions = this.config.actions.filter(a => a.trigger === 'tap');
             if (tapActions.length > 0) {
-                // Execute instant actions (toggle/call_service)
                 tapActions.forEach(act => {
                     const target = act.action_entity || this.sc.entity_id;
                     if (!this.mapContext._hass) return;
                     if (!target && act.type !== 'CALL_SERVICE') return;
+                    
                     if (act.type === 'CALL_SERVICE' && act.service) {
                         const parts = act.service.split('.');
                         if (parts.length === 2) {
@@ -216,14 +454,11 @@ export class MapShortcut {
                                 try {
                                     const parsed = JSON.parse(act.payload);
                                     payload = { ...payload, ...parsed };
-                                } catch (e) {
-                                    console.error("[DynamicMap] Failed to parse action payload:", e);
+                                } catch (err) {
+                                    console.error("[DynamicMap] Failed to parse action payload:", err);
                                 }
                             }
-                            this.mapContext._hass.callService(parts[0], parts[1], payload).catch(e => {
-                                console.error("[DynamicMap] callService Error:", e);
-                                alert("HA Error: " + (e.message || JSON.stringify(e)));
-                            });
+                            this.mapContext._hass.callService(parts[0], parts[1], payload);
                         }
                     } else if (act.type && act.type.startsWith('TOGGLE')) {
                         const domain = target.split('.')[0];
@@ -236,38 +471,19 @@ export class MapShortcut {
                         }
                         
                         this.mapContext._hass.callService(domain, service, { entity_id: target });
-                    } else if (act.type === 'ROOM_SELECTOR') {
-                        this.mapContext.isSelectingRooms = true;
-                        this.mapContext.selectedRoomIds = [];
-                        this.mapContext.selectionVacuumTarget = target;
-                        this.mapContext.updateRoomStyles();
-                        this.mapContext.showRoomSelectionUI();
                     }
                 });
-                
-                // If there are sliders configured on tap, pop up an overlay for them
-                const sliderActions = tapActions.filter(a => a.type === 'SLIDER');
-                if (sliderActions.length > 0 && this.mapContext.showOverlay) {
-                    this.mapContext.showOverlay(this, sliderActions, e);
-                }
                 return;
             }
         }
     }
 
     onLongPress(e) {
-        if (this.sc.type === 'sensor') {
-            if (this.mapContext.showOverlay) {
-                this.mapContext.showOverlay(this, [], e);
-            }
-            return;
-        }
         if (!this.config.actions) return;
         const overlayActions = this.config.actions.filter(a => a.trigger === 'overlay' || a.trigger === 'long_press');
         if (overlayActions.length > 0 && this.mapContext.showOverlay) {
             this.mapContext.showOverlay(this, overlayActions, e);
         } else {
-            // Default HA more-info dialog
             if (this.sc.entity_id && this.mapContext._hass) {
                 const event = new Event('hass-more-info', { bubbles: true, composed: true });
                 event.detail = { entityId: this.sc.entity_id };
@@ -275,4 +491,9 @@ export class MapShortcut {
             }
         }
     }
+    
+    render() {
+        return this.group;
+    }
 }
+

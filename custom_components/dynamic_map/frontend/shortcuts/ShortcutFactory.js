@@ -1,11 +1,8 @@
-import { GenericShortcut } from './GenericShortcut.js';
-import { VacuumShortcut } from './VacuumShortcut.js';
-import { LightShortcut } from './LightShortcut.js';
-import { SensorShortcut } from './SensorShortcut.js';
+import { MapShortcut } from './MapShortcut.js?v=2.74';
 
 export class ShortcutFactory {
     static create(scData, svgNS, imgW, imgH, mapContext) {
-        // Legacy fallback
+        // Parse legacy configurations into structured state objects on the fly
         if (!scData.config) {
             scData.config = {
                 shape: scData.shape || 'circle',
@@ -14,11 +11,8 @@ export class ShortcutFactory {
                 room_mapping: scData.room_mapping || {}
             };
         }
-        switch (scData.type) {
-            case 'vacuum': return new VacuumShortcut(scData, svgNS, imgW, imgH, mapContext);
-            case 'light': return new LightShortcut(scData, svgNS, imgW, imgH, mapContext);
-            case 'sensor': return new SensorShortcut(scData, svgNS, imgW, imgH, mapContext);
-            default: return new GenericShortcut(scData, svgNS, imgW, imgH, mapContext);
-        }
+        
+        // Instantiate the single, unified MapShortcut compositor
+        return new MapShortcut(scData, svgNS, imgW, imgH, mapContext);
     }
 }

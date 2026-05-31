@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { SensorShortcut } from '../shortcuts/SensorShortcut.js';
+import { MapShortcut } from '../shortcuts/MapShortcut.js';
 
-describe('SensorShortcut', () => {
+describe('SensorShortcut / MapShortcut Sensor Integration', () => {
     const scData = {
         id: 'sensor_sc_123',
         entity_id: 'input_boolean.sensor_living_room',
         position: [40, 60],
+        type: 'sensor',
         config: {
             color: '#10b981',
             states: [
@@ -17,8 +18,8 @@ describe('SensorShortcut', () => {
                     color: '#3b82f6',
                     icon: '❄️',
                     conditions: [
-                        { entity: 'input_boolean.sensor_living_room', operator: '==', value: 'on' },
-                        { entity: 'sensor.living_room_temperature', operator: '<', value: '19' }
+                        { state_entity: 'input_boolean.sensor_living_room', operator: '==', value: 'on' },
+                        { state_entity: 'sensor.living_room_temperature', operator: '<', value: '19' }
                     ]
                 },
                 {
@@ -29,8 +30,8 @@ describe('SensorShortcut', () => {
                     color: '#10b981',
                     icon: '🌡️',
                     conditions: [
-                        { entity: 'input_boolean.sensor_living_room', operator: '==', value: 'on' },
-                        { entity: 'sensor.living_room_temperature', operator: 'between', value: '19-22' }
+                        { state_entity: 'input_boolean.sensor_living_room', operator: '==', value: 'on' },
+                        { state_entity: 'sensor.living_room_temperature', operator: 'between', value: '19-22' }
                     ]
                 },
                 {
@@ -41,8 +42,8 @@ describe('SensorShortcut', () => {
                     color: '#eab308',
                     icon: '🌵',
                     conditions: [
-                        { entity: 'input_boolean.sensor_living_room', operator: '==', value: 'off' },
-                        { entity: 'sensor.living_room_humidity', operator: '<=', value: '35' }
+                        { state_entity: 'input_boolean.sensor_living_room', operator: '==', value: 'off' },
+                        { state_entity: 'sensor.living_room_humidity', operator: '<=', value: '35' }
                     ]
                 },
                 {
@@ -53,8 +54,8 @@ describe('SensorShortcut', () => {
                     color: '#10b981',
                     icon: '💧',
                     conditions: [
-                        { entity: 'input_boolean.sensor_living_room', operator: '==', value: 'off' },
-                        { entity: 'sensor.living_room_humidity', operator: 'between', value: '36-60' }
+                        { state_entity: 'input_boolean.sensor_living_room', operator: '==', value: 'off' },
+                        { state_entity: 'sensor.living_room_humidity', operator: 'between', value: '36-60' }
                     ]
                 }
             ]
@@ -70,8 +71,16 @@ describe('SensorShortcut', () => {
     };
 
     it('should initialize and render pill shape and text elements', () => {
-        const shortcut = new SensorShortcut(scData, svgNS, 1000, 1000, mapContext);
-        shortcut.render();
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
+        
+        const mockHass = {
+            states: {
+                'input_boolean.sensor_living_room': { state: 'on' },
+                'sensor.living_room_temperature': { state: '21.4' },
+                'sensor.living_room_humidity': { state: '45' }
+            }
+        };
+        shortcut.updateState(mockHass);
         
         expect(shortcut.shape).toBeDefined();
         expect(shortcut.shape.tagName.toLowerCase()).toBe('rect');
@@ -84,8 +93,7 @@ describe('SensorShortcut', () => {
     });
 
     it('should display active temperature value and apply correct range state when input_boolean is on', () => {
-        const shortcut = new SensorShortcut(scData, svgNS, 1000, 1000, mapContext);
-        shortcut.render();
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
         
         const mockHass = {
             states: {
@@ -105,8 +113,7 @@ describe('SensorShortcut', () => {
     });
 
     it('should display cold temperature range when input_boolean is on and temperature is low', () => {
-        const shortcut = new SensorShortcut(scData, svgNS, 1000, 1000, mapContext);
-        shortcut.render();
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
         
         const mockHass = {
             states: {
@@ -126,8 +133,7 @@ describe('SensorShortcut', () => {
     });
 
     it('should display humidity range when input_boolean is off', () => {
-        const shortcut = new SensorShortcut(scData, svgNS, 1000, 1000, mapContext);
-        shortcut.render();
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
         
         const mockHass = {
             states: {
@@ -147,8 +153,7 @@ describe('SensorShortcut', () => {
     });
 
     it('should apply desaturation filter and strike-through on unavailable sensor state', () => {
-        const shortcut = new SensorShortcut(scData, svgNS, 1000, 1000, mapContext);
-        shortcut.render();
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
         
         const mockHass = {
             states: {
@@ -191,8 +196,8 @@ describe('SensorShortcut', () => {
             }
         };
 
-        const shortcut = new SensorShortcut(scDataWithActions, svgNS, 1000, 1000, customMapContext);
-        shortcut.render();
+        const shortcut = new MapShortcut(scDataWithActions, svgNS, 1000, 1000, customMapContext);
+        shortcut.updateState({});
         shortcut.onClick({});
 
         expect(calledDomain).toBe('input_boolean');
@@ -200,4 +205,3 @@ describe('SensorShortcut', () => {
         expect(calledPayload).toEqual({ entity_id: 'input_boolean.sensor_living_room' });
     });
 });
-
