@@ -105,17 +105,19 @@ This document sequentially records the major technical and architectural decisio
 
 ---
 
-## 008 Vacuum Toggle Standardization, Catch-All State Evaluation, and Bedroom Sensor Scale Normalization
+## 008 Vacuum Toggle, Idle Fallback, Sensor Normalization & Module Cache-Busting
 *   **Date:** 2026-05-31
 *   **Status:** Accepted
 *   **Context:**
     - In newer versions of Home Assistant, the custom service remapping from `vacuum.toggle` to `vacuum.start_pause` resulted in "Service vacuum.start_pause not found" errors, preventing proper click/tap control of vacuums.
     - Vacuums did not render any skins or images when in states like `idle` or `docked` because only `charging`, `cleaning`, and `error` states were explicitly configured, leading to blank or missing entities on the floorplan.
     - The bedroom sensor was oversized due to scale parameter drift (`4.33` vs. `3.98` standard scale).
+    - Aggressive browser and Lovelace caching of static component JavaScript files caused deployed updates to be ignored by client browsers, which continued loading cached `v=2.74` ES modules.
 *   **Decision:**
     - Removed the custom vacuum toggle-to-start_pause service remapping inside `MapShortcut.js` and `OverlayManager.js` to natively leverage standard `vacuum.toggle`, fully resolving newer HA version service compatibility.
     - Added a fourth catch-all "Idle" state using the inequality comparison operator (`!= unavailable`) to `shortcuts_floor2.json` for the Roborock vacuum, placed at the end of the state evaluation array so that it acts as a fallback skin when the vacuum is not charging, cleaning, or in error.
     - Unified and normalized the bedroom sensor `scaleX`/`scaleY`/`scale` configuration parameters in `shortcuts_floor2.json` to exactly `3.9815078588427864` to match the Living Room Sensor.
+    - Systematic Version Bumping: Bumped the integration version in `manifest.json` to `3.0.3`, updated the custom panel editor query parameters in `__init__.py` to `?v=3.0.3`, and rewrote all 40 occurrences of the ES import cache-busting query strings (`?v=2.74` -> `?v=3.0.3`) across all card and editor files.
 *   **Consequences:**
-    - **Benefits:** Restores fully functional tap-to-toggle vacuum actions in newer HA instances. Guarantees beautiful Roborock image assets render on the map under all possible states. Restores perfect visual styling symmetry for all environment sensors.
+    - **Benefits:** Restores fully functional tap-to-toggle vacuum actions in newer HA instances. Guarantees beautiful Roborock image assets render on the map under all possible states. Restores perfect visual styling symmetry for all environment sensors. Forces immediate client browser cache invalidation for all ES modules, ensuring the new code is executed instantly.
     - **Trade-offs:** None.

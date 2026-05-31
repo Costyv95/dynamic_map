@@ -1,4 +1,4 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=2.74';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
