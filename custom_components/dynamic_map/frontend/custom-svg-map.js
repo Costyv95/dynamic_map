@@ -1,8 +1,8 @@
-import { ShortcutFactory } from './shortcuts/ShortcutFactory.js';
-import { CameraManager } from './card/CameraManager.js';
-import { MapGeometry } from './shared/MapGeometry.js';
-import { OverlayManager } from './card/OverlayManager.js';
-import { MapBuilder } from './card/MapBuilder.js';
+import { ShortcutFactory } from './shortcuts/ShortcutFactory.js?v=2.74';
+import { CameraManager } from './card/CameraManager.js?v=2.74';
+import { MapGeometry } from './shared/MapGeometry.js?v=2.74';
+import { OverlayManager } from './card/OverlayManager.js?v=2.74';
+import { MapBuilder } from './card/MapBuilder.js?v=2.74';
 
 class CustomSvgMap extends HTMLElement {
     constructor() {
