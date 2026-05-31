@@ -275,13 +275,23 @@ class CustomSvgMap extends HTMLElement {
         this.buildFloorSwitcher();
         this.buildRotationSwitcher();
 
-        // Version badge appended last to avoid rotation logic
-        this.versionText = document.createElementNS(this.svgNS, 'text');
-        this.versionText.setAttribute('text-anchor', 'start');
-        this.versionText.setAttribute('font-weight', 'bold');
-        this.versionText.setAttribute('fill', 'red');
-        this.versionText.textContent = "v2.2";
-        this.svg.appendChild(this.versionText);
+        // Version badge appended inline next to floor switcher buttons styled with premium aesthetics
+        const versionBadge = document.createElement('div');
+        versionBadge.className = 'version-badge';
+        versionBadge.style.background = 'rgba(255, 255, 255, 0.9)';
+        versionBadge.style.borderRadius = '8px';
+        versionBadge.style.border = '1px solid #e2e8f0';
+        versionBadge.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
+        versionBadge.style.padding = '8px 12px';
+        versionBadge.style.fontSize = '12px';
+        versionBadge.style.fontWeight = 'bold';
+        versionBadge.style.fontFamily = 'sans-serif';
+        versionBadge.style.color = '#64748b';
+        versionBadge.style.display = 'flex';
+        versionBadge.style.alignItems = 'center';
+        versionBadge.style.justifyContent = 'center';
+        versionBadge.textContent = "3.0.1";
+        if (this.topLeftUI) this.topLeftUI.appendChild(versionBadge);
 
         if (this.cameraManager) this.cameraManager.destroy();
         this.cameraManager = new CameraManager(this.svg, this);
@@ -446,11 +456,7 @@ class CustomSvgMap extends HTMLElement {
             this.mapWrapper.style.height = '100%';
         }
 
-        if (this.versionText) {
-            this.versionText.setAttribute('x', this.vb.x + (this.vb.w * 0.02));
-            this.versionText.setAttribute('y', this.vb.y + (this.vb.h * 0.06));
-            this.versionText.setAttribute('font-size', (this.vb.h * 0.05).toString());
-        }
+
     }
 
 

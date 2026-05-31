@@ -37,6 +37,7 @@ export class MapShortcut {
         this.shape = null;
         
         this._imageLoadStates = {};
+        this.extraTransformStr = '';
         
         // Base positioning coordinates translation
         this.updateCoordinates();
@@ -61,7 +62,9 @@ export class MapShortcut {
         
         this.px = (pos[0] / 100) * this.imgW;
         this.py = (pos[1] / 100) * this.imgH;
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py})`);
+        
+        const extra = this.extraTransformStr || '';
+        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${extra}`.trim());
     }
     
     getIsAutoRotateActive() {
@@ -389,7 +392,8 @@ export class MapShortcut {
     }
     
     setTransformStr(str) {
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${str}`);
+        this.extraTransformStr = str;
+        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${str}`.trim());
     }
     
     setupInteractions() {
