@@ -4,27 +4,36 @@ This document details the complete system architecture, data schemas, UI mockups
 
 ---
 
-## 🏛️ 1. Modular, Subclass-Free Directory Structure (DRY & KISS)
+## 🏛️ 1. Micro-Split, Subclass-Free Directory Structure (DRY & KISS)
 
 To achieve maximum elegance, eliminate repeated blocks of code, and split logic into small, single-responsibility modules, we are **deleting all legacy device-specific subclasses entirely**:
 * **[DELETE]** `SensorShortcut.js`
 * **[DELETE]** `VacuumShortcut.js`
 * **[DELETE]** `LightShortcut.js`
 
-We will split the frontend shortcut subsystem into a clean, highly modular **directory structure**:
+We will split the frontend shortcut subsystem into a clean, highly modular **directory structure**, where **every single primitive has its own dedicated micro-file**:
 
 ```text
 custom_components/dynamic_map/frontend/
 ├── shortcuts/
-│   ├── MapShortcut.js             # Generic Compositor (Orchestration & Events only)
+│   ├── MapShortcut.js             # Generic Compositor (Orchestration & Events only; <100 lines)
 │   ├── ComponentRegistry.js       # Mapping entry point for primitives
-│   ├── ConditionEvaluator.js      # Isolated nested AND/OR logic rules evaluator
-│   └── components/                # Micro-extendable rendering modules
-│       ├── renderShape.js         # Draws circular, rectangular, & pill shapes
+│   ├── ConditionEvaluator.js      # STANDALONE nested AND/OR evaluator (0% DOM dependency)
+│   └── components/                # Micro-primitives rendering modules
+│       # --- Standard Shapes ---
+│       ├── renderCircle.js        # Draws circular background pins
+│       ├── renderRect.js          # Draws standard rectangular pins
+│       ├── renderPill.js          # Draws rounded pill sensors/text backings
+│       # --- Core Content ---
 │       ├── renderIcon.js          # Draws SVG-based <foreignObject> icons
 │       ├── renderImage.js         # Draws static and dynamic PNG/SVG images
 │       ├── renderText.js          # Handles dynamic Jinja templated text strings
-│       ├── renderGauge.js         # Draws progress rings & radial gauges
+│       # --- Premium Dashboard Gauges & Widgets [EXPANDED] ---
+│       ├── renderGauge.js         # Draws circular progress rings & radial gauges
+│       ├── renderLinearBar.js     # Draws linear status bars (Volume, Battery, Curtains) [NEW]
+│       ├── renderBadge.js         # Draws visual corner status dots (Online/Offline, Alerts) [NEW]
+│       ├── renderCurvedGauge.js   # Draws sweeping semicircular arcs (Speedometers, Dials) [NEW]
+│       ├── renderLinePath.js      # Draws dynamic paths & tracking outlines (Vacuums, Light Beams) [NEW]
 │       └── renderSelector.js      # Draws custom vacuum room outlines
 └── card/
     ├── OverlayManager.js          # Overlay entry-point manager
@@ -44,7 +53,9 @@ A standalone, 100% self-contained module dedicated purely to evaluating recursiv
 
 ### C. The Micro-Renderers: `components/` [NEW]
 Every visual primitive is housed in its own dedicated, single-responsibility file:
-* **`renderShape.js`**: Handles `<circle>` and `<rect>` creations.
+* **`renderCircle.js`**: Handles `<circle>` creations.
+* **`renderRect.js`**: Handles `<rect>` creations.
+* **`renderPill.js`**: Handles rounded pill creations.
 * **`renderText.js`**: Resolves Home Assistant states inside strings (e.g. `{{ states(T) }}°`) and injects SVG `<text>` elements.
 * **`renderGauge.js`**: Renders smooth circular dashboards with SVG `stroke-dashoffset` timers.
 
