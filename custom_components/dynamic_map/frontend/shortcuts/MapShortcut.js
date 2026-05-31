@@ -1,5 +1,5 @@
-import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3';
-import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3';
+import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-bf7dcc3-dev-125427';
+import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-bf7dcc3-dev-125427';
 
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {

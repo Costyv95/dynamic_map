@@ -1,4 +1,4 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-bf7dcc3-dev-125427';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -343,6 +343,13 @@ export class CanvasEngine {
             }
             const r = Math.max(rx, ry);
 
+            this.ctx.save();
+            if (this.isRotated && !autoRotate) {
+                this.ctx.translate(x, y);
+                this.ctx.rotate(-Math.PI / 2);
+                this.ctx.translate(-x, -y);
+            }
+
             this.ctx.beginPath();
             if (sc.type === 'sensor') {
                 const borderRadius = 8 * Math.min(scaleX, scaleY);
@@ -394,6 +401,7 @@ export class CanvasEngine {
                 drawHandle(x - rx, y + ry);
                 drawHandle(x + rx, y + ry);
             }
+            this.ctx.restore();
 
             if (sc.type === 'vacuum') {
                 const maxR = shape === 'rect' ? Math.min(rx, ry) : rx;

@@ -1,18 +1,18 @@
-import { renderCircle } from './components/renderCircle.js?v=3.0.3';
-import { renderRect } from './components/renderRect.js?v=3.0.3';
-import { renderPill } from './components/renderPill.js?v=3.0.3';
-import { renderIcon } from './components/renderIcon.js?v=3.0.3';
-import { renderImage } from './components/renderImage.js?v=3.0.3';
-import { renderText } from './components/renderText.js?v=3.0.3';
-import { renderGauge } from './components/renderGauge.js?v=3.0.3';
-import { renderLinearBar } from './components/renderLinearBar.js?v=3.0.3';
-import { renderBadge } from './components/renderBadge.js?v=3.0.3';
-import { renderCurvedGauge } from './components/renderCurvedGauge.js?v=3.0.3';
-import { renderLinePath } from './components/renderLinePath.js?v=3.0.3';
-import { renderSelector } from './components/renderSelector.js?v=3.0.3';
-import { renderAlarmClock } from './components/renderAlarmClock.js?v=3.0.3';
-import { renderCalendarCard } from './components/renderCalendarCard.js?v=3.0.3';
-import { renderTimeline } from './components/renderTimeline.js?v=3.0.3';
+import { renderCircle } from './components/renderCircle.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderRect } from './components/renderRect.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderPill } from './components/renderPill.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderIcon } from './components/renderIcon.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderImage } from './components/renderImage.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderText } from './components/renderText.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderGauge } from './components/renderGauge.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderLinearBar } from './components/renderLinearBar.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderBadge } from './components/renderBadge.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderCurvedGauge } from './components/renderCurvedGauge.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderLinePath } from './components/renderLinePath.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderSelector } from './components/renderSelector.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderAlarmClock } from './components/renderAlarmClock.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderCalendarCard } from './components/renderCalendarCard.js?v=3.0.3-bf7dcc3-dev-125427';
+import { renderTimeline } from './components/renderTimeline.js?v=3.0.3-bf7dcc3-dev-125427';
 
 export const ComponentRegistry = {
     circle: renderCircle,

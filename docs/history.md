@@ -121,3 +121,22 @@ This document sequentially records the major technical and architectural decisio
 *   **Consequences:**
     - **Benefits:** Restores fully functional tap-to-toggle vacuum actions in newer HA instances. Guarantees beautiful Roborock image assets render on the map under all possible states. Restores perfect visual styling symmetry for all environment sensors. Forces immediate client browser cache invalidation for all ES modules, ensuring the new code is executed instantly.
     - **Trade-offs:** None.
+
+---
+
+## 009 Git-Based Automatic Cache-Busting, Native Vacuum SVGs, and Rotated Editor Handle Math
+*   **Date:** 2026-05-31
+*   **Status:** Accepted
+*   **Context:**
+    - Aggressive browser and Lovelace caching of static component JavaScript files required a fully automated, foolproof way to bust client caches upon code changes without requiring manual version bumps.
+    - Vacuum cleaner shortcuts had no image assets on the HAOS filesystem, causing their states (charging, cleaning, error, and idle) to render blank or missing.
+    - When the map was rotated, shortcuts configured with `autoRotate = false` correctly remained screen-horizontal, but the Map Editor’s canvas drew their background shapes rotated and did not rotate the drag handle hit-testing mouse vectors, causing visual glitches and preventing dragging/resizing from working.
+*   **Decision:**
+    - **Git-Based Auto-Versioning:** Implemented `scratch/auto_version.py` which dynamically calculates a cache-busting version string using the latest Git commit short hash and timestamp. If there are uncommitted files, it automatically appends the current system time to ensure every local testing deployment gets a unique cache-busting query parameter (`?v=3.0.3-<hash>-dev-<time>`). Integrated this call directly in `deploy.sh` so cache-busting is completely hands-free on every deploy.
+    - **Native SVG Asset Bundling:** Designed and created a set of professional, high-quality, self-contained SVG vacuum status (`vacuum_charging.svg`, `vacuum_cleaning.svg`, `vacuum_error.svg`) and light status (`light_on.svg`, `light_off.svg`) icons inside `custom_components/dynamic_map/frontend/icons/`, making them native assets loaded directly via the `/dynamic_map_ui/icons/` static path.
+    - **Rotated Editor Canvas Shapes:** Updated `CanvasEngine.js` to rotate the shortcut background shape and handles by `-90` degrees in the editor when the map is rotated and `autoRotate` is false.
+    - **Rotated Handle Hit-Testing Vectors:** Added a +90 degree mouse coordinate transform vector in `EditorInteractionManager.js` during mouse hover testing, body hit-testing, and resize scaling to undo the map rotation, restoring flawless click-to-select and drag-to-resize support.
+*   **Consequences:**
+    - **Benefits:** Completely resolves all caching issues, making local developments visible in the browser instantly. Guarantees beautiful vacuum assets render out-of-the-box. Restores perfect WYSIWYG handle dragging symmetry in rotated map views.
+    - **Trade-offs:** None.
+

@@ -1,5 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3';
-import { CanvasEngine } from './CanvasEngine.js?v=3.0.3';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-bf7dcc3-dev-125427';
+import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-bf7dcc3-dev-125427';
 
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {
@@ -121,14 +121,24 @@ export class EditorInteractionManager {
 
             const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
 
-            if (hitTest(this.dragStart.x, this.dragStart.y, scX - rx, scY - ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'NW'; return; }
-            if (hitTest(this.dragStart.x, this.dragStart.y, scX + rx, scY - ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'NE'; return; }
-            if (hitTest(this.dragStart.x, this.dragStart.y, scX - rx, scY + ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'SW'; return; }
-            if (hitTest(this.dragStart.x, this.dragStart.y, scX + rx, scY + ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'SE'; return; }
-            if (hitTest(this.dragStart.x, this.dragStart.y, scX, scY - ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'N'; return; }
-            if (hitTest(this.dragStart.x, this.dragStart.y, scX, scY + ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'S'; return; }
-            if (hitTest(this.dragStart.x, this.dragStart.y, scX - rx, scY)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'W'; return; }
-            if (hitTest(this.dragStart.x, this.dragStart.y, scX + rx, scY)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'E'; return; }
+            const autoRotate = sc.config?.autoRotate || false;
+            let checkX = this.dragStart.x;
+            let checkY = this.dragStart.y;
+            if (this.engine.isRotated && !autoRotate) {
+                const dx = this.dragStart.x - scX;
+                const dy = this.dragStart.y - scY;
+                checkX = scX - dy;
+                checkY = scY + dx;
+            }
+
+            if (hitTest(checkX, checkY, scX - rx, scY - ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'NW'; return; }
+            if (hitTest(checkX, checkY, scX + rx, scY - ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'NE'; return; }
+            if (hitTest(checkX, checkY, scX - rx, scY + ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'SW'; return; }
+            if (hitTest(checkX, checkY, scX + rx, scY + ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'SE'; return; }
+            if (hitTest(checkX, checkY, scX, scY - ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'N'; return; }
+            if (hitTest(checkX, checkY, scX, scY + ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'S'; return; }
+            if (hitTest(checkX, checkY, scX - rx, scY)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'W'; return; }
+            if (hitTest(checkX, checkY, scX + rx, scY)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'E'; return; }
         }
 
         let overScIdx = -1;
@@ -143,12 +153,23 @@ export class EditorInteractionManager {
             const ry = baseRy * (sc.scaleY || sc.scale || 1);
             
             const shape = sc.type === 'sensor' ? 'rect' : (sc.config?.shape || sc.shape || 'circle');
+            
+            const autoRotate = sc.config?.autoRotate || false;
+            let checkX = this.dragStart.x;
+            let checkY = this.dragStart.y;
+            if (this.engine.isRotated && !autoRotate) {
+                const dx = this.dragStart.x - scX;
+                const dy = this.dragStart.y - scY;
+                checkX = scX - dy;
+                checkY = scY + dx;
+            }
+
             if (shape === 'rect') {
-                if (Math.abs(this.dragStart.x - scX) <= rx && Math.abs(this.dragStart.y - scY) <= ry) {
+                if (Math.abs(checkX - scX) <= rx && Math.abs(checkY - scY) <= ry) {
                     overScIdx = i; break;
                 }
             } else {
-                if (Math.hypot(this.dragStart.x - scX, this.dragStart.y - scY) <= Math.max(rx, ry)) {
+                if (Math.hypot(checkX - scX, checkY - scY) <= Math.max(rx, ry)) {
                     overScIdx = i; break;
                 }
             }
@@ -217,13 +238,23 @@ export class EditorInteractionManager {
 
                 const hitTest = (px, py, hx, hy) => Math.hypot(px - hx, py - hy) < hSize * 2;
                 
-                if (hitTest(worldPos.x, worldPos.y, scX - rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX + rx, scY + ry)) {
+                const autoRotate = sc.config?.autoRotate || false;
+                let checkX = worldPos.x;
+                let checkY = worldPos.y;
+                if (this.engine.isRotated && !autoRotate) {
+                    const dx = worldPos.x - scX;
+                    const dy = worldPos.y - scY;
+                    checkX = scX - dy;
+                    checkY = scY + dx;
+                }
+
+                if (hitTest(checkX, checkY, scX - rx, scY - ry) || hitTest(checkX, checkY, scX + rx, scY + ry)) {
                     cursorStyle = this.engine.isRotated ? 'nesw-resize' : 'nwse-resize';
-                } else if (hitTest(worldPos.x, worldPos.y, scX + rx, scY - ry) || hitTest(worldPos.x, worldPos.y, scX - rx, scY + ry)) {
+                } else if (hitTest(checkX, checkY, scX + rx, scY - ry) || hitTest(checkX, checkY, scX - rx, scY + ry)) {
                     cursorStyle = this.engine.isRotated ? 'nwse-resize' : 'nesw-resize';
-                } else if (hitTest(worldPos.x, worldPos.y, scX, scY - ry) || hitTest(worldPos.x, worldPos.y, scX, scY + ry)) {
+                } else if (hitTest(checkX, checkY, scX, scY - ry) || hitTest(checkX, checkY, scX, scY + ry)) {
                     cursorStyle = this.engine.isRotated ? 'ew-resize' : 'ns-resize';
-                } else if (hitTest(worldPos.x, worldPos.y, scX - rx, scY) || hitTest(worldPos.x, worldPos.y, scX + rx, scY)) {
+                } else if (hitTest(checkX, checkY, scX - rx, scY) || hitTest(checkX, checkY, scX + rx, scY)) {
                     cursorStyle = this.engine.isRotated ? 'ns-resize' : 'ew-resize';
                 }
             }
@@ -240,12 +271,23 @@ export class EditorInteractionManager {
                     const ry = baseRy * (sc.scaleY || sc.scale || 1);
                     
                     const shape = sc.type === 'sensor' ? 'rect' : (sc.config?.shape || sc.shape || 'circle');
+                    
+                    const autoRotate = sc.config?.autoRotate || false;
+                    let checkX = worldPos.x;
+                    let checkY = worldPos.y;
+                    if (this.engine.isRotated && !autoRotate) {
+                        const dx = worldPos.x - scX;
+                        const dy = worldPos.y - scY;
+                        checkX = scX - dy;
+                        checkY = scY + dx;
+                    }
+
                     if (shape === 'rect') {
-                        if (Math.abs(worldPos.x - scX) <= rx && Math.abs(worldPos.y - scY) <= ry) {
+                        if (Math.abs(checkX - scX) <= rx && Math.abs(checkY - scY) <= ry) {
                             overShortcut = true; break;
                         }
                     } else {
-                        if (Math.hypot(worldPos.x - scX, worldPos.y - scY) <= Math.max(rx, ry)) {
+                        if (Math.hypot(checkX - scX, checkY - scY) <= Math.max(rx, ry)) {
                             overShortcut = true; break;
                         }
                     }
@@ -282,8 +324,18 @@ export class EditorInteractionManager {
             const scX = (pos[0]/100)*sBgW;
             const scY = (pos[1]/100)*sBgH;
             
-            const dx = Math.abs(worldPos.x - scX);
-            const dy = Math.abs(worldPos.y - scY);
+            const autoRotate = sc.config?.autoRotate || false;
+            let checkX = worldPos.x;
+            let checkY = worldPos.y;
+            if (this.engine.isRotated && !autoRotate) {
+                const rDx = worldPos.x - scX;
+                const rDy = worldPos.y - scY;
+                checkX = scX - rDy;
+                checkY = scY + rDx;
+            }
+
+            const dx = Math.abs(checkX - scX);
+            const dy = Math.abs(checkY - scY);
             
             const divisorRx = sc.type === 'sensor' ? 26 : 12;
             const divisorRy = 12;

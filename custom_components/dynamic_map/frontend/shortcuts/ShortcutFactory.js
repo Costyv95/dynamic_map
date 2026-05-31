@@ -1,4 +1,4 @@
-import { MapShortcut } from './MapShortcut.js?v=3.0.3';
+import { MapShortcut } from './MapShortcut.js?v=3.0.3-bf7dcc3-dev-125427';
 
 export class ShortcutFactory {
     static create(scData, svgNS, imgW, imgH, mapContext) {

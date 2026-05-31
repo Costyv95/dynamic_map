@@ -8,9 +8,9 @@ LOCAL_PATH="/home/costi/workspace/dynamic_map/custom_components/dynamic_map/"
 REMOTE_HOST="ghemo_smoto@192.168.1.55"
 REMOTE_PATH="/homeassistant/custom_components/dynamic_map/"
 
-echo "=== 🚀 Starting Blazing-Fast HAOS Deployment ==="
-echo "Local source:  $LOCAL_PATH"
-echo "Remote target: $REMOTE_HOST:$REMOTE_PATH"
+# 0. Execute automatic version cache-busting using Git commit author date/time
+echo "Executing Git-Based Auto-Versioning..."
+PYTHONUNBUFFERED=1 /home/costi/miniforge3/envs/ha_agent/bin/python3 /home/costi/workspace/dynamic_map/scratch/auto_version.py
 echo ""
 
 # 1. Sync files via rsync using sudo on remote side to override root permission barriers
