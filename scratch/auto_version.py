@@ -67,6 +67,13 @@ def run_auto_version():
                     content = new_content
                     updated = True
 
+                # Replace versionBadge.textContent = "..." (e.g. versionBadge.textContent = "3.0.3")
+                badge_regex = re.compile(r"versionBadge\.textContent\s*=\s*\"[a-zA-Z0-9.\-_]+\";")
+                new_content = badge_regex.sub(f'versionBadge.textContent = "{version_str}";', content)
+                if new_content != content:
+                    content = new_content
+                    updated = True
+
                 if updated:
                     with open(file_path, "w", encoding="utf-8") as f:
                         f.write(content)

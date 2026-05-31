@@ -1,5 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-de0f3a8-dev-130032';
-import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-de0f3a8-dev-130032';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-707e36e-dev-132257';
+import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-707e36e-dev-132257';
 
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {

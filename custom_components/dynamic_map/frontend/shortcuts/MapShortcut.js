@@ -1,5 +1,5 @@
-import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-de0f3a8-dev-130032';
-import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-de0f3a8-dev-130032';
+import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-707e36e-dev-132257';
+import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-707e36e-dev-132257';
 
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {
@@ -111,7 +111,9 @@ export class MapShortcut {
                         height: 24 * scaleY,
                         rx: 8 * Math.min(scaleX, scaleY),
                         ry: 8 * Math.min(scaleX, scaleY),
-                        color: this.config.color || '#10b981'
+                        color: this.config.transparent ? 'rgba(0,0,0,0)' : (this.config.color || '#10b981'),
+                        stroke_color: this.config.transparent ? 'rgba(0,0,0,0)' : 'white',
+                        stroke_width: this.config.transparent ? 0 : 1
                     },
                     {
                         id: 'sensor_emoji',
@@ -120,7 +122,8 @@ export class MapShortcut {
                         y: 0,
                         value: this.config.icon || '🌡️',
                         font_size: 14 * Math.min(scaleX, scaleY),
-                        align: 'middle'
+                        align: 'middle',
+                        color: this.config.transparent ? (this.config.color || '#10b981') : '#ffffff'
                     },
                     {
                         id: 'sensor_value',
@@ -130,7 +133,8 @@ export class MapShortcut {
                         value: '',
                         font_size: 12 * Math.min(scaleX, scaleY),
                         align: 'middle',
-                        font_weight: 'bold'
+                        font_weight: 'bold',
+                        color: this.config.transparent ? (this.config.color || '#10b981') : '#ffffff'
                     }
                 ];
             } else {
@@ -202,20 +206,34 @@ export class MapShortcut {
                     
                     if (isSensor) {
                         const emojiEl = baseCopy.find(el => el.id === 'sensor_emoji');
-                        if (emojiEl && matchedState.icon) {
-                            emojiEl.value = matchedState.icon;
+                        if (emojiEl) {
+                            if (matchedState.icon) {
+                                emojiEl.value = matchedState.icon;
+                            }
+                            if (this.config.transparent) {
+                                emojiEl.color = matchedState.color || this.config.color || '#10b981';
+                            } else {
+                                emojiEl.color = '#ffffff';
+                            }
                         }
                         
                         const valueEl = baseCopy.find(el => el.id === 'sensor_value');
-                        if (valueEl && matchedState.display_entity && hass) {
-                            const sensorState = hass.states[matchedState.display_entity];
-                            if (sensorState) {
-                                const rawVal = parseFloat(sensorState.state);
-                                if (!isNaN(rawVal)) {
-                                    valueEl.value = Math.round(rawVal) + (matchedState.unit || '');
-                                } else {
-                                    valueEl.value = sensorState.state + (matchedState.unit || '');
+                        if (valueEl) {
+                            if (matchedState.display_entity && hass) {
+                                const sensorState = hass.states[matchedState.display_entity];
+                                if (sensorState) {
+                                    const rawVal = parseFloat(sensorState.state);
+                                    if (!isNaN(rawVal)) {
+                                        valueEl.value = Math.round(rawVal) + (matchedState.unit || '');
+                                    } else {
+                                        valueEl.value = sensorState.state + (matchedState.unit || '');
+                                    }
                                 }
+                            }
+                            if (this.config.transparent) {
+                                valueEl.color = matchedState.color || this.config.color || '#10b981';
+                            } else {
+                                valueEl.color = '#ffffff';
                             }
                         }
                     } else {
@@ -248,7 +266,22 @@ export class MapShortcut {
             // If no states matched for sensor, keep value empty or clear
             const baseCopy = JSON.parse(JSON.stringify(activeLayout));
             const valueEl = baseCopy.find(el => el.id === 'sensor_value');
-            if (valueEl) valueEl.value = '';
+            if (valueEl) {
+                valueEl.value = '';
+                if (this.config.transparent) {
+                    valueEl.color = this.config.color || '#10b981';
+                } else {
+                    valueEl.color = '#ffffff';
+                }
+            }
+            const emojiEl = baseCopy.find(el => el.id === 'sensor_emoji');
+            if (emojiEl) {
+                if (this.config.transparent) {
+                    emojiEl.color = this.config.color || '#10b981';
+                } else {
+                    emojiEl.color = '#ffffff';
+                }
+            }
             activeLayout = baseCopy;
         }
         

@@ -1,5 +1,5 @@
-import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=3.0.3-de0f3a8-dev-130032';
-import { ApiManager } from '../shared/ApiManager.js?v=3.0.3-de0f3a8-dev-130032';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=3.0.3-707e36e-dev-132257';
+import { ApiManager } from '../shared/ApiManager.js?v=3.0.3-707e36e-dev-132257';
 
 export class EditorUIManager {
     constructor(stateManager, engine) {
