@@ -23,13 +23,37 @@ rsync -avz --delete \
       --rsync-path="sudo rsync" \
       "$LOCAL_PATH" "$REMOTE_HOST:$REMOTE_PATH"
 
-echo "Code files synced successfully!"
+# Read resolved version string
+VERSION_STR=$(cat "/home/costi/workspace/dynamic_map/scratch/current_version.txt")
+echo "Resolved version string: $VERSION_STR"
 echo ""
 
-# 2. SSH into remote host to trigger Home Assistant Core restart
-echo "Connecting to remote HAOS to trigger core restart..."
-REMOTE_COMMANDS=$(cat << 'EOF'
+# 2. SSH into remote host to trigger Lovelace resource update & Home Assistant Core restart
+echo "Connecting to remote HAOS to trigger Lovelace resource update & core restart..."
+REMOTE_COMMANDS=$(cat << EOF
 set -e
+
+# Update Lovelace resource version directly in .storage database
+echo "Updating Lovelace resource version to $VERSION_STR..."
+sudo python3 -c '
+import json
+path = "/homeassistant/.storage/lovelace_resources"
+with open(path, "r") as f:
+    data = json.load(f)
+
+updated = False
+for item in data["data"]["items"]:
+    if item["url"].startswith("/dynamic_map_ui/custom-svg-map.js"):
+        item["url"] = "/dynamic_map_ui/custom-svg-map.js?v=$VERSION_STR"
+        updated = True
+
+if updated:
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+    print("Lovelace resource successfully updated to $VERSION_STR!")
+else:
+    print("Warning: Lovelace resource /dynamic_map_ui/custom-svg-map.js not found in .storage/lovelace_resources.")
+'
 
 echo "Triggering Home Assistant restart..."
 if command -v docker &> /dev/null; then
@@ -45,7 +69,6 @@ else
         sudo systemctl restart home-assistant@homeassistant
     else
         echo "Warning: No direct command-line helper found. Calling HA API local service..."
-        # If no commands found, call HA core restart via local shell call if HAOS CLI exists
         sudo ha core restart 2>/dev/null || echo "Could not execute automatic restart. Please trigger a restart of Home Assistant manually from the UI."
     fi
 fi

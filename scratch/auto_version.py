@@ -83,6 +83,12 @@ def run_auto_version():
                 f.write(new_content)
             print(f"Busted panel URL version in: {init_path}")
 
+    # 3. Write version to temp file for deploy.sh
+    version_file = "/home/costi/workspace/dynamic_map/scratch/current_version.txt"
+    with open(version_file, "w", encoding="utf-8") as f:
+        f.write(version_str)
+    print(f"Saved current version to: {version_file}")
+
     print("=== 🎉 Auto-Versioning Completed! ===")
 
 if __name__ == "__main__":
