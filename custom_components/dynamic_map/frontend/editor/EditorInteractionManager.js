@@ -26,6 +26,29 @@ export class EditorInteractionManager {
         return this.engine.getMousePos(e);
     }
 
+    getShortcutPos(sc) {
+        const activeMode = this.engine.activeMode || 'horizontal';
+        let pos = sc.position;
+        if (pos && typeof pos === 'object' && !Array.isArray(pos)) {
+            return pos[activeMode] || pos.horizontal || [50, 50];
+        }
+        return pos || [50, 50];
+    }
+
+    setShortcutPos(sc, pctX, pctY) {
+        const activeMode = this.engine.activeMode || 'horizontal';
+        if (sc.position && typeof sc.position === 'object' && !Array.isArray(sc.position)) {
+            sc.position[activeMode] = [pctX, pctY];
+        } else {
+            const oldPos = sc.position || [50, 50];
+            sc.position = {
+                horizontal: [...oldPos],
+                vertical: [...oldPos]
+            };
+            sc.position[activeMode] = [pctX, pctY];
+        }
+    }
+
     bindEvents() {
         this.canvas.addEventListener('contextmenu', e => e.preventDefault());
 
@@ -86,8 +109,9 @@ export class EditorInteractionManager {
         // Check Resize Handles
         if (this.state.selectedShortcutIdx !== -1 && this.state.shortcuts[this.state.selectedShortcutIdx]) {
             const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
-            const scX = (sc.position[0]/100)*bgW;
-            const scY = (sc.position[1]/100)*bgH;
+            const pos = this.getShortcutPos(sc);
+            const scX = (pos[0]/100)*bgW;
+            const scY = (pos[1]/100)*bgH;
             const baseRx = sc.type === 'sensor' ? 26 : 12;
             const baseRy = 12;
             const rx = baseRx * (sc.scaleX || sc.scale || 1);
@@ -110,8 +134,9 @@ export class EditorInteractionManager {
         let overScIdx = -1;
         for (let i = this.state.shortcuts.length - 1; i >= 0; i--) {
             const sc = this.state.shortcuts[i];
-            const scX = (sc.position[0]/100)*bgW;
-            const scY = (sc.position[1]/100)*bgH;
+            const pos = this.getShortcutPos(sc);
+            const scX = (pos[0]/100)*bgW;
+            const scY = (pos[1]/100)*bgH;
             const baseRx = sc.type === 'sensor' ? 26 : 12;
             const baseRy = 12;
             const rx = baseRx * (sc.scaleX || sc.scale || 1);
@@ -180,8 +205,9 @@ export class EditorInteractionManager {
 
             if (this.state.selectedShortcutIdx !== -1) {
                 const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
-                const scX = (sc.position[0]/100)*bgW;
-                const scY = (sc.position[1]/100)*bgH;
+                const pos = this.getShortcutPos(sc);
+                const scX = (pos[0]/100)*bgW;
+                const scY = (pos[1]/100)*bgH;
                 const baseRx = sc.type === 'sensor' ? 26 : 12;
                 const baseRy = 12;
                 const rx = baseRx * (sc.scaleX || sc.scale || 1);
@@ -205,8 +231,9 @@ export class EditorInteractionManager {
             if (cursorStyle === 'default') {
                 for (let i = this.state.shortcuts.length - 1; i >= 0; i--) {
                     const sc = this.state.shortcuts[i];
-                    const scX = (sc.position[0]/100)*bgW;
-                    const scY = (sc.position[1]/100)*bgH;
+                    const pos = this.getShortcutPos(sc);
+                    const scX = (pos[0]/100)*bgW;
+                    const scY = (pos[1]/100)*bgH;
                     const baseRx = sc.type === 'sensor' ? 26 : 12;
                     const baseRy = 12;
                     const rx = baseRx * (sc.scaleX || sc.scale || 1);
@@ -241,7 +268,7 @@ export class EditorInteractionManager {
             this.isDragging = true;
             const worldPos = this.getMousePos(e);
             const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
-            this.state.shortcuts[this.state.selectedShortcutIdx].position = [(worldPos.x / bgW)*100, (worldPos.y / bgH)*100];
+            this.setShortcutPos(this.state.shortcuts[this.state.selectedShortcutIdx], (worldPos.x / bgW)*100, (worldPos.y / bgH)*100);
             this.state.requestDrawCallback();
             return;
         }
@@ -251,8 +278,9 @@ export class EditorInteractionManager {
             const worldPos = this.getMousePos(e);
             const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
             const { bgW: sBgW, bgH: sBgH } = CanvasEngine.safeDimensions(this.state.bgImage);
-            const scX = (sc.position[0]/100)*sBgW;
-            const scY = (sc.position[1]/100)*sBgH;
+            const pos = this.getShortcutPos(sc);
+            const scX = (pos[0]/100)*sBgW;
+            const scY = (pos[1]/100)*sBgH;
             
             const dx = Math.abs(worldPos.x - scX);
             const dy = Math.abs(worldPos.y - scY);

@@ -196,25 +196,15 @@ export function renderActionsAndStates(sc, onStateChange) {
         div.style.border = window.previewStateIdx === idx ? '2px solid var(--accent)' : '1px solid var(--input-border)';
         div.style.userSelect = 'none';
         
-        let conditionsHtml = '';
-        st.conditions.forEach((cond, condIdx) => {
-            conditionsHtml += `
-                <div class="cond-row" data-cond-idx="${condIdx}" style="display: flex; gap: 4px; margin-bottom: 6px; align-items: center;">
-                    <input type="text" class="cond-entity" list="entityList" value="${cond.state_entity || cond.entity || ''}" placeholder="Entity ID (optional)" style="flex: 2; margin: 0; padding: 4px; font-size: 12px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 4px;">
-                    <select class="cond-op" style="margin: 0; padding: 4px; flex: 1.2; font-size: 12px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 4px;">
-                        <option value="==" ${cond.operator === '==' ? 'selected' : ''}>==</option>
-                        <option value="!=" ${cond.operator === '!=' ? 'selected' : ''}>!=</option>
-                        <option value="&lt;" ${cond.operator === '<' ? 'selected' : ''}>&lt;</option>
-                        <option value="&lt;=" ${cond.operator === '<=' ? 'selected' : ''}>&lt;=</option>
-                        <option value="&gt;" ${cond.operator === '>' ? 'selected' : ''}>&gt;</option>
-                        <option value="&gt;=" ${cond.operator === '>=' ? 'selected' : ''}>&gt;=</option>
-                        <option value="between" ${cond.operator === 'between' ? 'selected' : ''}>between</option>
-                    </select>
-                    <input type="text" class="cond-val" value="${cond.value || ''}" placeholder="Value" style="flex: 1.5; margin: 0; padding: 4px; font-size: 12px; background: var(--input-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 4px;">
-                    <button class="del-cond" data-cond-idx="${condIdx}" style="width: auto; margin: 0; padding: 4px 6px; font-size: 10px; background: #ef4444; color: white; border: none; border-radius: 4px; cursor: pointer;">X</button>
-                </div>
-            `;
-        });
+        let rootGroup;
+        if (st.conditions.length === 1 && st.conditions[0].rules) {
+            rootGroup = st.conditions[0];
+        } else {
+            rootGroup = {
+                type: 'AND',
+                rules: st.conditions
+            };
+        }
 
         div.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="st-header expandable-header">
@@ -232,12 +222,11 @@ export function renderActionsAndStates(sc, onStateChange) {
                 
                 <div style="margin-bottom: 8px; border: 1px solid var(--input-border); border-radius: 6px; padding: 8px; background: rgba(0,0,0,0.15);">
                     <div style="font-size: 11px; font-weight: bold; color: var(--text); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-                        <span>CONDITIONS</span>
+                        <span>NESTED LOGIC CONDITIONS</span>
                     </div>
-                    <div class="st-conditions-list">
-                        ${conditionsHtml || '<div style="font-size: 11px; color: #888; text-align: center; padding: 4px;">No conditions added. Always matches.</div>'}
+                    <div class="st-conditions-container">
+                        <!-- Query Builder will be dynamically mounted here -->
                     </div>
-                    <button class="add-cond-btn" style="width: 100%; margin: 6px 0 0 0; padding: 5px; font-size: 11px; border: 1px dashed var(--accent); color: var(--accent); background: transparent; border-radius: 4px; cursor: pointer; font-weight: bold;">+ Add Condition</button>
                 </div>
 
                 <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 5px;">
@@ -343,93 +332,80 @@ export function renderActionsAndStates(sc, onStateChange) {
             });
         }
 
-        // Bind dynamic inputs inside each cond-row to keep conditions array and top-level synced in real-time
-        div.querySelectorAll('.cond-row').forEach(row => {
-            const condIdx = parseInt(row.getAttribute('data-cond-idx'));
-            const cond = st.conditions[condIdx];
-            
-            const entityInput = row.querySelector('.cond-entity');
-            const opSelect = row.querySelector('.cond-op');
-            const valInput = row.querySelector('.cond-val');
-            
-            const updateCond = () => {
-                cond.state_entity = entityInput.value;
-                cond.entity = entityInput.value; // set both for compatibility
-                cond.operator = opSelect.value;
-                cond.value = valInput.value;
+        // Dynamically mount Nested Query Builder
+        const condContainer = div.querySelector('.st-conditions-container');
+        if (condContainer) {
+            const onUpdate = (rebuildUI) => {
+                if (rebuildUI && typeof rebuildUI === 'object' && rebuildUI.action === 'delete_group') {
+                    const deleteGroupByPath = (root, targetPath) => {
+                        const parts = targetPath.split('.');
+                        let curr = root;
+                        for (let i = 0; i < parts.length - 2; i++) {
+                            const key = parts[i];
+                            curr = curr[key];
+                        }
+                        const lastArrKey = parts[parts.length - 2];
+                        const idxToRemove = parseInt(parts[parts.length - 1]);
+                        if (curr && Array.isArray(curr[lastArrKey])) {
+                            curr[lastArrKey].splice(idxToRemove, 1);
+                        }
+                    };
+                    deleteGroupByPath(rootGroup, rebuildUI.path);
+                    rebuildUI = true;
+                }
+                
+                const hasNested = rootGroup.rules.some(r => r.rules);
+                if (rootGroup.type === 'AND' && !hasNested) {
+                    st.conditions = rootGroup.rules;
+                } else {
+                    st.conditions = [rootGroup];
+                }
                 
                 // Synchronize the first condition to the top-level keys
                 if (st.conditions.length > 0) {
-                    st.state_entity = st.conditions[0].state_entity || '';
-                    st.operator = st.conditions[0].operator || '==';
-                    st.value = st.conditions[0].value || '';
-                }
-            };
-            
-            entityInput.addEventListener('input', () => {
-                updateCond();
-                if (onStateChange) onStateChange(false);
-            });
-            entityInput.addEventListener('change', () => {
-                updateCond();
-                if (onStateChange) onStateChange(true);
-            });
-            
-            opSelect.addEventListener('change', () => {
-                updateCond();
-                if (onStateChange) onStateChange(true);
-            });
-            
-            valInput.addEventListener('input', () => {
-                updateCond();
-                if (onStateChange) onStateChange(false);
-            });
-            valInput.addEventListener('change', () => {
-                updateCond();
-                if (onStateChange) onStateChange(true);
-            });
-            
-            row.querySelector('.del-cond').addEventListener('click', (e) => {
-                e.stopPropagation();
-                st.conditions.splice(condIdx, 1);
-                
-                // Synchronize the first condition or clear
-                if (st.conditions.length > 0) {
-                    st.state_entity = st.conditions[0].state_entity || '';
-                    st.operator = st.conditions[0].operator || '==';
-                    st.value = st.conditions[0].value || '';
+                    if (!hasNested && rootGroup.type === 'AND') {
+                        st.state_entity = st.conditions[0].state_entity || '';
+                        st.operator = st.conditions[0].operator || '==';
+                        st.value = st.conditions[0].value || '';
+                    } else {
+                        const findFirstLeaf = (g) => {
+                            for (const r of (g.rules || [])) {
+                                if (r.rules) {
+                                    const found = findFirstLeaf(r);
+                                    if (found) return found;
+                                } else {
+                                    return r;
+                                }
+                            }
+                            return null;
+                        };
+                        const firstLeaf = findFirstLeaf(rootGroup);
+                        if (firstLeaf) {
+                            st.state_entity = firstLeaf.state_entity || '';
+                            st.operator = firstLeaf.operator || '==';
+                            st.value = firstLeaf.value || '';
+                        } else {
+                            st.state_entity = '';
+                            st.operator = '==';
+                            st.value = '';
+                        }
+                    }
                 } else {
                     st.state_entity = '';
                     st.operator = '==';
                     st.value = '';
                 }
                 
-                if (onStateChange) onStateChange(true);
-                renderActionsAndStates(sc, onStateChange);
-            });
-        });
-
-        // Add condition button listener
-        const addCondBtn = div.querySelector('.add-cond-btn');
-        if (addCondBtn) {
-            addCondBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                st.conditions.push({
-                    state_entity: '',
-                    operator: '==',
-                    value: ''
-                });
-                
-                // Synchronize if it is the first condition
-                if (st.conditions.length === 1) {
-                    st.state_entity = st.conditions[0].state_entity || '';
-                    st.operator = st.conditions[0].operator || '==';
-                    st.value = st.conditions[0].value || '';
+                if (rebuildUI === true) {
+                    if (onStateChange) onStateChange(true);
+                    renderActionsAndStates(sc, onStateChange);
+                } else {
+                    if (onStateChange) onStateChange(false);
                 }
-                
-                if (onStateChange) onStateChange(true);
-                renderActionsAndStates(sc, onStateChange);
-            });
+            };
+            
+            const rootEl = renderLogicalGroup(rootGroup, 'root', onUpdate);
+            condContainer.appendChild(rootEl);
         }
 
         // Generic inputs (excluding the color swatch, text hex, and condition rows)
@@ -731,4 +707,269 @@ export function openMenuEditor(sc, onStateChange) {
     closeBtn.onclick = () => {
         modal.style.display = 'none';
     };
+}
+
+/**
+ * Recursively renders a logical group inside the sidebar UI.
+ */
+function renderLogicalGroup(group, path, onUpdate) {
+    const container = document.createElement('div');
+    container.className = 'query-group-card';
+    container.style.border = '1px solid var(--input-border)';
+    container.style.borderRadius = '6px';
+    container.style.background = 'rgba(0, 0, 0, 0.2)';
+    container.style.padding = '8px';
+    container.style.margin = '4px 0';
+    container.style.display = 'flex';
+    container.style.flexDirection = 'column';
+    container.style.gap = '6px';
+    container.style.position = 'relative';
+
+    // 1. Group Header: Logical operator switch (AND / OR)
+    const header = document.createElement('div');
+    header.style.display = 'flex';
+    header.style.justifyContent = 'space-between';
+    header.style.alignItems = 'center';
+    header.style.gap = '6px';
+    
+    const label = document.createElement('span');
+    label.textContent = 'Logical Match:';
+    label.style.fontSize = '11px';
+    label.style.fontWeight = 'bold';
+    label.style.color = '#aaa';
+    header.appendChild(label);
+    
+    const operatorSwitcher = document.createElement('div');
+    operatorSwitcher.style.display = 'flex';
+    operatorSwitcher.style.gap = '2px';
+    
+    const operators = ['AND', 'OR'];
+    operators.forEach(op => {
+        const btn = document.createElement('button');
+        btn.textContent = op;
+        btn.style.padding = '2px 6px';
+        btn.style.fontSize = '9px';
+        btn.style.borderRadius = '3px';
+        btn.style.border = 'none';
+        btn.style.cursor = 'pointer';
+        btn.style.margin = '0';
+        btn.style.width = 'auto';
+        
+        const isActive = (group.type || 'AND') === op;
+        btn.style.background = isActive ? 'var(--accent)' : 'var(--btn-hover)';
+        btn.style.color = isActive ? 'white' : 'var(--text)';
+        
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            group.type = op;
+            onUpdate(true); // Structure change, rebuild UI
+        });
+        
+        operatorSwitcher.appendChild(btn);
+    });
+    header.appendChild(operatorSwitcher);
+    
+    // Group Delete Button (Only for sub-groups)
+    if (path !== 'root') {
+        const delBtn = document.createElement('button');
+        delBtn.textContent = '✕';
+        delBtn.style.background = 'none';
+        delBtn.style.border = 'none';
+        delBtn.style.color = '#ef4444';
+        delBtn.style.cursor = 'pointer';
+        delBtn.style.fontSize = '11px';
+        delBtn.style.padding = '2px';
+        delBtn.style.width = 'auto';
+        delBtn.style.margin = '0';
+        delBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onUpdate({ action: 'delete_group', path });
+        });
+        header.appendChild(delBtn);
+    }
+    container.appendChild(header);
+
+    // 2. Rules List (Leaf rows and nested groups)
+    const rulesContainer = document.createElement('div');
+    rulesContainer.style.display = 'flex';
+    rulesContainer.style.flexDirection = 'column';
+    rulesContainer.style.gap = '4px';
+    rulesContainer.style.paddingLeft = '6px';
+    rulesContainer.style.borderLeft = '1.5px solid var(--input-border)';
+    
+    const rules = group.rules || [];
+    if (rules.length === 0) {
+        const emptyHint = document.createElement('div');
+        emptyHint.style.fontSize = '10px';
+        emptyHint.style.color = '#666';
+        emptyHint.style.textAlign = 'center';
+        emptyHint.style.padding = '4px';
+        emptyHint.textContent = 'No rules in this group.';
+        rulesContainer.appendChild(emptyHint);
+    } else {
+        rules.forEach((rule, idx) => {
+            const rulePath = path === 'root' ? `rules.${idx}` : `${path}.rules.${idx}`;
+            
+            if (rule.rules) {
+                // Recursive subgroup rendering
+                const subGroupEl = renderLogicalGroup(rule, rulePath, onUpdate);
+                rulesContainer.appendChild(subGroupEl);
+            } else {
+                // Leaf-level comparison row
+                const row = document.createElement('div');
+                row.className = 'cond-row';
+                row.style.display = 'flex';
+                row.style.gap = '4px';
+                row.style.alignItems = 'center';
+                
+                // Entity Input
+                const entityInput = document.createElement('input');
+                entityInput.type = 'text';
+                entityInput.placeholder = 'Entity ID';
+                entityInput.value = rule.state_entity || rule.entity || '';
+                entityInput.setAttribute('list', 'entityList');
+                entityInput.style.flex = '2';
+                entityInput.style.padding = '4px';
+                entityInput.style.fontSize = '11px';
+                entityInput.style.borderRadius = '4px';
+                entityInput.style.border = '1px solid var(--input-border)';
+                entityInput.style.background = 'var(--input-bg)';
+                entityInput.style.color = 'var(--text)';
+                entityInput.style.margin = '0';
+                
+                entityInput.addEventListener('input', (e) => {
+                    rule.state_entity = e.target.value;
+                    rule.entity = e.target.value; // sync for legacy compatibility
+                    onUpdate(false); // Live preview update, do not rebuild UI
+                });
+                entityInput.addEventListener('change', () => {
+                    onUpdate(true); // Complete typing, rebuild UI
+                });
+                row.appendChild(entityInput);
+                
+                // Operator Select
+                const opSelect = document.createElement('select');
+                opSelect.style.flex = '1';
+                opSelect.style.padding = '4px';
+                opSelect.style.fontSize = '11px';
+                opSelect.style.borderRadius = '4px';
+                opSelect.style.border = '1px solid var(--input-border)';
+                opSelect.style.background = 'var(--input-bg)';
+                opSelect.style.color = 'var(--text)';
+                opSelect.style.margin = '0';
+                
+                const ops = ['==', '!=', '<', '<=', '>', '>=', 'between'];
+                ops.forEach(op => {
+                    const opt = document.createElement('option');
+                    opt.value = op;
+                    opt.textContent = op;
+                    if (rule.operator === op) opt.selected = true;
+                    opSelect.appendChild(opt);
+                });
+                opSelect.addEventListener('change', (e) => {
+                    rule.operator = e.target.value;
+                    onUpdate(true); // Structure change, rebuild UI
+                });
+                row.appendChild(opSelect);
+                
+                // Value Input
+                const valInput = document.createElement('input');
+                valInput.type = 'text';
+                valInput.placeholder = 'Value';
+                valInput.value = rule.value || '';
+                valInput.style.flex = '1.3';
+                valInput.style.padding = '4px';
+                valInput.style.fontSize = '11px';
+                valInput.style.borderRadius = '4px';
+                valInput.style.border = '1px solid var(--input-border)';
+                valInput.style.background = 'var(--input-bg)';
+                valInput.style.color = 'var(--text)';
+                valInput.style.margin = '0';
+                
+                valInput.addEventListener('input', (e) => {
+                    rule.value = e.target.value;
+                    onUpdate(false); // Live preview update, do not rebuild UI
+                });
+                valInput.addEventListener('change', () => {
+                    onUpdate(true); // Complete typing, rebuild UI
+                });
+                row.appendChild(valInput);
+                
+                // Delete Rule Button
+                const delRuleBtn = document.createElement('button');
+                delRuleBtn.textContent = '✕';
+                delRuleBtn.style.background = '#ef4444';
+                delRuleBtn.style.border = 'none';
+                delRuleBtn.style.color = 'white';
+                delRuleBtn.style.cursor = 'pointer';
+                delRuleBtn.style.borderRadius = '4px';
+                delRuleBtn.style.padding = '4px 6px';
+                delRuleBtn.style.fontSize = '9px';
+                delRuleBtn.style.width = 'auto';
+                delRuleBtn.style.margin = '0';
+                delRuleBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    rules.splice(idx, 1);
+                    onUpdate(true); // Rebuild UI
+                });
+                row.appendChild(delRuleBtn);
+                
+                rulesContainer.appendChild(row);
+            }
+        });
+    }
+    container.appendChild(rulesContainer);
+
+    // 3. Bottom controls: Add Rule or Add Nested Group
+    const controls = document.createElement('div');
+    controls.style.display = 'flex';
+    controls.style.gap = '4px';
+    controls.style.marginTop = '2px';
+    
+    const addRuleBtn = document.createElement('button');
+    addRuleBtn.textContent = '+ Add Rule';
+    addRuleBtn.style.padding = '3px 6px';
+    addRuleBtn.style.fontSize = '9px';
+    addRuleBtn.style.borderRadius = '4px';
+    addRuleBtn.style.border = '1px dashed var(--accent)';
+    addRuleBtn.style.color = 'var(--accent)';
+    addRuleBtn.style.background = 'none';
+    addRuleBtn.style.cursor = 'pointer';
+    addRuleBtn.style.width = 'auto';
+    addRuleBtn.style.margin = '0';
+    addRuleBtn.style.fontWeight = 'bold';
+    addRuleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        rules.push({ state_entity: '', operator: '==', value: '' });
+        onUpdate(true); // Rebuild UI
+    });
+    controls.appendChild(addRuleBtn);
+
+    const addGroupBtn = document.createElement('button');
+    addGroupBtn.textContent = '+ Add Group';
+    addGroupBtn.style.padding = '3px 6px';
+    addGroupBtn.style.fontSize = '9px';
+    addGroupBtn.style.borderRadius = '4px';
+    addGroupBtn.style.border = '1px dashed var(--accent)';
+    addGroupBtn.style.color = 'var(--accent)';
+    addGroupBtn.style.background = 'none';
+    addGroupBtn.style.cursor = 'pointer';
+    addGroupBtn.style.width = 'auto';
+    addGroupBtn.style.margin = '0';
+    addGroupBtn.style.fontWeight = 'bold';
+    addGroupBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        rules.push({ type: 'AND', rules: [{ state_entity: '', operator: '==', value: '' }] });
+        onUpdate(true); // Rebuild UI
+    });
+    controls.appendChild(addGroupBtn);
+    
+    container.appendChild(controls);
+    
+    return container;
 }

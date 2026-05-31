@@ -269,8 +269,15 @@ export class CanvasEngine {
         }
 
         shortcuts.forEach((sc, idx) => {
-            const x = (sc.position[0] / 100) * bgW;
-            const y = (sc.position[1] / 100) * bgH;
+            let pos = sc.position;
+            const activeMode = this.activeMode || 'horizontal';
+            if (pos && typeof pos === 'object' && !Array.isArray(pos)) {
+                pos = pos[activeMode] || pos.horizontal || [50, 50];
+            }
+            if (!pos) pos = [50, 50];
+
+            const x = (pos[0] / 100) * bgW;
+            const y = (pos[1] / 100) * bgH;
             let scaleX = sc.scaleX || sc.scale || 1;
             let scaleY = sc.scaleY || sc.scale || 1;
             

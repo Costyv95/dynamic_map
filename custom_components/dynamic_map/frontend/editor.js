@@ -174,9 +174,9 @@ async function loadFloor(floorNum) {
     }
 }
 
-document.querySelectorAll('.floor-btn').forEach(btn => {
+document.querySelectorAll('.floor-btn[data-floor]').forEach(btn => {
     btn.addEventListener('click', (e) => {
-        document.querySelectorAll('.floor-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.floor-btn[data-floor]').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         loadFloor(e.target.dataset.floor);
     });
@@ -359,3 +359,38 @@ loadRegistry();
 loadAvailableFiles();
 loadFloor(2);
 fetchAllEntities();
+
+// Orientation Switcher Event Listeners
+const canvasContainer = document.getElementById('canvas-container');
+
+document.getElementById('toggleHorizontalBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    canvasContainer.style.width = '100%';
+    canvasContainer.style.height = '70vh';
+    canvasContainer.style.margin = '0';
+    
+    document.getElementById('toggleHorizontalBtn').classList.add('active');
+    document.getElementById('toggleVerticalBtn').classList.remove('active');
+    
+    engine.activeMode = 'horizontal';
+    engine.resizeCanvas(stateManager);
+    draw();
+});
+
+document.getElementById('toggleVerticalBtn').addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    canvasContainer.style.width = '375px';
+    canvasContainer.style.height = '667px';
+    canvasContainer.style.margin = '0 auto';
+    
+    document.getElementById('toggleVerticalBtn').classList.add('active');
+    document.getElementById('toggleHorizontalBtn').classList.remove('active');
+    
+    engine.activeMode = 'vertical';
+    engine.resizeCanvas(stateManager);
+    draw();
+});

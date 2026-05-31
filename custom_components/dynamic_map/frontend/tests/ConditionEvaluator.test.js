@@ -79,4 +79,30 @@ describe('ConditionEvaluator', () => {
         };
         expect(evaluateCondition([betweenCondition], customHassOutside)).toBe(false);
     });
+
+    it('should recursively evaluate nested logic groups inside standard flat condition arrays', () => {
+        const nestedInFlatArray = [
+            { state_entity: 'light.bedroom_light', operator: '==', value: 'off' },
+            {
+                type: 'OR',
+                rules: [
+                    { state_entity: 'sensor.diana_phone', operator: '==', value: 'charging' },
+                    { state_entity: 'sensor.costin_phone', operator: '==', value: 'charging' }
+                ]
+            }
+        ];
+        
+        // Diana phone is charging, light is off (True)
+        expect(evaluateCondition(nestedInFlatArray, mockHass)).toBe(true);
+
+        // Neither charging, light is off (False)
+        const customHassNeitherCharging = {
+            states: {
+                'light.bedroom_light': { state: 'off' },
+                'sensor.diana_phone': { state: 'not_charging' },
+                'sensor.costin_phone': { state: 'not_charging' }
+            }
+        };
+        expect(evaluateCondition(nestedInFlatArray, customHassNeitherCharging)).toBe(false);
+    });
 });

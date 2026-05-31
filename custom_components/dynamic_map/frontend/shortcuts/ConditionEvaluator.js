@@ -51,7 +51,12 @@ export function evaluateCondition(cond, hass) {
     
     // Backwards Compatibility: If cond is an array, treat it as an implicit AND group
     if (Array.isArray(cond)) {
-        return cond.every(rule => evaluateLeafRule(rule, hass));
+        return cond.every(rule => {
+            if (rule.rules) {
+                return evaluateCondition(rule, hass);
+            }
+            return evaluateLeafRule(rule, hass);
+        });
     }
     
     // If cond is a single leaf rule object directly
