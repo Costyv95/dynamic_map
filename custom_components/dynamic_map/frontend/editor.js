@@ -1,10 +1,10 @@
-import { ApiManager } from './shared/ApiManager.js?v=3.0.3-5e2b35e-dev-002732';
-import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-5e2b35e-dev-002732';
-import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-5e2b35e-dev-002732';
-import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-5e2b35e-dev-002732';
-import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-5e2b35e-dev-002732';
+import { ApiManager } from './shared/ApiManager.js?v=3.0.3-7cdf5da-dev-012328';
+import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-7cdf5da-dev-012328';
+import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-7cdf5da-dev-012328';
+import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-7cdf5da-dev-012328';
+import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-7cdf5da-dev-012328';
 
-console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-5e2b35e-dev-002732)');
+console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-7cdf5da-dev-012328)');
 
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');
@@ -40,6 +40,7 @@ function draw() {
         previewStateIdx: stateManager.previewStateIdx,
         isTransitioning: stateManager.isTransitioning,
         isEditMode: stateManager.isEditMode,
+        drawingPolygon: stateManager.drawingPolygon,
         requestDraw: () => draw()
     });
     if (animationFrameId) cancelAnimationFrame(animationFrameId);

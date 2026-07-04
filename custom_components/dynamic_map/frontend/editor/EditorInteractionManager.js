@@ -1,5 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-5e2b35e-dev-002732';
-import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-5e2b35e-dev-002732';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-7cdf5da-dev-012328';
+import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-7cdf5da-dev-012328';
 
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {
@@ -17,7 +17,7 @@ export class EditorInteractionManager {
         this.initialViewTransform = null;
         
         // For polygon drawing
-        this.drawingPolygon = null;
+        this.state.drawingPolygon = null;
 
         this.bindEvents();
     }
@@ -249,28 +249,60 @@ export class EditorInteractionManager {
         if (e.shiftKey && this.state.isEditMode) {
             this.interactionState = 'DRAW_POLY';
             const wp = this.getMousePos(e);
-            if (!this.drawingPolygon) this.drawingPolygon = [];
+            if (!this.state.drawingPolygon) this.state.drawingPolygon = [];
             const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
-            this.drawingPolygon.push([(wp.x / bgW)*100, (wp.y / bgH)*100]);
+            this.state.drawingPolygon.push([(wp.x / bgW)*100, (wp.y / bgH)*100]);
             this.state.requestDrawCallback();
             return;
         }
 
-        // Vertex editing: in edit mode with a single room selected, grab a nearby
-        // polygon vertex handle and start dragging it.
+        // Vertex editing (Build Mode, single room selected):
+        //  - grab a corner handle to drag it (generous hit radius)
+        //  - Alt/Ctrl+click a corner to delete it (keeps >= 3 corners)
+        //  - click on an edge to insert a new corner there and drag it
         if (this.state.isEditMode && this.state.selectedRooms.length === 1) {
             const wp = this.getMousePos(e);
             const { bgW: vbgW, bgH: vbgH } = CanvasEngine.safeDimensions(this.state.bgImage);
             const vScale = Math.hypot(this.engine.viewTransform.a, this.engine.viewTransform.b) || 1;
-            const hitR = 10 / vScale;
-            const room = this.state.rooms[this.state.selectedRooms[0]];
-            if (room && Array.isArray(room.polygon)) {
-                for (let i = 0; i < room.polygon.length; i++) {
-                    const vx = (room.polygon[i][0] / 100) * vbgW;
-                    const vy = (room.polygon[i][1] / 100) * vbgH;
+            const hitR = 18 / vScale;   // easier to grab a corner
+            const roomIdx = this.state.selectedRooms[0];
+            const room = this.state.rooms[roomIdx];
+            const poly = room && Array.isArray(room.polygon) ? room.polygon : null;
+            if (poly && poly.length) {
+                // 1) corner handles
+                for (let i = 0; i < poly.length; i++) {
+                    const vx = (poly[i][0] / 100) * vbgW;
+                    const vy = (poly[i][1] / 100) * vbgH;
                     if (Math.hypot(wp.x - vx, wp.y - vy) < hitR) {
+                        if ((e.altKey || e.ctrlKey || e.metaKey) && poly.length > 3) {
+                            poly.splice(i, 1);
+                            this.state.saveState();
+                            this.state.requestDrawCallback();
+                            e.preventDefault();
+                            return;
+                        }
                         this.interactionState = 'DRAG_VERTEX';
-                        this.state.selectedVertex = { roomIdx: this.state.selectedRooms[0], vertexIdx: i };
+                        this.state.selectedVertex = { roomIdx, vertexIdx: i };
+                        e.preventDefault();
+                        return;
+                    }
+                }
+                // 2) edges -> insert a new corner at the click point and drag it
+                const edgeR = 12 / vScale;
+                for (let i = 0; i < poly.length; i++) {
+                    const j = (i + 1) % poly.length;
+                    const ax = (poly[i][0] / 100) * vbgW, ay = (poly[i][1] / 100) * vbgH;
+                    const bx = (poly[j][0] / 100) * vbgW, by = (poly[j][1] / 100) * vbgH;
+                    const dx = bx - ax, dy = by - ay;
+                    const len2 = dx * dx + dy * dy;
+                    let t = len2 ? ((wp.x - ax) * dx + (wp.y - ay) * dy) / len2 : 0;
+                    t = Math.max(0, Math.min(1, t));
+                    const px = ax + t * dx, py = ay + t * dy;
+                    if (Math.hypot(wp.x - px, wp.y - py) < edgeR) {
+                        poly.splice(j, 0, [(px / vbgW) * 100, (py / vbgH) * 100]);
+                        this.interactionState = 'DRAG_VERTEX';
+                        this.state.selectedVertex = { roomIdx, vertexIdx: j };
+                        this.isDragging = true;
                         e.preventDefault();
                         return;
                     }
@@ -700,15 +732,15 @@ export class EditorInteractionManager {
     }
 
     onKeyDown(e) {
-        if (e.key === 'Enter' && this.drawingPolygon && this.drawingPolygon.length > 2) {
+        if (e.key === 'Enter' && this.state.drawingPolygon && this.state.drawingPolygon.length > 2) {
             const defaultRoomColor = localStorage.getItem('lastRoomColor') || '#333333';
             this.state.rooms.push({
                 id: `room_${Date.now()}`,
                 name: 'New Room',
-                polygon: this.drawingPolygon,
+                polygon: this.state.drawingPolygon,
                 color: defaultRoomColor
             });
-            this.drawingPolygon = null;
+            this.state.drawingPolygon = null;
             this.interactionState = 'NONE';
             this.state.saveState();
             this.state.requestDrawCallback();

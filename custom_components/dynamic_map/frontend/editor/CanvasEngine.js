@@ -1,5 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-5e2b35e-dev-002732';
-import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.0.3-5e2b35e-dev-002732';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-7cdf5da-dev-012328';
+import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.0.3-7cdf5da-dev-012328';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -176,7 +176,7 @@ export class CanvasEngine {
         const {
             bgImage, rooms, selectedRooms, isSplitting, splitStart, splitEnd,
             shortcuts, selectedShortcutIdx, previewStateIdx, isTransitioning,
-            isEditMode, requestDraw
+            isEditMode, drawingPolygon, requestDraw
         } = state;
 
         if(!bgImage.complete || isTransitioning) {
@@ -262,7 +262,7 @@ export class CanvasEngine {
             // Vertex handles for the single selected room in edit mode (Builder Mode)
             if (isEditMode && selectedRooms.length === 1 && selectedRooms[0] === idx) {
                 const vScale = Math.hypot(this.viewTransform.a, this.viewTransform.b) || 1;
-                const r = 6 / vScale;
+                const r = 8 / vScale;
                 room.polygon.forEach((pt) => {
                     const hx = (pt[0] / 100) * bgW;
                     const hy = (pt[1] / 100) * bgH;
@@ -270,12 +270,38 @@ export class CanvasEngine {
                     this.ctx.arc(hx, hy, r, 0, Math.PI * 2);
                     this.ctx.fillStyle = '#ffffff';
                     this.ctx.strokeStyle = '#00ffff';
-                    this.ctx.lineWidth = 2 / vScale;
+                    this.ctx.lineWidth = 2.5 / vScale;
                     this.ctx.fill();
                     this.ctx.stroke();
                 });
             }
         });
+
+        // Live preview of a polygon being drawn (Build Mode, before Enter closes it)
+        if (drawingPolygon && drawingPolygon.length > 0) {
+            const vScale = Math.hypot(this.viewTransform.a, this.viewTransform.b) || 1;
+            const pts = drawingPolygon.map(p => [ (p[0] / 100) * bgW, (p[1] / 100) * bgH ]);
+            if (pts.length > 1) {
+                this.ctx.beginPath();
+                this.ctx.moveTo(pts[0][0], pts[0][1]);
+                for (let i = 1; i < pts.length; i++) this.ctx.lineTo(pts[i][0], pts[i][1]);
+                this.ctx.strokeStyle = '#00ffaa';
+                this.ctx.lineWidth = 2 / vScale;
+                this.ctx.setLineDash([8 / vScale, 6 / vScale]);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+            }
+            const r = 7 / vScale;
+            pts.forEach((p, i) => {
+                this.ctx.beginPath();
+                this.ctx.arc(p[0], p[1], r, 0, Math.PI * 2);
+                this.ctx.fillStyle = i === 0 ? '#00ffaa' : '#ffffff';
+                this.ctx.strokeStyle = '#00ffaa';
+                this.ctx.lineWidth = 2 / vScale;
+                this.ctx.fill();
+                this.ctx.stroke();
+            });
+        }
 
         if(isSplitting && splitStart && splitEnd) {
             this.ctx.beginPath();
