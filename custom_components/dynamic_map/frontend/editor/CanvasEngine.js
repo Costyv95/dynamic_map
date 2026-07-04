@@ -1,4 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-a6366a0-dev-185153';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-f1a3998-dev-000108';
+import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.0.3-f1a3998-dev-000108';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -278,69 +279,53 @@ export class CanvasEngine {
 
             const x = (pos[0] / 100) * bgW;
             const y = (pos[1] / 100) * bgH;
-            let scScale = 1.0;
-            if (sc.scale !== undefined) {
-                if (typeof sc.scale === 'object' && !Array.isArray(sc.scale)) {
-                    scScale = sc.scale[activeMode] !== undefined ? sc.scale[activeMode] : (sc.scale.horizontal || 1.0);
-                } else {
-                    scScale = sc.scale;
-                }
+            // Let's resolve targetState:
+            let targetState = null;
+            if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
+                targetState = sc.config.states[previewStateIdx];
+            } else if (sc.config?.states && sc.config.states.length > 0) {
+                targetState = sc.config.states.find(s => s.is_default) || null;
             }
-            
-            let scaleX = scScale;
-            if (sc.scaleX !== undefined) {
-                if (typeof sc.scaleX === 'object' && !Array.isArray(sc.scaleX)) {
-                    scaleX = sc.scaleX[activeMode] !== undefined ? sc.scaleX[activeMode] : (sc.scaleX.horizontal || scScale);
-                } else {
-                    scaleX = sc.scaleX;
+
+            const resolveProperty = (prop, defaultVal) => {
+                let val = targetState?.[prop];
+                if (val === undefined) {
+                    val = sc[prop] !== undefined ? sc[prop] : sc.config?.[prop];
                 }
-            }
-            
-            let scaleY = scScale;
-            if (sc.scaleY !== undefined) {
-                if (typeof sc.scaleY === 'object' && !Array.isArray(sc.scaleY)) {
-                    scaleY = sc.scaleY[activeMode] !== undefined ? sc.scaleY[activeMode] : (sc.scaleY.horizontal || scScale);
-                } else {
-                    scaleY = sc.scaleY;
+                if (val !== undefined) {
+                    if (typeof val === 'object' && !Array.isArray(val)) {
+                        return val[activeMode] !== undefined ? val[activeMode] : (val.horizontal || defaultVal);
+                    }
+                    return val;
                 }
-            }
+                return defaultVal;
+            };
+
+            let scScale = resolveProperty('scale', 1.0);
+            let scaleX = resolveProperty('scaleX', scScale);
+            let scaleY = resolveProperty('scaleY', scScale);
+            let scRotation = resolveProperty('rotation', 0);
             
-            let scRotation = 0;
-            if (sc.rotation !== undefined) {
-                if (typeof sc.rotation === 'object' && !Array.isArray(sc.rotation)) {
-                    scRotation = sc.rotation[activeMode] !== undefined ? sc.rotation[activeMode] : (sc.rotation.horizontal || 0);
-                } else {
-                    scRotation = sc.rotation;
-                }
-            }
-            
-            let shape = sc.config?.shape || sc.shape || 'circle';
+            let shape = resolveProperty('shape', (sc.type === 'sensor' ? 'rect' : 'circle'));
             const propDefault = (shape === 'circle');
-            const isProportional = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
+            const isProportional = resolveProperty('proportional', propDefault);
             if (isProportional) {
                 scaleY = scaleX;
             }
-            let color = sc.config?.color || sc.color || '#0ea5e9';
-            let isTrans = sc.config?.transparent || sc.transparent || false;
-            let icon = sc.config?.icon || '💡';
-            let image = sc.config?.image || '';
+            
+            let color = resolveProperty('color', '#0ea5e9');
+            let isTrans = resolveProperty('transparent', false);
+            let icon = resolveProperty('icon', '💡');
+            let image = resolveProperty('image', '');
+            let autoRotate = resolveProperty('autoRotate', false);
 
-            let autoRotate = false;
-            if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
-                const st = sc.config.states[previewStateIdx];
-                autoRotate = st.autoRotate !== undefined ? st.autoRotate : (sc.config?.autoRotate || false);
-            } else {
-                autoRotate = sc.config?.autoRotate || false;
-            }
-
-            if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
-                const st = sc.config.states[previewStateIdx];
-                if (st.color) color = st.color;
-                if (st.image) {
-                    image = st.image;
-                    icon = st.icon || '';
-                } else if (st.icon) {
-                    icon = st.icon;
+            if (targetState) {
+                if (targetState.color) color = targetState.color;
+                if (targetState.image) {
+                    image = targetState.image;
+                    icon = targetState.icon || '';
+                } else if (targetState.icon) {
+                    icon = targetState.icon;
                     image = '';
                 }
             }
@@ -461,11 +446,46 @@ export class CanvasEngine {
                 this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 this.ctx.translate(pt.x, pt.y);
                 
+                const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
+
                 if (scRotation) {
                     this.ctx.rotate((scRotation * Math.PI) / 180);
                 }
                 
-                const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
+                // Resolve target config for content matching options
+                const targetConfig = targetState || sc.config || {};
+                const contentMatchSize = targetConfig.content_matchSize !== undefined ? !!targetConfig.content_matchSize : (sc.config?.content_matchSize !== undefined ? !!sc.config.content_matchSize : true);
+                const contentMatchRot = targetConfig.content_matchRotation !== undefined ? !!targetConfig.content_matchRotation : (sc.config?.content_matchRotation !== undefined ? !!sc.config.content_matchRotation : true);
+                
+                const contentX = targetConfig.content_x !== undefined ? targetConfig.content_x : (sc.config?.content_x !== undefined ? sc.config.content_x : 0);
+                const contentY = targetConfig.content_y !== undefined ? targetConfig.content_y : (sc.config?.content_y !== undefined ? sc.config.content_y : 0);
+                const contentScaleX = contentMatchSize ? 1.0 : (targetConfig.content_scaleX !== undefined ? targetConfig.content_scaleX : (sc.config?.content_scaleX !== undefined ? sc.config.content_scaleX : 1.0));
+                const contentScaleY = contentMatchSize ? 1.0 : (targetConfig.content_scaleY !== undefined ? targetConfig.content_scaleY : (sc.config?.content_scaleY !== undefined ? sc.config.content_scaleY : 1.0));
+                const contentRotation = contentMatchRot ? 0 : (targetConfig.content_rotation !== undefined ? targetConfig.content_rotation : (sc.config?.content_rotation !== undefined ? sc.config.content_rotation : 0));
+
+                let totalContentRotation = 0;
+                if (!contentMatchRot) {
+                    totalContentRotation = -scRotation;
+                    if (autoRotate && this.isRotated) {
+                        totalContentRotation -= 90;
+                    }
+                    totalContentRotation += contentRotation;
+                }
+
+                // Apply content offset translations (scaled by current zoom scale)
+                if (contentX !== 0 || contentY !== 0) {
+                    this.ctx.translate(contentX * currentScale, contentY * currentScale);
+                }
+                
+                // Apply content rotation
+                if (totalContentRotation !== 0) {
+                    this.ctx.rotate((totalContentRotation * Math.PI) / 180);
+                }
+                
+                // Apply content scale
+                if (!contentMatchSize && (contentScaleX !== 1.0 || contentScaleY !== 1.0)) {
+                    this.ctx.scale(contentScaleX, contentScaleY);
+                }
                 
                 if (sc.type === 'sensor') {
                     // Resolve comfort icon and guessed value
@@ -483,46 +503,23 @@ export class CanvasEngine {
                     if (activeState) {
                         if (activeState.color) activeColor = activeState.color;
                         if (activeState.icon) activeIcon = activeState.icon;
-                        
-                        const unit = activeState.unit !== undefined ? activeState.unit : '°';
-                        let guessedVal = null;
-                        
-                        // Parse conditions
-                        const conds = activeState.conditions || [];
-                        for (const cond of conds) {
-                            const op = cond.operator || '==';
-                            const target = cond.value;
-                            if (op === '==' && !isNaN(parseFloat(target))) {
-                                guessedVal = parseFloat(target);
-                            } else if (op === '<') {
-                                guessedVal = parseFloat(target) - 1;
-                            } else if (op === '<=') {
-                                guessedVal = parseFloat(target);
-                            } else if (op === '>') {
-                                guessedVal = parseFloat(target) + 1;
-                            } else if (op === '>=') {
-                                guessedVal = parseFloat(target);
-                            } else if (op === 'between') {
-                                const parts = String(target).split('-');
-                                if (parts.length === 2) {
-                                    const min = parseFloat(parts[0]);
-                                    const max = parseFloat(parts[1]);
-                                    if (!isNaN(min) && !isNaN(max)) {
-                                        guessedVal = Math.round((min + max) / 2);
-                                    }
-                                }
-                            }
-                        }
-                        
-                        if (guessedVal !== null && !isNaN(guessedVal)) {
-                            valText = `${guessedVal}${unit}`;
-                        } else {
-                            valText = `21${unit}`;
-                        }
                     } else {
                         activeIcon = sc.config?.icon || '🌡️';
-                        valText = '21°';
                     }
+
+                    // Dynamically evaluate template using null/placeholder context
+                    let dispEntity = activeState?.display_entity || activeState?.state_entity || sc.config?.temperature_entity || sc.config?.state_entity || sc.entity_id;
+                    if (!dispEntity && activeState?.conditions) {
+                        const cond = activeState.conditions.find(c => c.entity || c.state_entity);
+                        if (cond) {
+                            dispEntity = cond.entity || cond.state_entity;
+                        }
+                    }
+                    const unit = activeState?.unit !== undefined ? activeState.unit : (sc.config?.unit !== undefined ? sc.config.unit : '°');
+                    const defaultTemplate = dispEntity ? `{states('${dispEntity}')}${unit}` : '';
+                    const valueTemplate = activeState?.value_template || sc.config?.value_template || defaultTemplate;
+                    
+                    valText = evaluateTemplate(valueTemplate, null);
 
                     // Draw comfort icon on the left
                     this.ctx.font = `${12 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
@@ -591,12 +588,8 @@ export class CanvasEngine {
                         }
 
                         if (cachedImg.complete && cachedImg.naturalWidth > 0 && !cachedImg._failed) {
-                            let imgW = 20 * Math.min(scaleX, scaleY) * currentScale;
-                            let imgH = imgW;
-                            if (shape === 'rect' || sc.type === 'sensor') {
-                                imgW = rx * 2 * 0.8 * currentScale;
-                                imgH = ry * 2 * 0.8 * currentScale;
-                            }
+                            let imgW = contentMatchSize ? (rx * 2 * currentScale) : (24 * currentScale);
+                            let imgH = contentMatchSize ? (ry * 2 * currentScale) : (24 * currentScale);
                             this.ctx.drawImage(cachedImg, -imgW/2, -imgH/2, imgW, imgH);
                         } else if (cachedImg._failed) {
                             this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;

@@ -1,5 +1,6 @@
-import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-a6366a0-dev-185153';
-import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-a6366a0-dev-185153';
+import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-f1a3998-dev-000108';
+import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-f1a3998-dev-000108';
+import { evaluateTemplate } from './TemplateEvaluator.js?v=3.0.3-f1a3998-dev-000108';
 
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {
@@ -103,52 +104,65 @@ export class MapShortcut {
         }
         this.updateCoordinates();
         
+        // 1. Evaluate matchedState (checking conditional states first, then default fallback state)
+        let matchedState = null;
+        if (this.config.states && this.config.states.length > 0) {
+            for (const st of this.config.states) {
+                if (st.is_default) continue; // Skip default fallback during conditional check
+                const cond = st.conditions || (st.state_entity || st.entity ? st : null);
+                if (evaluateCondition(cond, hass)) {
+                    matchedState = st;
+                    break;
+                }
+            }
+            if (!matchedState) {
+                matchedState = this.config.states.find(st => st.is_default) || null;
+            }
+        }
+        this.activeState = matchedState;
+
         const isSensor = this.sc.type === 'sensor' || (this.config.states && this.config.states.some(s => s.display_entity));
         let activeLayout = this.config.default_layout || [];
         
-        // Legacy fallback structures
         if (activeLayout.length === 0) {
             const activeMode = this.mapContext.activeMode || 'horizontal';
-            let scaleVal = 1.0;
-            if (this.sc.scale !== undefined) {
-                if (typeof this.sc.scale === 'object' && !Array.isArray(this.sc.scale)) {
-                    scaleVal = this.sc.scale[activeMode] !== undefined ? this.sc.scale[activeMode] : (this.sc.scale.horizontal || 1.0);
-                } else {
-                    scaleVal = this.sc.scale;
-                }
-            }
             
-            let scaleXVal = this.scaleX !== undefined ? this.scaleX : scaleVal;
-            if (this.sc.scaleX !== undefined) {
-                if (typeof this.sc.scaleX === 'object' && !Array.isArray(this.sc.scaleX)) {
-                    scaleXVal = this.sc.scaleX[activeMode] !== undefined ? this.sc.scaleX[activeMode] : (this.sc.scaleX.horizontal || scaleVal);
-                } else {
-                    scaleXVal = this.sc.scaleX;
+            // Unified property resolver: checks matchedState override, then falls back to root this.sc or instance properties
+            const resolveProperty = (prop, defaultVal) => {
+                const val = matchedState?.[prop] !== undefined ? matchedState[prop] : (this.sc[prop] !== undefined ? this.sc[prop] : this[prop]);
+                if (val !== undefined) {
+                    if (typeof val === 'object' && !Array.isArray(val)) {
+                        return val[activeMode] !== undefined ? val[activeMode] : (val.horizontal || defaultVal);
+                    }
+                    return val;
                 }
-            }
+                return defaultVal;
+            };
             
-            let scaleYVal = this.scaleY !== undefined ? this.scaleY : scaleVal;
-            if (this.sc.scaleY !== undefined) {
-                if (typeof this.sc.scaleY === 'object' && !Array.isArray(this.sc.scaleY)) {
-                    scaleYVal = this.sc.scaleY[activeMode] !== undefined ? this.sc.scaleY[activeMode] : (this.sc.scaleY.horizontal || scaleVal);
-                } else {
-                    scaleYVal = this.sc.scaleY;
-                }
-            }
+            let scaleVal = resolveProperty('scale', 1.0);
+            let scaleXVal = resolveProperty('scaleX', scaleVal);
+            let scaleYVal = resolveProperty('scaleY', scaleVal);
             
-            const shape = this.config.shape || (isSensor ? 'rect' : 'circle');
+            // Shape, transparent, and autoRotate overrides
+            const shape = matchedState?.shape || this.config?.shape || this.sc?.shape || (isSensor ? 'rect' : 'circle');
             const propDefault = (shape === 'circle');
             const isProportional = this.config.proportional !== undefined ? this.config.proportional : propDefault;
+            
             const scaleX = scaleXVal;
             let scaleY = scaleYVal;
             if (isProportional) {
                 scaleY = scaleX;
             }
+            this.scaleX = scaleX;
+            this.scaleY = scaleY;
             const scale = Math.min(scaleX, scaleY);
             
             const w = 24 * scaleX;
             const h = 24 * scaleY;
             
+            const targetConfig = matchedState || this.config;
+            const contentMatchSize = targetConfig.content_matchSize !== undefined ? !!targetConfig.content_matchSize : (this.config.content_matchSize !== undefined ? !!this.config.content_matchSize : true);
+
             if (isSensor) {
                 activeLayout = [
                     {
@@ -185,7 +199,7 @@ export class MapShortcut {
                     }
                 ];
             } else {
-                const isRect = this.config.shape === 'rect';
+                const isRect = shape === 'rect';
                 activeLayout = [
                     {
                         id: 'fallback_bg',
@@ -205,38 +219,28 @@ export class MapShortcut {
                     activeLayout[0].color = 'rgba(0,0,0,0)';
                 }
                 
-                if (this.config.icon) {
+                const iconVal = matchedState?.icon || this.config.icon;
+                const imgVal = matchedState?.image || this.config.image;
+                
+                if (iconVal) {
                     activeLayout.push({
                         id: 'fallback_icon',
                         type: 'icon',
-                        value: this.config.icon,
+                        value: iconVal,
                         size: 18 * scale,
                         color: this.config.transparent ? (this.config.color || '#facaca') : '#ffffff'
                     });
-                } else if (this.config.image) {
+                } else if (imgVal) {
                     activeLayout.push({
                         id: 'fallback_image',
                         type: 'image',
-                        value: this.config.image,
-                        width: w * 0.8,
-                        height: h * 0.8
+                        value: imgVal,
+                        width: contentMatchSize ? w : 24,
+                        height: contentMatchSize ? h : 24
                     });
                 }
             }
         }
-        
-        let matchedState = null;
-        if (this.config.states && this.config.states.length > 0) {
-            for (const st of this.config.states) {
-                const cond = st.conditions || (st.state_entity || st.entity ? st : null);
-                if (evaluateCondition(cond, hass)) {
-                    matchedState = st;
-                    break;
-                }
-            }
-        }
-        
-        this.activeState = matchedState;
         
         if (matchedState) {
             if (matchedState.layout_override && matchedState.layout_override.length > 0) {
@@ -244,12 +248,15 @@ export class MapShortcut {
             } else {
                 const baseCopy = JSON.parse(JSON.stringify(activeLayout));
                 if (baseCopy.length > 0) {
-                    if (matchedState.color) {
-                        if (this.config.transparent) {
+                    const stColor = matchedState.color || this.config.color;
+                    const stTrans = matchedState.transparent !== undefined ? matchedState.transparent : this.config.transparent;
+                    
+                    if (stColor) {
+                        if (stTrans) {
                             baseCopy[0].stroke_color = 'rgba(0,0,0,0)';
                             baseCopy[0].color = 'rgba(0,0,0,0)';
                         } else {
-                            baseCopy[0].color = matchedState.color;
+                            baseCopy[0].color = stColor;
                         }
                     }
                     
@@ -259,8 +266,8 @@ export class MapShortcut {
                             if (matchedState.icon) {
                                 emojiEl.value = matchedState.icon;
                             }
-                            if (this.config.transparent) {
-                                emojiEl.color = matchedState.color || this.config.color || '#10b981';
+                            if (stTrans) {
+                                emojiEl.color = stColor || '#10b981';
                             } else {
                                 emojiEl.color = '#ffffff';
                             }
@@ -268,19 +275,13 @@ export class MapShortcut {
                         
                         const valueEl = baseCopy.find(el => el.id === 'sensor_value');
                         if (valueEl) {
-                            if (matchedState.display_entity && hass) {
-                                const sensorState = hass.states[matchedState.display_entity];
-                                if (sensorState) {
-                                    const rawVal = parseFloat(sensorState.state);
-                                    if (!isNaN(rawVal)) {
-                                        valueEl.value = Math.round(rawVal) + (matchedState.unit || '');
-                                    } else {
-                                        valueEl.value = sensorState.state + (matchedState.unit || '');
-                                    }
-                                }
-                            }
-                            if (this.config.transparent) {
-                                valueEl.color = matchedState.color || this.config.color || '#10b981';
+                            const dispEntity = matchedState.display_entity || matchedState.state_entity || this.config.temperature_entity || this.config.state_entity || this.sc.entity_id;
+                            const unit = matchedState.unit || this.config.unit || '°';
+                            const defaultTemplate = dispEntity ? `{states('${dispEntity}')}${unit}` : '';
+                            const valueTemplate = matchedState.value_template || this.config.value_template || defaultTemplate;
+                            valueEl.value = valueTemplate;
+                            if (stTrans) {
+                                valueEl.color = stColor || '#10b981';
                             } else {
                                 valueEl.color = '#ffffff';
                             }
@@ -292,16 +293,19 @@ export class MapShortcut {
                             baseCopy.push(contentEl);
                         }
                         if (contentEl) {
+                            const targetConfig = matchedState || this.config;
+                            const contentMatchSize = targetConfig.content_matchSize !== undefined ? !!targetConfig.content_matchSize : (this.config.content_matchSize !== undefined ? !!this.config.content_matchSize : true);
+                            
                             if (matchedState.image) {
                                 contentEl.type = 'image';
                                 contentEl.value = matchedState.image;
-                                contentEl.width = (baseCopy[0].width || 24) * 0.8;
-                                contentEl.height = (baseCopy[0].height || 24) * 0.8;
+                                contentEl.width = contentMatchSize ? (baseCopy[0].width || 24) : 24;
+                                contentEl.height = contentMatchSize ? (baseCopy[0].height || 24) : 24;
                             } else if (matchedState.icon) {
                                 contentEl.type = 'icon';
                                 contentEl.value = matchedState.icon;
-                                if (this.config.transparent) {
-                                    contentEl.color = matchedState.color || this.config.color || '#facaca';
+                                if (stTrans) {
+                                    contentEl.color = stColor || '#facaca';
                                 } else {
                                     contentEl.color = 'white';
                                 }
@@ -312,11 +316,15 @@ export class MapShortcut {
                 activeLayout = baseCopy;
             }
         } else if (isSensor && this.config.states && this.config.states.length > 0) {
-            // If no states matched for sensor, keep value empty or clear
+            // If no states matched for sensor, fall back to root templates or clear
             const baseCopy = JSON.parse(JSON.stringify(activeLayout));
             const valueEl = baseCopy.find(el => el.id === 'sensor_value');
             if (valueEl) {
-                valueEl.value = '';
+                const dispEntity = this.config.temperature_entity || this.config.state_entity || this.sc.entity_id;
+                const unit = this.config.unit || '°';
+                const defaultTemplate = dispEntity ? `{states('${dispEntity}')}${unit}` : '';
+                const valueTemplate = this.config.value_template || defaultTemplate;
+                valueEl.value = valueTemplate;
                 if (this.config.transparent) {
                     valueEl.color = this.config.color || '#10b981';
                 } else {
@@ -347,9 +355,18 @@ export class MapShortcut {
             if (this.iconText) this.iconText.style.filter = expectedFilter;
             this.unavailableLine.style.display = 'block';
             
-            const scale = this.sc.scale || 1.0;
-            const sX = this.scaleX || this.sc.scaleX || scale;
-            const sY = this.scaleY || this.sc.scaleY || scale;
+            // Resolve orientation-object scales ({horizontal, vertical}) to a finite
+            // scalar for the active mode; guards against NaN reaching setAttribute.
+            const uaMode = this.mapContext.activeMode || 'horizontal';
+            const num = (v) => {
+                if (v && typeof v === 'object' && !Array.isArray(v)) {
+                    v = v[uaMode] !== undefined ? v[uaMode] : v.horizontal;
+                }
+                return Number.isFinite(v) ? v : undefined;
+            };
+            const scale = num(this.sc.scale) ?? 1.0;
+            const sX = num(this.scaleX) ?? num(this.sc.scaleX) ?? scale;
+            const sY = num(this.scaleY) ?? num(this.sc.scaleY) ?? scale;
             const lineRx = (isSensor ? 26 : 12) * sX;
             this.unavailableLine.setAttribute('x1', -lineRx * 0.7);
             this.unavailableLine.setAttribute('y1', -12 * sY * 0.7);
@@ -377,7 +394,19 @@ export class MapShortcut {
         layout.forEach(comp => {
             const renderer = ComponentRegistry[comp.type];
             if (renderer) {
-                const el = renderer(this.svgNS, comp, hass);
+                // Pre-evaluate dynamic JS templates inside text, icons, and image paths on a shallow copy
+                const evaluatedComp = { ...comp };
+                if (typeof evaluatedComp.value === 'string') {
+                    evaluatedComp.value = evaluateTemplate(evaluatedComp.value, hass);
+                }
+                if (typeof evaluatedComp.icon === 'string') {
+                    evaluatedComp.icon = evaluateTemplate(evaluatedComp.icon, hass);
+                }
+                if (typeof evaluatedComp.image === 'string') {
+                    evaluatedComp.image = evaluateTemplate(evaluatedComp.image, hass);
+                }
+                
+                const el = renderer(this.svgNS, evaluatedComp, hass);
                 if (comp.id) {
                     el.setAttribute('id', comp.id);
                 }
@@ -512,15 +541,50 @@ export class MapShortcut {
         const rotStr = customRot ? `rotate(${customRot})` : '';
         this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${rotStr} ${str}`.trim());
         
-        // Decouple outer rotation from inner content rotation:
+        // Resolve target config for content matching options
+        const targetConfig = this.activeState || this.config || {};
+        const contentMatchSize = targetConfig.content_matchSize !== undefined ? !!targetConfig.content_matchSize : (this.config.content_matchSize !== undefined ? !!this.config.content_matchSize : true);
+        const contentMatchRot = targetConfig.content_matchRotation !== undefined ? !!targetConfig.content_matchRotation : (this.config.content_matchRotation !== undefined ? !!this.config.content_matchRotation : true);
+        
+        const contentX = targetConfig.content_x !== undefined ? targetConfig.content_x : (this.config.content_x !== undefined ? this.config.content_x : 0);
+        const contentY = targetConfig.content_y !== undefined ? targetConfig.content_y : (this.config.content_y !== undefined ? this.config.content_y : 0);
+        
+        const contentScaleX = contentMatchSize ? 1.0 : (targetConfig.content_scaleX !== undefined ? targetConfig.content_scaleX : (this.config.content_scaleX !== undefined ? this.config.content_scaleX : 1.0));
+        const contentScaleY = contentMatchSize ? 1.0 : (targetConfig.content_scaleY !== undefined ? targetConfig.content_scaleY : (this.config.content_scaleY !== undefined ? this.config.content_scaleY : 1.0));
+        
+        const contentRotation = contentMatchRot ? 0 : (targetConfig.content_rotation !== undefined ? targetConfig.content_rotation : (this.config.content_rotation !== undefined ? this.config.content_rotation : 0));
+
+        let transforms = [];
+        
+        // 1. Translation offset
+        if (contentX !== 0 || contentY !== 0) {
+            transforms.push(`translate(${contentX}, ${contentY})`);
+        }
+        
+        // 2. Decouple outer rotation from inner content rotation:
         // By default, text/icons/images stay vertical (upright) even when the outer map/shape rotates!
         const isRotated = this.mapContext.isRotated;
         const isAutoRotate = this.getIsAutoRotateActive();
-        if (isRotated && isAutoRotate) {
-            this.contentGroup.setAttribute('transform', 'rotate(-90)');
-        } else {
-            this.contentGroup.setAttribute('transform', '');
+        
+        let totalContentRotation = 0;
+        if (!contentMatchRot) {
+            totalContentRotation = -customRot;
+            if (isRotated && isAutoRotate) {
+                totalContentRotation -= 90;
+            }
+            totalContentRotation += contentRotation;
         }
+        
+        if (totalContentRotation !== 0) {
+            transforms.push(`rotate(${totalContentRotation})`);
+        }
+        
+        // 3. Custom Scale offset
+        if (!contentMatchSize && (contentScaleX !== 1.0 || contentScaleY !== 1.0)) {
+            transforms.push(`scale(${contentScaleX}, ${contentScaleY})`);
+        }
+        
+        this.contentGroup.setAttribute('transform', transforms.join(' '));
     }
     
     setupInteractions() {

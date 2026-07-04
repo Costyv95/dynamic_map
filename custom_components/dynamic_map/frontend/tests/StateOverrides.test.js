@@ -495,7 +495,68 @@ describe('MapShortcut JSDOM Integration', () => {
 
         shortcut.updateState(mockHassAvailable);
         expect(shortcut.bgGroup.style.filter).toBe('');
-        expect(shortcut.unavailableLine.style.display).toBe('none');
+    });
+
+    it('should respect custom content offset, scaling and rotation on contentGroup transform', () => {
+        const scData = {
+            id: 'lamp_shortcut_custom_content',
+            entity_id: 'light.desk_lamp',
+            position: [50, 50],
+            config: {
+                content_matchSize: false,
+                content_matchRotation: false,
+                content_x: 10,
+                content_y: -5,
+                content_scaleX: 1.5,
+                content_scaleY: 0.8,
+                content_rotation: 45,
+                states: [
+                    {
+                        name: 'On State',
+                        conditions: [
+                            { entity: 'light.desk_lamp', value: 'on' }
+                        ],
+                        content_x: 20,
+                        content_rotation: 90
+                    }
+                ]
+            }
+        };
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const mapContext = {
+            _hass: {},
+            imgW: 1000,
+            imgH: 1000,
+            isRotated: true
+        };
+
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
+        
+        // 1. Without active state matching (base config values)
+        // Since isRotated is true and autoRotate is false (default is false because config autoRotate is not set to true),
+        // let's see: getIsAutoRotateActive resolves to false.
+        // So totalContentRotation = -customRot (0) + contentRotation (45) = 45.
+        // Transforms should contain: translate(10, -5), rotate(45), scale(1.5, 0.8)
+        shortcut.updateState({ states: { 'light.desk_lamp': { state: 'off' } } });
+        shortcut.setTransformStr('');
+        
+        const transformBase = shortcut.contentGroup.getAttribute('transform');
+        expect(transformBase).toContain('translate(10, -5)');
+        expect(transformBase).toContain('rotate(45)');
+        expect(transformBase).toContain('scale(1.5, 0.8)');
+
+        // 2. With matched state ('on' state active)
+        // matchedState overrides content_x to 20, content_rotation to 90.
+        // scaleX/scaleY fall back to base config (1.5, 0.8)
+        // Transforms should contain: translate(20, -5), rotate(90), scale(1.5, 0.8)
+        shortcut.updateState({ states: { 'light.desk_lamp': { state: 'on' } } });
+        shortcut.setTransformStr('');
+        
+        const transformMatched = shortcut.contentGroup.getAttribute('transform');
+        expect(transformMatched).toContain('translate(20, -5)');
+        expect(transformMatched).toContain('rotate(90)');
+        expect(transformMatched).toContain('scale(1.5, 0.8)');
     });
 });
 

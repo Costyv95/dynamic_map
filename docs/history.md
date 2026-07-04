@@ -154,6 +154,24 @@ This document sequentially records the major technical and architectural decisio
     - **Orientation-Aware Scaling & Custom Rotations**: Updated `EditorInteractionManager.js` to read and write scales (`scale`, `scaleX`, `scaleY`) and custom rotations (`rotation`) orientation-safely to layout-specific objects using refined helpers. Added 2D rotation matrix vector transforms to align resizing bounding boxes and select hit-testing with custom rotated axes.
     - **Dynamic Aspect Ratio Locking**: Added a **Lock Aspect Ratio (Proportional)** checkbox (`proportional`) inside the sidebar configuration forms (`editor.html` and `EditorUIManager.js`). When checked, it locks horizontal and vertical dimensions proportionally during drag resizing and manual updates, disabling and grey-shading the `Scale Y` input visually. When unchecked, it enables free-form independent scaling.
     - **Flexible Symmetrical Ellipses**: Standardized the system default to locked aspect ratio scaling for circles and free-form unproportional scaling for rectangles, pills, and sensors. Modified `renderCircle.js` and `CanvasEngine.js` to dynamically draw perfect, beautiful SVG `<ellipse>` tags and canvas ellipses if a circle's aspect ratio is unlocked and `Scale X` differs from `Scale Y`, eliminating visual mismatches.
-*   **Consequences:**
     - **Benefits:** Restores fully independent size and rotation layouts across multiple orientations. Gives users complete aspect ratio locking flexibility for any shape, with intuitive visual cues. Gracefully handles unproportional scaling of circles by automatically upgrading them to ellipses.
     - **Trade-offs:** None. All 88 tests pass successfully.
+
+---
+
+## 011 Unified States, Fallbacks, and Checked Default Match Buttons for Size and Rotation
+*   **Date:** 2026-06-01
+*   **Status:** Accepted
+*   **Context:**
+    - Visual settings for child icon, text, and image content (such as offsets, rotations, and custom scales) lacked precise WYSIWYG controls and were not synchronized with state-specific overrides.
+    - When a custom state override was previewed, visual changes were not cleanly routed to that state, and the condition query builders cluttered the sidebar UI when configuring fallback catch-all states.
+    - Inner child content (such as images and icons) did not automatically scale to match the parent shape size and rotation by default, leading to visual alignment issues on rotated map layers.
+*   **Decision:**
+    - **Unified State Property Binding**: Updated `EditorUIManager.js` to route visual edits directly to the previewed state's overrides array when a state is active in the preview sidebar, and cleanly fall back to root properties when none is selected.
+    - **Default Fallback States**: Introduced `is_default` to states. Checking it deselects other default states, clears conditions, and hides the logical query builder. `MapShortcut.js` and `CanvasEngine.js` automatically evaluate it last as a catch-all fallback.
+    - **Checked Matching Buttons (Default)**: Repositioned proportional and auto-rotate checkboxes inside the "Size & Rotation" group, and introduced **Content Matches Parent Size** and **Content Matches Parent Rotation** checked buttons (checked by default). When checked, child content fills parent dimensions and rotates in sync. When unchecked, independent content scaling and offsets are enabled.
+    - **Precise Content Transformations**: Implemented a unified property resolver to handle layout offsets. Constructed and applied translation, counter-rotation, and custom scaling transforms to `contentGroup` in `MapShortcut.js` and context transformations before drawing in `CanvasEngine.js`.
+*   **Consequences:**
+    - **Benefits:** Restores clean, intuitive control over inner child assets, ensuring they match parent bounds out-of-the-box. Empowers users with precise manual overrides. Simplifies state-specific visual creation.
+    - **Trade-offs:** None. All 89 unit tests pass perfectly.
+

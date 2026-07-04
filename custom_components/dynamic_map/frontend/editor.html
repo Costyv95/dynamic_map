@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:,">
     <title>Dynamic Map Editor</title>
-    <link rel="stylesheet" href="editor.css?v=3.0.3-a6366a0-dev-185153">
+    <link rel="stylesheet" href="editor.css?v=3.0.3-f1a3998-dev-000108">
     <script src="polybool.min.js"></script>
 </head>
 <body>
@@ -87,12 +87,6 @@
                     </select>
                 </div>
             </div>
-            <div style="margin-top: 5px;">
-                <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
-                    <input type="checkbox" id="scProportionalScale" style="width: auto; margin: 0;"> Lock Aspect Ratio (Proportional)
-                </label>
-            </div>
-            
             <div style="display: flex; gap: 5px; margin-top: 5px; align-items: center;">
                 <div style="flex: 1;">
                     <label>Color</label>
@@ -110,11 +104,6 @@
                 <label>Default Image URL</label>
                 <input type="text" id="scImage" list="iconList" placeholder="e.g. /local/img.png (Overrides Icon)" style="padding: 4px;">
             </div>
-            <div style="margin-top: 5px;">
-                <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
-                    <input type="checkbox" id="scAutoRotate" style="width: auto; margin: 0;"> Auto-rotate default image with map
-                </label>
-            </div>
             
             <div style="margin-top: 10px;">
                 <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
@@ -125,7 +114,7 @@
             <!-- Size & Custom Rotation (Per Orientation) -->
             <div style="margin-top: 15px; border-top: 1px dashed var(--input-border); padding-top: 10px;">
                 <div style="cursor: pointer; display: flex; justify-content: space-between; align-items: center;" id="toggleAdvancedPosHeader">
-                    <span style="font-weight: bold; font-size: 13px; color: var(--text);">📐 Size & Rotation (Per Layout)</span>
+                    <span style="font-weight: bold; font-size: 13px; color: var(--text);">📐 📦 Container Size & Rotation</span>
                     <span id="advancedChevron">▶</span>
                 </div>
                 <div id="advancedPosContent" style="display: none; margin-top: 10px;">
@@ -145,6 +134,55 @@
                             <input type="number" id="scRotationInput" step="15" min="0" max="360" style="padding: 4px; box-sizing: border-box; width: 100%;">
                         </div>
                     </div>
+                    <div style="margin-top: 8px;">
+                        <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
+                            <input type="checkbox" id="scProportionalScale" style="width: auto; margin: 0;"> Lock Aspect Ratio (Proportional)
+                        </label>
+                    </div>
+                    <div style="margin-top: 5px; margin-bottom: 5px;">
+                        <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
+                            <input type="checkbox" id="scAutoRotate" style="width: auto; margin: 0;"> Auto-rotate with map
+                        </label>
+                    </div>
+                    <div style="margin-top: 5px; margin-bottom: 5px;">
+                        <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
+                            <input type="checkbox" id="scContentMatchSize" style="width: auto; margin: 0;" checked> Content Matches Parent Size
+                        </label>
+                    </div>
+                    <div style="margin-top: 5px; margin-bottom: 12px;">
+                        <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em;">
+                            <input type="checkbox" id="scContentMatchRotation" style="width: auto; margin: 0;" checked> Content Matches Parent Rotation
+                        </label>
+                    </div>
+
+                    <div style="font-weight: bold; font-size: 11px; margin-top: 10px; margin-bottom: 5px; color: var(--accent);">🖼️ Inner Content (Icon / Image) Controls</div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px;">Content X Offset</label>
+                            <input type="number" id="scContentXInput" step="1" style="padding: 4px; box-sizing: border-box; width: 100%;" placeholder="0">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px;">Content Y Offset</label>
+                            <input type="number" id="scContentYInput" step="1" style="padding: 4px; box-sizing: border-box; width: 100%;" placeholder="0">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px;">Content Scale X</label>
+                            <input type="number" id="scContentScaleXInput" step="0.05" style="padding: 4px; box-sizing: border-box; width: 100%;" placeholder="1.0">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px;">Content Scale Y</label>
+                            <input type="number" id="scContentScaleYInput" step="0.05" style="padding: 4px; box-sizing: border-box; width: 100%;" placeholder="1.0">
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 5px; margin-bottom: 5px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 11px;">Content Rotation (deg)</label>
+                            <input type="number" id="scContentRotationInput" step="15" min="-360" max="360" style="padding: 4px; box-sizing: border-box; width: 100%;" placeholder="0">
+                        </div>
+                    </div>
+
                     <label style="font-size: 11px; color: #888; display: block; margin-top: 5px;">These values apply specifically to the active Simulated Layout orientation (🌅 Land / 📱 Port).</label>
                 </div>
             </div>
@@ -170,6 +208,10 @@
                 <div style="margin-top: 5px; margin-bottom: 5px;">
                     <label style="display:block;">Humidity Entity ID</label>
                     <input type="text" id="scHumidityEntity" placeholder="sensor.room_humidity" style="width: 100%; box-sizing: border-box; padding: 4px;">
+                </div>
+                <div style="margin-top: 5px; margin-bottom: 5px;">
+                    <label style="display:block;">Value Template (Dynamic Template)</label>
+                    <input type="text" id="scValueTemplate" placeholder="{get_value('sensor.entity')}°C" style="width: 100%; box-sizing: border-box; padding: 4px;">
                 </div>
             </div>
 
@@ -327,6 +369,6 @@
         </div>
     </div>
 
-    <script type="module" src="editor.js?v=3.0.3-a6366a0-dev-185153"></script>
+    <script type="module" src="editor.js?v=3.0.3-f1a3998-dev-000108"></script>
 </body>
 </html>

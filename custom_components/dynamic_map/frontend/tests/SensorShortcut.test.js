@@ -105,9 +105,9 @@ describe('SensorShortcut / MapShortcut Sensor Integration', () => {
 
         shortcut.updateState(mockHass);
 
-        // When input_boolean is 'on' and temp is 21.4, Comfort Temp matches -> color #10b981, icon 🌡️, value 21°
+        // Comfort Temp matches -> color #10b981, icon 🌡️, value 21.4°
         expect(shortcut.activeState.id).toBe('st_t_comfort');
-        expect(shortcut.iconText.textContent).toBe('21°');
+        expect(shortcut.iconText.textContent).toBe('21.4°');
         expect(shortcut.shape.getAttribute('fill')).toBe('#10b981');
         expect(shortcut.emojiText.textContent).toBe('🌡️');
     });
@@ -125,9 +125,9 @@ describe('SensorShortcut / MapShortcut Sensor Integration', () => {
 
         shortcut.updateState(mockHass);
 
-        // Cold Temp matches -> color #3b82f6, icon ❄️, value 18°
+        // Cold Temp matches -> color #3b82f6, icon ❄️, value 17.8°
         expect(shortcut.activeState.id).toBe('st_t_cold');
-        expect(shortcut.iconText.textContent).toBe('18°');
+        expect(shortcut.iconText.textContent).toBe('17.8°');
         expect(shortcut.shape.getAttribute('fill')).toBe('#3b82f6');
         expect(shortcut.emojiText.textContent).toBe('❄️');
     });
@@ -145,9 +145,9 @@ describe('SensorShortcut / MapShortcut Sensor Integration', () => {
 
         shortcut.updateState(mockHass);
 
-        // When input_boolean is 'off' and humidity is 32.1, Dry Hum matches -> color #eab308, icon 🌵, value 32%
+        // When input_boolean is 'off' and humidity is 32.1, Dry Hum matches -> color #eab308, icon 🌵, value 32.1%
         expect(shortcut.activeState.id).toBe('st_h_dry');
-        expect(shortcut.iconText.textContent).toBe('32%');
+        expect(shortcut.iconText.textContent).toBe('32.1%');
         expect(shortcut.shape.getAttribute('fill')).toBe('#eab308');
         expect(shortcut.emojiText.textContent).toBe('🌵');
     });
@@ -203,5 +203,51 @@ describe('SensorShortcut / MapShortcut Sensor Integration', () => {
         expect(calledDomain).toBe('input_boolean');
         expect(calledService).toBe('toggle');
         expect(calledPayload).toEqual({ entity_id: 'input_boolean.sensor_living_room' });
+    });
+
+    it('should evaluate custom value templates supporting math and rounding', () => {
+        const customScData = {
+            ...scData,
+            config: {
+                ...scData.config,
+                value_template: "{Math.round(get_value('sensor.living_room_temperature')) + 3}°C"
+            }
+        };
+        const shortcut = new MapShortcut(customScData, svgNS, 1000, 1000, mapContext);
+        
+        const mockHass = {
+            states: {
+                'input_boolean.sensor_living_room': { state: 'on' },
+                'sensor.living_room_temperature': { state: '21.4' }
+            }
+        };
+        shortcut.updateState(mockHass);
+        
+        // Math.round(21.4) + 3 = 24 -> "24°C"
+        expect(shortcut.iconText.textContent).toBe('24°C');
+    });
+
+    it('should not emit NaN strike-through line coords when unavailable with orientation-object scale', () => {
+        // Regression: the unavailable-line path must resolve {horizontal,vertical} scale
+        // objects to a scalar. A default_layout skips the resolver block, so the path
+        // reads this.sc.scaleX raw — which used to yield 26 * {object} = NaN.
+        const objScaleData = {
+            ...scData,
+            scale: { horizontal: 3, vertical: 2 },
+            scaleX: { horizontal: 3, vertical: 2 },
+            scaleY: { horizontal: 3, vertical: 2 },
+            config: {
+                ...scData.config,
+                default_layout: [{ id: 'bg', type: 'rect', width: 10, height: 10, color: '#333' }]
+            }
+        };
+        const shortcut = new MapShortcut(objScaleData, svgNS, 1000, 1000, mapContext);
+        shortcut.updateState({ states: { 'input_boolean.sensor_living_room': { state: 'unavailable' } } });
+
+        expect(shortcut.unavailableLine.style.display).toBe('block');
+        for (const attr of ['x1', 'y1', 'x2', 'y2']) {
+            const v = parseFloat(shortcut.unavailableLine.getAttribute(attr));
+            expect(Number.isFinite(v)).toBe(true);
+        }
     });
 });

@@ -187,7 +187,7 @@ export function renderActionsAndStates(sc, onStateChange) {
             }
         }
 
-        const title = st.name || st.state_entity || (st.conditions[0]?.state_entity) || 'New State';
+        const title = st.is_default ? (st.name || 'Default State Fallback') : (st.name || st.state_entity || (st.conditions[0]?.state_entity) || 'New State');
         
         const div = document.createElement('div');
         div.style.background = window.previewStateIdx === idx ? 'rgba(14, 165, 233, 0.1)' : 'var(--input-bg)';
@@ -220,13 +220,23 @@ export function renderActionsAndStates(sc, onStateChange) {
             <div class="st-body" style="display: ${isExpanded ? 'block' : 'none'}; margin-top: 10px; border-top: 1px solid var(--input-border); padding-top: 10px;">
                 <input type="text" class="st-name" value="${st.name || ''}" placeholder="State Name" style="width: 100%; margin: 0 0 8px 0; padding: 4px;">
                 
-                <div style="margin-bottom: 8px; border: 1px solid var(--input-border); border-radius: 6px; padding: 8px; background: rgba(0,0,0,0.15);">
+                <div style="margin-bottom: 8px;">
+                    <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 11px; color: #ccc;">
+                        <input type="checkbox" class="st-isdefault" ${st.is_default ? 'checked' : ''} style="width: auto; margin: 0;"> Is Default State (Fallback)
+                    </label>
+                </div>
+
+                <div class="st-conditions-group-box" style="margin-bottom: 8px; border: 1px solid var(--input-border); border-radius: 6px; padding: 8px; background: rgba(0,0,0,0.15); display: ${st.is_default ? 'none' : 'block'};">
                     <div style="font-size: 11px; font-weight: bold; color: var(--text); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
                         <span>NESTED LOGIC CONDITIONS</span>
                     </div>
                     <div class="st-conditions-container">
                         <!-- Query Builder will be dynamically mounted here -->
                     </div>
+                </div>
+
+                <div class="st-default-info-box" style="margin-bottom: 8px; border: 1px solid var(--accent); border-radius: 6px; padding: 8px; background: rgba(14, 165, 233, 0.08); font-size: 11px; color: var(--text); display: ${st.is_default ? 'block' : 'none'};">
+                    ℹ️ This state acts as the default fallback when no other conditions match.
                 </div>
 
                 <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 5px;">
@@ -408,9 +418,30 @@ export function renderActionsAndStates(sc, onStateChange) {
             condContainer.appendChild(rootEl);
         }
 
+        const isDefaultCheckbox = div.querySelector('.st-isdefault');
+        if (isDefaultCheckbox) {
+            isDefaultCheckbox.addEventListener('change', (e) => {
+                const checked = e.target.checked;
+                st.is_default = checked;
+                if (checked) {
+                    sc.config.states.forEach((otherSt, otherIdx) => {
+                        if (otherIdx !== idx) {
+                            otherSt.is_default = false;
+                        }
+                    });
+                    st.conditions = [];
+                    st.state_entity = '';
+                    st.operator = '==';
+                    st.value = '';
+                }
+                if (onStateChange) onStateChange(true);
+                renderActionsAndStates(sc, onStateChange);
+            });
+        }
+
         // Generic inputs (excluding the color swatch, text hex, and condition rows)
         div.querySelectorAll('.st-body input, .st-body select').forEach(el => {
-            if (el.classList.contains('st-color') || el.classList.contains('st-color-text')) return;
+            if (el.classList.contains('st-color') || el.classList.contains('st-color-text') || el.classList.contains('st-isdefault')) return;
             if (el.closest('.cond-row') || el.classList.contains('add-cond-btn')) return;
             
             const updateStateObj = () => {

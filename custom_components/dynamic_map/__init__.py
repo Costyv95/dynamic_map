@@ -42,7 +42,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
         sidebar_title="Map Editor",
         sidebar_icon="mdi:map-search-outline",
         frontend_url_path="dynamic_map_editor",
-        config={"url": "/dynamic_map_ui/editor.html?v=3.0.3-a6366a0-dev-185153"},
+        config={"url": "/dynamic_map_ui/editor.html?v=3.0.3-f1a3998-dev-000108"},
         require_admin=True,
     )
     

@@ -1,5 +1,5 @@
-import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=3.0.3-a6366a0-dev-185153';
-import { ApiManager } from '../shared/ApiManager.js?v=3.0.3-a6366a0-dev-185153';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=3.0.3-f1a3998-dev-000108';
+import { ApiManager } from '../shared/ApiManager.js?v=3.0.3-f1a3998-dev-000108';
 
 export class EditorUIManager {
     constructor(stateManager, engine) {
@@ -168,7 +168,6 @@ export class EditorUIManager {
                     if (!sc.config) sc.config = {};
                     sc.config.temperature_entity = sc.config.temperature_entity || sc.entity_id || 'sensor.room_temperature';
                     sc.config.humidity_entity = sc.config.humidity_entity || 'sensor.room_humidity';
-                    sc.config.default_measurement = sc.config.default_measurement || 'temperature';
                     if (!sc.config.states || sc.config.states.length === 0) {
                         sc.config.states = [
                             { id: `st_${Date.now()}_temp_cold`, name: 'Temperature Cold', state_entity: sc.config.temperature_entity, operator: '<', value: '19', color: '#3b82f6', icon: '❄️' },
@@ -201,14 +200,32 @@ export class EditorUIManager {
                 if(this.state.selectedShortcutIdx !== -1) {
                     const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
                     if (!sc.config) sc.config = {};
+                    
+                    let targetObj = sc.config;
+                    if (this.state.previewStateIdx !== -1 && sc.config.states && sc.config.states[this.state.previewStateIdx]) {
+                        targetObj = sc.config.states[this.state.previewStateIdx];
+                    }
+                    
+                    let val;
                     if (isCheckbox) {
                         if (isTrueCheckbox) {
-                            sc.config[prop] = e.target.checked;
+                            val = e.target.checked;
                         } else {
-                            sc.config[prop] = !e.target.checked;
+                            val = !e.target.checked;
+                        }
+                    } else {
+                        val = e.target.value;
+                        if (el.type === 'number') {
+                            val = parseFloat(val);
+                            if (isNaN(val)) val = undefined;
                         }
                     }
-                    else sc.config[prop] = e.target.value;
+                    
+                    if (val === undefined) {
+                        delete targetObj[prop];
+                    } else {
+                        targetObj[prop] = val;
+                    }
                 }
             };
 
@@ -230,6 +247,18 @@ export class EditorUIManager {
             });
         };
         bindScProp('scShape', 'shape');
+        const shapeSelect = document.getElementById('scShape');
+        if (shapeSelect) {
+            shapeSelect.addEventListener('change', (e) => {
+                if (this.state.selectedShortcutIdx !== -1) {
+                    const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+                    if (sc.shape !== undefined) {
+                        sc.shape = e.target.value;
+                    }
+                    this.updateSidebar();
+                }
+            });
+        }
         // Sync scColor and scColorText
         const scColorInput = document.getElementById('scColor');
         const scColorText = document.getElementById('scColorText');
@@ -278,9 +307,31 @@ export class EditorUIManager {
         bindScProp('scHasBackground', 'transparent', true);
         bindScProp('scProportionalScale', 'proportional', true, true);
         
+        bindScProp('scContentXInput', 'content_x');
+        bindScProp('scContentYInput', 'content_y');
+        bindScProp('scContentScaleXInput', 'content_scaleX');
+        bindScProp('scContentScaleYInput', 'content_scaleY');
+        bindScProp('scContentRotationInput', 'content_rotation');
+        bindScProp('scContentMatchSize', 'content_matchSize', true, true);
+        bindScProp('scContentMatchRotation', 'content_matchRotation', true, true);
+        
         const propScaleIn = document.getElementById('scProportionalScale');
         if (propScaleIn) {
             propScaleIn.addEventListener('change', () => {
+                this.updateSidebar();
+            });
+        }
+        
+        const matchSizeIn = document.getElementById('scContentMatchSize');
+        if (matchSizeIn) {
+            matchSizeIn.addEventListener('change', () => {
+                this.updateSidebar();
+            });
+        }
+        
+        const matchRotIn = document.getElementById('scContentMatchRotation');
+        if (matchRotIn) {
+            matchRotIn.addEventListener('change', () => {
                 this.updateSidebar();
             });
         }
@@ -289,6 +340,7 @@ export class EditorUIManager {
         bindScProp('scAvailabilityEntity', 'availability_entity');
         bindScProp('scTemperatureEntity', 'temperature_entity');
         bindScProp('scHumidityEntity', 'humidity_entity');
+        bindScProp('scValueTemplate', 'value_template');
 
         const scaleXIn = document.getElementById('scScaleXInput');
         const scaleYIn = document.getElementById('scScaleYInput');
@@ -629,6 +681,13 @@ export class EditorUIManager {
     }
 
     updateSidebar() {
+        // Clear all existing override indicators first
+        document.querySelectorAll('.override-indicator').forEach(el => el.remove());
+        document.querySelectorAll('.overridden-input').forEach(el => {
+            el.classList.remove('overridden-input');
+            el.style.border = '';
+        });
+
         document.getElementById('roomInstructions').style.display = this.state.isEditMode ? 'block' : 'none';
         this.activeRoomUI.style.display = 'none';
         document.getElementById('mergeUI').style.display = 'none';
@@ -653,14 +712,27 @@ export class EditorUIManager {
             });
             scParentSelect.value = sc.parent || 'home';
 
-            document.getElementById('scShape').value = sc.config?.shape || 'circle';
-            const scColorVal = sc.config?.color || '#0ea5e9';
+            let targetObj = sc.config || {};
+            let isPreview = false;
+            if (this.state.previewStateIdx !== -1 && sc.config?.states && sc.config.states[this.state.previewStateIdx]) {
+                targetObj = sc.config.states[this.state.previewStateIdx];
+                isPreview = true;
+            }
+
+            document.getElementById('scShape').value = targetObj.shape || sc.config?.shape || sc.shape || 'circle';
+            const scColorVal = targetObj.color || sc.config?.color || '#0ea5e9';
             document.getElementById('scColor').value = scColorVal;
-            document.getElementById('scColorText').value = scColorVal;
-            document.getElementById('scIcon').value = sc.config?.icon || '';
-            document.getElementById('scImage').value = sc.config?.image || '';
-            document.getElementById('scAutoRotate').checked = !!(sc.config?.autoRotate);
-            document.getElementById('scHasBackground').checked = !(sc.config?.transparent);
+            document.getElementById('scColorText').value = targetObj.color || '';
+            document.getElementById('scColorText').placeholder = isPreview ? (sc.config?.color || '#0ea5e9') : '#0ea5e9';
+            
+            document.getElementById('scIcon').value = targetObj.icon || '';
+            document.getElementById('scIcon').placeholder = isPreview ? (sc.config?.icon || 'e.g. 💡 or url') : 'e.g. 💡 or url';
+            
+            document.getElementById('scImage').value = targetObj.image || '';
+            document.getElementById('scImage').placeholder = isPreview ? (sc.config?.image || 'e.g. /local/img.png') : 'e.g. /local/img.png';
+            
+            document.getElementById('scAutoRotate').checked = targetObj.autoRotate !== undefined ? !!targetObj.autoRotate : !!sc.config?.autoRotate;
+            document.getElementById('scHasBackground').checked = !(targetObj.transparent !== undefined ? targetObj.transparent : sc.config?.transparent);
             
             const scScale = this.getShortcutScale(sc);
             const scRot = this.getShortcutRotation(sc);
@@ -682,6 +754,45 @@ export class EditorUIManager {
                 scaleYInput.disabled = isProportional;
                 scaleYInput.style.opacity = isProportional ? '0.5' : '1.0';
             }
+
+            // Populate child content offsets & rotation
+            const contentXVal = targetObj.content_x !== undefined ? targetObj.content_x : '';
+            const contentYVal = targetObj.content_y !== undefined ? targetObj.content_y : '';
+            const contentScaleXVal = targetObj.content_scaleX !== undefined ? targetObj.content_scaleX : '';
+            const contentScaleYVal = targetObj.content_scaleY !== undefined ? targetObj.content_scaleY : '';
+            const contentRotVal = targetObj.content_rotation !== undefined ? targetObj.content_rotation : '';
+            const contentMatchSizeVal = targetObj.content_matchSize !== undefined ? !!targetObj.content_matchSize : (sc.config?.content_matchSize !== undefined ? !!sc.config.content_matchSize : true);
+            const contentMatchRotVal = targetObj.content_matchRotation !== undefined ? !!targetObj.content_matchRotation : (sc.config?.content_matchRotation !== undefined ? !!sc.config.content_matchRotation : true);
+
+            document.getElementById('scContentXInput').value = contentXVal;
+            document.getElementById('scContentYInput').value = contentYVal;
+            document.getElementById('scContentScaleXInput').value = contentScaleXVal;
+            document.getElementById('scContentScaleYInput').value = contentScaleYVal;
+            document.getElementById('scContentRotationInput').value = contentRotVal;
+            document.getElementById('scContentMatchSize').checked = contentMatchSizeVal;
+            document.getElementById('scContentMatchRotation').checked = contentMatchRotVal;
+
+            document.getElementById('scContentXInput').placeholder = isPreview ? (sc.config?.content_x !== undefined ? sc.config.content_x : '0') : '0';
+            document.getElementById('scContentYInput').placeholder = isPreview ? (sc.config?.content_y !== undefined ? sc.config.content_y : '0') : '0';
+            document.getElementById('scContentScaleXInput').placeholder = isPreview ? (sc.config?.content_scaleX !== undefined ? sc.config.content_scaleX : '1.0') : '1.0';
+            document.getElementById('scContentScaleYInput').placeholder = isPreview ? (sc.config?.content_scaleY !== undefined ? sc.config.content_scaleY : '1.0') : '1.0';
+            document.getElementById('scContentRotationInput').placeholder = isPreview ? (sc.config?.content_rotation !== undefined ? sc.config.content_rotation : '0') : '0';
+
+            // Disable/enable based on matching checkboxes
+            const scaleXInContent = document.getElementById('scContentScaleXInput');
+            const scaleYInContent = document.getElementById('scContentScaleYInput');
+            if (scaleXInContent && scaleYInContent) {
+                scaleXInContent.disabled = contentMatchSizeVal;
+                scaleXInContent.style.opacity = contentMatchSizeVal ? '0.5' : '1.0';
+                scaleYInContent.disabled = contentMatchSizeVal;
+                scaleYInContent.style.opacity = contentMatchSizeVal ? '0.5' : '1.0';
+            }
+
+            const rotInContent = document.getElementById('scContentRotationInput');
+            if (rotInContent) {
+                rotInContent.disabled = contentMatchRotVal;
+                rotInContent.style.opacity = contentMatchRotVal ? '0.5' : '1.0';
+            }
             
             if (sc.type === 'vacuum') {
                 document.getElementById('vacuumOptions').style.display = 'block';
@@ -693,12 +804,15 @@ export class EditorUIManager {
 
             if (sc.type === 'sensor') {
                 document.getElementById('sensorOptions').style.display = 'block';
-                document.getElementById('scTemperatureEntity').value = sc.config?.temperature_entity || '';
-                document.getElementById('scHumidityEntity').value = sc.config?.humidity_entity || '';
+                document.getElementById('scTemperatureEntity').value = targetObj.temperature_entity || sc.config?.temperature_entity || '';
+                document.getElementById('scHumidityEntity').value = targetObj.humidity_entity || sc.config?.humidity_entity || '';
+                document.getElementById('scValueTemplate').value = targetObj.value_template || '';
+                document.getElementById('scValueTemplate').placeholder = isPreview ? (sc.config?.value_template || "{states('sensor.entity')}°C") : "{states('sensor.entity')}°C";
             } else {
                 document.getElementById('sensorOptions').style.display = 'none';
             }
             renderActionsAndStates(sc, (final) => this.handleShortcutChange(final));
+            this.updateOverrideBadges(sc);
         } else if (this.state.selectedRooms.length === 1) {
             this.activeRoomUI.style.display = 'block';
             const room = this.state.rooms[this.state.selectedRooms[0]];
@@ -716,8 +830,19 @@ export class EditorUIManager {
     getShortcutScale(sc) {
         const activeMode = this.engine.activeMode || 'horizontal';
         
+        let targetObj = sc;
+        if (this.state.previewStateIdx !== -1 && sc.config?.states?.[this.state.previewStateIdx]) {
+            targetObj = sc.config.states[this.state.previewStateIdx];
+        }
+        
         let scScale = 1.0;
-        if (sc.scale !== undefined) {
+        if (targetObj.scale !== undefined) {
+            if (typeof targetObj.scale === 'object' && !Array.isArray(targetObj.scale)) {
+                scScale = targetObj.scale[activeMode] !== undefined ? targetObj.scale[activeMode] : (targetObj.scale.horizontal || 1.0);
+            } else {
+                scScale = targetObj.scale;
+            }
+        } else if (targetObj !== sc && sc.scale !== undefined) {
             if (typeof sc.scale === 'object' && !Array.isArray(sc.scale)) {
                 scScale = sc.scale[activeMode] !== undefined ? sc.scale[activeMode] : (sc.scale.horizontal || 1.0);
             } else {
@@ -726,7 +851,13 @@ export class EditorUIManager {
         }
         
         let scaleX = scScale;
-        if (sc.scaleX !== undefined) {
+        if (targetObj.scaleX !== undefined) {
+            if (typeof targetObj.scaleX === 'object' && !Array.isArray(targetObj.scaleX)) {
+                scaleX = targetObj.scaleX[activeMode] !== undefined ? targetObj.scaleX[activeMode] : (targetObj.scaleX.horizontal || scScale);
+            } else {
+                scaleX = targetObj.scaleX;
+            }
+        } else if (targetObj !== sc && sc.scaleX !== undefined) {
             if (typeof sc.scaleX === 'object' && !Array.isArray(sc.scaleX)) {
                 scaleX = sc.scaleX[activeMode] !== undefined ? sc.scaleX[activeMode] : (sc.scaleX.horizontal || scScale);
             } else {
@@ -735,7 +866,13 @@ export class EditorUIManager {
         }
         
         let scaleY = scScale;
-        if (sc.scaleY !== undefined) {
+        if (targetObj.scaleY !== undefined) {
+            if (typeof targetObj.scaleY === 'object' && !Array.isArray(targetObj.scaleY)) {
+                scaleY = targetObj.scaleY[activeMode] !== undefined ? targetObj.scaleY[activeMode] : (targetObj.scaleY.horizontal || scScale);
+            } else {
+                scaleY = targetObj.scaleY;
+            }
+        } else if (targetObj !== sc && sc.scaleY !== undefined) {
             if (typeof sc.scaleY === 'object' && !Array.isArray(sc.scaleY)) {
                 scaleY = sc.scaleY[activeMode] !== undefined ? sc.scaleY[activeMode] : (sc.scaleY.horizontal || scScale);
             } else {
@@ -756,38 +893,56 @@ export class EditorUIManager {
 
     setShortcutScale(sc, prop, value) {
         const activeMode = this.engine.activeMode || 'horizontal';
+        
+        let targetObj = sc;
+        if (this.state.previewStateIdx !== -1 && sc.config?.states?.[this.state.previewStateIdx]) {
+            targetObj = sc.config.states[this.state.previewStateIdx];
+        }
+        
         const shape = sc.config?.shape || sc.shape || 'circle';
         const propDefault = (shape === 'circle');
         const isProportional = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
         
         if (isProportional) {
             ['scale', 'scaleX', 'scaleY'].forEach(p => {
-                if (sc[p] === undefined || typeof sc[p] !== 'object' || Array.isArray(sc[p])) {
-                    const oldVal = sc[p] !== undefined ? sc[p] : 1.0;
-                    sc[p] = {
+                if (targetObj[p] === undefined || typeof targetObj[p] !== 'object' || Array.isArray(targetObj[p])) {
+                    const oldVal = targetObj[p] !== undefined ? targetObj[p] : 1.0;
+                    targetObj[p] = {
                         horizontal: oldVal,
                         vertical: oldVal
                     };
                 }
-                sc[p][activeMode] = value;
+                targetObj[p][activeMode] = value;
             });
             return;
         }
 
-        if (sc[prop] === undefined || typeof sc[prop] !== 'object' || Array.isArray(sc[prop])) {
-            const oldVal = sc[prop] !== undefined ? sc[prop] : 1.0;
-            sc[prop] = {
+        if (targetObj[prop] === undefined || typeof targetObj[prop] !== 'object' || Array.isArray(targetObj[prop])) {
+            const oldVal = targetObj[prop] !== undefined ? targetObj[prop] : 1.0;
+            targetObj[prop] = {
                 horizontal: oldVal,
                 vertical: oldVal
             };
         }
-        sc[prop][activeMode] = value;
+        targetObj[prop][activeMode] = value;
     }
 
     getShortcutRotation(sc) {
         const activeMode = this.engine.activeMode || 'horizontal';
+        
+        let targetObj = sc;
+        if (this.state.previewStateIdx !== -1 && sc.config?.states?.[this.state.previewStateIdx]) {
+            targetObj = sc.config.states[this.state.previewStateIdx];
+        }
+        
         let rot = 0;
-        if (sc.rotation !== undefined) {
+        if (targetObj.rotation !== undefined) {
+            if (typeof targetObj.rotation === 'object' && !Array.isArray(targetObj.rotation)) {
+                rot = targetObj.rotation[activeMode] !== undefined ? targetObj.rotation[activeMode] : (targetObj.rotation.horizontal || 0);
+            } else {
+                rot = targetObj.rotation;
+            }
+        } else if (targetObj !== sc && sc.rotation !== undefined) {
             if (typeof sc.rotation === 'object' && !Array.isArray(sc.rotation)) {
                 rot = sc.rotation[activeMode] !== undefined ? sc.rotation[activeMode] : (sc.rotation.horizontal || 0);
             } else {
@@ -799,13 +954,113 @@ export class EditorUIManager {
 
     setShortcutRotation(sc, value) {
         const activeMode = this.engine.activeMode || 'horizontal';
-        if (sc.rotation === undefined || typeof sc.rotation !== 'object' || Array.isArray(sc.rotation)) {
-            const oldVal = sc.rotation !== undefined ? sc.rotation : 0;
-            sc.rotation = {
+        
+        let targetObj = sc;
+        if (this.state.previewStateIdx !== -1 && sc.config?.states?.[this.state.previewStateIdx]) {
+            targetObj = sc.config.states[this.state.previewStateIdx];
+        }
+        
+        if (targetObj.rotation === undefined || typeof targetObj.rotation !== 'object' || Array.isArray(targetObj.rotation)) {
+            const oldVal = targetObj.rotation !== undefined ? targetObj.rotation : 0;
+            targetObj.rotation = {
                 horizontal: oldVal,
                 vertical: oldVal
             };
         }
-        sc.rotation[activeMode] = value;
+        targetObj.rotation[activeMode] = value;
+    }
+
+    updateOverrideBadges(sc) {
+        // Clear all existing override indicators first
+        document.querySelectorAll('.override-indicator').forEach(el => el.remove());
+        document.querySelectorAll('.overridden-input').forEach(el => {
+            el.classList.remove('overridden-input');
+            el.style.border = '';
+        });
+
+        if (this.state.previewStateIdx === -1 || !sc.config?.states?.[this.state.previewStateIdx]) {
+            return;
+        }
+
+        const activeState = sc.config.states[this.state.previewStateIdx];
+
+        // Maps HTML input element IDs to their target override config property keys
+        const propBindings = {
+            'scShape': 'shape',
+            'scColorText': 'color',
+            'scHasBackground': 'transparent',
+            'scScaleXInput': 'scaleX',
+            'scScaleYInput': 'scaleY',
+            'scRotationInput': 'rotation',
+            'scAutoRotate': 'autoRotate',
+            'scProportionalScale': 'proportional',
+            'scContentXInput': 'content_x',
+            'scContentYInput': 'content_y',
+            'scContentScaleXInput': 'content_scaleX',
+            'scContentScaleYInput': 'content_scaleY',
+            'scContentRotationInput': 'content_rotation',
+            'scContentMatchSize': 'content_matchSize',
+            'scContentMatchRotation': 'content_matchRotation',
+            'scTemperatureEntity': 'temperature_entity',
+            'scHumidityEntity': 'humidity_entity',
+            'scValueTemplate': 'value_template'
+        };
+
+        Object.entries(propBindings).forEach(([id, prop]) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            // Find label associated with this input
+            let label = el.previousElementSibling;
+            if (label && label.tagName !== 'LABEL') {
+                label = el.parentElement.querySelector('label') || el.parentElement.previousElementSibling;
+            }
+            if (!label || label.tagName !== 'LABEL') {
+                // If it's wrapped in a label (checkboxes)
+                label = el.closest('label');
+            }
+            if (!label) return;
+
+            const isOverridden = activeState[prop] !== undefined;
+
+            const badge = document.createElement('span');
+            badge.className = 'override-indicator';
+            badge.style.fontSize = '9px';
+            badge.style.marginLeft = '6px';
+            badge.style.display = 'inline-block';
+
+            if (isOverridden) {
+                badge.style.color = '#0ea5e9';
+                badge.style.fontWeight = 'bold';
+                
+                const revertLink = document.createElement('span');
+                revertLink.style.textDecoration = 'underline';
+                revertLink.style.color = '#ef4444';
+                revertLink.style.cursor = 'pointer';
+                revertLink.style.marginLeft = '4px';
+                revertLink.textContent = '× Revert';
+                
+                revertLink.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    delete activeState[prop];
+                    this.state.saveState();
+                    this.updateSidebar();
+                    this.state.requestDrawCallback();
+                });
+
+                badge.textContent = '(Overridden)';
+                badge.appendChild(revertLink);
+
+                el.classList.add('overridden-input');
+                el.style.border = '1px solid #0ea5e9';
+            } else {
+                badge.style.color = '#888';
+                badge.style.fontStyle = 'italic';
+                badge.textContent = '(Inherited)';
+            }
+
+            label.appendChild(badge);
+        });
     }
 }
