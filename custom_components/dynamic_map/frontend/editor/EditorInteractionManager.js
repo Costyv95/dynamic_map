@@ -1,5 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-74e8aea-dev-015324';
-import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-74e8aea-dev-015324';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-77a150e-dev-015941';
+import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-77a150e-dev-015941';
 
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {
@@ -733,6 +733,13 @@ export class EditorInteractionManager {
 
     onKeyDown(e) {
         if (e.key === 'Enter' && this.state.drawingPolygon && this.state.drawingPolygon.length > 2) {
+            // Reject a degenerate (zero-area) polygon rather than creating an invalid room
+            if (EditorInteractionManager.polygonArea(this.state.drawingPolygon) < 1e-6) {
+                this.state.drawingPolygon = null;
+                this.interactionState = 'NONE';
+                this.state.requestDrawCallback();
+                return;
+            }
             const defaultRoomColor = localStorage.getItem('lastRoomColor') || '#333333';
             this.state.rooms.push({
                 id: `room_${Date.now()}`,
@@ -742,9 +749,30 @@ export class EditorInteractionManager {
             });
             this.state.drawingPolygon = null;
             this.interactionState = 'NONE';
+            // Auto-select the new room so its Name/Area panel opens immediately
+            this.state.selectedRooms = [this.state.rooms.length - 1];
+            this.state.selectedShortcutIdx = -1;
             this.state.saveState();
+            if (this.state.updateUICallback) this.state.updateUICallback();
+            this.state.requestDrawCallback();
+        } else if (e.key === 'Escape' && this.state.drawingPolygon) {
+            // Cancel an in-progress room drawing
+            this.state.drawingPolygon = null;
+            this.interactionState = 'NONE';
             this.state.requestDrawCallback();
         }
+    }
+
+    // Shoelace area of a polygon given as [[x%,y%], ...]; used to reject degenerate rooms.
+    static polygonArea(poly) {
+        if (!Array.isArray(poly) || poly.length < 3) return 0;
+        let a = 0;
+        for (let i = 0, n = poly.length; i < n; i++) {
+            const [x1, y1] = poly[i];
+            const [x2, y2] = poly[(i + 1) % n];
+            a += x1 * y2 - x2 * y1;
+        }
+        return Math.abs(a) / 2;
     }
 
     performRoomSplit(targetRoomIdx, p1, p2) {

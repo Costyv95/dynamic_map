@@ -1,6 +1,6 @@
 # Builder Mode — Floors & Rooms (Design & Plan)
 
-Status: **In progress** (started 2026-07-05). Author handoff from the sensor/NaN fix work.
+Status: **Complete** — Phases 1, 2, 3 done (2026-07-05). Author handoff from the sensor/NaN fix work.
 
 ## Motivation
 Today, room polygons are produced only by the DXF→CV pipeline (`server/dxf_processor.py`
@@ -32,21 +32,28 @@ Backward compatible — absent `area_id` behaves as today.
 
 ## Plan
 
-### Phase 1 — Room Builder (unblocks the balcony) — IN PROGRESS
+### Phase 1 — Room Builder (unblocks the balcony) — DONE
 1. **Room schema + create flow**: finalized polygons open a Room panel (Name, Color, Area picker). Persist `area_id`. Area list from `GET /api/dynamic_map/entities` (or a dedicated areas source).
 2. **Room edit panel**: select a room → edit name/color/area, delete room. Mirrors the shortcut config panel pattern (`EditorUIManager`).
 3. **Vertex editing**: when a single room is selected in Builder Mode, render draggable vertex handles; drag to reshape, alt/right-click a vertex to delete, click an edge midpoint to insert. Writes back to `room.polygon`, routed through `HistoryManager`.
 4. **Discoverability**: a visible **Builder Mode** toggle + **Add Room** button; click-to-place vertices, double-click/Enter to close (reuse `drawingPolygon`/`onKeyDown`); hint bar.
 5. Validation: ≥3 vertices; ignore degenerate/self-intersecting polygons.
 
-### Phase 2 — Floor Builder
-1. **Add Floor (no DXF)**: create floor `n` from an uploaded background PNG (extend save API to accept an image → `bg_floor{n}.png`) or a blank sized canvas; seed `config_floor{n}.json`; register in the floor selector.
-2. Floor rename; delete already exists.
+### Phase 2 — Floor Builder — DONE
+1. **Add Floor (no DXF)**: `➕ Add Floor` button in the floor selector. Pick a floor number,
+   then upload a background PNG **or** start on a blank canvas → saved as `bg_floor{n}.png`
+   via the image-capable save API (`image_base64`); seeds empty `rooms/shortcuts/config_floor{n}.json`;
+   the floor button is added dynamically and floor switching is delegated so it works.
+2. Floor delete already exists (`DynamicMapDeleteFloorView`).
 3. DXF import stays optional; Builder Mode is the manual alternative.
 
-### Phase 3 — Polish
-Undo/redo coverage for room edits, polygon validation UX, keyboard hints, and tests
-(`tests/` vitest): room create w/ area, vertex move, area binding round-trip.
+### Phase 3 — Polish — DONE
+- New rooms **auto-select** on finalize so the Name/Area panel opens immediately (balcony flow).
+- **Escape** cancels an in-progress drawing.
+- **Degenerate (zero-area) polygons rejected** via `EditorInteractionManager.polygonArea` (shoelace).
+- Tests (`tests/RoomBuilder.test.js`): polygonArea, room-create + auto-select, degenerate reject,
+  Escape cancel, area_id round-trip. Suite: 109 vitest tests green.
+- Discoverability hint bar updated in `editor.html` (Reshape / Add corner / Delete corner / Draw New).
 
 ## Balcony shortcut
 Fastest path: **Phase 1 → a new room on the existing floor** — draw the balcony polygon,

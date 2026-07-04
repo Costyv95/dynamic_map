@@ -1,5 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-74e8aea-dev-015324';
-import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.0.3-74e8aea-dev-015324';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-77a150e-dev-015941';
+import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.0.3-77a150e-dev-015941';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
