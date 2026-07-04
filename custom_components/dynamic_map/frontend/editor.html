@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:,">
     <title>Dynamic Map Editor</title>
-    <link rel="stylesheet" href="editor.css?v=3.0.3-f1a3998-dev-000108">
+    <link rel="stylesheet" href="editor.css?v=3.0.3-5e2b35e-dev-002732">
     <script src="polybool.min.js"></script>
 </head>
 <body>
@@ -33,8 +33,10 @@
         <div class="instructions" id="roomInstructions">
             <strong>Controls:</strong><br>
             • Click a polygon to select it.<br>
+            • <b>Reshape:</b> Drag the round handles on a selected room's corners to move them.<br>
             • <b>Draw to Split:</b> Click and drag a line completely across a selected polygon to split it into two!<br>
-            • <b>Draw New:</b> Shift+Click to place corners of a new room. Press Enter to close it.
+            • <b>Draw New:</b> Shift+Click to place corners of a new room. Press Enter to close it.<br>
+            • Set the room's <b>Name</b> and <b>Area</b> in the panel, then Save.
         </div>
 
         <div class="active-room-box" id="activeRoomUI" style="display: none;">
@@ -369,6 +371,6 @@
         </div>
     </div>
 
-    <script type="module" src="editor.js?v=3.0.3-f1a3998-dev-000108"></script>
+    <script type="module" src="editor.js?v=3.0.3-5e2b35e-dev-002732"></script>
 </body>
 </html>

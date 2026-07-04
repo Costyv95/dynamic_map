@@ -1,6 +1,6 @@
-import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-f1a3998-dev-000108';
-import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-f1a3998-dev-000108';
-import { evaluateTemplate } from './TemplateEvaluator.js?v=3.0.3-f1a3998-dev-000108';
+import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-5e2b35e-dev-002732';
+import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-5e2b35e-dev-002732';
+import { evaluateTemplate } from './TemplateEvaluator.js?v=3.0.3-5e2b35e-dev-002732';
 
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {

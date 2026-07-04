@@ -1,5 +1,5 @@
-import { HistoryManager } from './HistoryManager.js?v=3.0.3-f1a3998-dev-000108';
-import { ApiManager } from '../shared/ApiManager.js?v=3.0.3-f1a3998-dev-000108';
+import { HistoryManager } from './HistoryManager.js?v=3.0.3-5e2b35e-dev-002732';
+import { ApiManager } from '../shared/ApiManager.js?v=3.0.3-5e2b35e-dev-002732';
 
 export class EditorStateManager {
     constructor(updateUICallback, requestDrawCallback) {
@@ -12,6 +12,7 @@ export class EditorStateManager {
         this.bgImage = new Image();
         this.rooms = [];
         this.selectedRooms = [];
+        this.selectedVertex = null; // { roomIdx, vertexIdx } while dragging a room vertex
         this.shortcuts = [];
         this.selectedShortcutIdx = -1;
         this.isEditMode = false;

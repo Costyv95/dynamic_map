@@ -1,10 +1,10 @@
-import { ApiManager } from './shared/ApiManager.js?v=3.0.3-f1a3998-dev-000108';
-import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-f1a3998-dev-000108';
-import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-f1a3998-dev-000108';
-import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-f1a3998-dev-000108';
-import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-f1a3998-dev-000108';
+import { ApiManager } from './shared/ApiManager.js?v=3.0.3-5e2b35e-dev-002732';
+import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-5e2b35e-dev-002732';
+import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-5e2b35e-dev-002732';
+import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-5e2b35e-dev-002732';
+import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-5e2b35e-dev-002732';
 
-console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-f1a3998-dev-000108)');
+console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-5e2b35e-dev-002732)');
 
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');
@@ -39,6 +39,7 @@ function draw() {
         selectedShortcutIdx: stateManager.selectedShortcutIdx,
         previewStateIdx: stateManager.previewStateIdx,
         isTransitioning: stateManager.isTransitioning,
+        isEditMode: stateManager.isEditMode,
         requestDraw: () => draw()
     });
     if (animationFrameId) cancelAnimationFrame(animationFrameId);

@@ -1,5 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-f1a3998-dev-000108';
-import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-f1a3998-dev-000108';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-5e2b35e-dev-002732';
+import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-5e2b35e-dev-002732';
 
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {
@@ -254,6 +254,28 @@ export class EditorInteractionManager {
             this.drawingPolygon.push([(wp.x / bgW)*100, (wp.y / bgH)*100]);
             this.state.requestDrawCallback();
             return;
+        }
+
+        // Vertex editing: in edit mode with a single room selected, grab a nearby
+        // polygon vertex handle and start dragging it.
+        if (this.state.isEditMode && this.state.selectedRooms.length === 1) {
+            const wp = this.getMousePos(e);
+            const { bgW: vbgW, bgH: vbgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+            const vScale = Math.hypot(this.engine.viewTransform.a, this.engine.viewTransform.b) || 1;
+            const hitR = 10 / vScale;
+            const room = this.state.rooms[this.state.selectedRooms[0]];
+            if (room && Array.isArray(room.polygon)) {
+                for (let i = 0; i < room.polygon.length; i++) {
+                    const vx = (room.polygon[i][0] / 100) * vbgW;
+                    const vy = (room.polygon[i][1] / 100) * vbgH;
+                    if (Math.hypot(wp.x - vx, wp.y - vy) < hitR) {
+                        this.interactionState = 'DRAG_VERTEX';
+                        this.state.selectedVertex = { roomIdx: this.state.selectedRooms[0], vertexIdx: i };
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            }
         }
 
         this.panStart = { x: clientX, y: clientY };
@@ -572,6 +594,20 @@ export class EditorInteractionManager {
             return;
         }
 
+        if (this.interactionState === 'DRAG_VERTEX' && this.state.selectedVertex) {
+            const wp = this.getMousePos(e);
+            const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+            const { roomIdx, vertexIdx } = this.state.selectedVertex;
+            const room = this.state.rooms[roomIdx];
+            if (room && room.polygon && room.polygon[vertexIdx]) {
+                room.polygon[vertexIdx] = [ (wp.x / bgW) * 100, (wp.y / bgH) * 100 ];
+                this.isDragging = true;
+                this.state.requestDrawCallback();
+            }
+            e.preventDefault();
+            return;
+        }
+
         if (this.interactionState === 'MAYBE_PAN') {
             let clientX = e.clientX;
             let clientY = e.clientY;
@@ -622,11 +658,12 @@ export class EditorInteractionManager {
             return;
         }
 
-        if (this.interactionState === 'DRAG_SC' || this.interactionState === 'RESIZE_SC') {
+        if (this.interactionState === 'DRAG_SC' || this.interactionState === 'RESIZE_SC' || this.interactionState === 'DRAG_VERTEX') {
             if (this.isDragging) {
                 this.state.saveState();
                 this.state.updateUICallback();
             }
+            this.state.selectedVertex = null;
         }
 
         if (this.interactionState === 'MAYBE_PAN' && !this.isDragging) {

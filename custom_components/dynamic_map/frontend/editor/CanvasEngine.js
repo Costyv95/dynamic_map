@@ -1,5 +1,5 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-f1a3998-dev-000108';
-import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.0.3-f1a3998-dev-000108';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-5e2b35e-dev-002732';
+import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.0.3-5e2b35e-dev-002732';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -176,7 +176,7 @@ export class CanvasEngine {
         const {
             bgImage, rooms, selectedRooms, isSplitting, splitStart, splitEnd,
             shortcuts, selectedShortcutIdx, previewStateIdx, isTransitioning,
-            requestDraw
+            isEditMode, requestDraw
         } = state;
 
         if(!bgImage.complete || isTransitioning) {
@@ -257,6 +257,23 @@ export class CanvasEngine {
                 this.ctx.fillStyle = 'white';
                 this.ctx.fillText(room.name, 0, 0);
                 this.ctx.restore();
+            }
+
+            // Vertex handles for the single selected room in edit mode (Builder Mode)
+            if (isEditMode && selectedRooms.length === 1 && selectedRooms[0] === idx) {
+                const vScale = Math.hypot(this.viewTransform.a, this.viewTransform.b) || 1;
+                const r = 6 / vScale;
+                room.polygon.forEach((pt) => {
+                    const hx = (pt[0] / 100) * bgW;
+                    const hy = (pt[1] / 100) * bgH;
+                    this.ctx.beginPath();
+                    this.ctx.arc(hx, hy, r, 0, Math.PI * 2);
+                    this.ctx.fillStyle = '#ffffff';
+                    this.ctx.strokeStyle = '#00ffff';
+                    this.ctx.lineWidth = 2 / vScale;
+                    this.ctx.fill();
+                    this.ctx.stroke();
+                });
             }
         });
 
