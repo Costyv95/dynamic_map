@@ -1,10 +1,10 @@
-import { ApiManager } from './shared/ApiManager.js?v=3.0.3-7cdf5da-dev-012328';
-import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-7cdf5da-dev-012328';
-import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-7cdf5da-dev-012328';
-import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-7cdf5da-dev-012328';
-import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-7cdf5da-dev-012328';
+import { ApiManager } from './shared/ApiManager.js?v=3.0.3-74e8aea-dev-015324';
+import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-74e8aea-dev-015324';
+import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-74e8aea-dev-015324';
+import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-74e8aea-dev-015324';
+import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-74e8aea-dev-015324';
 
-console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-7cdf5da-dev-012328)');
+console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-74e8aea-dev-015324)');
 
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');
@@ -176,13 +176,82 @@ async function loadFloor(floorNum) {
     }
 }
 
-document.querySelectorAll('.floor-btn[data-floor]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+// Floor switching + Add Floor (delegated so dynamically-added floors work)
+document.getElementById('floorList').addEventListener('click', (e) => {
+    const btn = e.target.closest('.floor-btn[data-floor]');
+    if (btn) {
         document.querySelectorAll('.floor-btn[data-floor]').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
-        loadFloor(e.target.dataset.floor);
-    });
+        btn.classList.add('active');
+        loadFloor(btn.dataset.floor);
+        return;
+    }
+    if (e.target.closest('#addFloorBtn')) addFloor();
 });
+
+// --- Builder Mode: create a new floor without the DXF pipeline (e.g. a Terrace) ---
+function pickImageFile() {
+    return new Promise((resolve) => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = () => {
+            const file = input.files && input.files[0];
+            if (!file) return resolve(null);
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => resolve(null);
+            reader.readAsDataURL(file);
+        };
+        input.click();
+    });
+}
+function makeBlankCanvas(w, h, color) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const cx = c.getContext('2d');
+    cx.fillStyle = color; cx.fillRect(0, 0, w, h);
+    return c.toDataURL('image/png');
+}
+function addFloorButton(n) {
+    const list = document.getElementById('floorList');
+    const el = document.createElement('div');
+    el.className = 'floor-btn';
+    el.dataset.floor = String(n);
+    el.textContent = `Floor ${n}`;
+    list.insertBefore(el, document.getElementById('addFloorBtn'));
+}
+async function addFloor() {
+    const existing = [...document.querySelectorAll('.floor-btn[data-floor]')]
+        .map(b => parseInt(b.dataset.floor)).filter(x => !isNaN(x));
+    const suggested = (existing.length ? Math.max(...existing) : 0) + 1;
+    const numStr = prompt('New floor number (used in filenames — e.g. 3 for a Terrace):', suggested);
+    if (numStr === null) return;
+    const n = parseInt(numStr);
+    if (isNaN(n)) { alert('Please enter a number.'); return; }
+    if (existing.includes(n)) { alert(`Floor ${n} already exists.`); return; }
+    const useImage = confirm('OK = upload a floor-plan / background image.\nCancel = start with a blank canvas to draw rooms on.');
+    let dataUrl;
+    if (useImage) {
+        dataUrl = await pickImageFile();
+        if (!dataUrl) return;
+    } else {
+        dataUrl = makeBlankCanvas(1600, 1000, '#1e293b');
+    }
+    try {
+        await ApiManager.saveImage(`bg_floor${n}.png`, dataUrl);
+        await ApiManager.saveToHA(n, [], [], {
+            rotation_mode: 'auto',
+            flips: { horizontal: { h: false, v: false }, vertical: { h: false, v: false } }
+        });
+        addFloorButton(n);
+        document.querySelectorAll('.floor-btn[data-floor]').forEach(b => b.classList.remove('active'));
+        document.querySelector(`.floor-btn[data-floor="${n}"]`).classList.add('active');
+        loadFloor(String(n));
+    } catch (err) {
+        console.error('Add floor failed', err);
+        alert('Failed to add floor: ' + err.message);
+    }
+}
 
 // Toolbar buttons
 document.getElementById('undoBtn').addEventListener('click', () => stateManager.undo());

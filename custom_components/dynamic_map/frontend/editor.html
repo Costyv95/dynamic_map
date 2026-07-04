@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="data:,">
     <title>Dynamic Map Editor</title>
-    <link rel="stylesheet" href="editor.css?v=3.0.3-7cdf5da-dev-012328">
+    <link rel="stylesheet" href="editor.css?v=3.0.3-74e8aea-dev-015324">
     <script src="polybool.min.js"></script>
 </head>
 <body>
@@ -329,9 +329,10 @@
         <canvas id="mapCanvas"></canvas>
         <div style="position: absolute; top: 20px; left: 20px; display: flex; gap: 10px; z-index: 10;" id="floorSwitcherContainer">
             <!-- Floor Selector -->
-            <div style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+            <div id="floorList" style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                 <div class="floor-btn active" data-floor="2">Floor 2</div>
                 <div class="floor-btn" data-floor="1">Floor 1</div>
+                <div id="addFloorBtn" class="floor-btn" title="Add a new floor (e.g. Terrace) — upload a plan image or start blank" style="cursor:pointer; border-top:1px solid var(--input-border);">➕ Add Floor</div>
             </div>
             <!-- Orientation Preview Switcher -->
             <div class="orientation-switcher" style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
@@ -372,6 +373,6 @@
         </div>
     </div>
 
-    <script type="module" src="editor.js?v=3.0.3-7cdf5da-dev-012328"></script>
+    <script type="module" src="editor.js?v=3.0.3-74e8aea-dev-015324"></script>
 </body>
 </html>

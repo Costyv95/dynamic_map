@@ -190,6 +190,17 @@ export class ApiManager {
         return true;
     }
 
+    // Builder Mode: save a background PNG (data URL) as bg_floor{N}.png
+    static async saveImage(filename, dataUrl) {
+        const res = await fetch('/api/dynamic_map/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename, image_base64: dataUrl })
+        });
+        if (!res.ok) throw new Error(`Image save failed: ${res.statusText}`);
+        return true;
+    }
+
     static async fetchAvailableFiles() {
         const res = await fetch('/api/dynamic_map/files');
         if (!res.ok) throw new Error("Failed to load files");

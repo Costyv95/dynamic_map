@@ -42,7 +42,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
         sidebar_title="Map Editor",
         sidebar_icon="mdi:map-search-outline",
         frontend_url_path="dynamic_map_editor",
-        config={"url": "/dynamic_map_ui/editor.html?v=3.0.3-7cdf5da-dev-012328"},
+        config={"url": "/dynamic_map_ui/editor.html?v=3.0.3-74e8aea-dev-015324"},
         require_admin=True,
     )
     
@@ -64,20 +64,31 @@ class DynamicMapSaveView(HomeAssistantView):
             data = await request.json()
             filename = data.get("filename")
             content = data.get("content")
-            
-            if not filename or content is None:
-                return self.json({"success": False, "error": "Missing filename or content"})
+            image_b64 = data.get("image_base64")
 
-            # Enforce security: only allow saving json files, and block directory traversal
-            if not filename.endswith(".json") or ".." in filename or "/" in filename:
+            if not filename or ".." in filename or "/" in filename or "\\" in filename:
                 return self.json({"success": False, "error": "Invalid filename format."})
 
-            # Save to the isolated data directory so HACS updates don't destroy it
             save_path = self.hass.config.path(DOMAIN + "_data", filename)
-            
+
+            # Builder Mode: save a background image (bg_floor{N}.png) for a manually-added floor
+            if image_b64 is not None and filename.endswith(".png"):
+                import base64
+                raw = base64.b64decode(image_b64.split(",")[-1])
+
+                def save_image():
+                    with open(save_path, "wb") as f:
+                        f.write(raw)
+
+                await self.hass.async_add_executor_job(save_image)
+                return self.json({"success": True})
+
+            # Otherwise, JSON config only
+            if content is None or not filename.endswith(".json"):
+                return self.json({"success": False, "error": "Missing or invalid content"})
+
             def save_file():
                 with open(save_path, "w", encoding="utf-8") as f:
-                    # Write unescaped JSON
                     json.dump(content, f, ensure_ascii=False, indent=2)
 
             await self.hass.async_add_executor_job(save_file)
