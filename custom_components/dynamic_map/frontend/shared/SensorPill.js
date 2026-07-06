@@ -37,14 +37,14 @@ export function estimateTextWidth(text, fontSize) {
  * preview (CanvasEngine → canvas). `measure(text, fontSize)` may be
  * overridden with an exact measurer where one is available.
  */
-export function computeSensorPill({ sc, state = null, hass = null, scaleX = 1, scaleY = 1, measure = estimateTextWidth }) {
+export function computeSensorPill({ sc, state = null, hass = null, scaleX = 1, scaleY = 1, measure = estimateTextWidth, displayOverride = null }) {
     const cfg = sc.config || {};
     const minS = Math.min(scaleX, scaleY);
 
     const color = (state && state.color) || cfg.color || '#10b981';
     const transparent = (state && state.transparent !== undefined) ? !!state.transparent : !!cfg.transparent;
     const fg = transparent ? color : '#ffffff';
-    const icon = (state && state.icon) || cfg.icon || '🌡️';
+    let icon = (state && state.icon) || cfg.icon || '🌡️';
 
     let dispEntity = (state && (state.display_entity || state.state_entity))
         || cfg.temperature_entity || cfg.state_entity || sc.entity_id;
@@ -52,9 +52,17 @@ export function computeSensorPill({ sc, state = null, hass = null, scaleX = 1, s
         const cond = state.conditions.find(c => c.entity || c.state_entity);
         if (cond) dispEntity = cond.entity || cond.state_entity;
     }
-    const unit = (state && state.unit !== undefined) ? state.unit : (cfg.unit !== undefined ? cfg.unit : '°');
-    const defaultTemplate = dispEntity ? `{states('${dispEntity}')}${unit}` : '';
-    const template = (state && state.value_template) || cfg.value_template || defaultTemplate;
+    let unit = (state && state.unit !== undefined) ? state.unit : (cfg.unit !== undefined ? cfg.unit : '°');
+    let template = (state && state.value_template) || cfg.value_template || '';
+    if (displayOverride && displayOverride.entity) {
+        // Runtime display cycle (tap on a sensor pill): beats state/config
+        // templates so the tap visibly changes what the pill shows.
+        dispEntity = displayOverride.entity;
+        if (displayOverride.unit !== undefined) unit = displayOverride.unit;
+        if (displayOverride.icon) icon = displayOverride.icon;
+        template = '';
+    }
+    if (!template) template = dispEntity ? `{states('${dispEntity}')}${unit}` : '';
     const value = evaluateTemplate(template, hass);
 
     const fontIcon = 14 * minS;

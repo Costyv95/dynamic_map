@@ -346,7 +346,10 @@ export class MapShortcut {
      * this just maps them onto the generic component layout schema.
      */
     _buildSensorLayout(matchedState, hass, scaleX, scaleY) {
-        const p = computeSensorPill({ sc: this.sc, state: matchedState, hass, scaleX, scaleY });
+        const p = computeSensorPill({
+            sc: this.sc, state: matchedState, hass, scaleX, scaleY,
+            displayOverride: this.displayOverride || null
+        });
         this._pillHalfW = p.width / 2; // real half-width for the unavailable strike-line
         return [
             {
@@ -638,6 +641,19 @@ export class MapShortcut {
                 return;
             }
         }
+        // Sensors without an explicit tap action: tapping cycles the pill
+        // between its configured readings (temperature ↔ humidity/moisture).
+        if (this.sc.type === 'sensor') this.cycleSensorDisplay();
+    }
+
+    cycleSensorDisplay() {
+        const cfg = this.config || {};
+        const options = [null];
+        if (cfg.humidity_entity) options.push({ entity: cfg.humidity_entity, unit: '%', icon: '💧' });
+        if (options.length < 2) return;
+        this._displayIdx = ((this._displayIdx || 0) + 1) % options.length;
+        this.displayOverride = options[this._displayIdx];
+        if (this.mapContext && this.mapContext._hass) this.updateState(this.mapContext._hass);
     }
 
     onLongPress(e) {

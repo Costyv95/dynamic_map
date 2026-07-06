@@ -63,3 +63,47 @@ describe('SensorPill flow layout', () => {
         expect(p.fontValue).toBe(24);
     });
 });
+
+describe('SensorPill display override (tap-to-cycle)', () => {
+    const sc = {
+        config: {
+            temperature_entity: 'sensor.soil_temp',
+            humidity_entity: 'sensor.soil_moisture',
+            icon: '🍅'
+        }
+    };
+    const hass = hassWithStates();
+
+    function hassWithStates() {
+        return {
+            states: {
+                'sensor.soil_temp': { state: '24.5' },
+                'sensor.soil_moisture': { state: '58' }
+            }
+        };
+    }
+
+    it('shows the temperature entity by default', () => {
+        const p = computeSensorPill({ sc, hass });
+        expect(p.value).toBe('24.5°');
+        expect(p.icon).toBe('🍅');
+    });
+
+    it('displayOverride switches entity, unit and icon', () => {
+        const p = computeSensorPill({
+            sc, hass,
+            displayOverride: { entity: 'sensor.soil_moisture', unit: '%', icon: '💧' }
+        });
+        expect(p.value).toBe('58%');
+        expect(p.icon).toBe('💧');
+    });
+
+    it('displayOverride beats a configured value_template', () => {
+        const templated = { config: { ...sc.config, value_template: "{states('sensor.soil_temp')}°" } };
+        const p = computeSensorPill({
+            sc: templated, hass,
+            displayOverride: { entity: 'sensor.soil_moisture', unit: '%' }
+        });
+        expect(p.value).toBe('58%');
+    });
+});
