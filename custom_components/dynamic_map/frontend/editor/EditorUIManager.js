@@ -1,6 +1,6 @@
-import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=3.1.0';
-import { ApiManager } from '../shared/ApiManager.js?v=3.1.0';
-import { resolvePreviewTarget, getScale, setScale, getRotation, setRotation } from '../shared/OrientationProps.js?v=3.1.0';
+import { renderActionsAndStates, renderVacuumRoomMapping } from './ShortcutConfigUI.js?v=3.2.0';
+import { ApiManager } from '../shared/ApiManager.js?v=3.2.0';
+import { resolvePreviewTarget, getScale, setScale, getRotation, setRotation } from '../shared/OrientationProps.js?v=3.2.0';
 
 export class EditorUIManager {
     constructor(stateManager, engine) {

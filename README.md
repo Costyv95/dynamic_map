@@ -6,7 +6,7 @@ A Home Assistant custom integration that turns your floor plan into a live, inte
 
 - **Interactive map card** (`custom:custom-svg-map`) — rooms light up with their entities, shortcuts show live state (lights, sensors, vacuum, media), auto-rotation fits any screen orientation, pinch/pan/zoom.
 - **Native sidebar editor** — draw, split, merge and reshape room polygons; place and style shortcut objects; per-orientation layouts; undo/redo; no external tools required.
-- **Room actions** — tap a room to toggle its light (or all lights in its HA area), open more-info, or select rooms for vacuum segment cleaning. Configurable per card and per room.
+- **Room actions** — tap a room to smoothly zoom into it (making its shortcuts easy to tap), toggle its light (or all lights in its HA area), open more-info, or select rooms for vacuum segment cleaning. Configurable per card and per room.
 - **Floor management** — floors are auto-discovered from your data; add floors from a plan image or a blank canvas ("Builder Mode"), or generate rooms automatically from DXF/SVG architectural drawings via the optional sidecar.
 - **Theme-aware** — the card follows your HA theme (light/dark); the editor follows your OS theme.
 
@@ -35,15 +35,16 @@ floors: [1, 2]            # omit to auto-discover from saved data
 floor_names:              # switcher labels (default "Floor N")
   1: Ground
   2: Upstairs
-room_tap_action: toggle   # toggle | area_toggle | more-info | none
+room_tap_action: zoom     # zoom | toggle | area_toggle | more-info | none
 vacuum_entity: vacuum.silvester
 ```
 
 `room_tap_action`:
-- `toggle` (default) — toggles the room's configured entity; if the room has no entity but is linked to an HA area, toggles the area's lights.
+- `zoom` (default) — animates the camera into the room so its shortcuts are large and easy to tap. Tap the room again, the room-name pill, or the background to zoom back out; pinch/wheel zooming out also releases the focus.
+- `toggle` — toggles the room's configured entity; if the room has no entity but is linked to an HA area, toggles the area's lights.
 - `area_toggle` — always toggles the linked HA area's lights.
 - `more-info` — opens the HA more-info dialog for the room entity.
-- `none` — selection highlight only.
+- `none` — taps are ignored.
 
 A room can override the card-level action with its own `tap_action` (set via Raw JSON in the editor, or in `rooms_floorN.json`).
 

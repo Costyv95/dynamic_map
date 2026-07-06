@@ -93,19 +93,46 @@ describe('CustomSvgMap card', () => {
             const card = makeCard();
             card.loadData = vi.fn();
             card.updateRoomStyles = vi.fn();
+            card.syncFocusPill = vi.fn();
+            card.zoomToRoom = vi.fn();
+            card.zoomOutToDefault = vi.fn();
             card.setConfig({ floors: [1], ...config });
             card._hass = makeHass();
             return card;
         }
 
-        it('toggles the room entity by default', () => {
+        it('zooms into the room by default', () => {
             const card = tapSetup();
+            const room = { id: 'r1', entity_id: 'light.desk' };
+            card.onRoomTap(room);
+            expect(card.zoomToRoom).toHaveBeenCalledWith(room);
+            expect(card.focusedRoomId).toBe('r1');
+            expect(card._hass.callService).not.toHaveBeenCalled();
+        });
+
+        it('zooms back out when tapping the focused room again', () => {
+            const card = tapSetup();
+            const room = { id: 'r1' };
+            card.onRoomTap(room);
+            card.onRoomTap(room);
+            expect(card.zoomOutToDefault).toHaveBeenCalled();
+        });
+
+        it('zoom works without hass (static floorplan browsing)', () => {
+            const card = tapSetup();
+            card._hass = null;
+            card.onRoomTap({ id: 'r1' });
+            expect(card.zoomToRoom).toHaveBeenCalled();
+        });
+
+        it('toggles the room entity when configured', () => {
+            const card = tapSetup({ room_tap_action: 'toggle' });
             card.onRoomTap({ id: 'r1', entity_id: 'light.desk' });
             expect(card._hass.callService).toHaveBeenCalledWith('light', 'toggle', { entity_id: 'light.desk' });
         });
 
-        it('falls back to toggling area lights when the room has only an area', () => {
-            const card = tapSetup();
+        it('toggle falls back to area lights when the room has only an area', () => {
+            const card = tapSetup({ room_tap_action: 'toggle' });
             card.onRoomTap({ id: 'r1', area_id: 'office' });
             expect(card._hass.callService).toHaveBeenCalledWith('light', 'toggle', {}, { area_id: 'office' });
         });
@@ -126,11 +153,11 @@ describe('CustomSvgMap card', () => {
             expect(card._hass.callService).not.toHaveBeenCalled();
         });
 
-        it('does nothing for none action but still selects the room', () => {
+        it('does nothing at all for none action', () => {
             const card = tapSetup({ room_tap_action: 'none' });
             card.onRoomTap({ id: 'r1', entity_id: 'light.desk' });
             expect(card._hass.callService).not.toHaveBeenCalled();
-            expect(card.selectedRoomId).toBe('r1');
+            expect(card.zoomToRoom).not.toHaveBeenCalled();
         });
 
         it('per-room tap_action overrides the card default', () => {
@@ -148,6 +175,73 @@ describe('CustomSvgMap card', () => {
             card.onRoomTap({ id: 'r1', entity_id: 'light.desk' });
             expect(card.selectedRoomIds).toEqual([]);
             expect(card._hass.callService).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('zoom camera', () => {
+        it('mapPointToView is identity without a transform', () => {
+            const card = makeCard();
+            expect(card.mapPointToView(30, 40)).toEqual({ x: 30, y: 40 });
+        });
+
+        it('mapPointToView applies rotation around the transform center', () => {
+            const card = makeCard();
+            card.transformCenter = { cx: 50, cy: 50 };
+            card.isRotated = true;
+            card.mapScaleX = 1;
+            card.mapScaleY = 1;
+            expect(card.mapPointToView(60, 50)).toEqual({ x: 50, y: 60 });
+        });
+
+        it('mapPointToView applies flips before rotation', () => {
+            const card = makeCard();
+            card.transformCenter = { cx: 50, cy: 50 };
+            card.isRotated = true;
+            card.mapScaleX = -1;
+            card.mapScaleY = 1;
+            expect(card.mapPointToView(60, 50)).toEqual({ x: 50, y: 40 });
+        });
+
+        it('zoomToRoom targets a padded, aspect-corrected viewBox around the room', () => {
+            const card = makeCard();
+            card.imgW = 1000;
+            card.imgH = 1000;
+            card.vb = { x: 0, y: 0, w: 1000, h: 1000 };
+            card.animateViewBox = vi.fn();
+            // Room spanning 10%..30% horizontally, 10%..20% vertically
+            card.zoomToRoom({ id: 'r1', polygon: [[10, 10], [30, 10], [30, 20], [10, 20]] });
+            const target = card._zoomTargetVb;
+            expect(target).toBeTruthy();
+            // Center preserved
+            expect(target.x + target.w / 2).toBeCloseTo(200);
+            expect(target.y + target.h / 2).toBeCloseTo(150);
+            // Padded beyond the raw 200-wide bbox, and square (jsdom rect is 0 → ratio 1)
+            expect(target.w).toBeCloseTo(200 * 1.24);
+            expect(target.h).toBeCloseTo(target.w);
+            expect(card.animateViewBox).toHaveBeenCalledWith(target);
+        });
+
+        it('zoomOutToDefault clears focus and animates to the default view', () => {
+            const card = makeCard();
+            card.defaultVb = { x: 0, y: 0, w: 1000, h: 800 };
+            card.vb = { x: 100, y: 100, w: 200, h: 160 };
+            card.animateViewBox = vi.fn();
+            card.updateRoomStyles = vi.fn();
+            card.syncFocusPill = vi.fn();
+            card.focusedRoomId = 'r1';
+            card.zoomOutToDefault();
+            expect(card.focusedRoomId).toBeNull();
+            expect(card.animateViewBox).toHaveBeenCalledWith({ x: 0, y: 0, w: 1000, h: 800 });
+        });
+
+        it('onCameraReset clears focus after a manual zoom-out snap', () => {
+            const card = makeCard();
+            card.updateRoomStyles = vi.fn();
+            card.syncFocusPill = vi.fn();
+            card.focusedRoomId = 'r1';
+            card.onCameraReset();
+            expect(card.focusedRoomId).toBeNull();
+            expect(card.syncFocusPill).toHaveBeenCalled();
         });
     });
 

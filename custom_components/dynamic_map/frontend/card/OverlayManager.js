@@ -1,4 +1,4 @@
-import { executeAction, buildRoomNameToSegmentMap } from '../shared/ActionRunner.js?v=3.1.0';
+import { executeAction, buildRoomNameToSegmentMap } from '../shared/ActionRunner.js?v=3.2.0';
 
 /**
  * Clamp the active overlay near the pointer while keeping it inside the

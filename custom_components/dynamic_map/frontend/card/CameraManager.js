@@ -24,6 +24,7 @@ export class CameraManager {
 
     _onPointerDown(e) {
         this.isPanning = true;
+        this.map._cameraDragged = false;
         const pos = this._getEventPos(e);
         this.startPan = { x: pos.x, y: pos.y };
         this.startVB = { x: this.map.vb.x, y: this.map.vb.y };
@@ -32,6 +33,7 @@ export class CameraManager {
     _onPointerMove(e) {
         if (e.touches && e.touches.length === 2) {
             e.preventDefault();
+            if (this.map.onManualCameraStart) this.map.onManualCameraStart();
             const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
             if (!this.initialPinchDist) {
                 this.initialPinchDist = dist;
@@ -46,6 +48,7 @@ export class CameraManager {
 
                 if (newW >= this.map.defaultVb.w * 0.99) {
                     this.map.vb = { ...this.map.defaultVb };
+                    if (this.map.onCameraReset) this.map.onCameraReset();
                 } else {
                     if (newW < (this.map.imgW * 0.05)) return;
 
@@ -74,6 +77,11 @@ export class CameraManager {
         const dx = pos.x - this.startPan.x;
         const dy = pos.y - this.startPan.y;
 
+        if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+            this.map._cameraDragged = true;
+            if (this.map.onManualCameraStart) this.map.onManualCameraStart();
+        }
+
         const rect = this.svg.getBoundingClientRect();
         const scaleX = this.map.vb.w / rect.width;
         const scaleY = this.map.vb.h / rect.height;
@@ -90,6 +98,7 @@ export class CameraManager {
 
     _onWheel(e) {
         e.preventDefault();
+        if (this.map.onManualCameraStart) this.map.onManualCameraStart();
         const rect = this.svg.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -107,6 +116,7 @@ export class CameraManager {
 
         if (newW >= this.map.defaultVb.w * 0.99) {
             this.map.vb = { ...this.map.defaultVb };
+            if (this.map.onCameraReset) this.map.onCameraReset();
         } else {
             if (newW < (this.map.imgW * 0.05)) return;
             this.map.vb.w = newW;

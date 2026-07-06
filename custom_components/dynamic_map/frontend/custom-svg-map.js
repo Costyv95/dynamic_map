@@ -1,8 +1,10 @@
-import { ShortcutFactory } from './shortcuts/ShortcutFactory.js?v=3.1.0';
-import { CameraManager } from './card/CameraManager.js?v=3.1.0';
-import { MapGeometry } from './shared/MapGeometry.js?v=3.1.0';
-import { OverlayManager } from './card/OverlayManager.js?v=3.1.0';
-import { MapBuilder } from './card/MapBuilder.js?v=3.1.0';
+import { ShortcutFactory } from './shortcuts/ShortcutFactory.js?v=3.2.0';
+import { CameraManager } from './card/CameraManager.js?v=3.2.0';
+import { MapGeometry } from './shared/MapGeometry.js?v=3.2.0';
+import { OverlayManager } from './card/OverlayManager.js?v=3.2.0';
+import { MapBuilder } from './card/MapBuilder.js?v=3.2.0';
+
+const ZOOM_ANIMATION_MS = 480;
 
 const CARD_STYLES = `
     :host {
@@ -17,8 +19,9 @@ const CARD_STYLES = `
         --dm-text: var(--primary-text-color, #1e293b);
         --dm-muted: var(--secondary-text-color, #64748b);
         --dm-border: var(--divider-color, #e2e8f0);
-        --dm-chip-bg: var(--ha-card-background, var(--card-background-color, #ffffff));
-        --dm-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+        --dm-glass: color-mix(in srgb, var(--card-background-color, #ffffff) 72%, transparent);
+        --dm-glass-border: color-mix(in srgb, var(--divider-color, #94a3b8) 45%, transparent);
+        --dm-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
         font-family: var(--primary-font-family, var(--paper-font-body1_-_font-family, Roboto, sans-serif));
     }
     .dm-render-root {
@@ -29,67 +32,129 @@ const CARD_STYLES = `
     }
     .dm-top-ui {
         position: absolute;
-        top: 12px;
-        left: 12px;
+        top: 14px;
+        left: 14px;
         display: flex;
-        gap: 8px;
-        align-items: flex-start;
+        gap: 10px;
+        align-items: center;
         z-index: 10;
     }
     .dm-chip-group {
         display: flex;
-        flex-direction: column;
-        background: var(--dm-chip-bg);
-        border: 1px solid var(--dm-border);
-        border-radius: 10px;
-        overflow: hidden;
+        flex-direction: row;
+        align-items: center;
+        gap: 2px;
+        padding: 4px;
+        background: var(--dm-glass);
+        border: 1px solid var(--dm-glass-border);
+        border-radius: 999px;
         box-shadow: var(--dm-shadow);
+        backdrop-filter: blur(14px) saturate(1.4);
+        -webkit-backdrop-filter: blur(14px) saturate(1.4);
     }
     .dm-chip {
-        padding: 8px 14px;
-        font-size: 12px;
+        padding: 7px 16px;
+        font-size: 13px;
         font-weight: 600;
+        letter-spacing: 0.01em;
         color: var(--dm-text);
         cursor: pointer;
-        border-bottom: 1px solid var(--dm-border);
-        transition: background 0.15s ease, color 0.15s ease;
+        border-radius: 999px;
+        transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
         user-select: none;
         text-align: center;
+        white-space: nowrap;
     }
-    .dm-chip:last-child { border-bottom: none; }
-    .dm-chip:hover:not(.active) { background: rgba(127, 127, 127, 0.12); }
-    .dm-chip.active { background: var(--dm-accent); color: #fff; }
+    .dm-chip:hover:not(.active) { background: rgba(127, 127, 127, 0.14); }
+    .dm-chip:active { transform: scale(0.96); }
+    .dm-chip.active {
+        background: var(--dm-accent);
+        color: #fff;
+        box-shadow: 0 2px 8px color-mix(in srgb, var(--dm-accent) 55%, transparent);
+    }
     .dm-icon-btn {
         width: 40px;
         height: 40px;
         display: flex;
         align-items: center;
         justify-content: center;
-        background: var(--dm-chip-bg);
-        border: 1px solid var(--dm-border);
-        border-radius: 10px;
+        background: var(--dm-glass);
+        border: 1px solid var(--dm-glass-border);
+        border-radius: 999px;
         cursor: pointer;
         color: var(--dm-text);
         box-shadow: var(--dm-shadow);
-        transition: background 0.15s ease;
+        backdrop-filter: blur(14px) saturate(1.4);
+        -webkit-backdrop-filter: blur(14px) saturate(1.4);
+        transition: background 0.2s ease, transform 0.15s ease;
         padding: 0;
     }
-    .dm-icon-btn:hover { background: rgba(127, 127, 127, 0.12); }
+    .dm-icon-btn:hover { background: rgba(127, 127, 127, 0.14); }
+    .dm-icon-btn:active { transform: scale(0.94); }
+    .dm-focus-pill {
+        position: absolute;
+        top: 14px;
+        left: 50%;
+        transform: translate(-50%, -12px);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px 8px 18px;
+        background: var(--dm-glass);
+        border: 1px solid var(--dm-glass-border);
+        border-radius: 999px;
+        box-shadow: var(--dm-shadow);
+        backdrop-filter: blur(14px) saturate(1.4);
+        -webkit-backdrop-filter: blur(14px) saturate(1.4);
+        color: var(--dm-text);
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        z-index: 11;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+    .dm-focus-pill.dm-visible {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translate(-50%, 0);
+    }
+    .dm-focus-pill .dm-pill-x {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        font-size: 12px;
+        background: rgba(127, 127, 127, 0.16);
+        transition: background 0.2s ease;
+    }
+    .dm-focus-pill:hover .dm-pill-x { background: rgba(127, 127, 127, 0.3); }
     .room-polygon {
         cursor: pointer;
-        transition: fill 0.25s ease, stroke 0.25s ease, filter 0.25s ease;
+        stroke-linejoin: round;
+        transition: fill 0.3s ease, stroke 0.3s ease, filter 0.3s ease, opacity 0.35s ease;
     }
-    .room-polygon.dm-on { filter: drop-shadow(0 0 8px var(--dm-room-glow, transparent)); }
-    .room-polygon.dm-selected { filter: drop-shadow(0 0 6px var(--dm-accent)); }
-    .room-polygon:hover:not(.dm-selected):not(.dm-on) { filter: brightness(1.15); }
+    .room-polygon.dm-on { filter: drop-shadow(0 0 10px var(--dm-room-glow, transparent)); }
+    .room-polygon.dm-selected { filter: drop-shadow(0 0 8px var(--dm-accent)); }
+    .room-polygon.dm-dimmed { opacity: 0.4; }
+    .room-polygon:hover:not(.dm-selected):not(.dm-on) { filter: brightness(1.2); }
     .room-label {
         pointer-events: none;
         user-select: none;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
         paint-order: stroke;
-        stroke: rgba(0, 0, 0, 0.55);
+        stroke: rgba(10, 16, 30, 0.6);
         stroke-width: 3px;
         stroke-linejoin: round;
+        transition: opacity 0.35s ease;
     }
+    .room-label.dm-dimmed { opacity: 0.35; }
     .dm-error { color: var(--error-color, #ef4444); padding: 20px; font-size: 14px; }
 `;
 
@@ -106,10 +171,11 @@ class CustomSvgMap extends HTMLElement {
         this.rooms = [];
         this.shortcuts = [];
         this.lastTime = 0;
-        this.selectedRoomId = null;
+        this.focusedRoomId = null;
         this.rotationMode = 'auto';
         this.activeOverlay = null;
         this._loadSeq = 0;
+        this._vbAnimFrame = null;
 
         this.renderRoot = document.createElement('div');
         this.renderRoot.className = 'dm-render-root';
@@ -245,6 +311,7 @@ class CustomSvgMap extends HTMLElement {
 
     buildSVG(bgUrl) {
         this.renderRoot.innerHTML = '';
+        this.focusedRoomId = null;
 
         // mapWrapper will strictly confine the SVG and overlay UI
         this.mapWrapper = document.createElement('div');
@@ -284,11 +351,12 @@ class CustomSvgMap extends HTMLElement {
                 text.setAttribute('y', cy);
                 text.setAttribute('text-anchor', 'middle');
                 text.setAttribute('dominant-baseline', 'central');
-                text.setAttribute('font-size', (this.imgW * 0.02).toString());
-                text.setAttribute('fill', 'white');
-                text.setAttribute('font-weight', 'bold');
+                text.setAttribute('font-size', (this.imgW * 0.017).toString());
+                text.setAttribute('fill', 'rgba(255, 255, 255, 0.96)');
+                text.setAttribute('font-weight', '600');
                 text.textContent = room.name;
                 text.classList.add('room-label');
+                text.dataset.roomId = room.id;
 
                 // Save raw center for counter-rotation later
                 text.rawCx = cx;
@@ -323,6 +391,14 @@ class CustomSvgMap extends HTMLElement {
         this.mapWrapper.appendChild(this.svg);
         this.renderRoot.appendChild(this.mapWrapper);
 
+        // Clicking the background (not a room or a shortcut) exits room focus.
+        this.svg.addEventListener('click', (e) => {
+            if (this._cameraDragged) return;
+            const t = e.target;
+            if (t && t.closest && t.closest('.room-polygon, .shortcut-group')) return;
+            if (this.focusedRoomId) this.zoomOutToDefault();
+        });
+
         // Calculate geometry and rotation
         this.calculateAutoCrop();
 
@@ -333,6 +409,7 @@ class CustomSvgMap extends HTMLElement {
 
         this.buildFloorSwitcher();
         this.buildRotationSwitcher();
+        this.buildFocusPill();
 
         if (this.cameraManager) this.cameraManager.destroy();
         this.cameraManager = new CameraManager(this.svg, this);
@@ -340,6 +417,17 @@ class CustomSvgMap extends HTMLElement {
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.lastTime = performance.now();
         this.animate(this.lastTime);
+    }
+
+    buildFocusPill() {
+        this.focusPill = document.createElement('button');
+        this.focusPill.className = 'dm-focus-pill';
+        this.focusPill.innerHTML = `<span class="dm-pill-label"></span><span class="dm-pill-x">✕</span>`;
+        this.focusPill.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.zoomOutToDefault();
+        });
+        this.renderRoot.appendChild(this.focusPill);
     }
 
     getRoomLabelCenter(room) {
@@ -357,9 +445,10 @@ class CustomSvgMap extends HTMLElement {
 
     /**
      * Room tap behavior, configurable via card config `room_tap_action` and
-     * per-room `tap_action`: 'toggle' | 'area_toggle' | 'more-info' | 'none'.
-     * Default 'toggle': toggles the room's entity, falling back to toggling
-     * the lights of its linked HA area.
+     * per-room `tap_action`: 'zoom' | 'toggle' | 'area_toggle' | 'more-info' | 'none'.
+     * Default 'zoom': smoothly zooms the camera into the room, making its
+     * shortcuts larger and easier to tap. Tapping the focused room again,
+     * the room-name pill, or the background zooms back out.
      */
     onRoomTap(room) {
         // Multi-select mode (e.g. picking rooms for vacuum cleaning)
@@ -373,18 +462,14 @@ class CustomSvgMap extends HTMLElement {
             return;
         }
 
-        this.selectedRoomId = (this.selectedRoomId === room.id) ? null : room.id;
-        this.updateRoomStyles();
-
-        if (!this._hass) return;
-        const action = room.tap_action || this.config.room_tap_action || 'toggle';
+        const action = room.tap_action || this.config.room_tap_action || 'zoom';
 
         switch (action) {
             case 'none':
                 return;
             case 'more-info': {
                 const entityId = room.entity_id;
-                if (entityId) {
+                if (entityId && this._hass) {
                     this.dispatchEvent(new CustomEvent('hass-more-info', {
                         detail: { entityId }, bubbles: true, composed: true
                     }));
@@ -392,23 +477,150 @@ class CustomSvgMap extends HTMLElement {
                 return;
             }
             case 'area_toggle':
-                if (room.area_id) {
+                if (room.area_id && this._hass) {
                     this._hass.callService('light', 'toggle', {}, { area_id: room.area_id });
                 }
                 return;
             case 'toggle':
-            default:
+                if (!this._hass) return;
+                this.focusedRoomId = (this.focusedRoomId === room.id) ? null : room.id;
+                this.updateRoomStyles();
                 if (room.entity_id) {
                     const domain = room.entity_id.split('.')[0];
                     this._hass.callService(domain, 'toggle', { entity_id: room.entity_id });
                 } else if (room.area_id) {
                     this._hass.callService('light', 'toggle', {}, { area_id: room.area_id });
                 }
+                return;
+            case 'zoom':
+            default:
+                if (this.focusedRoomId === room.id) {
+                    this.zoomOutToDefault();
+                } else {
+                    this.focusedRoomId = room.id;
+                    this.zoomToRoom(room);
+                    this.updateRoomStyles();
+                    this.syncFocusPill();
+                }
+        }
+    }
+
+    /** Map a point from image coordinates into viewBox space (flips, then rotation). */
+    mapPointToView(px, py) {
+        const c = this.transformCenter;
+        if (!c) return { x: px, y: py };
+        let x = c.cx + (this.mapScaleX || 1) * (px - c.cx);
+        let y = c.cy + (this.mapScaleY || 1) * (py - c.cy);
+        if (this.isRotated) {
+            const rx = c.cx - (y - c.cy);
+            const ry = c.cy + (x - c.cx);
+            x = rx;
+            y = ry;
+        }
+        return { x, y };
+    }
+
+    /** Animate the camera into a room's bounding box. */
+    zoomToRoom(room) {
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        room.polygon.forEach(pt => {
+            const p = this.mapPointToView((pt[0] / 100) * this.imgW, (pt[1] / 100) * this.imgH);
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        });
+
+        const bw = Math.max(maxX - minX, 1);
+        const bh = Math.max(maxY - minY, 1);
+        const cx = minX + bw / 2;
+        const cy = minY + bh / 2;
+
+        // Pad the room, then expand to the screen's aspect ratio.
+        let w = bw * 1.24;
+        let h = bh * 1.24;
+        const rect = this.getBoundingClientRect();
+        const ratio = (rect.width > 0 ? rect.width : 1) / (rect.height > 0 ? rect.height : 1);
+        if (w / h < ratio) w = h * ratio;
+        else h = w / ratio;
+
+        // Respect the same minimum zoom window as manual pinch/wheel zoom.
+        const minW = this.imgW * 0.05;
+        if (w < minW) {
+            h *= minW / w;
+            w = minW;
+        }
+
+        this._zoomTargetVb = { x: cx - w / 2, y: cy - h / 2, w, h };
+        this.animateViewBox(this._zoomTargetVb);
+    }
+
+    zoomOutToDefault() {
+        this.focusedRoomId = null;
+        this._zoomTargetVb = null;
+        if (this.defaultVb) this.animateViewBox({ ...this.defaultVb });
+        this.updateRoomStyles();
+        this.syncFocusPill();
+    }
+
+    /** Smoothly interpolate the SVG viewBox to a target rectangle. */
+    animateViewBox(target, duration = ZOOM_ANIMATION_MS) {
+        if (this._vbAnimFrame) cancelAnimationFrame(this._vbAnimFrame);
+        if (typeof requestAnimationFrame !== 'function') {
+            this.vb = { ...target };
+            this.updateViewBox();
+            return;
+        }
+        const from = { ...this.vb };
+        const start = performance.now();
+        const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+        const step = (now) => {
+            const t = Math.min(1, (now - start) / duration);
+            const k = ease(t);
+            this.vb = {
+                x: from.x + (target.x - from.x) * k,
+                y: from.y + (target.y - from.y) * k,
+                w: from.w + (target.w - from.w) * k,
+                h: from.h + (target.h - from.h) * k
+            };
+            this.updateViewBox();
+            this._vbAnimFrame = (t < 1) ? requestAnimationFrame(step) : null;
+        };
+        this._vbAnimFrame = requestAnimationFrame(step);
+    }
+
+    syncFocusPill() {
+        if (!this.focusPill) return;
+        const room = this.rooms.find(r => r.id === this.focusedRoomId);
+        if (room) {
+            this.focusPill.querySelector('.dm-pill-label').textContent = room.name || 'Room';
+            this.focusPill.classList.add('dm-visible');
+        } else {
+            this.focusPill.classList.remove('dm-visible');
+        }
+    }
+
+    /** Called by CameraManager when the user starts a manual pan/pinch/wheel. */
+    onManualCameraStart() {
+        if (this._vbAnimFrame) {
+            cancelAnimationFrame(this._vbAnimFrame);
+            this._vbAnimFrame = null;
+        }
+    }
+
+    /** Called by CameraManager when a manual zoom snaps back to the full view. */
+    onCameraReset() {
+        if (this.focusedRoomId) {
+            this.focusedRoomId = null;
+            this.updateRoomStyles();
+            this.syncFocusPill();
         }
     }
 
     calculateAutoCrop() {
         this.isRotated = false;
+        this.focusedRoomId = null;
+        this.syncFocusPill();
 
         if (this.rooms.length === 0) {
             this.vb = { x: 0, y: 0, w: this.imgW, h: this.imgH };
@@ -475,6 +687,7 @@ class CustomSvgMap extends HTMLElement {
 
         this.mapScaleX = scaleX;
         this.mapScaleY = scaleY;
+        this.transformCenter = { cx, cy };
 
         let transformStr = '';
         if (this.isRotated) transformStr += `rotate(90, ${cx}, ${cy}) `;
@@ -591,12 +804,13 @@ class CustomSvgMap extends HTMLElement {
 
     updateRoomStyles() {
         if (!this.mapRoot) return;
+        const anyFocus = !!this.focusedRoomId && !this.isSelectingRooms;
         const polygons = this.mapRoot.querySelectorAll('polygon.room-polygon');
         polygons.forEach((poly, idx) => {
             const room = this.rooms[idx];
             if (!room) return;
 
-            const isSelected = (this.selectedRoomId === room.id);
+            const isFocused = (this.focusedRoomId === room.id);
             // Golden-angle hue spread gives distinct auto-colors per room index
             const hue = (idx * 137.5) % 360;
             const rgb = MapGeometry.hexToRgb(room.color);
@@ -611,6 +825,7 @@ class CustomSvgMap extends HTMLElement {
             }
 
             poly.classList.remove('dm-selected', 'dm-on');
+            poly.classList.toggle('dm-dimmed', anyFocus && !isFocused);
             poly.style.removeProperty('--dm-room-glow');
 
             if (this.isSelectingRooms) {
@@ -626,19 +841,26 @@ class CustomSvgMap extends HTMLElement {
                 return;
             }
 
-            if (isSelected) {
-                poly.setAttribute('fill', fillAt(0.7));
+            if (isFocused) {
+                // Nearly clear: the zoomed-in room should show the floorplan and
+                // its shortcuts, not a colored veil.
+                poly.setAttribute('fill', fillAt(0.08));
                 poly.setAttribute('stroke', 'var(--dm-accent)');
                 poly.classList.add('dm-selected');
             } else if (isOn) {
-                poly.setAttribute('fill', fillAt(0.7));
+                poly.setAttribute('fill', fillAt(0.5));
                 poly.setAttribute('stroke', solid);
                 poly.style.setProperty('--dm-room-glow', solid);
                 poly.classList.add('dm-on');
             } else {
-                poly.setAttribute('fill', fillAt(0.35));
-                poly.setAttribute('stroke', fillAt(0.9));
+                poly.setAttribute('fill', fillAt(0.18));
+                poly.setAttribute('stroke', fillAt(0.7));
             }
+        });
+
+        // Dim other rooms' labels while one room has focus.
+        this.mapRoot.querySelectorAll('.room-label').forEach(label => {
+            label.classList.toggle('dm-dimmed', anyFocus && label.dataset.roomId !== String(this.focusedRoomId));
         });
     }
 
