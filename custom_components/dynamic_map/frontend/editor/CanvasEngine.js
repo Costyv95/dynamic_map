@@ -1,6 +1,6 @@
 import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.0';
-import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.2.0';
 import { resolveOriented, getPosition } from '../shared/OrientationProps.js?v=3.2.0';
+import { computeSensorPill } from '../shared/SensorPill.js?v=3.2.0';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -392,11 +392,29 @@ export class CanvasEngine {
                 this._lastLoggedPreview = null;
             }
 
+            // Sensor pills share their geometry/content resolution with the
+            // dashboard card via SensorPill — one source of truth, no drift.
+            let pill = null;
+            if (sc.type === 'sensor') {
+                let previewState = null;
+                if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
+                    previewState = sc.config.states[previewStateIdx];
+                } else if (sc.config?.states && sc.config.states.length > 0) {
+                    previewState = sc.config.states[0];
+                }
+                pill = computeSensorPill({ sc, state: previewState, hass: null, scaleX, scaleY });
+                color = pill.color;
+                isTrans = pill.transparent;
+                // Expose the real half-width (in pre-scale units) so hit-testing
+                // and resize in EditorInteractionManager track the rendered pill.
+                sc._sensorHalfW = pill.width / 2 / (scaleX || 1);
+            }
+
             let rx = 12 * scaleX;
             let ry = 12 * scaleY;
-            if (sc.type === 'sensor') {
-                rx = 26 * scaleX;
-                ry = 12 * scaleY;
+            if (pill) {
+                rx = pill.width / 2;
+                ry = pill.height / 2;
             }
             const r = Math.max(rx, ry);
 
@@ -412,10 +430,9 @@ export class CanvasEngine {
                 this.ctx.translate(-x, -y);
             }
             this.ctx.beginPath();
-            if (sc.type === 'sensor') {
-                const borderRadius = 8 * Math.min(scaleX, scaleY);
+            if (pill) {
                 if (this.ctx.roundRect) {
-                    this.ctx.roundRect(x - rx, y - ry, rx * 2, ry * 2, borderRadius);
+                    this.ctx.roundRect(x - rx, y - ry, rx * 2, ry * 2, pill.rx);
                 } else {
                     this.ctx.rect(x - rx, y - ry, rx * 2, ry * 2);
                 }
@@ -521,57 +538,20 @@ export class CanvasEngine {
                     this.ctx.scale(contentScaleX, contentScaleY);
                 }
                 
-                if (sc.type === 'sensor') {
-                    // Resolve comfort icon and guessed value
-                    let valText = '--';
-                    let activeIcon = icon;
-                    let activeColor = color;
-                    
-                    let activeState = null;
-                    if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
-                        activeState = sc.config.states[previewStateIdx];
-                    } else if (sc.config?.states && sc.config.states.length > 0) {
-                        activeState = sc.config.states[0];
-                    }
-                    
-                    if (activeState) {
-                        if (activeState.color) activeColor = activeState.color;
-                        if (activeState.icon) activeIcon = activeState.icon;
-                    } else {
-                        activeIcon = sc.config?.icon || '🌡️';
-                    }
-
-                    // Dynamically evaluate template using null/placeholder context
-                    let dispEntity = activeState?.display_entity || activeState?.state_entity || sc.config?.temperature_entity || sc.config?.state_entity || sc.entity_id;
-                    if (!dispEntity && activeState?.conditions) {
-                        const cond = activeState.conditions.find(c => c.entity || c.state_entity);
-                        if (cond) {
-                            dispEntity = cond.entity || cond.state_entity;
-                        }
-                    }
-                    const unit = activeState?.unit !== undefined ? activeState.unit : (sc.config?.unit !== undefined ? sc.config.unit : '°');
-                    const defaultTemplate = dispEntity ? `{states('${dispEntity}')}${unit}` : '';
-                    const valueTemplate = activeState?.value_template || sc.config?.value_template || defaultTemplate;
-                    
-                    valText = evaluateTemplate(valueTemplate, null);
-
-                    // Draw comfort icon on the left
-                    this.ctx.font = `${12 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
+                if (pill) {
+                    // Icon and value use the shared flow layout: the icon sits
+                    // centered in its left slot, the value is left-aligned after
+                    // it — same geometry as the dashboard card, no overlap.
                     this.ctx.textBaseline = 'middle';
-                    this.ctx.textAlign = 'center';
-                    this.ctx.fillStyle = isTrans ? activeColor : 'white';
-                    
-                    const iconX = -12 * scaleX * currentScale;
-                    this.ctx.fillText(activeIcon, iconX, 0);
+                    this.ctx.fillStyle = pill.fg;
 
-                    // Draw formatted value text on the right
-                    this.ctx.font = `bold ${11 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
-                    this.ctx.textBaseline = 'middle';
+                    this.ctx.font = `${pill.fontIcon * currentScale}px sans-serif`;
                     this.ctx.textAlign = 'center';
-                    this.ctx.fillStyle = isTrans ? activeColor : 'white';
-                    
-                    const textX = 8 * scaleX * currentScale;
-                    this.ctx.fillText(valText, textX, 0);
+                    this.ctx.fillText(pill.icon, pill.iconX * currentScale, 0);
+
+                    this.ctx.font = `bold ${pill.fontValue * currentScale}px sans-serif`;
+                    this.ctx.textAlign = 'left';
+                    this.ctx.fillText(pill.value, pill.textX * currentScale, 0);
                 } else {
                     const isUrlFn = (str) => str && (str.startsWith('http') || str.startsWith('/') || str.endsWith('.png') || str.endsWith('.svg') || str.endsWith('.jpg') || str.endsWith('.webp'));
                     let fallbackIcon = '💡';

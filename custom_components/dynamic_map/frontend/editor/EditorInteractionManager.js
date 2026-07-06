@@ -180,7 +180,7 @@ export class EditorInteractionManager {
             const pos = this.getShortcutPos(sc);
             const scX = (pos[0]/100)*bgW;
             const scY = (pos[1]/100)*bgH;
-            const baseRx = sc.type === 'sensor' ? 26 : 12;
+            const baseRx = sc.type === 'sensor' ? (sc._sensorHalfW || 26) : 12;
             const baseRy = 12;
             
             const scScale = this.getShortcutScale(sc);
@@ -229,7 +229,7 @@ export class EditorInteractionManager {
             const pos = this.getShortcutPos(sc);
             const scX = (pos[0]/100)*bgW;
             const scY = (pos[1]/100)*bgH;
-            const baseRx = sc.type === 'sensor' ? 26 : 12;
+            const baseRx = sc.type === 'sensor' ? (sc._sensorHalfW || 26) : 12;
             const baseRy = 12;
             const scScale = this.getShortcutScale(sc);
             const rx = baseRx * scScale.scaleX;
@@ -323,7 +323,7 @@ export class EditorInteractionManager {
                 const pos = this.getShortcutPos(sc);
                 const scX = (pos[0]/100)*bgW;
                 const scY = (pos[1]/100)*bgH;
-                const baseRx = sc.type === 'sensor' ? 26 : 12;
+                const baseRx = sc.type === 'sensor' ? (sc._sensorHalfW || 26) : 12;
                 const baseRy = 12;
                 const scScale = this.getShortcutScale(sc);
                 const rx = baseRx * scScale.scaleX;
@@ -371,7 +371,7 @@ export class EditorInteractionManager {
                     const pos = this.getShortcutPos(sc);
                     const scX = (pos[0]/100)*bgW;
                     const scY = (pos[1]/100)*bgH;
-                    const baseRx = sc.type === 'sensor' ? 26 : 12;
+                    const baseRx = sc.type === 'sensor' ? (sc._sensorHalfW || 26) : 12;
                     const baseRy = 12;
                     const scScale = this.getShortcutScale(sc);
                     const rx = baseRx * scScale.scaleX;
@@ -455,7 +455,7 @@ export class EditorInteractionManager {
             const dx = Math.abs(checkX - scX);
             const dy = Math.abs(checkY - scY);
             
-            const divisorRx = sc.type === 'sensor' ? 26 : 12;
+            const divisorRx = sc.type === 'sensor' ? (sc._sensorHalfW || 26) : 12;
             const divisorRy = 12;
             const shape = sc.config?.shape || sc.shape || 'circle';
             const propDefault = (shape === 'circle');

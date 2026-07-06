@@ -114,18 +114,30 @@ describe('MapShortcut Dual Orientation Positioning', () => {
 
             const bgRect = shortcut.group.querySelector('#sensor_bg');
             expect(bgRect).toBeDefined();
-            // Width: 52 * scaleX = 52 * 2 = 104
-            // Height: 24 * scaleY = 24 * 3 = 72
-            // rx/ry: 8 * Math.min(2, 3) = 16
-            expect(bgRect.getAttribute('width')).toBe('104');
+            // Height: 24 * scaleY = 24 * 3 = 72; rx/ry: 8 * Math.min(2, 3) = 16.
+            // Width is auto-sized to the icon + value content.
             expect(bgRect.getAttribute('height')).toBe('72');
             expect(bgRect.getAttribute('rx')).toBe('16');
+            expect(parseFloat(bgRect.getAttribute('width'))).toBeGreaterThan(0);
 
             const emojiEl = shortcut.group.querySelector('#sensor_emoji');
             expect(emojiEl).toBeDefined();
-            // x: -12 * scaleX = -24
-            expect(emojiEl.getAttribute('x')).toBe('-24');
             expect(emojiEl.getAttribute('font-size')).toBe('28'); // 14 * min(2,3) = 28
+
+            // Flow layout: value text is start-anchored to the right of the
+            // center-anchored icon slot, so the two can never overlap.
+            const valueEl = shortcut.group.querySelector('#sensor_value');
+            expect(valueEl.getAttribute('text-anchor')).toBe('start');
+            const emojiX = parseFloat(emojiEl.getAttribute('x'));
+            const valueX = parseFloat(valueEl.getAttribute('x'));
+            const iconHalfW = parseFloat(emojiEl.getAttribute('font-size')) * 1.1 / 2;
+            expect(valueX).toBeGreaterThanOrEqual(emojiX + iconHalfW);
+
+            // Pill spans both texts: left edge before the icon, right edge
+            // beyond where the value text starts.
+            const bgLeft = -parseFloat(bgRect.getAttribute('width')) / 2;
+            expect(emojiX - iconHalfW).toBeGreaterThanOrEqual(bgLeft);
+            expect(bgLeft + parseFloat(bgRect.getAttribute('width'))).toBeGreaterThan(valueX);
         });
     });
 

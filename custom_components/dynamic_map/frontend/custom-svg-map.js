@@ -4,7 +4,7 @@ import { MapGeometry } from './shared/MapGeometry.js?v=3.2.0';
 import { OverlayManager } from './card/OverlayManager.js?v=3.2.0';
 import { MapBuilder } from './card/MapBuilder.js?v=3.2.0';
 
-const ZOOM_ANIMATION_MS = 480;
+const ZOOM_ANIMATION_MS = 320;
 
 const CARD_STYLES = `
     :host {

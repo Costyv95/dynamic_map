@@ -3,6 +3,7 @@ import { evaluateCondition } from './ConditionEvaluator.js?v=3.2.0';
 import { evaluateTemplate } from './TemplateEvaluator.js?v=3.2.0';
 import { isOrientationObject, resolveOriented, resolveOrientedLoose, resolveOrientedStrict } from '../shared/OrientationProps.js?v=3.2.0';
 import { executeAction } from '../shared/ActionRunner.js?v=3.2.0';
+import { computeSensorPill } from '../shared/SensorPill.js?v=3.2.0';
 
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {
@@ -117,8 +118,9 @@ export class MapShortcut {
         this.activeState = matchedState;
 
         const isSensor = this.sc.type === 'sensor' || (this.config.states && this.config.states.some(s => s.display_entity));
-        let activeLayout = this.config.default_layout || [];
-        
+        const customLayout = this.config.default_layout || [];
+        let activeLayout = customLayout;
+
         if (activeLayout.length === 0) {
             const activeMode = this.mapContext.activeMode || 'horizontal';
             
@@ -152,41 +154,13 @@ export class MapShortcut {
             const targetConfig = matchedState || this.config;
             const contentMatchSize = targetConfig.content_matchSize !== undefined ? !!targetConfig.content_matchSize : (this.config.content_matchSize !== undefined ? !!this.config.content_matchSize : true);
 
+            // Auto-built layouts resolve state overrides (color, transparent,
+            // icon/image) up front — no second build-then-patch pass needed.
+            const stColor = matchedState?.color || this.config.color;
+            const stTrans = matchedState?.transparent !== undefined ? matchedState.transparent : this.config.transparent;
+
             if (isSensor) {
-                activeLayout = [
-                    {
-                        id: 'sensor_bg',
-                        type: 'rect',
-                        width: 52 * scaleX,
-                        height: 24 * scaleY,
-                        rx: 8 * Math.min(scaleX, scaleY),
-                        ry: 8 * Math.min(scaleX, scaleY),
-                        color: this.config.transparent ? 'rgba(0,0,0,0)' : (this.config.color || '#10b981'),
-                        stroke_color: this.config.transparent ? 'rgba(0,0,0,0)' : 'white',
-                        stroke_width: this.config.transparent ? 0 : 1
-                    },
-                    {
-                        id: 'sensor_emoji',
-                        type: 'text',
-                        x: -12 * scaleX,
-                        y: 0,
-                        value: this.config.icon || '🌡️',
-                        font_size: 14 * Math.min(scaleX, scaleY),
-                        align: 'middle',
-                        color: this.config.transparent ? (this.config.color || '#10b981') : '#ffffff'
-                    },
-                    {
-                        id: 'sensor_value',
-                        type: 'text',
-                        x: 8 * scaleX,
-                        y: 0,
-                        value: '',
-                        font_size: 12 * Math.min(scaleX, scaleY),
-                        align: 'middle',
-                        font_weight: 'bold',
-                        color: this.config.transparent ? (this.config.color || '#10b981') : '#ffffff'
-                    }
-                ];
+                activeLayout = this._buildSensorLayout(matchedState, hass, scaleX, scaleY);
             } else {
                 const isRect = shape === 'rect';
                 activeLayout = [
@@ -198,34 +172,31 @@ export class MapShortcut {
                         radiusY: 12 * scaleY,
                         width: w,
                         height: h,
-                        color: this.config.color || '#0ea5e9',
-                        stroke_color: this.config.transparent ? 'rgba(0,0,0,0)' : 'white',
-                        stroke_width: this.config.transparent ? 0 : 1
+                        color: stTrans ? 'rgba(0,0,0,0)' : (stColor || '#0ea5e9'),
+                        stroke_color: stTrans ? 'rgba(0,0,0,0)' : 'white',
+                        stroke_width: stTrans ? 0 : 1
                     }
                 ];
-                
-                if (this.config.transparent) {
-                    activeLayout[0].color = 'rgba(0,0,0,0)';
-                }
-                
+
+                // A state image beats the base icon; otherwise icon beats image.
                 const iconVal = matchedState?.icon || this.config.icon;
                 const imgVal = matchedState?.image || this.config.image;
-                
-                if (iconVal) {
-                    activeLayout.push({
-                        id: 'fallback_icon',
-                        type: 'icon',
-                        value: iconVal,
-                        size: 18 * scale,
-                        color: this.config.transparent ? (this.config.color || '#facaca') : '#ffffff'
-                    });
-                } else if (imgVal) {
+
+                if (imgVal && (matchedState?.image || !iconVal)) {
                     activeLayout.push({
                         id: 'fallback_image',
                         type: 'image',
                         value: imgVal,
                         width: contentMatchSize ? w : 24,
                         height: contentMatchSize ? h : 24
+                    });
+                } else if (iconVal) {
+                    activeLayout.push({
+                        id: 'fallback_icon',
+                        type: 'icon',
+                        value: iconVal,
+                        size: 18 * scale,
+                        color: stTrans ? (stColor || '#facaca') : '#ffffff'
                     });
                 }
             }
@@ -234,7 +205,9 @@ export class MapShortcut {
         if (matchedState) {
             if (matchedState.layout_override && matchedState.layout_override.length > 0) {
                 activeLayout = matchedState.layout_override;
-            } else {
+            } else if (customLayout.length > 0) {
+                // User-provided layouts still get the classic patch pass;
+                // auto-built layouts above already baked the state in.
                 const baseCopy = JSON.parse(JSON.stringify(activeLayout));
                 if (baseCopy.length > 0) {
                     const stColor = matchedState.color || this.config.color;
@@ -304,8 +277,9 @@ export class MapShortcut {
                 }
                 activeLayout = baseCopy;
             }
-        } else if (isSensor && this.config.states && this.config.states.length > 0) {
-            // If no states matched for sensor, fall back to root templates or clear
+        } else if (isSensor && customLayout.length > 0 && this.config.states && this.config.states.length > 0) {
+            // No state matched for a sensor with a user-provided layout:
+            // fall back to root config templates and colors.
             const baseCopy = JSON.parse(JSON.stringify(activeLayout));
             const valueEl = baseCopy.find(el => el.id === 'sensor_value');
             if (valueEl) {
@@ -354,7 +328,7 @@ export class MapShortcut {
             const scale = num(this.sc.scale) ?? 1.0;
             const sX = num(this.scaleX) ?? num(this.sc.scaleX) ?? scale;
             const sY = num(this.scaleY) ?? num(this.sc.scaleY) ?? scale;
-            const lineRx = (isSensor ? 26 : 12) * sX;
+            const lineRx = isSensor ? (this._pillHalfW ?? 26 * sX) : 12 * sX;
             this.unavailableLine.setAttribute('x1', -lineRx * 0.7);
             this.unavailableLine.setAttribute('y1', -12 * sY * 0.7);
             this.unavailableLine.setAttribute('x2', lineRx * 0.7);
@@ -366,6 +340,50 @@ export class MapShortcut {
         }
     }
     
+    /**
+     * Auto-sized sensor pill layout. Geometry and content resolution live in
+     * the shared SensorPill module (also used by the editor canvas preview);
+     * this just maps them onto the generic component layout schema.
+     */
+    _buildSensorLayout(matchedState, hass, scaleX, scaleY) {
+        const p = computeSensorPill({ sc: this.sc, state: matchedState, hass, scaleX, scaleY });
+        this._pillHalfW = p.width / 2; // real half-width for the unavailable strike-line
+        return [
+            {
+                id: 'sensor_bg',
+                type: 'rect',
+                width: p.width,
+                height: p.height,
+                rx: p.rx,
+                ry: p.rx,
+                color: p.transparent ? 'rgba(0,0,0,0)' : p.color,
+                stroke_color: p.transparent ? 'rgba(0,0,0,0)' : 'white',
+                stroke_width: p.transparent ? 0 : 1
+            },
+            {
+                id: 'sensor_emoji',
+                type: 'text',
+                x: p.iconX,
+                y: 0,
+                value: p.icon,
+                font_size: p.fontIcon,
+                align: 'middle',
+                color: p.fg
+            },
+            {
+                id: 'sensor_value',
+                type: 'text',
+                x: p.textX,
+                y: 0,
+                value: p.value,
+                font_size: p.fontValue,
+                align: 'start',
+                font_weight: 'bold',
+                color: p.fg
+            }
+        ];
+    }
+
     renderComponents(layout, hass) {
         // Clear old children from groups
         while (this.bgGroup.firstChild) {
