@@ -33,10 +33,17 @@ export class EditorInteractionManager {
         return getPosition(targetObj, activeMode);
     }
 
+    /** 'both' unless orientation linking was explicitly turned off in the toolbar. */
+    writeMode() {
+        if (this.engine.linkOrientations === false) {
+            return this.engine.activeMode || 'horizontal';
+        }
+        return 'both';
+    }
+
     setShortcutPos(sc, pctX, pctY) {
-        const activeMode = this.engine.activeMode || 'horizontal';
         const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx);
-        setPosition(targetObj, activeMode, pctX, pctY);
+        setPosition(targetObj, this.writeMode(), pctX, pctY);
     }
 
     getShortcutScale(sc) {
@@ -46,9 +53,8 @@ export class EditorInteractionManager {
     }
 
     setShortcutScale(sc, prop, value) {
-        const activeMode = this.engine.activeMode || 'horizontal';
         const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx);
-        setScale(sc, targetObj, prop, activeMode, value);
+        setScale(sc, targetObj, prop, this.writeMode(), value);
     }
 
     getShortcutRotation(sc) {
@@ -58,9 +64,8 @@ export class EditorInteractionManager {
     }
 
     setShortcutRotation(sc, value) {
-        const activeMode = this.engine.activeMode || 'horizontal';
         const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx);
-        setRotation(targetObj, activeMode, value);
+        setRotation(targetObj, this.writeMode(), value);
     }
 
     bindEvents() {

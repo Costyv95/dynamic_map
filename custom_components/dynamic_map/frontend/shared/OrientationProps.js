@@ -60,6 +60,8 @@ export function resolveOrientedStrict(value, mode) {
 /**
  * Write a value for one orientation mode, converting a plain stored value into
  * an orientation object first (seeding both modes with the old/default value).
+ * mode 'both' writes horizontal and vertical together — the editor's default
+ * "linked orientations" behavior.
  */
 export function writeOriented(targetObj, prop, mode, value, defaultVal) {
     if (targetObj[prop] === undefined || typeof targetObj[prop] !== 'object' || Array.isArray(targetObj[prop])) {
@@ -69,7 +71,12 @@ export function writeOriented(targetObj, prop, mode, value, defaultVal) {
             vertical: oldVal
         };
     }
-    targetObj[prop][mode] = value;
+    if (mode === 'both') {
+        targetObj[prop].horizontal = value;
+        targetObj[prop].vertical = value;
+    } else {
+        targetObj[prop][mode] = value;
+    }
 }
 
 /**
@@ -111,16 +118,19 @@ export function getPosition(targetObj, mode) {
     return resolveOrientedLoose(targetObj.position, mode, [50, 50]);
 }
 
-/** Write a position for the given mode, converting plain arrays to orientation objects. */
+/** Write a position for the given mode ('both' = linked orientations), converting plain arrays to orientation objects. */
 export function setPosition(targetObj, mode, pctX, pctY) {
-    if (isOrientationObject(targetObj.position)) {
-        targetObj.position[mode] = [pctX, pctY];
-    } else {
+    if (!isOrientationObject(targetObj.position)) {
         const oldPos = targetObj.position || [50, 50];
         targetObj.position = {
             horizontal: [...oldPos],
             vertical: [...oldPos]
         };
+    }
+    if (mode === 'both') {
+        targetObj.position.horizontal = [pctX, pctY];
+        targetObj.position.vertical = [pctX, pctY];
+    } else {
         targetObj.position[mode] = [pctX, pctY];
     }
 }

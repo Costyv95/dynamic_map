@@ -260,3 +260,41 @@ describe('OrientationProps', () => {
         });
     });
 });
+
+describe("linked-orientation writes (mode 'both')", () => {
+    it('writeOriented sets horizontal and vertical together', () => {
+        const target = { scale: { horizontal: 1, vertical: 2 } };
+        writeOriented(target, 'scale', 'both', 3, 1.0);
+        expect(target.scale).toEqual({ horizontal: 3, vertical: 3 });
+    });
+
+    it('writeOriented seeds from a plain value before writing both', () => {
+        const target = { rotation: 15 };
+        writeOriented(target, 'rotation', 'both', 45, 0);
+        expect(target.rotation).toEqual({ horizontal: 45, vertical: 45 });
+    });
+
+    it('setPosition writes both orientations with independent arrays', () => {
+        const target = { position: { horizontal: [10, 10], vertical: [80, 80] } };
+        setPosition(target, 'both', 25, 30);
+        expect(target.position.horizontal).toEqual([25, 30]);
+        expect(target.position.vertical).toEqual([25, 30]);
+        target.position.horizontal[0] = 99;
+        expect(target.position.vertical[0]).toBe(25);
+    });
+
+    it('setScale on a proportional shortcut writes all props for both modes', () => {
+        const sc = { config: { shape: 'circle' } };
+        const target = { scale: { horizontal: 1, vertical: 2 } };
+        setScale(sc, target, 'scale', 'both', 1.5);
+        expect(target.scale).toEqual({ horizontal: 1.5, vertical: 1.5 });
+        expect(target.scaleX).toEqual({ horizontal: 1.5, vertical: 1.5 });
+        expect(target.scaleY).toEqual({ horizontal: 1.5, vertical: 1.5 });
+    });
+
+    it('setRotation both collapses divergent orientations', () => {
+        const target = { rotation: { horizontal: 10, vertical: 200 } };
+        setRotation(target, 'both', 90);
+        expect(target.rotation).toEqual({ horizontal: 90, vertical: 90 });
+    });
+});

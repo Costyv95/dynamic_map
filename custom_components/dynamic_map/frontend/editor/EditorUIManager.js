@@ -836,10 +836,17 @@ export class EditorUIManager {
         return getScale(sc, targetObj, activeMode);
     }
 
+    /** 'both' unless orientation linking was explicitly turned off in the toolbar. */
+    writeMode() {
+        if (this.engine.linkOrientations === false) {
+            return this.engine.activeMode || 'horizontal';
+        }
+        return 'both';
+    }
+
     setShortcutScale(sc, prop, value) {
-        const activeMode = this.engine.activeMode || 'horizontal';
         const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx);
-        setScale(sc, targetObj, prop, activeMode, value);
+        setScale(sc, targetObj, prop, this.writeMode(), value);
     }
 
     getShortcutRotation(sc) {
@@ -849,9 +856,8 @@ export class EditorUIManager {
     }
 
     setShortcutRotation(sc, value) {
-        const activeMode = this.engine.activeMode || 'horizontal';
         const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx);
-        setRotation(targetObj, activeMode, value);
+        setRotation(targetObj, this.writeMode(), value);
     }
 
     updateOverrideBadges(sc) {

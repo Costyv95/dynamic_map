@@ -591,6 +591,29 @@ fetchAllEntities();
 // Orientation Switcher Event Listeners
 const canvasContainer = document.getElementById('canvas-container');
 
+// Orientation linking: ON (default) = moving/resizing/rotating a shortcut
+// writes to BOTH orientations; OFF = only the active one, for intentionally
+// divergent Land/Port layouts. Persisted per browser.
+const linkBtn = document.getElementById('linkOrientationsBtn');
+engine.linkOrientations = localStorage.getItem('dm_editor_link_orientations') !== 'false';
+
+function renderLinkBtn() {
+    linkBtn.classList.toggle('active', engine.linkOrientations);
+    linkBtn.textContent = engine.linkOrientations ? '🔗' : '⛓️';
+    linkBtn.title = engine.linkOrientations
+        ? 'Linked: moves/resizes apply to BOTH orientations. Click to unlink and edit only the active one.'
+        : 'Unlinked: edits only affect the active orientation. Click to link both again.';
+}
+renderLinkBtn();
+
+linkBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    engine.linkOrientations = !engine.linkOrientations;
+    localStorage.setItem('dm_editor_link_orientations', String(engine.linkOrientations));
+    renderLinkBtn();
+});
+
 document.getElementById('toggleHorizontalBtn').addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
