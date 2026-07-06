@@ -327,6 +327,33 @@ describe('CustomSvgMap card', () => {
             card.applyFloorBackground();
             expect(card.renderRoot.style.background).toBe('');
         });
+
+        it('fit mode keeps the letterbox on the card surface', () => {
+            const card = makeCard();
+            card.floorBgColor = '#334455';
+            card.floorBgMode = 'fit';
+            card.applyFloorBackground();
+            expect(card.renderRoot.style.background).toBe('');
+        });
+
+        it('buildRoomPlate draws a padded round-joined polygon per room', () => {
+            const card = makeCard();
+            card.imgW = 1000;
+            card.imgH = 800;
+            card.floorBgColor = '#222831';
+            card.rooms = [
+                { id: 'r1', polygon: [[10, 10], [30, 10], [30, 20]] },
+                { id: 'r2', polygon: [[40, 40], [60, 40], [60, 60]] },
+            ];
+            const plate = card.buildRoomPlate();
+            const polys = plate.querySelectorAll('polygon');
+            expect(polys.length).toBe(2);
+            expect(polys[0].getAttribute('fill')).toBe('#222831');
+            expect(polys[0].getAttribute('stroke')).toBe('#222831');
+            expect(polys[0].getAttribute('stroke-linejoin')).toBe('round');
+            expect(Number(polys[0].getAttribute('stroke-width'))).toBeGreaterThan(0);
+            expect(polys[0].getAttribute('pointer-events')).toBe('none');
+        });
     });
 
     describe('loadData stale-response guard', () => {

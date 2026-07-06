@@ -372,11 +372,38 @@
             <div id="flipVertBtn" title="Flip Vertical (Mirror Y)" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--panel); border: 1px solid var(--input-border); border-radius: 8px; cursor: pointer; color: var(--text); opacity: 0.5; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg>
             </div>
-            <!-- Floor background color -->
-            <div id="bgColorBtn" title="Floor background color" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--panel); border: 1px solid var(--input-border); border-radius: 8px; cursor: pointer; color: var(--text); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); position: relative; font-size: 15px;">
+            <!-- Floor background color/mode -->
+            <div id="bgColorBtn" title="Floor background" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; background: var(--panel); border: 1px solid var(--input-border); border-radius: 8px; cursor: pointer; color: var(--text); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); font-size: 15px;">
                 🎨
-                <input type="color" id="floorBgColorInput" value="#1e293b" style="position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; padding: 0; margin: 0; border: none;">
             </div>
+        </div>
+    </div>
+
+    <!-- Floor Background Modal -->
+    <div id="bgModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+        <div style="background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 18px; width: min(440px, 92vw); display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <h3 style="margin: 0; font-size: 15px;">🎨 Floor Background</h3>
+                <button id="closeBgModalBtn" style="background: none; border: none; color: var(--text); font-size: 20px; cursor: pointer; width: auto; padding: 0; margin: 0;">×</button>
+            </div>
+            <label style="display: flex; align-items: center; gap: 10px; font-size: 12px;">
+                Color
+                <input type="color" id="bgModalColor" value="#1e293b" style="width: 48px; height: 28px; padding: 0; margin: 0; border: 1px solid var(--input-border); border-radius: 6px; background: none; cursor: pointer;">
+            </label>
+            <label style="display: flex; gap: 8px; font-size: 12px; align-items: flex-start; cursor: pointer;">
+                <input type="radio" name="bgMode" value="fit" style="width: auto; margin: 2px 0 0 0;">
+                <span><b>Fit room layout</b> — no canvas: a rounded plate in this color hugs your rooms. Best for blank Builder-Mode floors.</span>
+            </label>
+            <label style="display: flex; gap: 8px; font-size: 12px; align-items: flex-start; cursor: pointer;">
+                <input type="radio" name="bgMode" value="repaint" style="width: auto; margin: 2px 0 0 0;">
+                <span><b>Repaint canvas</b> — fill the whole background image with this color (keeps its size).</span>
+            </label>
+            <label style="display: flex; gap: 8px; font-size: 12px; align-items: flex-start; cursor: pointer;">
+                <input type="radio" name="bgMode" value="around" style="width: auto; margin: 2px 0 0 0;">
+                <span><b>Around the plan</b> — keep the floorplan image; use this color for the area around/behind it.</span>
+            </label>
+            <button id="bgModalSaveBtn" class="primary" style="width: 100%; margin: 0;">💾 Apply</button>
+            <div id="bgModalStatus" style="font-size: 11px; color: var(--accent); min-height: 14px;"></div>
         </div>
     </div>
 

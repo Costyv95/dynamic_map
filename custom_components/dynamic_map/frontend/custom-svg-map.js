@@ -41,11 +41,16 @@ const CARD_STYLES = `
         position: absolute;
         top: 14px;
         left: 14px;
+        right: 14px;
         display: flex;
         gap: 10px;
-        align-items: center;
+        row-gap: 8px;
+        align-items: flex-start;
+        flex-wrap: wrap;
         z-index: 10;
+        pointer-events: none;
     }
+    .dm-top-ui > * { pointer-events: auto; }
     .dm-chip-group {
         display: flex;
         flex-direction: row;
@@ -99,12 +104,9 @@ const CARD_STYLES = `
     .dm-icon-btn:hover { background: rgba(127, 127, 127, 0.14); }
     .dm-icon-btn:active { transform: scale(0.94); }
     .dm-outside-bar {
-        position: absolute;
-        top: 14px;
-        left: 50%;
-        transform: translateX(-50%);
         display: flex;
         align-items: stretch;
+        margin: 0 auto;
         padding: 5px 4px;
         background: var(--dm-glass);
         border: 1px solid var(--dm-glass-border);
@@ -112,8 +114,7 @@ const CARD_STYLES = `
         box-shadow: var(--dm-shadow);
         backdrop-filter: blur(14px) saturate(1.4);
         -webkit-backdrop-filter: blur(14px) saturate(1.4);
-        z-index: 10;
-        max-width: min(70vw, 640px);
+        max-width: 100%;
         overflow-x: auto;
         scrollbar-width: none;
     }
@@ -154,7 +155,16 @@ const CARD_STYLES = `
         color: var(--dm-muted);
         white-space: nowrap;
     }
-    .dm-render-root.dm-has-outside .dm-focus-pill { top: 68px; }
+    /* With the outside bar present, the focus pill moves to the bottom so it
+       can never collide with the (possibly wrapped) top controls. */
+    .dm-render-root.dm-has-outside .dm-focus-pill {
+        top: auto;
+        bottom: 18px;
+        transform: translate(-50%, 12px);
+    }
+    .dm-render-root.dm-has-outside .dm-focus-pill.dm-visible {
+        transform: translate(-50%, 0);
+    }
     .dm-focus-pill {
         position: absolute;
         top: 14px;
@@ -336,6 +346,7 @@ class CustomSvgMap extends HTMLElement {
             const floorConfig = config || { rotation_mode: 'auto' };
             this.rotationMode = floorConfig.rotation_mode || 'auto';
             this.floorBgColor = floorConfig.background_color || null;
+            this.floorBgMode = floorConfig.background_mode || 'image';
             this.flips = floorConfig.flips || {
                 horizontal: { h: false, v: false },
                 vertical: { h: false, v: false }
@@ -395,22 +406,27 @@ class CustomSvgMap extends HTMLElement {
         this.mapRoot.id = 'map-root';
 
         this.applyFloorBackground();
-        if (this.floorBgColor) {
-            // Underlay in the floor color: shows around the plan and through
-            // any transparent parts of the background image.
-            const underlay = document.createElementNS(this.svgNS, 'rect');
-            underlay.setAttribute('width', this.imgW.toString());
-            underlay.setAttribute('height', this.imgH.toString());
-            underlay.setAttribute('fill', this.floorBgColor);
-            this.mapRoot.appendChild(underlay);
+        if (this.floorBgMode === 'fit') {
+            // No background image: draw a rounded plate that hugs the room
+            // layout instead of a fixed-size canvas rectangle.
+            this.mapRoot.appendChild(this.buildRoomPlate());
+        } else {
+            if (this.floorBgColor) {
+                // Underlay in the floor color: shows around the plan and
+                // through any transparent parts of the background image.
+                const underlay = document.createElementNS(this.svgNS, 'rect');
+                underlay.setAttribute('width', this.imgW.toString());
+                underlay.setAttribute('height', this.imgH.toString());
+                underlay.setAttribute('fill', this.floorBgColor);
+                this.mapRoot.appendChild(underlay);
+            }
+            const image = document.createElementNS(this.svgNS, 'image');
+            image.setAttribute('href', bgUrl);
+            image.setAttribute('width', this.imgW.toString());
+            image.setAttribute('height', this.imgH.toString());
+            image.setAttribute('preserveAspectRatio', 'none');
+            this.mapRoot.appendChild(image);
         }
-
-        const image = document.createElementNS(this.svgNS, 'image');
-        image.setAttribute('href', bgUrl);
-        image.setAttribute('width', this.imgW.toString());
-        image.setAttribute('height', this.imgH.toString());
-        image.setAttribute('preserveAspectRatio', 'none');
-        this.mapRoot.appendChild(image);
 
         this.rooms.forEach(room => {
             const polygon = document.createElementNS(this.svgNS, 'polygon');
@@ -500,7 +516,35 @@ class CustomSvgMap extends HTMLElement {
 
     /** Paint the letterbox area around the map in the floor's background color. */
     applyFloorBackground() {
-        if (this.renderRoot) this.renderRoot.style.background = this.floorBgColor || '';
+        // In 'fit' mode the plate itself carries the color; the letterbox
+        // keeps the card surface so the layout silhouette stays visible.
+        const paint = this.floorBgMode === 'fit' ? null : this.floorBgColor;
+        if (this.renderRoot) this.renderRoot.style.background = paint || '';
+    }
+
+    /**
+     * Background plate for 'fit' mode: the room polygons themselves, drawn
+     * in the floor color with a fat round-joined stroke so adjacent rooms
+     * merge into one padded, rounded silhouette of the layout.
+     */
+    buildRoomPlate() {
+        const plate = document.createElementNS(this.svgNS, 'g');
+        const color = this.floorBgColor || '#1e293b';
+        const pad = Math.max(this.imgW, this.imgH) * 0.035;
+        this.rooms.forEach(room => {
+            const poly = document.createElementNS(this.svgNS, 'polygon');
+            const pointsStr = room.polygon.map(pt =>
+                `${(pt[0] / 100) * this.imgW},${(pt[1] / 100) * this.imgH}`
+            ).join(' ');
+            poly.setAttribute('points', pointsStr);
+            poly.setAttribute('fill', color);
+            poly.setAttribute('stroke', color);
+            poly.setAttribute('stroke-width', (pad * 2).toString());
+            poly.setAttribute('stroke-linejoin', 'round');
+            poly.setAttribute('pointer-events', 'none');
+            plate.appendChild(poly);
+        });
+        return plate;
     }
 
     buildFocusPill() {
@@ -545,7 +589,9 @@ class CustomSvgMap extends HTMLElement {
             bar.appendChild(el);
             return { el, item };
         });
-        this.renderRoot.appendChild(bar);
+        // Lives in the top flex row with the floor/rotation controls, so it
+        // wraps to its own line instead of overlapping them on narrow cards.
+        (this.topLeftUI || this.renderRoot).appendChild(bar);
         this.outsideBar = bar;
         this.renderRoot.classList.add('dm-has-outside');
         if (this._hass) this.updateOutsideBar(this._hass);

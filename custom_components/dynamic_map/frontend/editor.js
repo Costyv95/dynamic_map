@@ -163,13 +163,13 @@ async function loadFloor(floorNum) {
             if (data.config.rotation_mode) engine.rotationMode = data.config.rotation_mode;
             if (data.config.flips) engine.flips = data.config.flips;
             engine.backgroundColor = data.config.background_color || null;
+            engine.backgroundMode = data.config.background_mode || 'image';
         } else {
             engine.rotationMode = 'auto';
             engine.flips = { horizontal: { h: false, v: false }, vertical: { h: false, v: false } };
             engine.backgroundColor = null;
+            engine.backgroundMode = 'image';
         }
-        const bgColorInput = document.getElementById('floorBgColorInput');
-        if (bgColorInput && engine.backgroundColor) bgColorInput.value = engine.backgroundColor;
         stateManager.saveState();
         uiManager.updateSidebar();
         dataLoaded = true;
@@ -245,8 +245,10 @@ function pickImageFile() {
 function makeBlankCanvas(w, h, color) {
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
-    const cx = c.getContext('2d');
-    cx.fillStyle = color; cx.fillRect(0, 0, w, h);
+    if (color) {
+        const cx = c.getContext('2d');
+        cx.fillStyle = color; cx.fillRect(0, 0, w, h);
+    }
     return c.toDataURL('image/png');
 }
 function addFloorButton(n) {
@@ -301,7 +303,8 @@ document.getElementById('exportJsonBtn').addEventListener('click', async () => {
     try {
         await ApiManager.saveToHA(stateManager.activeFloor, stateManager.rooms, stateManager.shortcuts, {
             rotation_mode: engine.rotationMode, flips: engine.flips,
-            background_color: engine.backgroundColor || undefined
+            background_color: engine.backgroundColor || undefined,
+            background_mode: engine.backgroundMode !== 'image' ? engine.backgroundMode : undefined
         });
         btn.textContent = "✅ Saved to HA Successfully!";
     } catch (err) {
@@ -346,29 +349,43 @@ async function loadAvailableFiles() {
     }
 }
 
-// Floor background color: stored as background_color in config_floorN.json
-// (used by the card behind/around the plan). Optionally repaints the actual
-// canvas PNG — the right choice for blank Builder-Mode floors.
-document.getElementById('floorBgColorInput').addEventListener('change', async (e) => {
-    const color = e.target.value;
+// Floor background: color + mode stored in config_floorN.json.
+// 'fit' renders a rounded plate hugging the rooms (no canvas image);
+// 'image' keeps the canvas, with the color painted around/behind it.
+document.getElementById('bgColorBtn').addEventListener('click', () => {
+    document.getElementById('bgModalColor').value = engine.backgroundColor || '#1e293b';
+    const mode = engine.backgroundMode === 'fit' ? 'fit' : 'around';
+    document.querySelectorAll('input[name="bgMode"]').forEach(r => { r.checked = (r.value === mode); });
+    document.getElementById('bgModalStatus').textContent = '';
+    document.getElementById('bgModal').style.display = 'flex';
+});
+document.getElementById('closeBgModalBtn').addEventListener('click', () => {
+    document.getElementById('bgModal').style.display = 'none';
+});
+document.getElementById('bgModalSaveBtn').addEventListener('click', async () => {
+    const status = document.getElementById('bgModalStatus');
+    const color = document.getElementById('bgModalColor').value;
+    const choice = document.querySelector('input[name="bgMode"]:checked')?.value || 'around';
     engine.backgroundColor = color;
-    const repaint = confirm(
-        'Also repaint the floor background canvas with this color?\n\n' +
-        'OK = repaint the canvas image (best for blank Builder-Mode floors).\n' +
-        'Cancel = keep the current image; the color is only used around/behind it.'
-    );
+    engine.backgroundMode = (choice === 'fit') ? 'fit' : 'image';
     try {
-        if (repaint) {
-            const w = stateManager.bgImage?.naturalWidth || 1600;
-            const h = stateManager.bgImage?.naturalHeight || 1000;
+        status.textContent = 'Saving…';
+        const w = stateManager.bgImage?.naturalWidth || 1600;
+        const h = stateManager.bgImage?.naturalHeight || 1000;
+        if (choice === 'repaint') {
             await ApiManager.saveImage(`bg_floor${stateManager.activeFloor}.png`, makeBlankCanvas(w, h, color));
+        } else if (choice === 'fit') {
+            // Transparent canvas so the editor doesn't show a stale rectangle.
+            await ApiManager.saveImage(`bg_floor${stateManager.activeFloor}.png`, makeBlankCanvas(w, h, null));
         }
         await ApiManager.saveToHA(stateManager.activeFloor, stateManager.rooms, stateManager.shortcuts, {
-            rotation_mode: engine.rotationMode, flips: engine.flips, background_color: color
+            rotation_mode: engine.rotationMode, flips: engine.flips,
+            background_color: color, background_mode: engine.backgroundMode
         });
-        if (repaint) loadFloor(String(stateManager.activeFloor));
+        document.getElementById('bgModal').style.display = 'none';
+        if (choice !== 'around') loadFloor(String(stateManager.activeFloor));
     } catch (err) {
-        alert('Failed to save background color: ' + err.message);
+        status.textContent = `❌ ${err.message}`;
     }
 });
 
