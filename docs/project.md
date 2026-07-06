@@ -9,13 +9,19 @@ The primary goal of this project is to eliminate the need for manual SVG editing
 The system is divided into two primary components:
 
 ### 1. The Home Assistant Integration (Python Backend)
-A native `custom_component` that runs inside the Home Assistant Core. 
-- **API**: It securely exposes two REST endpoints (`requires_auth = True`):
-  - `POST /api/dynamic_map/save`: Saves map configurations.
-  - `GET /api/dynamic_map/state`: Fetches HA entity states and attributes.
-  - `GET /api/dynamic_map/entities`: Returns a full list of HA entities for the frontend autocomplete dropdown.
+A native `custom_component` that runs inside the Home Assistant Core, organized as `__init__.py` (setup), `views.py` (HTTP API), `storage.py` (HA-free filesystem rules, unit-tested in `tests/`), and `const.py`.
+- **API**: All REST endpoints require HA authentication; mutating endpoints additionally require an admin user:
+  - `POST /api/dynamic_map/save` — saves per-floor map data. Only the managed filenames (`rooms/shortcuts/config_floorN.json`, `bg_floorN.png`) are accepted, with structural validation of JSON payloads.
+  - `POST /api/dynamic_map/delete_floor` — deletes one floor's data files.
+  - `POST /api/dynamic_map/recompute` — proxies to the DXF/SVG sidecar (`sidecar_url` from configuration.yaml).
+  - `GET /api/dynamic_map/state` — one entity's state and attributes.
+  - `GET /api/dynamic_map/entities` — all entities for the editor autocomplete.
+  - `GET /api/dynamic_map/files` — DXF/SVG sources and custom icons in the data dir.
+  - `GET /api/dynamic_map/floors` — floors discovered from data files, plus the integration version.
+  - `GET /api/dynamic_map/registry` — HA floors and areas (with a default light per area).
+  - `GET /api/dynamic_map/roborock_rooms` — Roborock segments via `roborock.get_maps`.
 - **File System Access**: It writes configuration files (`rooms_floorX.json`, `shortcuts_floorX.json`) directly to the isolated `dynamic_map_data` directory to prevent HACS updates from overwriting user configuration data.
-- **Standalone Processing**: Heavy geometric math (DXF to SVG conversions) is performed by an external Python script (`server/dxf_processor.py`) prior to HA deployment to prevent blocking the Home Assistant event loop.
+- **Standalone Processing**: Heavy geometric math (DXF to SVG conversions) is performed by the sidecar (`server/`) outside the HA process to prevent blocking the event loop.
 
 ### 2. The Frontend Editor (HTML5/Canvas)
 A standalone vanilla JavaScript single-page application (`editor.html`).

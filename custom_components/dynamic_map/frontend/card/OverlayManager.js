@@ -1,3 +1,46 @@
+import { executeAction, buildRoomNameToSegmentMap } from '../shared/ActionRunner.js?v=3.1.0';
+
+/**
+ * Clamp the active overlay near the pointer while keeping it inside the
+ * renderRoot bounds, then apply left/top/transform. `defaultW`/`defaultH`
+ * are fallbacks used when the overlay has no measurable size yet.
+ */
+function clampAndPositionOverlay(overlayEl, rect, posX, posY, defaultW = 0, defaultH = 0) {
+    const w = overlayEl.offsetWidth || defaultW;
+    const h = overlayEl.offsetHeight || defaultH;
+
+    let finalX = posX;
+    let finalY = posY - 20; // 20px above cursor
+    let transX = -50;
+    let transY = -100;
+
+    // Clamp X
+    if (posX - w/2 < 10) {
+        transX = 0;
+        finalX = 10;
+    } else if (posX + w/2 > rect.width - 10) {
+        transX = -100;
+        finalX = rect.width - 10;
+    }
+
+    // Clamp Y (if it goes above the top edge)
+    if (posY - h - 20 < 10) {
+        transY = 0;
+        finalY = posY + 20; // Place below cursor
+
+        // If it now goes off the bottom, clamp it to the bottom
+        if (finalY + h > rect.height - 10) {
+            finalY = rect.height - h - 10;
+        }
+    } else if (posY - 20 > rect.height - 10) {
+        finalY = rect.height - 10;
+    }
+
+    overlayEl.style.left = `${finalX}px`;
+    overlayEl.style.top = `${finalY}px`;
+    overlayEl.style.transform = `translate(${transX}%, ${transY}%)`;
+}
+
 export class OverlayManager {
     static showActionMenu(mapContext, shortcut, actions, event) {
         if (mapContext.activeOverlay) {
@@ -118,35 +161,8 @@ export class OverlayManager {
             const rect = mapContext.renderRoot.getBoundingClientRect();
             let posX = event.clientX - rect.left;
             let posY = event.clientY - rect.top;
-            
-            const w = mapContext.activeOverlay.offsetWidth || 230;
-            const h = mapContext.activeOverlay.offsetHeight || 140;
-            
-            let finalX = posX;
-            let finalY = posY - 20;
-            let transX = -50;
-            let transY = -100;
-            
-            if (posX - w/2 < 10) {
-                transX = 0;
-                finalX = 10;
-            } else if (posX + w/2 > rect.width - 10) {
-                transX = -100;
-                finalX = rect.width - 10;
-            }
-            if (posY - h - 20 < 10) {
-                transY = 0;
-                finalY = posY + 20;
-                if (finalY + h > rect.height - 10) {
-                    finalY = rect.height - h - 10;
-                }
-            } else if (posY - 20 > rect.height - 10) {
-                finalY = rect.height - 10;
-            }
-            
-            mapContext.activeOverlay.style.left = `${finalX}px`;
-            mapContext.activeOverlay.style.top = `${finalY}px`;
-            mapContext.activeOverlay.style.transform = `translate(${transX}%, ${transY}%)`;
+
+            clampAndPositionOverlay(mapContext.activeOverlay, rect, posX, posY, 230, 140);
             return;
         }
         
@@ -337,11 +353,9 @@ export class OverlayManager {
                 switchWrap.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (!mapContext._hass) return;
-                    const domain = target.split('.')[0];
-                    let service = 'toggle';
-                    // vacuum.toggle is valid in modern HA; no domain-specific remap needed
-                    mapContext._hass.callService(domain, service, { entity_id: target });
-                    
+                    // TOGGLE -> <domain>.toggle (vacuum.toggle is valid in modern HA; no remap needed)
+                    executeAction(mapContext._hass, act, target);
+
                     // Optimistic update
                     isOn = !isOn;
                     switchWrap.style.background = isOn ? '#10b981' : 'rgba(255,255,255,0.2)';
@@ -431,77 +445,15 @@ export class OverlayManager {
                         return;
                     }
                     
-                    if (act.type === 'CALL_SERVICE' && act.service) {
-                        const parts = act.service.split('.');
-                        if (parts.length === 2) {
-                            let payload = {};
-                            if (act.action_entity) {
-                                payload.entity_id = act.action_entity;
-                            } else if (!act.payload && target) {
-                                payload.entity_id = target;
-                            }
-                            if (act.payload) {
-                                try {
-                                    const parsed = JSON.parse(act.payload);
-                                    
-                                    // Build mapping dictionary: Room Name -> Roborock ID
-                                    let nameToRoboId = {};
-                                    let scConfig = null;
-                                    Object.values(mapContext.shortcutElements).forEach(scEl => {
-                                        if (scEl.sc && scEl.sc.entity_id === target) scConfig = scEl.sc.config;
-                                    });
-                                    if (scConfig && scConfig.room_mapping && mapContext.rooms) {
-                                        for (const [roboId, svgRoomId] of Object.entries(scConfig.room_mapping)) {
-                                            const roomDef = mapContext.rooms.find(r => r.id === svgRoomId);
-                                            if (roomDef && roomDef.name) {
-                                                if (scConfig.segment_mapping && scConfig.segment_mapping[roboId] !== undefined) {
-                                                    nameToRoboId[roomDef.name] = scConfig.segment_mapping[roboId];
-                                                } else {
-                                                    nameToRoboId[roomDef.name] = isNaN(roboId) ? roboId : parseInt(roboId);
-                                                }
-                                            }
-                                        }
-                                    }
-                                    
-                                    const replaceNamesWithIds = (obj) => {
-                                        if (Array.isArray(obj)) {
-                                            for (let i = 0; i < obj.length; i++) {
-                                                if (typeof obj[i] === 'string' && nameToRoboId[obj[i]] !== undefined) obj[i] = nameToRoboId[obj[i]];
-                                                else if (typeof obj[i] === 'object' && obj[i] !== null) replaceNamesWithIds(obj[i]);
-                                            }
-                                        } else if (typeof obj === 'object' && obj !== null) {
-                                            for (const key in obj) {
-                                                if (typeof obj[key] === 'string' && nameToRoboId[obj[key]] !== undefined) obj[key] = nameToRoboId[obj[key]];
-                                                else if (typeof obj[key] === 'object' && obj[key] !== null) replaceNamesWithIds(obj[key]);
-                                            }
-                                        }
-                                    };
-                                    
-                                    if (Object.keys(nameToRoboId).length > 0) {
-                                        replaceNamesWithIds(parsed);
-                                    }
-                                    
-                                    payload = { ...payload, ...parsed };
-                                } catch (e) {
-                                    console.error("[DynamicMap] Failed to parse action payload:", e);
-                                }
-                            }
-                            mapContext._hass.callService(parts[0], parts[1], payload).catch(e => {
-                                console.error("[DynamicMap] callService Error:", e);
-                                alert("HA Error: " + (e.message || JSON.stringify(e)));
-                            });
+                    // Menu buttons apply room-name -> segment-ID replacement and
+                    // surface CALL_SERVICE errors (see ActionRunner divergence notes).
+                    executeAction(mapContext._hass, act, target, {
+                        nameToSegmentId: buildRoomNameToSegmentMap(target, mapContext.shortcutElements, mapContext.rooms),
+                        onServiceError: (e) => {
+                            console.error("[DynamicMap] callService Error:", e);
+                            alert("HA Error: " + (e.message || JSON.stringify(e)));
                         }
-                    } else if (act.type.startsWith('TOGGLE')) {
-                        const domain = target.split('.')[0];
-                        let service = act.type === 'TOGGLE_ON' ? 'turn_on' : 'turn_off';
-                        
-                        if (domain === 'vacuum') {
-                            if (service === 'turn_on') service = 'start';
-                            else if (service === 'turn_off') service = 'return_to_base';
-                        }
-                        
-                        mapContext._hass.callService(domain, service, { entity_id: target });
-                    }
+                    });
                 });
                 if (isVisual && act.pos_x !== undefined) {
                     btn.style.position = 'absolute';
@@ -520,39 +472,7 @@ export class OverlayManager {
         mapContext.renderRoot.appendChild(mapContext.activeOverlay);
 
         // Clamp to screen bounds to prevent needing to pan
-        const w = mapContext.activeOverlay.offsetWidth;
-        const h = mapContext.activeOverlay.offsetHeight;
-        
-        let finalX = posX;
-        let finalY = posY - 20; // 20px above cursor
-        let transX = -50;
-        let transY = -100;
-
-        // Clamp X
-        if (posX - w/2 < 10) {
-            transX = 0;
-            finalX = 10;
-        } else if (posX + w/2 > rect.width - 10) {
-            transX = -100;
-            finalX = rect.width - 10;
-        }
-
-        // Clamp Y (if it goes above the top edge)
-        if (posY - h - 20 < 10) {
-            transY = 0;
-            finalY = posY + 20; // Place below cursor
-            
-            // If it now goes off the bottom, clamp it to the bottom
-            if (finalY + h > rect.height - 10) {
-                finalY = rect.height - h - 10;
-            }
-        } else if (posY - 20 > rect.height - 10) {
-            finalY = rect.height - 10;
-        }
-
-        mapContext.activeOverlay.style.left = `${finalX}px`;
-        mapContext.activeOverlay.style.top = `${finalY}px`;
-        mapContext.activeOverlay.style.transform = `translate(${transX}%, ${transY}%)`;
+        clampAndPositionOverlay(mapContext.activeOverlay, rect, posX, posY);
     }
 
     static showRoomSelectionUI(mapContext) {

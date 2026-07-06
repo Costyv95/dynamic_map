@@ -1,10 +1,13 @@
-import { ApiManager } from './shared/ApiManager.js?v=3.0.3-77a150e-dev-015941';
-import { CanvasEngine } from './editor/CanvasEngine.js?v=3.0.3-77a150e-dev-015941';
-import { EditorStateManager } from './editor/EditorStateManager.js?v=3.0.3-77a150e-dev-015941';
-import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.0.3-77a150e-dev-015941';
-import { EditorUIManager } from './editor/EditorUIManager.js?v=3.0.3-77a150e-dev-015941';
+import { ApiManager } from './shared/ApiManager.js?v=3.1.0';
+import { CanvasEngine } from './editor/CanvasEngine.js?v=3.1.0';
+import { EditorStateManager } from './editor/EditorStateManager.js?v=3.1.0';
+import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.1.0';
+import { EditorUIManager } from './editor/EditorUIManager.js?v=3.1.0';
 
-console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.0.3-77a150e-dev-015941)');
+console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.1.0)');
+
+const DEBUG = false;
+const dlog = (...args) => { if (DEBUG) console.log('[DynamicMapDebug]', ...args); };
 
 const canvas = document.getElementById('mapCanvas');
 const ctx = canvas.getContext('2d');
@@ -93,8 +96,9 @@ if (resizer) {
 
 // Floor and Data loading
 async function loadFloor(floorNum) {
-    console.log(`[DynamicMapDebug] loadFloor starting for Floor ${floorNum}...`);
+    dlog(`loadFloor starting for Floor ${floorNum}...`);
     stateManager.activeFloor = floorNum;
+    localStorage.setItem('dm_editor_last_floor', String(floorNum));
     stateManager.isTransitioning = true;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
@@ -102,14 +106,14 @@ async function loadFloor(floorNum) {
     let dataLoaded = false;
     
     const checkAutoCrop = () => {
-        console.log(`[DynamicMapDebug] checkAutoCrop checking: imgLoaded=${imgLoaded}, dataLoaded=${dataLoaded}`);
+        dlog(`checkAutoCrop checking: imgLoaded=${imgLoaded}, dataLoaded=${dataLoaded}`);
         if (imgLoaded && dataLoaded) {
             try {
-                console.log(`[DynamicMapDebug] Calculating auto crop...`);
+                dlog(`Calculating auto crop...`);
                 engine.calculateAutoCrop(stateManager.bgImage, stateManager.rooms, true);
                 uiManager.updateRotationUI();
                 stateManager.isTransitioning = false;
-                console.log(`[DynamicMapDebug] Transition complete! Initializing map draw loop.`);
+                dlog(`Transition complete! Initializing map draw loop.`);
                 draw();
             } catch (err) {
                 console.error(`[DynamicMapDebug] Error during calculateAutoCrop:`, err);
@@ -120,7 +124,7 @@ async function loadFloor(floorNum) {
     };
     
     const bgUrl = `/dynamic_map_data/bg_floor${floorNum}.png?t=${Date.now()}`;
-    console.log(`[DynamicMapDebug] Setting up image handlers for: "${bgUrl}"`);
+    dlog(`Setting up image handlers for: "${bgUrl}"`);
     
     stateManager.bgImage.onload = () => {
         // Synchronize .width/.height from intrinsic dimensions.
@@ -131,7 +135,7 @@ async function loadFloor(floorNum) {
         const nh = stateManager.bgImage.naturalHeight;
         if (nw > 0) stateManager.bgImage.width = nw;
         if (nh > 0) stateManager.bgImage.height = nh;
-        console.log(`[DynamicMapDebug] bgImage loaded successfully. Dimensions: ${nw}x${nh} (synced w=${stateManager.bgImage.width}, h=${stateManager.bgImage.height})`);
+        dlog(`bgImage loaded successfully. Dimensions: ${nw}x${nh} (synced w=${stateManager.bgImage.width}, h=${stateManager.bgImage.height})`);
         imgLoaded = true;
         checkAutoCrop();
     };
@@ -149,9 +153,9 @@ async function loadFloor(floorNum) {
     stateManager.bgImage.src = bgUrl;
     
     try {
-        console.log(`[DynamicMapDebug] Fetching floor data for floor ${floorNum}...`);
+        dlog(`Fetching floor data for floor ${floorNum}...`);
         const data = await ApiManager.fetchFloorData(floorNum);
-        console.log(`[DynamicMapDebug] Floor data loaded. Rooms: ${data.rooms?.length || 0}, Shortcuts: ${data.shortcuts?.length || 0}`);
+        dlog(`Floor data loaded. Rooms: ${data.rooms?.length || 0}, Shortcuts: ${data.shortcuts?.length || 0}`);
         stateManager.rooms = data.rooms || [];
         stateManager.shortcuts = data.shortcuts || [];
         
@@ -180,13 +184,42 @@ async function loadFloor(floorNum) {
 document.getElementById('floorList').addEventListener('click', (e) => {
     const btn = e.target.closest('.floor-btn[data-floor]');
     if (btn) {
-        document.querySelectorAll('.floor-btn[data-floor]').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        loadFloor(btn.dataset.floor);
+        setActiveFloorButton(btn.dataset.floor);
+        loadFloor(parseInt(btn.dataset.floor));
         return;
     }
     if (e.target.closest('#addFloorBtn')) addFloor();
 });
+
+function setActiveFloorButton(floorNum) {
+    document.querySelectorAll('.floor-btn[data-floor]').forEach(b => {
+        b.classList.toggle('active', b.dataset.floor == floorNum);
+    });
+}
+
+// Discover existing floors from the backend and build the switcher buttons.
+async function initFloors() {
+    let floors = [];
+    try {
+        const data = await ApiManager.fetchFloors();
+        if (data.success && Array.isArray(data.floors)) floors = data.floors;
+        if (data.version) {
+            const title = document.querySelector('#sidebar h1');
+            if (title) title.title = `Dynamic Map v${data.version}`;
+        }
+    } catch (err) {
+        console.warn('[editor] Floor discovery failed:', err.message);
+    }
+    if (!floors.length) floors = [1];
+
+    document.querySelectorAll('.floor-btn[data-floor]').forEach(b => b.remove());
+    floors.forEach(addFloorButton);
+
+    const remembered = parseInt(localStorage.getItem('dm_editor_last_floor'));
+    const startFloor = floors.includes(remembered) ? remembered : floors[floors.length - 1];
+    setActiveFloorButton(startFloor);
+    loadFloor(startFloor);
+}
 
 // --- Builder Mode: create a new floor without the DXF pipeline (e.g. a Terrace) ---
 function pickImageFile() {
@@ -273,7 +306,13 @@ document.getElementById('exportJsonBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('exportYamlBtn').addEventListener('click', () => {
-    document.getElementById('yamlOutput').value = `type: custom:custom-svg-map\nvacuum_entity: vacuum.roborock_s7\ndefault_floor: ${stateManager.activeFloor}\nfloors: [1, 2]\n`;
+    const floors = [...document.querySelectorAll('.floor-btn[data-floor]')]
+        .map(b => parseInt(b.dataset.floor)).filter(n => !isNaN(n)).sort((a, b) => a - b);
+    const vacuum = (stateManager.shortcuts || []).find(sc => sc.type === 'vacuum' && sc.entity_id);
+    let yaml = `type: custom:custom-svg-map\ndefault_floor: ${stateManager.activeFloor}\n`;
+    if (floors.length) yaml += `floors: [${floors.join(', ')}]\n`;
+    if (vacuum) yaml += `vacuum_entity: ${vacuum.entity_id}\n`;
+    document.getElementById('yamlOutput').value = yaml;
 });
 
 // Recompute Logic
@@ -297,7 +336,9 @@ async function loadAvailableFiles() {
                 data.icons.forEach(iconPath => { iconList.innerHTML += `<option value="${iconPath}"></option>`; });
             }
         }
-    } catch (err) { }
+    } catch (err) {
+        console.warn('[editor] Failed to load available files:', err.message);
+    }
 }
 
 document.getElementById('toggleRecomputeBtn').addEventListener('click', () => {
@@ -362,7 +403,9 @@ async function loadRegistry() {
             select.innerHTML = '<option value="">-- Unmapped --</option>';
             stateManager.haAreas.forEach(a => { select.innerHTML += `<option value="${a.id}">${a.name}</option>`; });
         }
-    } catch (err) { }
+    } catch (err) {
+        console.warn('[editor] Failed to load HA registry:', err.message);
+    }
 }
 
 document.getElementById('roomArea').addEventListener('change', (e) => {
@@ -381,7 +424,7 @@ function setupAutocomplete(inputId) {
     const inputElement = document.getElementById(inputId);
     if (!inputElement) return;
     const dropdown = document.createElement('div');
-    dropdown.style.cssText = 'position:absolute;background:#fff;border:1px solid #cbd5e1;border-radius:4px;max-height:200px;overflow-y:auto;display:none;z-index:9999;width:100%;box-shadow:0 10px 15px -3px rgba(0,0,0,0.1);';
+    dropdown.className = 'autocomplete-dropdown';
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'position:relative;width:100%;';
     inputElement.parentNode.insertBefore(wrapper, inputElement);
@@ -398,10 +441,8 @@ function setupAutocomplete(inputId) {
         
         filtered.forEach(ent => {
             const item = document.createElement('div');
+            item.className = 'autocomplete-item';
             item.textContent = ent.name !== ent.id ? `${ent.name} (${ent.id})` : ent.id;
-            item.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:12px;color:#000;font-weight:500;';
-            item.onmouseover = () => { item.style.background = '#e0f2fe'; item.style.color = '#0284c7'; };
-            item.onmouseout = () => { item.style.background = '#fff'; item.style.color = '#000'; };
             item.onclick = () => {
                 inputElement.value = ent.id;
                 dropdown.style.display = 'none';
@@ -422,13 +463,20 @@ async function fetchAllEntities() {
             stateManager.allEntities = data.entities;
             setupAutocomplete('roomEntity');
             setupAutocomplete('scEntity');
+            // Native datalist used by action/condition entity inputs (list="entityList")
+            const entityList = document.getElementById('entityList');
+            if (entityList) {
+                entityList.innerHTML = data.entities.map(ent => `<option value="${ent.id}"></option>`).join('');
+            }
         }
-    } catch (err) { }
+    } catch (err) {
+        console.warn('[editor] Failed to load entities for autocomplete:', err.message);
+    }
 }
 
 loadRegistry();
 loadAvailableFiles();
-loadFloor(2);
+initFloors();
 fetchAllEntities();
 
 // Orientation Switcher Event Listeners

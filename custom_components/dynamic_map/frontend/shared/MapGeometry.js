@@ -63,6 +63,18 @@ export class MapGeometry {
         return this.getPolygonCenter(polygon);
     }
 
+    /** Parse "#rrggbb" into {r, g, b}, or null if not a valid 6-digit hex color. */
+    static hexToRgb(hexColor) {
+        if (!hexColor || typeof hexColor !== 'string') return null;
+        const hex = hexColor.replace('#', '');
+        if (hex.length !== 6 || !/^[0-9a-fA-F]{6}$/.test(hex)) return null;
+        return {
+            r: parseInt(hex.substring(0, 2), 16),
+            g: parseInt(hex.substring(2, 4), 16),
+            b: parseInt(hex.substring(4, 6), 16)
+        };
+    }
+
     static getRoomAtCoords(rooms, pctX, pctY) {
         for (const room of rooms) {
             if (this.isPointInPolygon([pctX, pctY], room.polygon)) {

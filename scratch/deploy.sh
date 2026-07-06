@@ -1,39 +1,51 @@
 #!/bin/bash
-# deploy.sh - Instantly deploys local custom_components/dynamic_map to remote HAOS and restarts the core.
-# Uses rsync for blazing-fast synchronization, automatically bypassing node_modules and cache folders.
+# deploy.sh — Deploys custom_components/dynamic_map to a remote HAOS box and restarts core.
+#
+# Version stamping happens in a temporary build directory so the repository
+# sources stay clean; only the deployed copy carries the cache-busting ?v= strings.
+#
+# Overridable via env:
+#   DYNAMIC_MAP_REMOTE       (default ghemo_smoto@192.168.1.55)
+#   DYNAMIC_MAP_REMOTE_PATH  (default /homeassistant/custom_components/dynamic_map/)
 
 set -e
 
-LOCAL_PATH="/home/costi/workspace/dynamic_map/custom_components/dynamic_map/"
-REMOTE_HOST="ghemo_smoto@192.168.1.55"
-REMOTE_PATH="/homeassistant/custom_components/dynamic_map/"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SRC="$REPO_ROOT/custom_components/dynamic_map"
+REMOTE_HOST="${DYNAMIC_MAP_REMOTE:-ghemo_smoto@192.168.1.55}"
+REMOTE_PATH="${DYNAMIC_MAP_REMOTE_PATH:-/homeassistant/custom_components/dynamic_map/}"
 
-# 0. Execute automatic version cache-busting using Git commit author date/time
-echo "Executing Git-Based Auto-Versioning..."
-PYTHONUNBUFFERED=1 /home/costi/miniforge3/envs/ha_agent/bin/python3 /home/costi/workspace/dynamic_map/scratch/auto_version.py
-echo ""
+# 0. Build: copy sources to a temp dir and stamp cache-busting versions there
+BUILD_DIR="$(mktemp -d)"
+trap 'rm -rf "$BUILD_DIR"' EXIT
 
-# 1. Sync files via rsync using sudo on remote side to override root permission barriers
-echo "Syncing code files..."
-rsync -avz --delete \
+echo "Building deploy copy in $BUILD_DIR..."
+rsync -a \
       --exclude="node_modules" \
       --exclude="__pycache__" \
-      --exclude="*.log" \
       --exclude=".pytest_cache" \
-      --rsync-path="sudo rsync" \
-      "$LOCAL_PATH" "$REMOTE_HOST:$REMOTE_PATH"
+      --exclude="tests" \
+      --exclude="package-lock.json" \
+      --exclude="*.log" \
+      "$SRC/" "$BUILD_DIR/dynamic_map/"
 
-# Read resolved version string
-VERSION_STR=$(cat "/home/costi/workspace/dynamic_map/scratch/current_version.txt")
+echo "Stamping cache-busting version..."
+python3 "$REPO_ROOT/scratch/auto_version.py" "$BUILD_DIR/dynamic_map/frontend"
+VERSION_STR=$(cat "$REPO_ROOT/scratch/current_version.txt")
 echo "Resolved version string: $VERSION_STR"
 echo ""
 
-# 2. SSH into remote host to trigger Lovelace resource update & Home Assistant Core restart
-echo "Connecting to remote HAOS to trigger Lovelace resource update & core restart..."
+# 1. Sync build to remote (sudo rsync overrides root permission barriers)
+echo "Syncing code files to $REMOTE_HOST..."
+rsync -avz --delete \
+      --rsync-path="sudo rsync" \
+      "$BUILD_DIR/dynamic_map/" "$REMOTE_HOST:$REMOTE_PATH"
+
+# 2. Update Lovelace resource version & restart HA core
+echo "Connecting to remote HAOS to update Lovelace resource & restart core..."
 REMOTE_COMMANDS=$(cat << EOF
 set -e
 
-# Update Lovelace resource version directly in .storage database
 echo "Updating Lovelace resource version to $VERSION_STR..."
 sudo python3 -c '
 import json
@@ -52,7 +64,7 @@ if updated:
         json.dump(data, f, indent=2)
     print("Lovelace resource successfully updated to $VERSION_STR!")
 else:
-    print("Warning: Lovelace resource /dynamic_map_ui/custom-svg-map.js not found in .storage/lovelace_resources.")
+    print("Warning: /dynamic_map_ui/custom-svg-map.js not found in lovelace_resources.")
 '
 
 echo "Triggering Home Assistant restart..."
@@ -63,13 +75,11 @@ elif command -v ha &> /dev/null; then
     echo "Using HA CLI: ha core restart"
     ha core restart || sudo ha core restart
 else
-    # Systemd service check fallback
     if systemctl is-active --quiet home-assistant@homeassistant; then
         echo "Using Systemd: restarting home-assistant service"
         sudo systemctl restart home-assistant@homeassistant
     else
-        echo "Warning: No direct command-line helper found. Calling HA API local service..."
-        sudo ha core restart 2>/dev/null || echo "Could not execute automatic restart. Please trigger a restart of Home Assistant manually from the UI."
+        echo "Warning: No restart helper found. Restart Home Assistant manually from the UI."
     fi
 fi
 EOF
@@ -78,4 +88,4 @@ EOF
 ssh -o ConnectTimeout=5 "$REMOTE_HOST" "$REMOTE_COMMANDS"
 
 echo ""
-echo "=== 🎉 Deployment & Restart Completed Successfully! ==="
+echo "=== Deployment & Restart Completed Successfully ==="

@@ -1,129 +1,139 @@
+const DEBUG = false;
+const log = (...args) => { if (DEBUG) console.log('[ApiManager]', ...args); };
+
+/**
+ * The editor runs in an iframe panel without a `hass` object, so it cannot use
+ * hass.callApi. The HA frontend keeps its auth tokens in localStorage on the
+ * same origin; we reuse them so the backend views can require authentication.
+ */
+function authHeaders() {
+    try {
+        const tokens = JSON.parse(localStorage.getItem('hassTokens'));
+        if (tokens && tokens.access_token) {
+            return { 'Authorization': `Bearer ${tokens.access_token}` };
+        }
+    } catch (e) { /* no stored tokens — request goes out unauthenticated */ }
+    return {};
+}
+
+async function apiFetch(path, options = {}) {
+    const res = await fetch(path, {
+        ...options,
+        headers: { ...(options.headers || {}), ...authHeaders() },
+    });
+    if (res.status === 401) {
+        throw new Error('Not authenticated. Log in to Home Assistant with "Keep me logged in", then reload the editor.');
+    }
+    return res;
+}
+
+async function apiJson(path, options = {}) {
+    const res = await apiFetch(path, options);
+    try {
+        return await res.json();
+    } catch (e) {
+        return { success: false, error: `Invalid response from ${path} (HTTP ${res.status})` };
+    }
+}
+
+function postJson(path, body) {
+    return apiJson(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+}
+
+/** Merge a {segmentId: name|{name}} mapping into segmentMap / originalNames. */
+function collectSegments(rawAttr, segmentMap, originalNames) {
+    if (!rawAttr || typeof rawAttr !== 'object' || Array.isArray(rawAttr)) return;
+    for (const [segId, value] of Object.entries(rawAttr)) {
+        const name = typeof value === 'object' ? value.name : value;
+        if (!name) continue;
+        segmentMap[String(name).toLowerCase()] = parseInt(segId);
+        segmentMap[String(name)] = parseInt(segId);
+        if (!originalNames.includes(String(name))) originalNames.push(String(name));
+    }
+}
+
 export class ApiManager {
+    static async fetchState(entityId) {
+        try {
+            const data = await apiJson(`/api/dynamic_map/state?entity_id=${encodeURIComponent(entityId)}`);
+            return data.success ? data : null;
+        } catch (e) {
+            log('fetchState failed', entityId, e);
+            return null;
+        }
+    }
+
     static async fetchVacuumRooms(entityId) {
         let roomsFound = [];
-        let segmentMap = {};
-        let originalNames = [];
-        
-        console.log(`[ApiManager] Fetching vacuum rooms for ${entityId}...`);
+        const segmentMap = {};
+        const originalNames = [];
+
+        log(`Fetching vacuum rooms for ${entityId}...`);
         try {
-            // 1. Try to fetch segment IDs from the vacuum entity attributes
-            console.log(`[ApiManager] Step 1: Checking vacuum entity attributes`);
-            const res = await fetch(`/api/dynamic_map/state?entity_id=${entityId}`);
-            if (res.ok) {
-                const data = await res.json();
-                console.log(`[ApiManager] Vacuum entity data:`, data);
-                if (data.success && data.attributes) {
-                    let rAttr = data.attributes.rooms || data.attributes.room_mapping || data.attributes.room_mapping_dict;
-                    console.log(`[ApiManager] Vacuum entity room attribute found:`, rAttr);
-                    if (rAttr && typeof rAttr === 'object' && !Array.isArray(rAttr)) {
-                        for (const [k, v] of Object.entries(rAttr)) {
-                            let name = typeof v === 'object' ? v.name : v;
-                            if (name) {
-                                segmentMap[String(name).toLowerCase()] = parseInt(k);
-                                segmentMap[String(name)] = parseInt(k);
-                                if (!originalNames.includes(String(name))) originalNames.push(String(name));
-                            }
-                        }
-                    }
-                }
+            // 1. Segment IDs from the vacuum entity attributes
+            const vacuumState = await ApiManager.fetchState(entityId);
+            if (vacuumState && vacuumState.attributes) {
+                const attrs = vacuumState.attributes;
+                collectSegments(attrs.rooms || attrs.room_mapping || attrs.room_mapping_dict, segmentMap, originalNames);
             }
-            
-            // 2. Try camera entity attributes if not found
-            console.log(`[ApiManager] Step 2: Checking camera entities. Current segmentMap size: ${Object.keys(segmentMap).length}`);
-            if (Object.keys(segmentMap).length === 0 && entityId.startsWith('vacuum.')) {
-                const baseName = entityId.replace('vacuum.', '');
+
+            // 2. Fall back to map-camera entity attributes
+            const baseName = entityId.startsWith('vacuum.') ? entityId.replace('vacuum.', '') : null;
+            if (Object.keys(segmentMap).length === 0 && baseName) {
                 for (const camName of [`camera.${baseName}_map`, `camera.roborock_map`, `camera.${baseName}_floormap`]) {
-                    console.log(`[ApiManager] Fetching camera entity: ${camName}`);
-                    const camRes = await fetch(`/api/dynamic_map/state?entity_id=${camName}`);
-                    if (camRes.ok) {
-                        const camData = await camRes.json();
-                        console.log(`[ApiManager] Camera entity data for ${camName}:`, camData);
-                        if (camData.success && camData.attributes && camData.attributes.rooms) {
-                            const rAttr = camData.attributes.rooms;
-                            console.log(`[ApiManager] Camera entity room attribute found:`, rAttr);
-                            if (typeof rAttr === 'object' && !Array.isArray(rAttr)) {
-                                for (const [k, v] of Object.entries(rAttr)) {
-                                    let name = typeof v === 'object' ? v.name : v;
-                                    if (name) {
-                                        segmentMap[String(name).toLowerCase()] = parseInt(k);
-                                        segmentMap[String(name)] = parseInt(k);
-                                        if (!originalNames.includes(String(name))) originalNames.push(String(name));
-                                    }
-                                }
-                            }
-                        }
+                    const camState = await ApiManager.fetchState(camName);
+                    if (camState && camState.attributes) {
+                        collectSegments(camState.attributes.rooms, segmentMap, originalNames);
                     }
                 }
             }
-            
-            // 2.5 Try to call roborock.get_maps service if still empty
+
+            // 3. Fall back to the roborock.get_maps service proxy
             if (Object.keys(segmentMap).length === 0) {
-                console.log(`[ApiManager] Step 2.5: Trying roborock.get_maps service proxy for ${entityId}`);
-                const rbRes = await fetch(`/api/dynamic_map/roborock_rooms?entity_id=${entityId}`);
-                if (rbRes.ok) {
-                    const rbData = await rbRes.json();
-                    if (rbData.success && rbData.data) {
-                        console.log(`[ApiManager] roborock.get_maps response:`, rbData.data);
-                        // Data usually looks like: { "vacuum.silvester": { "maps": [ { "rooms": { "16": "Kitchen" } } ] } }
-                        // Or if direct: { "maps": [ ... ] }
-                        const parseRoborockMaps = (obj) => {
-                            if (!obj) return;
-                            if (obj.rooms && typeof obj.rooms === 'object') {
-                                for (const [k, v] of Object.entries(obj.rooms)) {
-                                    let name = typeof v === 'object' ? v.name : v;
-                                    if (name) {
-                                        segmentMap[String(name).toLowerCase()] = parseInt(k);
-                                        segmentMap[String(name)] = parseInt(k);
-                                        if (!originalNames.includes(String(name))) originalNames.push(String(name));
-                                    }
-                                }
-                            }
-                            if (typeof obj === 'object') {
-                                Object.values(obj).forEach(val => {
-                                    if (typeof val === 'object') parseRoborockMaps(val);
-                                });
-                            }
-                        };
-                        parseRoborockMaps(rbData.data);
-                    }
-                }
-            }
-            
-            console.log(`[ApiManager] Final Extracted Segment Map:`, segmentMap);
-
-            // 3. Fetch tracking names from sensor options
-            console.log(`[ApiManager] Step 3: Checking current_room sensor`);
-            if (entityId.startsWith('vacuum.')) {
-                const baseName = entityId.replace('vacuum.', '');
-                const roomRes = await fetch(`/api/dynamic_map/state?entity_id=sensor.${baseName}_current_room`);
-                if (roomRes.ok) {
-                    const roomData = await roomRes.json();
-                    console.log(`[ApiManager] Current room sensor data:`, roomData);
-                    if (roomData.success && roomData.attributes && Array.isArray(roomData.attributes.options)) {
-                        roomsFound = roomData.attributes.options.map(o => {
-                            let segId = segmentMap[o] !== undefined ? segmentMap[o] : (segmentMap[String(o).toLowerCase()] !== undefined ? segmentMap[String(o).toLowerCase()] : "");
-                            return { id: o, name: o, segId: segId };
-                        });
-                    }
+                const rbData = await apiJson(`/api/dynamic_map/roborock_rooms?entity_id=${encodeURIComponent(entityId)}`);
+                if (rbData.success && rbData.data) {
+                    // Shape: { "vacuum.x": { "maps": [ { "rooms": { "16": "Kitchen" } } ] } }
+                    const walk = (obj) => {
+                        if (!obj || typeof obj !== 'object') return;
+                        collectSegments(obj.rooms, segmentMap, originalNames);
+                        Object.values(obj).forEach(walk);
+                    };
+                    walk(rbData.data);
                 }
             }
 
-            // 4. Fallback if no current_room sensor but we found segment mappings
+            log('Extracted segment map:', segmentMap);
+
+            // 4. Room names tracked by the current_room sensor, mapped to segments
+            if (baseName) {
+                const roomState = await ApiManager.fetchState(`sensor.${baseName}_current_room`);
+                const options = roomState && roomState.attributes && roomState.attributes.options;
+                if (Array.isArray(options)) {
+                    roomsFound = options.map(o => {
+                        const segId = segmentMap[o] !== undefined ? segmentMap[o]
+                            : (segmentMap[String(o).toLowerCase()] !== undefined ? segmentMap[String(o).toLowerCase()] : "");
+                        return { id: o, name: o, segId };
+                    });
+                }
+            }
+
+            // 5. No sensor options: use the segment names directly
             if (roomsFound.length === 0 && originalNames.length > 0) {
-                console.log(`[ApiManager] Step 4: No sensor options found, falling back to originalNames`);
-                for (const name of originalNames) {
-                    roomsFound.push({ id: name, name: name, segId: segmentMap[name] });
-                }
+                roomsFound = originalNames.map(name => ({ id: name, name, segId: segmentMap[name] }));
             }
-
         } catch (e) {
-            console.error("[ApiManager] Failed to fetch vacuum rooms", e);
+            console.error('[ApiManager] Failed to fetch vacuum rooms', e);
         }
-        
-        console.log(`[ApiManager] Final roomsFound returned:`, roomsFound);
+
+        // Last resort: Roborock segments conventionally start at 16
         if (roomsFound.length === 0) {
-            for(let i=16; i<=25; i++) roomsFound.push({ id: `Room ${i}`, name: `Room ${i}`, segId: i });
+            for (let i = 16; i <= 25; i++) roomsFound.push({ id: `Room ${i}`, name: `Room ${i}`, segId: i });
         }
+        log('Rooms found:', roomsFound);
         return roomsFound;
     }
 
@@ -132,29 +142,21 @@ export class ApiManager {
         let rooms = [];
         let shortcuts = [];
         let config = { rotation_mode: 'auto', horizontal_flip: false, vertical_flip: false };
-        
-        try {
-            const response = await fetch(`/dynamic_map_data/rooms_floor${floorNum}.json?t=${t}`);
-            if(response.ok) {
-                rooms = await response.json();
+
+        const fetchJson = async (url) => {
+            try {
+                const res = await fetch(url);
+                return res.ok ? await res.json() : null;
+            } catch (e) {
+                return null;
             }
-            
-            try {
-                const scResponse = await fetch(`/dynamic_map_data/shortcuts_floor${floorNum}.json?t=${t}`);
-                if(scResponse.ok) {
-                    shortcuts = await scResponse.json();
-                }
-            } catch(e) {}
-            
-            try {
-                const cfgResponse = await fetch(`/dynamic_map_data/config_floor${floorNum}.json?t=${t}`);
-                if(cfgResponse.ok) {
-                    config = { ...config, ...(await cfgResponse.json()) };
-                }
-            } catch(e) {}
-        } catch (e) {
-            console.error("Failed to load JSON", e);
-        }
+        };
+
+        rooms = (await fetchJson(`/dynamic_map_data/rooms_floor${floorNum}.json?t=${t}`)) || [];
+        shortcuts = (await fetchJson(`/dynamic_map_data/shortcuts_floor${floorNum}.json?t=${t}`)) || [];
+        const savedConfig = await fetchJson(`/dynamic_map_data/config_floor${floorNum}.json?t=${t}`);
+        if (savedConfig) config = { ...config, ...savedConfig };
+
         return { rooms, shortcuts, config };
     }
 
@@ -165,77 +167,59 @@ export class ApiManager {
             return value;
         }));
 
-        let res1 = await fetch('/api/dynamic_map/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: `rooms_floor${activeFloor}.json`, content: rooms })
-        });
-        if (!res1.ok) throw new Error(`Rooms save failed: ${res1.statusText}`);
-
-        let res2 = await fetch('/api/dynamic_map/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: `shortcuts_floor${activeFloor}.json`, content: cleanShortcuts })
-        });
-        if (!res2.ok) throw new Error(`Shortcuts save failed: ${res2.statusText}`);
-        
-        if (config) {
-            let res3 = await fetch('/api/dynamic_map/save', {
+        const save = async (filename, content, label) => {
+            const res = await apiFetch('/api/dynamic_map/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: `config_floor${activeFloor}.json`, content: config })
+                body: JSON.stringify({ filename, content }),
             });
-            if (!res3.ok) console.error(`Config save failed: ${res3.statusText}`);
-        }
+            if (!res.ok) throw new Error(`${label} save failed: ${res.statusText}`);
+        };
+
+        await save(`rooms_floor${activeFloor}.json`, rooms, 'Rooms');
+        await save(`shortcuts_floor${activeFloor}.json`, cleanShortcuts, 'Shortcuts');
+        if (config) await save(`config_floor${activeFloor}.json`, config, 'Config');
         return true;
     }
 
     // Builder Mode: save a background PNG (data URL) as bg_floor{N}.png
     static async saveImage(filename, dataUrl) {
-        const res = await fetch('/api/dynamic_map/save', {
+        const res = await apiFetch('/api/dynamic_map/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename, image_base64: dataUrl })
+            body: JSON.stringify({ filename, image_base64: dataUrl }),
         });
         if (!res.ok) throw new Error(`Image save failed: ${res.statusText}`);
         return true;
     }
 
     static async fetchAvailableFiles() {
-        const res = await fetch('/api/dynamic_map/files');
-        if (!res.ok) throw new Error("Failed to load files");
+        const res = await apiFetch('/api/dynamic_map/files');
+        if (!res.ok) throw new Error('Failed to load files');
         return await res.json();
+    }
+
+    static async fetchFloors() {
+        return await apiJson('/api/dynamic_map/floors');
     }
 
     static async deleteFloor(floorNum) {
-        const res = await fetch('/api/dynamic_map/delete_floor', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ floor_num: parseInt(floorNum) })
-        });
-        return await res.json();
+        return await postJson('/api/dynamic_map/delete_floor', { floor_num: parseInt(floorNum) });
     }
 
     static async recomputeFloor(floorNum, svgFile, dxfFile) {
-        const res = await fetch('/api/dynamic_map/recompute', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                floor_num: parseInt(floorNum),
-                svg_file: svgFile || null,
-                dxf_file: dxfFile || null
-            })
+        return await postJson('/api/dynamic_map/recompute', {
+            floor_num: parseInt(floorNum),
+            svg_file: svgFile || null,
+            dxf_file: dxfFile || null,
         });
-        return await res.json();
     }
 
     static async fetchRegistry() {
-        const res = await fetch('/api/dynamic_map/registry');
-        return await res.json();
+        return await apiJson('/api/dynamic_map/registry');
     }
 
     static async fetchEntities() {
-        const res = await fetch('/api/dynamic_map/entities');
-        return await res.json();
+        return await apiJson('/api/dynamic_map/entities');
     }
 }

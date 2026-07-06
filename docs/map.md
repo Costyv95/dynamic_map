@@ -8,7 +8,10 @@ The **Dynamic Map** project is a custom Home Assistant integration that renders 
 ## Module Topology
 
 - **`/custom_components/dynamic_map/`**: The core Home Assistant integration package.
-  - `__init__.py`: The main Python backend entry point. Handles setup, REST API registration for saving configurations, and serving the frontend static files.
+  - `__init__.py`: Setup entry point — registers views, static paths, and the sidebar panel.
+  - `views.py`: All authenticated REST API views (`/api/dynamic_map/*`).
+  - `storage.py`: HA-free filename rules, floor discovery, and payload validation (unit-tested in `/tests/`).
+  - `const.py`: Domain constants and configuration keys.
   - `manifest.json`: HACS/Home Assistant component metadata.
 
 - **`/custom_components/dynamic_map/frontend/`**: The JavaScript/HTML application containing both the Lovelace Card and the visual Editor.
@@ -21,20 +24,22 @@ The **Dynamic Map** project is a custom Home Assistant integration that renders 
   - **`/editor/`**: UI logic specific to the Visual Editor.
     - `EditorUIManager.js`: Main state and event binding controller for the sidebar.
     - `ShortcutConfigUI.js`: Renders the configuration forms for mapping complex custom shortcuts.
-  - **`/shortcuts/`**: Object-Oriented classes for rendering SVG interactive items.
-    - `ShortcutFactory.js`: Factory mapping JSON configs to subclasses.
-    - `MapShortcut.js`: Base class for position tracking and event handling.
-    - `GenericShortcut.js`: General-purpose shortcuts (Buttons, Toggles) with `<ha-icon>` support.
-    - `VacuumShortcut.js`: Specialized shortcut for Roborock zone/room cleaning.
-    - `SensorShortcut.js`: Polymorphic shortcut rendering rounded comfort temp/humidity pills on map.
+  - **`/shortcuts/`**: The unified shortcut compositor.
+    - `ShortcutFactory.js`: Builds a `MapShortcut` from each JSON config.
+    - `MapShortcut.js`: The single shortcut class — evaluates conditional states, builds a declarative layout, and renders it through `ComponentRegistry` (all types: generic, light, vacuum, sensor).
+    - `ConditionEvaluator.js` / `TemplateEvaluator.js`: State-condition and `{…}` template evaluation.
+    - `components/`: Declarative renderers (gauges, badges, timelines, calendar, alarm clock, …).
 
   - **`/shared/`**: Code shared between the Card and the Editor.
-    - `ApiManager.js`: Handles HTTP requests to the HA backend to save configurations.
+    - `ApiManager.js`: Authenticated HTTP requests to the HA backend.
+    - `MapGeometry.js`: Polygon math and color parsing.
+    - `OrientationProps.js`: Per-orientation (horizontal/vertical) property resolution and getters/setters.
+    - `ActionRunner.js`: Unified execution of shortcut actions (toggle, service calls, vacuum remapping).
   - **`/tests/`**: Unit testing suite (Vitest).
 
-- **`/server/`** (Legacy/Standalone processing?):
-  - `dxf_processor.py`: A Python script for parsing and optimizing raw `.dxf` CAD floorplans into JSON polygons for the frontend.
-  - `api.py` & `docker-compose.yml`: Potentially legacy standalone server logic prior to full HA Custom Component integration.
+- **`/server/`**: The DXF/SVG processing sidecar (Flask + OpenCV/ezdxf, Docker).
+  - `dxf_processor.py`: Parses `.dxf`/`.svg` floorplans into room polygons + background PNGs.
+  - `api.py` & `docker-compose.yml`: The `POST /process` HTTP wrapper the integration's `/recompute` endpoint calls (`sidecar_url` in configuration.yaml; env: `DYNAMIC_MAP_DATA_DIR`, `DYNAMIC_MAP_PORT`).
 
 - **`/docs/`**: Project documentation, handoff logs, and technical specs.
 
@@ -46,5 +51,5 @@ The **Dynamic Map** project is a custom Home Assistant integration that renders 
 
 ## Critical Hotspots
 - **`OverlayManager.js`**: Contains complex DOM injection logic for sliders, toggles, and parsing HA entity states. Frequently modified for hardware integrations (e.g. Twinkly, Vacuums).
-- **`__init__.py`**: Manages the HA API endpoints (`/api/dynamic_map/...`) which have strict CORS/auth requirements.
+- **`views.py`**: Manages the HA API endpoints (`/api/dynamic_map/...`) — auth required everywhere, admin required for writes.
 - **`ShortcutConfigUI.js`**: Contains heavy UI rendering logic for the Editor sidebar, expanding rapidly as new features are added. (Potential Gravity Well)

@@ -1,5 +1,6 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-77a150e-dev-015941';
-import { CanvasEngine } from './CanvasEngine.js?v=3.0.3-77a150e-dev-015941';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.1.0';
+import { CanvasEngine } from './CanvasEngine.js?v=3.1.0';
+import { resolvePreviewTarget, getPosition, setPosition, getScale, setScale, getRotation, setRotation } from '../shared/OrientationProps.js?v=3.1.0';
 
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {
@@ -28,182 +29,38 @@ export class EditorInteractionManager {
 
     getShortcutPos(sc) {
         const activeMode = this.engine.activeMode || 'horizontal';
-        
-        let targetObj = sc;
-        if (this.state.previewStateIdx !== -1 && sc.config?.states?.[this.state.previewStateIdx]) {
-            const st = sc.config.states[this.state.previewStateIdx];
-            if (st.position !== undefined) {
-                targetObj = st;
-            }
-        }
-        
-        let pos = targetObj.position;
-        if (pos && typeof pos === 'object' && !Array.isArray(pos)) {
-            return pos[activeMode] || pos.horizontal || [50, 50];
-        }
-        return pos || [50, 50];
+        const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx, 'position');
+        return getPosition(targetObj, activeMode);
     }
 
     setShortcutPos(sc, pctX, pctY) {
         const activeMode = this.engine.activeMode || 'horizontal';
-        
-        let targetObj = sc;
-        if (this.state.previewStateIdx !== -1 && sc.config?.states?.[this.state.previewStateIdx]) {
-            targetObj = sc.config.states[this.state.previewStateIdx];
-        }
-        
-        if (targetObj.position && typeof targetObj.position === 'object' && !Array.isArray(targetObj.position)) {
-            targetObj.position[activeMode] = [pctX, pctY];
-        } else {
-            const oldPos = targetObj.position || [50, 50];
-            targetObj.position = {
-                horizontal: [...oldPos],
-                vertical: [...oldPos]
-            };
-            targetObj.position[activeMode] = [pctX, pctY];
-        }
+        const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx);
+        setPosition(targetObj, activeMode, pctX, pctY);
     }
 
     getShortcutScale(sc) {
         const activeMode = this.engine.activeMode || 'horizontal';
-        
-        let targetObj = sc;
-        if (this.state.previewStateIdx !== -1 && sc.config?.states?.[this.state.previewStateIdx]) {
-            targetObj = sc.config.states[this.state.previewStateIdx];
-        }
-        
-        let scScale = 1.0;
-        if (targetObj.scale !== undefined) {
-            if (typeof targetObj.scale === 'object' && !Array.isArray(targetObj.scale)) {
-                scScale = targetObj.scale[activeMode] !== undefined ? targetObj.scale[activeMode] : (targetObj.scale.horizontal || 1.0);
-            } else {
-                scScale = targetObj.scale;
-            }
-        } else if (targetObj !== sc && sc.scale !== undefined) {
-            if (typeof sc.scale === 'object' && !Array.isArray(sc.scale)) {
-                scScale = sc.scale[activeMode] !== undefined ? sc.scale[activeMode] : (sc.scale.horizontal || 1.0);
-            } else {
-                scScale = sc.scale;
-            }
-        }
-        
-        let scaleX = scScale;
-        if (targetObj.scaleX !== undefined) {
-            if (typeof targetObj.scaleX === 'object' && !Array.isArray(targetObj.scaleX)) {
-                scaleX = targetObj.scaleX[activeMode] !== undefined ? targetObj.scaleX[activeMode] : (targetObj.scaleX.horizontal || scScale);
-            } else {
-                scaleX = targetObj.scaleX;
-            }
-        } else if (targetObj !== sc && sc.scaleX !== undefined) {
-            if (typeof sc.scaleX === 'object' && !Array.isArray(sc.scaleX)) {
-                scaleX = sc.scaleX[activeMode] !== undefined ? sc.scaleX[activeMode] : (sc.scaleX.horizontal || scScale);
-            } else {
-                scaleX = sc.scaleX;
-            }
-        }
-        
-        let scaleY = scScale;
-        if (targetObj.scaleY !== undefined) {
-            if (typeof targetObj.scaleY === 'object' && !Array.isArray(targetObj.scaleY)) {
-                scaleY = targetObj.scaleY[activeMode] !== undefined ? targetObj.scaleY[activeMode] : (targetObj.scaleY.horizontal || scScale);
-            } else {
-                scaleY = targetObj.scaleY;
-            }
-        } else if (targetObj !== sc && sc.scaleY !== undefined) {
-            if (typeof sc.scaleY === 'object' && !Array.isArray(sc.scaleY)) {
-                scaleY = sc.scaleY[activeMode] !== undefined ? sc.scaleY[activeMode] : (sc.scaleY.horizontal || scScale);
-            } else {
-                scaleY = sc.scaleY;
-            }
-        }
-        
-        const shape = sc.config?.shape || sc.shape || 'circle';
-        const propDefault = (shape === 'circle');
-        const isProportional = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
-        if (isProportional) {
-            const uniformScale = scaleX;
-            return { scale: uniformScale, scaleX: uniformScale, scaleY: uniformScale };
-        }
-        
-        return { scale: scScale, scaleX, scaleY };
+        const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx);
+        return getScale(sc, targetObj, activeMode);
     }
 
     setShortcutScale(sc, prop, value) {
         const activeMode = this.engine.activeMode || 'horizontal';
-        const shape = sc.config?.shape || sc.shape || 'circle';
-        const propDefault = (shape === 'circle');
-        const isProportional = sc.config?.proportional !== undefined ? sc.config.proportional : propDefault;
-        
-        let targetObj = sc;
-        if (this.state.previewStateIdx !== -1 && sc.config?.states?.[this.state.previewStateIdx]) {
-            targetObj = sc.config.states[this.state.previewStateIdx];
-        }
-        
-        if (isProportional) {
-            ['scale', 'scaleX', 'scaleY'].forEach(p => {
-                if (targetObj[p] === undefined || typeof targetObj[p] !== 'object' || Array.isArray(targetObj[p])) {
-                    const oldVal = targetObj[p] !== undefined ? targetObj[p] : 1.0;
-                    targetObj[p] = {
-                        horizontal: oldVal,
-                        vertical: oldVal
-                    };
-                }
-                targetObj[p][activeMode] = value;
-            });
-            return;
-        }
-
-        if (targetObj[prop] === undefined || typeof targetObj[prop] !== 'object' || Array.isArray(targetObj[prop])) {
-            const oldVal = targetObj[prop] !== undefined ? targetObj[prop] : 1.0;
-            targetObj[prop] = {
-                horizontal: oldVal,
-                vertical: oldVal
-            };
-        }
-        targetObj[prop][activeMode] = value;
+        const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx);
+        setScale(sc, targetObj, prop, activeMode, value);
     }
 
     getShortcutRotation(sc) {
         const activeMode = this.engine.activeMode || 'horizontal';
-        
-        let targetObj = sc;
-        if (this.state.previewStateIdx !== -1 && sc.config?.states?.[this.state.previewStateIdx]) {
-            targetObj = sc.config.states[this.state.previewStateIdx];
-        }
-        
-        let rot = 0;
-        if (targetObj.rotation !== undefined) {
-            if (typeof targetObj.rotation === 'object' && !Array.isArray(targetObj.rotation)) {
-                rot = targetObj.rotation[activeMode] !== undefined ? targetObj.rotation[activeMode] : (targetObj.rotation.horizontal || 0);
-            } else {
-                rot = targetObj.rotation;
-            }
-        } else if (targetObj !== sc && sc.rotation !== undefined) {
-            if (typeof sc.rotation === 'object' && !Array.isArray(sc.rotation)) {
-                rot = sc.rotation[activeMode] !== undefined ? sc.rotation[activeMode] : (sc.rotation.horizontal || 0);
-            } else {
-                rot = sc.rotation;
-            }
-        }
-        return rot;
+        const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx);
+        return getRotation(sc, targetObj, activeMode);
     }
 
     setShortcutRotation(sc, value) {
         const activeMode = this.engine.activeMode || 'horizontal';
-        
-        let targetObj = sc;
-        if (this.state.previewStateIdx !== -1 && sc.config?.states?.[this.state.previewStateIdx]) {
-            targetObj = sc.config.states[this.state.previewStateIdx];
-        }
-        
-        if (targetObj.rotation === undefined || typeof targetObj.rotation !== 'object' || Array.isArray(targetObj.rotation)) {
-            const oldVal = targetObj.rotation !== undefined ? targetObj.rotation : 0;
-            targetObj.rotation = {
-                horizontal: oldVal,
-                vertical: oldVal
-            };
-        }
-        targetObj.rotation[activeMode] = value;
+        const targetObj = resolvePreviewTarget(sc, this.state.previewStateIdx);
+        setRotation(targetObj, activeMode, value);
     }
 
     bindEvents() {

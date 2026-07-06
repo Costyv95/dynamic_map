@@ -1,8 +1,97 @@
-import { ShortcutFactory } from './shortcuts/ShortcutFactory.js?v=3.0.3-77a150e-dev-015941';
-import { CameraManager } from './card/CameraManager.js?v=3.0.3-77a150e-dev-015941';
-import { MapGeometry } from './shared/MapGeometry.js?v=3.0.3-77a150e-dev-015941';
-import { OverlayManager } from './card/OverlayManager.js?v=3.0.3-77a150e-dev-015941';
-import { MapBuilder } from './card/MapBuilder.js?v=3.0.3-77a150e-dev-015941';
+import { ShortcutFactory } from './shortcuts/ShortcutFactory.js?v=3.1.0';
+import { CameraManager } from './card/CameraManager.js?v=3.1.0';
+import { MapGeometry } from './shared/MapGeometry.js?v=3.1.0';
+import { OverlayManager } from './card/OverlayManager.js?v=3.1.0';
+import { MapBuilder } from './card/MapBuilder.js?v=3.1.0';
+
+const CARD_STYLES = `
+    :host {
+        display: block;
+        width: 100%;
+        height: 100%;
+        min-height: 70vh; /* Fallback for non-panel views */
+        position: relative;
+        /* Theme tokens with HA theme fallbacks — override via HA themes */
+        --dm-accent: var(--primary-color, #0ea5e9);
+        --dm-surface: var(--card-background-color, #ffffff);
+        --dm-text: var(--primary-text-color, #1e293b);
+        --dm-muted: var(--secondary-text-color, #64748b);
+        --dm-border: var(--divider-color, #e2e8f0);
+        --dm-chip-bg: var(--ha-card-background, var(--card-background-color, #ffffff));
+        --dm-shadow: 0 4px 12px rgba(0, 0, 0, 0.14);
+        font-family: var(--primary-font-family, var(--paper-font-body1_-_font-family, Roboto, sans-serif));
+    }
+    .dm-render-root {
+        position: absolute;
+        inset: 0;
+        background: var(--dm-surface);
+        overflow: hidden;
+    }
+    .dm-top-ui {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        z-index: 10;
+    }
+    .dm-chip-group {
+        display: flex;
+        flex-direction: column;
+        background: var(--dm-chip-bg);
+        border: 1px solid var(--dm-border);
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: var(--dm-shadow);
+    }
+    .dm-chip {
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--dm-text);
+        cursor: pointer;
+        border-bottom: 1px solid var(--dm-border);
+        transition: background 0.15s ease, color 0.15s ease;
+        user-select: none;
+        text-align: center;
+    }
+    .dm-chip:last-child { border-bottom: none; }
+    .dm-chip:hover:not(.active) { background: rgba(127, 127, 127, 0.12); }
+    .dm-chip.active { background: var(--dm-accent); color: #fff; }
+    .dm-icon-btn {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--dm-chip-bg);
+        border: 1px solid var(--dm-border);
+        border-radius: 10px;
+        cursor: pointer;
+        color: var(--dm-text);
+        box-shadow: var(--dm-shadow);
+        transition: background 0.15s ease;
+        padding: 0;
+    }
+    .dm-icon-btn:hover { background: rgba(127, 127, 127, 0.12); }
+    .room-polygon {
+        cursor: pointer;
+        transition: fill 0.25s ease, stroke 0.25s ease, filter 0.25s ease;
+    }
+    .room-polygon.dm-on { filter: drop-shadow(0 0 8px var(--dm-room-glow, transparent)); }
+    .room-polygon.dm-selected { filter: drop-shadow(0 0 6px var(--dm-accent)); }
+    .room-polygon:hover:not(.dm-selected):not(.dm-on) { filter: brightness(1.15); }
+    .room-label {
+        pointer-events: none;
+        user-select: none;
+        paint-order: stroke;
+        stroke: rgba(0, 0, 0, 0.55);
+        stroke-width: 3px;
+        stroke-linejoin: round;
+    }
+    .dm-error { color: var(--error-color, #ef4444); padding: 20px; font-size: 14px; }
+`;
 
 class CustomSvgMap extends HTMLElement {
     constructor() {
@@ -11,15 +100,7 @@ class CustomSvgMap extends HTMLElement {
         this.svgNS = "http://www.w3.org/2000/svg";
 
         const style = document.createElement('style');
-        style.textContent = `
-            :host {
-                display: block;
-                width: 100%;
-                height: 100%;
-                min-height: 70vh; /* Fallback for non-panel views */
-                position: relative;
-            }
-        `;
+        style.textContent = CARD_STYLES;
         this.shadowRoot.appendChild(style);
 
         this.rooms = [];
@@ -28,18 +109,10 @@ class CustomSvgMap extends HTMLElement {
         this.selectedRoomId = null;
         this.rotationMode = 'auto';
         this.activeOverlay = null;
+        this._loadSeq = 0;
 
-        // renderRoot fills the host perfectly
         this.renderRoot = document.createElement('div');
-        this.renderRoot.style.position = 'absolute';
-        this.renderRoot.style.top = '0';
-        this.renderRoot.style.left = '0';
-        this.renderRoot.style.right = '0';
-        this.renderRoot.style.bottom = '0';
-        this.renderRoot.style.background = '#ffffff';
-        this.renderRoot.style.display = 'block';
-        this.renderRoot.style.overflow = 'hidden';
-
+        this.renderRoot.className = 'dm-render-root';
         this.shadowRoot.appendChild(this.renderRoot);
         this.animationFrame = null;
     }
@@ -66,62 +139,84 @@ class CustomSvgMap extends HTMLElement {
         }
     }
 
-    static getConfigElement() {
-        return document.createElement('custom-svg-map-editor');
-    }
-
     static getStubConfig() {
-        return { type: 'custom:custom-svg-map', default_floor: 1, floors: [1, 2] };
+        return { type: 'custom:custom-svg-map', default_floor: 1 };
     }
 
     setConfig(config) {
-        if (!config.floors || !config.floors.length) {
-            this.config = { floors: [1, 2], default_floor: config.default_floor || config.floor || 1, ...config };
+        this.config = { ...config };
+        if (this.config.floors && this.config.floors.length) {
+            this.activeFloor = this.config.default_floor || this.config.floor || this.config.floors[0];
+            this.loadData();
         } else {
-            this.config = config;
+            // No floors configured: discover them from the backend once hass is available.
+            this._needsFloorDiscovery = true;
         }
-        this.activeFloor = this.config.default_floor || this.config.floors[0];
+    }
+
+    async discoverFloors(hass) {
+        this._needsFloorDiscovery = false;
+        let floors = [1];
+        try {
+            const data = await hass.callApi('GET', 'dynamic_map/floors');
+            if (data && data.floors && data.floors.length) floors = data.floors;
+        } catch (e) {
+            console.warn('[custom-svg-map] Floor discovery failed, defaulting to floor 1', e);
+        }
+        this.config.floors = floors;
+        const preferred = this.config.default_floor || this.config.floor;
+        this.activeFloor = floors.includes(preferred) ? preferred : floors[0];
         this.loadData();
+    }
+
+    floorLabel(floorNum) {
+        const names = this.config.floor_names || {};
+        return names[floorNum] || `Floor ${floorNum}`;
     }
 
     async loadData() {
         const floor = this.activeFloor;
-        const t = new Date().getTime();
+        const requestId = ++this._loadSeq;
+        const t = Date.now();
         const bgUrl = `/dynamic_map_data/bg_floor${floor}.png?t=${t}`;
-        const roomsUrl = `/dynamic_map_data/rooms_floor${floor}.json?t=${t}`;
-        const shortcutsUrl = `/dynamic_map_data/shortcuts_floor${floor}.json?t=${t}`;
-        const configUrl = `/dynamic_map_data/config_floor${floor}.json?t=${t}`;
+
+        const fetchJson = async (url) => {
+            try {
+                const res = await fetch(url);
+                return res.ok ? await res.json() : null;
+            } catch (e) {
+                return null;
+            }
+        };
 
         try {
-            const [roomsRes, shortcutsRes, configRes] = await Promise.all([
-                fetch(`${roomsUrl}?t=${Date.now()}`).catch(() => ({ ok: false })),
-                fetch(`${shortcutsUrl}?t=${Date.now()}`).catch(() => ({ ok: false })),
-                fetch(`${configUrl}?t=${Date.now()}`).catch(() => ({ ok: false }))
+            const [rooms, shortcuts, config] = await Promise.all([
+                fetchJson(`/dynamic_map_data/rooms_floor${floor}.json?t=${t}`),
+                fetchJson(`/dynamic_map_data/shortcuts_floor${floor}.json?t=${t}`),
+                fetchJson(`/dynamic_map_data/config_floor${floor}.json?t=${t}`)
             ]);
+            // A newer floor switch superseded this load — drop it.
+            if (requestId !== this._loadSeq) return;
 
-            if (roomsRes.ok) this.rooms = await roomsRes.json();
-            else this.rooms = [];
+            this.rooms = rooms || [];
+            this.shortcuts = shortcuts || [];
 
-            if (shortcutsRes && shortcutsRes.ok) this.shortcuts = await shortcutsRes.json();
-            else this.shortcuts = [];
-            
-            let config = { rotation_mode: 'auto' };
-            if (configRes && configRes.ok) config = await configRes.json();
-            
-            this.rotationMode = config.rotation_mode || 'auto';
-            this.flips = config.flips || {
+            const floorConfig = config || { rotation_mode: 'auto' };
+            this.rotationMode = floorConfig.rotation_mode || 'auto';
+            this.flips = floorConfig.flips || {
                 horizontal: { h: false, v: false },
                 vertical: { h: false, v: false }
             };
 
             const img = new Image();
             img.onload = () => {
-                // Wait to ensure width is populated
+                if (requestId !== this._loadSeq) return;
                 this.imgW = img.naturalWidth || 1000;
                 this.imgH = img.naturalHeight || 1000;
                 this.buildSVG(bgUrl);
             };
             img.onerror = () => {
+                if (requestId !== this._loadSeq) return;
                 this.imgW = 1000;
                 this.imgH = 1000;
                 this.buildSVG(bgUrl);
@@ -130,7 +225,7 @@ class CustomSvgMap extends HTMLElement {
 
         } catch (e) {
             console.error("Failed to load map data", e);
-            this.renderRoot.innerHTML = `<div style="color:red; padding: 20px;">Failed to load map data from /dynamic_map_ui/. Ensure rooms_floor${floor}.json is present.</div>`;
+            this.renderRoot.innerHTML = `<div class="dm-error">Failed to load map data. Ensure rooms_floor${floor}.json exists in /config/dynamic_map_data/.</div>`;
         }
     }
 
@@ -182,20 +277,8 @@ class CustomSvgMap extends HTMLElement {
             polygon.setAttribute('points', pointsStr);
             polygon.setAttribute('stroke-width', (this.imgW * 0.002).toString());
 
-            let cx = 0, cy = 0;
             if (room.name) {
-                let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-                room.polygon.forEach(pt => {
-                    const px = (pt[0] / 100) * this.imgW;
-                    const py = (pt[1] / 100) * this.imgH;
-                    if (px < minX) minX = px;
-                    if (px > maxX) maxX = px;
-                    if (py < minY) minY = py;
-                    if (py > maxY) maxY = py;
-                });
-                cx = minX + (maxX - minX) / 2;
-                cy = minY + (maxY - minY) / 2;
-
+                const { cx, cy } = this.getRoomLabelCenter(room);
                 const text = document.createElementNS(this.svgNS, 'text');
                 text.setAttribute('x', cx);
                 text.setAttribute('y', cy);
@@ -204,7 +287,6 @@ class CustomSvgMap extends HTMLElement {
                 text.setAttribute('font-size', (this.imgW * 0.02).toString());
                 text.setAttribute('fill', 'white');
                 text.setAttribute('font-weight', 'bold');
-                text.style.textShadow = '0px 0px 4px black, 0px 0px 4px black';
                 text.textContent = room.name;
                 text.classList.add('room-label');
 
@@ -218,24 +300,7 @@ class CustomSvgMap extends HTMLElement {
 
             polygon.addEventListener('click', (e) => {
                 e.stopPropagation();
-                
-                if (this.isSelectingRooms) {
-                    if (this.selectedRoomIds.includes(room.id)) {
-                        this.selectedRoomIds = this.selectedRoomIds.filter(id => id !== room.id);
-                    } else {
-                        this.selectedRoomIds.push(room.id);
-                    }
-                    this.updateRoomStyles();
-                    return;
-                }
-
-                this.selectedRoomId = (this.selectedRoomId === room.id) ? null : room.id;
-                this.updateRoomStyles();
-
-                if (room.entity_id && this._hass) {
-                    const domain = room.entity_id.split('.')[0];
-                    this._hass.callService(domain, 'toggle', { entity_id: room.entity_id });
-                }
+                this.onRoomTap(room);
             });
 
             this.mapRoot.insertBefore(polygon, this.mapRoot.lastChild);
@@ -248,7 +313,7 @@ class CustomSvgMap extends HTMLElement {
             const shortcutObj = ShortcutFactory.create(sc, this.svgNS, this.imgW, this.imgH, this);
             this.shortcutElements[sc.id] = shortcutObj;
             this.mapRoot.appendChild(shortcutObj.render());
-            
+
             if (this._hass) {
                 shortcutObj.updateState(this._hass);
             }
@@ -261,37 +326,13 @@ class CustomSvgMap extends HTMLElement {
         // Calculate geometry and rotation
         this.calculateAutoCrop();
 
-        // Setup top-left UI container for overlay controls
+        // Top-left UI container for overlay controls
         this.topLeftUI = document.createElement('div');
-        this.topLeftUI.style.position = 'absolute';
-        this.topLeftUI.style.top = '10px';
-        this.topLeftUI.style.left = '10px';
-        this.topLeftUI.style.display = 'flex';
-        this.topLeftUI.style.gap = '10px';
-        this.topLeftUI.style.alignItems = 'stretch';
-        this.topLeftUI.style.zIndex = '10';
-        if (this.renderRoot) this.renderRoot.appendChild(this.topLeftUI);
+        this.topLeftUI.className = 'dm-top-ui';
+        this.renderRoot.appendChild(this.topLeftUI);
 
         this.buildFloorSwitcher();
         this.buildRotationSwitcher();
-
-        // Version badge appended inline next to floor switcher buttons styled with premium aesthetics
-        const versionBadge = document.createElement('div');
-        versionBadge.className = 'version-badge';
-        versionBadge.style.background = 'rgba(255, 255, 255, 0.9)';
-        versionBadge.style.borderRadius = '8px';
-        versionBadge.style.border = '1px solid #e2e8f0';
-        versionBadge.style.boxShadow = '0 4px 6px -1px rgba(0,0,0,0.1)';
-        versionBadge.style.padding = '8px 12px';
-        versionBadge.style.fontSize = '12px';
-        versionBadge.style.fontWeight = 'bold';
-        versionBadge.style.fontFamily = 'sans-serif';
-        versionBadge.style.color = '#64748b';
-        versionBadge.style.display = 'flex';
-        versionBadge.style.alignItems = 'center';
-        versionBadge.style.justifyContent = 'center';
-        versionBadge.textContent = "3.0.3-77a150e-dev-015941";
-        if (this.topLeftUI) this.topLeftUI.appendChild(versionBadge);
 
         if (this.cameraManager) this.cameraManager.destroy();
         this.cameraManager = new CameraManager(this.svg, this);
@@ -299,6 +340,71 @@ class CustomSvgMap extends HTMLElement {
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.lastTime = performance.now();
         this.animate(this.lastTime);
+    }
+
+    getRoomLabelCenter(room) {
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        room.polygon.forEach(pt => {
+            const px = (pt[0] / 100) * this.imgW;
+            const py = (pt[1] / 100) * this.imgH;
+            if (px < minX) minX = px;
+            if (px > maxX) maxX = px;
+            if (py < minY) minY = py;
+            if (py > maxY) maxY = py;
+        });
+        return { cx: minX + (maxX - minX) / 2, cy: minY + (maxY - minY) / 2 };
+    }
+
+    /**
+     * Room tap behavior, configurable via card config `room_tap_action` and
+     * per-room `tap_action`: 'toggle' | 'area_toggle' | 'more-info' | 'none'.
+     * Default 'toggle': toggles the room's entity, falling back to toggling
+     * the lights of its linked HA area.
+     */
+    onRoomTap(room) {
+        // Multi-select mode (e.g. picking rooms for vacuum cleaning)
+        if (this.isSelectingRooms) {
+            if (this.selectedRoomIds.includes(room.id)) {
+                this.selectedRoomIds = this.selectedRoomIds.filter(id => id !== room.id);
+            } else {
+                this.selectedRoomIds.push(room.id);
+            }
+            this.updateRoomStyles();
+            return;
+        }
+
+        this.selectedRoomId = (this.selectedRoomId === room.id) ? null : room.id;
+        this.updateRoomStyles();
+
+        if (!this._hass) return;
+        const action = room.tap_action || this.config.room_tap_action || 'toggle';
+
+        switch (action) {
+            case 'none':
+                return;
+            case 'more-info': {
+                const entityId = room.entity_id;
+                if (entityId) {
+                    this.dispatchEvent(new CustomEvent('hass-more-info', {
+                        detail: { entityId }, bubbles: true, composed: true
+                    }));
+                }
+                return;
+            }
+            case 'area_toggle':
+                if (room.area_id) {
+                    this._hass.callService('light', 'toggle', {}, { area_id: room.area_id });
+                }
+                return;
+            case 'toggle':
+            default:
+                if (room.entity_id) {
+                    const domain = room.entity_id.split('.')[0];
+                    this._hass.callService(domain, 'toggle', { entity_id: room.entity_id });
+                } else if (room.area_id) {
+                    this._hass.callService('light', 'toggle', {}, { area_id: room.area_id });
+                }
+        }
     }
 
     calculateAutoCrop() {
@@ -351,13 +457,13 @@ class CustomSvgMap extends HTMLElement {
         }
 
         this.isRotated = shouldRotate;
-        
+
         let scaleX = 1;
         let scaleY = 1;
         const finalIsHorizontal = isMapLandscape !== this.isRotated;
         const activeMode = finalIsHorizontal ? 'horizontal' : 'vertical';
         this.activeMode = activeMode;
-        
+
         const currentFlips = this.flips[activeMode];
         if (this.isRotated) {
             if (currentFlips.h) scaleY = -1;
@@ -366,7 +472,7 @@ class CustomSvgMap extends HTMLElement {
             if (currentFlips.h) scaleX = -1;
             if (currentFlips.v) scaleY = -1;
         }
-        
+
         this.mapScaleX = scaleX;
         this.mapScaleY = scaleY;
 
@@ -376,29 +482,16 @@ class CustomSvgMap extends HTMLElement {
 
         if (transformStr.trim()) {
             this.mapRoot.setAttribute('transform', transformStr.trim());
-            
+
             this.mapRoot.querySelectorAll('.room-label').forEach(label => {
                 let childTransformStr = `translate(${label.rawCx}, ${label.rawCy}) `;
                 if (scaleX !== 1 || scaleY !== 1) childTransformStr += `scale(${scaleX}, ${scaleY}) `;
                 if (this.isRotated) childTransformStr += `rotate(-90) `;
                 childTransformStr += `translate(${-label.rawCx}, ${-label.rawCy})`;
-                
+
                 label.setAttribute('transform', childTransformStr);
             });
-            if (this.shortcutElements) {
-                Object.values(this.shortcutElements).forEach(scObj => {
-                    const isAutoRotate = scObj.getIsAutoRotateActive && scObj.getIsAutoRotateActive();
-                    let scTransformStr = '';
-                    if (scaleX !== 1 || scaleY !== 1) scTransformStr += `scale(${scaleX}, ${scaleY}) `;
-                    if (this.isRotated && !isAutoRotate) scTransformStr += `rotate(-90) `;
-                    if (scObj.setTransformStr) scObj.setTransformStr(scTransformStr.trim());
-                    else if (scObj.setRotation) scObj.setRotation((this.isRotated && !isAutoRotate) ? -90 : 0);
-                    
-                    if (scObj.updateCoordinates) {
-                        scObj.updateCoordinates();
-                    }
-                });
-            }
+            this.applyShortcutTransforms(scaleX, scaleY);
 
             // Content rotated, swap target dimensions
             if (this.isRotated) {
@@ -411,20 +504,9 @@ class CustomSvgMap extends HTMLElement {
             this.mapRoot.querySelectorAll('.room-label').forEach(label => {
                 label.removeAttribute('transform');
             });
-            if (this.shortcutElements) {
-                Object.values(this.shortcutElements).forEach(scObj => {
-                    if (scObj.setTransformStr) scObj.setTransformStr('');
-                    else if (scObj.setRotation) scObj.setRotation(0);
-                    
-                    if (scObj.updateCoordinates) {
-                        scObj.updateCoordinates();
-                    }
-                });
-            }
+            this.applyShortcutTransforms(1, 1);
         }
 
-        // (rect calculation moved up)
-        
         const targetRatio = targetW / targetH;
         let finalW = targetW;
         let finalH = targetH;
@@ -447,6 +529,24 @@ class CustomSvgMap extends HTMLElement {
         this.updateViewBox();
     }
 
+    /** Apply per-shortcut counter-transforms for the current rotation/flip state. */
+    applyShortcutTransforms(scaleX, scaleY) {
+        if (!this.shortcutElements) return;
+        const flipped = scaleX !== 1 || scaleY !== 1;
+        Object.values(this.shortcutElements).forEach(scObj => {
+            const isAutoRotate = scObj.getIsAutoRotateActive && scObj.getIsAutoRotateActive();
+            let scTransformStr = '';
+            if (flipped) scTransformStr += `scale(${scaleX}, ${scaleY}) `;
+            if (this.isRotated && !isAutoRotate) scTransformStr += `rotate(-90) `;
+            if (scObj.setTransformStr) scObj.setTransformStr(scTransformStr.trim());
+            else if (scObj.setRotation) scObj.setRotation((this.isRotated && !isAutoRotate) ? -90 : 0);
+
+            if (scObj.updateCoordinates) {
+                scObj.updateCoordinates();
+            }
+        });
+    }
+
     updateViewBox() {
         if (!this.svg) return;
         this.svg.setAttribute('viewBox', `${this.vb.x} ${this.vb.y} ${this.vb.w} ${this.vb.h}`);
@@ -455,14 +555,15 @@ class CustomSvgMap extends HTMLElement {
             this.mapWrapper.style.width = '100%';
             this.mapWrapper.style.height = '100%';
         }
-
-
     }
-
-
 
     set hass(hass) {
         this._hass = hass;
+
+        if (this._needsFloorDiscovery) {
+            this.discoverFloors(hass);
+            return;
+        }
 
         let needsStyleUpdate = false;
         for (const id in this.shortcutElements) {
@@ -478,19 +579,7 @@ class CustomSvgMap extends HTMLElement {
         if (this.shortcutElements) {
             const sX = this.mapScaleX !== undefined ? this.mapScaleX : 1;
             const sY = this.mapScaleY !== undefined ? this.mapScaleY : 1;
-            Object.values(this.shortcutElements).forEach(scObj => {
-                const isAutoRotate = scObj.getIsAutoRotateActive && scObj.getIsAutoRotateActive();
-                if (this.isRotated) {
-                    let scTransformStr = '';
-                    if (sX !== 1 || sY !== 1) scTransformStr += `scale(${sX}, ${sY}) `;
-                    if (!isAutoRotate) scTransformStr += `rotate(-90) `;
-                    if (scObj.setTransformStr) scObj.setTransformStr(scTransformStr.trim());
-                    else if (scObj.setRotation) scObj.setRotation(!isAutoRotate ? -90 : 0);
-                } else {
-                    if (scObj.setTransformStr) scObj.setTransformStr('');
-                    else if (scObj.setRotation) scObj.setRotation(0);
-                }
-            });
+            this.applyShortcutTransforms(this.isRotated ? sX : 1, this.isRotated ? sY : 1);
         }
 
         // Only update room styles if something actually changed, or on first load
@@ -500,8 +589,6 @@ class CustomSvgMap extends HTMLElement {
         }
     }
 
-
-
     updateRoomStyles() {
         if (!this.mapRoot) return;
         const polygons = this.mapRoot.querySelectorAll('polygon.room-polygon');
@@ -510,7 +597,12 @@ class CustomSvgMap extends HTMLElement {
             if (!room) return;
 
             const isSelected = (this.selectedRoomId === room.id);
+            // Golden-angle hue spread gives distinct auto-colors per room index
             const hue = (idx * 137.5) % 360;
+            const rgb = MapGeometry.hexToRgb(room.color);
+            const baseColor = rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : null;
+            const solid = baseColor ? `rgb(${baseColor})` : `hsl(${hue}, 100%, 50%)`;
+            const fillAt = (a) => baseColor ? `rgba(${baseColor}, ${a})` : `hsla(${hue}, 100%, 50%, ${a})`;
 
             let isOn = false;
             if (room.entity_id && this._hass) {
@@ -518,55 +610,34 @@ class CustomSvgMap extends HTMLElement {
                 if (stateObj && stateObj.state === 'on') isOn = true;
             }
 
-            let rgb = null;
-            if (room.color) {
-                const hex = room.color.replace('#', '');
-                if (hex.length === 6) {
-                    rgb = {
-                        r: parseInt(hex.substring(0, 2), 16),
-                        g: parseInt(hex.substring(2, 4), 16),
-                        b: parseInt(hex.substring(4, 6), 16)
-                    };
-                }
-            }
+            poly.classList.remove('dm-selected', 'dm-on');
+            poly.style.removeProperty('--dm-room-glow');
 
             if (this.isSelectingRooms) {
                 if (this.selectedRoomIds && this.selectedRoomIds.includes(room.id)) {
-                    if (rgb) poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.8)`);
-                    else poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.8)`);
+                    poly.setAttribute('fill', fillAt(0.8));
                     poly.setAttribute('stroke', '#10b981');
-                    poly.style.filter = 'drop-shadow(0px 0px 6px #10b981)';
+                    poly.style.setProperty('--dm-room-glow', '#10b981');
+                    poly.classList.add('dm-on');
                 } else {
                     poly.setAttribute('fill', 'rgba(0,0,0,0.4)');
                     poly.setAttribute('stroke', 'rgba(255,255,255,0.2)');
-                    poly.style.filter = 'none';
                 }
                 return;
             }
 
             if (isSelected) {
-                if (rgb) poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)`);
-                else poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.7)`);
-                poly.setAttribute('stroke', '#00ffff');
-                poly.style.filter = 'drop-shadow(0px 0px 5px #00ffff)';
+                poly.setAttribute('fill', fillAt(0.7));
+                poly.setAttribute('stroke', 'var(--dm-accent)');
+                poly.classList.add('dm-selected');
             } else if (isOn) {
-                if (rgb) {
-                    poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)`);
-                    poly.setAttribute('stroke', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`);
-                } else {
-                    poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.6)`);
-                    poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 1)`);
-                }
-                poly.style.filter = 'drop-shadow(0px 0px 8px yellow)';
+                poly.setAttribute('fill', fillAt(0.7));
+                poly.setAttribute('stroke', solid);
+                poly.style.setProperty('--dm-room-glow', solid);
+                poly.classList.add('dm-on');
             } else {
-                if (rgb) {
-                    poly.setAttribute('fill', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4)`);
-                    poly.setAttribute('stroke', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.9)`);
-                } else {
-                    poly.setAttribute('fill', `hsla(${hue}, 100%, 50%, 0.4)`);
-                    poly.setAttribute('stroke', `hsla(${hue}, 100%, 50%, 0.9)`);
-                }
-                poly.style.filter = 'none';
+                poly.setAttribute('fill', fillAt(0.35));
+                poly.setAttribute('stroke', fillAt(0.9));
             }
         });
     }

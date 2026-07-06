@@ -1,328 +1,67 @@
+"""Dynamic Floorplan Map — native SVG map card + sidebar editor for Home Assistant."""
 import logging
 import os
-import json
-from homeassistant.core import HomeAssistant
-from homeassistant.components.http import HomeAssistantView, StaticPathConfig
+import time
+
+import voluptuous as vol
+
+import homeassistant.helpers.config_validation as cv
 from homeassistant.components.frontend import async_register_built_in_panel
+from homeassistant.components.http import StaticPathConfig
+from homeassistant.core import HomeAssistant
+from homeassistant.loader import async_get_integration
+
+from .const import CONF_SIDECAR_URL, DATA_DIR, DOMAIN, URL_BASE_DATA, URL_BASE_UI
+from .views import ALL_VIEWS
 
 _LOGGER = logging.getLogger(__name__)
 
-DOMAIN = "dynamic_map"
+CONFIG_SCHEMA = vol.Schema(
+    {
+        DOMAIN: vol.Schema(
+            {vol.Optional(CONF_SIDECAR_URL): cv.url},
+        )
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
 
 async def async_setup(hass: HomeAssistant, config: dict):
     """Set up the Dynamic Map component."""
-    
-    # Register the save API endpoint
-    hass.http.register_view(DynamicMapSaveView(hass))
-    hass.http.register_view(DynamicMapStateView(hass))
-    hass.http.register_view(DynamicMapEntitiesView(hass))
-    hass.http.register_view(DynamicMapFilesView(hass))
-    hass.http.register_view(DynamicMapRecomputeView(hass))
-    hass.http.register_view(DynamicMapDeleteFloorView(hass))
-    hass.http.register_view(DynamicMapRegistryView(hass))
-    hass.http.register_view(DynamicMapRoborockRoomsView(hass))
-    
-    # Expose the frontend folder statically
+    conf = config.get(DOMAIN) or {}
+    integration = await async_get_integration(hass, DOMAIN)
+
+    hass.data[DOMAIN] = {
+        "version": integration.version,
+        CONF_SIDECAR_URL: conf.get(CONF_SIDECAR_URL),
+    }
+
+    for view_cls in ALL_VIEWS:
+        hass.http.register_view(view_cls(hass))
+
     frontend_dir = hass.config.path("custom_components", DOMAIN, "frontend")
-    
-    # Expose the user data folder statically
-    data_dir = hass.config.path(DOMAIN + "_data")
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir)
-        
-    await hass.http.async_register_static_paths([
-        StaticPathConfig("/dynamic_map_ui", frontend_dir, cache_headers=False),
-        StaticPathConfig("/dynamic_map_data", data_dir, cache_headers=False)
-    ])
-    
-    # Register the custom panel editor
+    data_dir = hass.config.path(DATA_DIR)
+    if not await hass.async_add_executor_job(os.path.exists, data_dir):
+        await hass.async_add_executor_job(os.makedirs, data_dir)
+
+    await hass.http.async_register_static_paths(
+        [
+            StaticPathConfig(URL_BASE_UI, frontend_dir, cache_headers=False),
+            StaticPathConfig(URL_BASE_DATA, data_dir, cache_headers=False),
+        ]
+    )
+
     async_register_built_in_panel(
         hass,
         component_name="iframe",
         sidebar_title="Map Editor",
         sidebar_icon="mdi:map-search-outline",
         frontend_url_path="dynamic_map_editor",
-        config={"url": "/dynamic_map_ui/editor.html?v=3.0.3-77a150e-dev-015941"},
+        # Include the startup time so the editor shell is re-fetched after every
+        # restart (deploys restart HA), regardless of browser heuristic caching.
+        config={"url": f"{URL_BASE_UI}/editor.html?v={integration.version}-{int(time.time())}"},
         require_admin=True,
     )
-    
-    _LOGGER.info("Dynamic Map Component loaded successfully.")
+
+    _LOGGER.info("Dynamic Map %s loaded", integration.version)
     return True
-
-class DynamicMapSaveView(HomeAssistantView):
-    """View to handle saving map configurations."""
-    url = "/api/dynamic_map/save"
-    name = "api:dynamic_map:save"
-    requires_auth = False
-
-    def __init__(self, hass):
-        self.hass = hass
-
-    async def post(self, request):
-        """Handle POST request to save data."""
-        try:
-            data = await request.json()
-            filename = data.get("filename")
-            content = data.get("content")
-            image_b64 = data.get("image_base64")
-
-            if not filename or ".." in filename or "/" in filename or "\\" in filename:
-                return self.json({"success": False, "error": "Invalid filename format."})
-
-            save_path = self.hass.config.path(DOMAIN + "_data", filename)
-
-            # Builder Mode: save a background image (bg_floor{N}.png) for a manually-added floor
-            if image_b64 is not None and filename.endswith(".png"):
-                import base64
-                raw = base64.b64decode(image_b64.split(",")[-1])
-
-                def save_image():
-                    with open(save_path, "wb") as f:
-                        f.write(raw)
-
-                await self.hass.async_add_executor_job(save_image)
-                return self.json({"success": True})
-
-            # Otherwise, JSON config only
-            if content is None or not filename.endswith(".json"):
-                return self.json({"success": False, "error": "Missing or invalid content"})
-
-            def save_file():
-                with open(save_path, "w", encoding="utf-8") as f:
-                    json.dump(content, f, ensure_ascii=False, indent=2)
-
-            await self.hass.async_add_executor_job(save_file)
-            return self.json({"success": True})
-        
-        except Exception as e:
-            _LOGGER.error(f"Failed to save dynamic map config: {e}")
-            return self.json({"success": False, "error": str(e)})
-
-class DynamicMapStateView(HomeAssistantView):
-    """View to fetch state and attributes of an entity."""
-    url = "/api/dynamic_map/state"
-    name = "api:dynamic_map:state"
-    requires_auth = False
-
-    def __init__(self, hass):
-        self.hass = hass
-
-    async def get(self, request):
-        """Handle GET request to fetch entity state."""
-        entity_id = request.query.get("entity_id")
-        if not entity_id:
-            return self.json({"success": False, "error": "Missing entity_id parameter."})
-
-        state = self.hass.states.get(entity_id)
-        if state is None:
-            return self.json({"success": False, "error": "Entity not found."})
-
-        return self.json({
-            "success": True,
-            "state": state.state,
-            "attributes": dict(state.attributes)
-        })
-
-class DynamicMapEntitiesView(HomeAssistantView):
-    """View to fetch all entity IDs."""
-    url = "/api/dynamic_map/entities"
-    name = "api:dynamic_map:entities"
-    requires_auth = False
-
-    def __init__(self, hass):
-        self.hass = hass
-
-    async def get(self, request):
-        """Handle GET request to fetch all entities."""
-        entities = []
-        for state in self.hass.states.async_all():
-            friendly_name = state.attributes.get("friendly_name", "")
-            entities.append({
-                "id": state.entity_id,
-                "name": friendly_name if friendly_name else state.entity_id
-            })
-
-        return self.json({
-            "success": True,
-            "entities": entities
-        })
-
-class DynamicMapFilesView(HomeAssistantView):
-    """View to list available DXF and SVG files."""
-    url = "/api/dynamic_map/files"
-    name = "api:dynamic_map:files"
-    requires_auth = False
-
-    def __init__(self, hass):
-        self.hass = hass
-
-    async def get(self, request):
-        data_dir = self.hass.config.path(DOMAIN + "_data")
-        icons_dir = os.path.join(data_dir, "icons")
-        
-        def get_files():
-            result = {"files": [], "icons": []}
-            if os.path.exists(data_dir):
-                result["files"] = [f for f in os.listdir(data_dir) if f.endswith('.dxf') or f.endswith('.svg')]
-            
-            if os.path.exists(icons_dir):
-                result["icons"] = [f"/dynamic_map_data/icons/{f}" for f in os.listdir(icons_dir) if f.endswith('.png') or f.endswith('.jpg') or f.endswith('.svg') or f.endswith('.webp')]
-            
-            return result
-            
-        data = await self.hass.async_add_executor_job(get_files)
-        return self.json({"success": True, "files": data["files"], "icons": data["icons"]})
-
-class DynamicMapRecomputeView(HomeAssistantView):
-    """View to handle recomputing the map from DXF/SVG."""
-    url = "/api/dynamic_map/recompute"
-    name = "api:dynamic_map:recompute"
-    requires_auth = False
-
-    def __init__(self, hass):
-        self.hass = hass
-
-    async def post(self, request):
-        try:
-            data = await request.json()
-            floor_num = data.get("floor_num")
-            svg_file = data.get("svg_file")
-            dxf_file = data.get("dxf_file")
-
-            if not floor_num:
-                return self.json({"success": False, "error": "Missing floor_num"})
-
-            import aiohttp
-            
-            async with aiohttp.ClientSession() as session:
-                payload = {
-                    "floor": floor_num,
-                    "svg_file": svg_file,
-                    "dxf_file": dxf_file
-                }
-                
-                # Fetch the sidecar URL from config, default to local docker instance
-                sidecar_url = self.hass.data.get(DOMAIN, {}).get("sidecar_url", "http://192.168.1.202:5000")
-                
-                async with session.post(f"{sidecar_url}/process", json=payload) as resp:
-                    result = await resp.json()
-                    if not result.get("success"):
-                        return self.json({"success": False, "error": result.get("error", "Unknown error from Sidecar")})
-                        
-            return self.json({"success": True})
-            
-        except Exception as e:
-            _LOGGER.error(f"Failed to recompute dynamic map: {e}")
-            return self.json({"success": False, "error": str(e)})
-
-class DynamicMapDeleteFloorView(HomeAssistantView):
-    """View to delete floor files."""
-    url = "/api/dynamic_map/delete_floor"
-    name = "api:dynamic_map:delete_floor"
-    requires_auth = False
-
-    def __init__(self, hass):
-        self.hass = hass
-
-    async def post(self, request):
-        try:
-            data = await request.json()
-            floor_num = data.get("floor_num")
-            if not floor_num:
-                return self.json({"success": False, "error": "Missing floor_num"})
-                
-            data_dir = self.hass.config.path(DOMAIN + "_data")
-            
-            def delete_files():
-                deleted = False
-                for filename in [f"bg_floor{floor_num}.png", f"rooms_floor{floor_num}.json", f"shortcuts_floor{floor_num}.json"]:
-                    file_path = os.path.join(data_dir, filename)
-                    if os.path.exists(file_path):
-                        os.remove(file_path)
-                        deleted = True
-                return deleted
-                
-            deleted = await self.hass.async_add_executor_job(delete_files)
-            if deleted:
-                return self.json({"success": True, "message": f"Floor {floor_num} deleted."})
-            else:
-                return self.json({"success": False, "error": f"No files found for Floor {floor_num}."})
-        except Exception as e:
-            return self.json({"success": False, "error": str(e)})
-
-class DynamicMapRegistryView(HomeAssistantView):
-    """View to fetch HA floors and areas."""
-    url = "/api/dynamic_map/registry"
-    name = "api:dynamic_map:registry"
-    requires_auth = False
-
-    def __init__(self, hass):
-        self.hass = hass
-
-    async def get(self, request):
-        from homeassistant.helpers import area_registry, floor_registry, entity_registry
-        
-        ar = area_registry.async_get(self.hass)
-        fr = floor_registry.async_get(self.hass)
-        er = entity_registry.async_get(self.hass)
-        
-        # Get all floors
-        floors = []
-        for floor_id, floor in fr.floors.items():
-            floors.append({
-                "id": floor_id,
-                "name": floor.name,
-                "level": floor.level
-            })
-            
-        # Get all areas
-        areas = []
-        for area_id, area in ar.areas.items():
-            # Find the first light entity in this area to use as the default entity_id
-            lights = [
-                entry.entity_id 
-                for entry in er.entities.values() 
-                if entry.area_id == area_id and entry.domain == "light"
-            ]
-            
-            areas.append({
-                "id": area_id,
-                "name": area.name,
-                "floor_id": area.floor_id,
-                "default_light": lights[0] if lights else None
-            })
-            
-        return self.json({
-            "success": True,
-            "floors": floors,
-            "areas": areas
-        })
-
-class DynamicMapRoborockRoomsView(HomeAssistantView):
-    """View to fetch roborock rooms via service call."""
-    url = "/api/dynamic_map/roborock_rooms"
-    name = "api:dynamic_map:roborock_rooms"
-    requires_auth = False
-
-    def __init__(self, hass):
-        self.hass = hass
-
-    async def get(self, request):
-        try:
-            entity_id = request.query.get("entity_id")
-            if not entity_id:
-                return self.json({"success": False, "error": "entity_id is required"})
-
-            if not self.hass.services.has_service("roborock", "get_maps"):
-                return self.json({"success": False, "error": "roborock.get_maps service not found"})
-            
-            response = await self.hass.services.async_call(
-                "roborock", 
-                "get_maps", 
-                service_data={"entity_id": entity_id},
-                blocking=True, 
-                return_response=True
-            )
-            return self.json({"success": True, "data": response})
-        except Exception as e:
-            return self.json({"success": False, "error": str(e)})

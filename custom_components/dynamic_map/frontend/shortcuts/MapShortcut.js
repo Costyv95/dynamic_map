@@ -1,6 +1,8 @@
-import { ComponentRegistry } from './ComponentRegistry.js?v=3.0.3-77a150e-dev-015941';
-import { evaluateCondition } from './ConditionEvaluator.js?v=3.0.3-77a150e-dev-015941';
-import { evaluateTemplate } from './TemplateEvaluator.js?v=3.0.3-77a150e-dev-015941';
+import { ComponentRegistry } from './ComponentRegistry.js?v=3.1.0';
+import { evaluateCondition } from './ConditionEvaluator.js?v=3.1.0';
+import { evaluateTemplate } from './TemplateEvaluator.js?v=3.1.0';
+import { isOrientationObject, resolveOriented, resolveOrientedLoose, resolveOrientedStrict } from '../shared/OrientationProps.js?v=3.1.0';
+import { executeAction } from '../shared/ActionRunner.js?v=3.1.0';
 
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {
@@ -60,22 +62,15 @@ export class MapShortcut {
     updateCoordinates() {
         const activeMode = this.mapContext.activeMode || 'horizontal';
         let pos = this.sc.position;
-        if (pos && typeof pos === 'object' && !Array.isArray(pos)) {
-            pos = pos[activeMode] || pos.horizontal || [50, 50];
+        if (isOrientationObject(pos)) {
+            pos = resolveOrientedLoose(pos, activeMode, [50, 50]);
         }
-        
+
         this.px = (pos[0] / 100) * this.imgW;
         this.py = (pos[1] / 100) * this.imgH;
-        
-        let customRot = 0;
-        if (this.sc.rotation !== undefined) {
-            if (typeof this.sc.rotation === 'object' && !Array.isArray(this.sc.rotation)) {
-                customRot = this.sc.rotation[activeMode] !== undefined ? this.sc.rotation[activeMode] : (this.sc.rotation.horizontal || 0);
-            } else {
-                customRot = this.sc.rotation;
-            }
-        }
-        
+
+        const customRot = resolveOriented(this.sc.rotation, activeMode, 0);
+
         const extra = this.extraTransformStr || '';
         const rotStr = customRot ? `rotate(${customRot})` : '';
         this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${rotStr} ${extra}`.trim());
@@ -130,13 +125,7 @@ export class MapShortcut {
             // Unified property resolver: checks matchedState override, then falls back to root this.sc or instance properties
             const resolveProperty = (prop, defaultVal) => {
                 const val = matchedState?.[prop] !== undefined ? matchedState[prop] : (this.sc[prop] !== undefined ? this.sc[prop] : this[prop]);
-                if (val !== undefined) {
-                    if (typeof val === 'object' && !Array.isArray(val)) {
-                        return val[activeMode] !== undefined ? val[activeMode] : (val.horizontal || defaultVal);
-                    }
-                    return val;
-                }
-                return defaultVal;
+                return resolveOriented(val, activeMode, defaultVal);
             };
             
             let scaleVal = resolveProperty('scale', 1.0);
@@ -359,10 +348,8 @@ export class MapShortcut {
             // scalar for the active mode; guards against NaN reaching setAttribute.
             const uaMode = this.mapContext.activeMode || 'horizontal';
             const num = (v) => {
-                if (v && typeof v === 'object' && !Array.isArray(v)) {
-                    v = v[uaMode] !== undefined ? v[uaMode] : v.horizontal;
-                }
-                return Number.isFinite(v) ? v : undefined;
+                const resolved = resolveOrientedStrict(v, uaMode);
+                return Number.isFinite(resolved) ? resolved : undefined;
             };
             const scale = num(this.sc.scale) ?? 1.0;
             const sX = num(this.scaleX) ?? num(this.sc.scaleX) ?? scale;
@@ -529,15 +516,8 @@ export class MapShortcut {
     setTransformStr(str) {
         this.extraTransformStr = str;
         
-        let customRot = 0;
         const activeMode = this.mapContext.activeMode || 'horizontal';
-        if (this.sc.rotation !== undefined) {
-            if (typeof this.sc.rotation === 'object' && !Array.isArray(this.sc.rotation)) {
-                customRot = this.sc.rotation[activeMode] !== undefined ? this.sc.rotation[activeMode] : (this.sc.rotation.horizontal || 0);
-            } else {
-                customRot = this.sc.rotation;
-            }
-        }
+        const customRot = resolveOriented(this.sc.rotation, activeMode, 0);
         const rotStr = customRot ? `rotate(${customRot})` : '';
         this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${rotStr} ${str}`.trim());
         
@@ -633,40 +613,9 @@ export class MapShortcut {
             if (tapActions.length > 0) {
                 tapActions.forEach(act => {
                     const target = act.action_entity || this.sc.entity_id;
-                    if (!this.mapContext._hass) return;
-                    if (!target && act.type !== 'CALL_SERVICE') return;
-                    
-                    if (act.type === 'CALL_SERVICE' && act.service) {
-                        const parts = act.service.split('.');
-                        if (parts.length === 2) {
-                            let payload = {};
-                            if (act.action_entity) {
-                                payload.entity_id = act.action_entity;
-                            } else if (!act.payload && target) {
-                                payload.entity_id = target;
-                            }
-                            if (act.payload) {
-                                try {
-                                    const parsed = JSON.parse(act.payload);
-                                    payload = { ...payload, ...parsed };
-                                } catch (err) {
-                                    console.error("[DynamicMap] Failed to parse action payload:", err);
-                                }
-                            }
-                            this.mapContext._hass.callService(parts[0], parts[1], payload);
-                        }
-                    } else if (act.type && act.type.startsWith('TOGGLE')) {
-                        const domain = target.split('.')[0];
-                        let service = act.type === 'TOGGLE_ON' ? 'turn_on' : (act.type === 'TOGGLE_OFF' ? 'turn_off' : 'toggle');
-                        
-                        if (domain === 'vacuum') {
-                            if (service === 'turn_on') service = 'start';
-                            else if (service === 'turn_off') service = 'return_to_base';
-                            // vacuum.toggle is valid in modern HA; no remap needed
-                        }
-                        
-                        this.mapContext._hass.callService(domain, service, { entity_id: target });
-                    }
+                    // Tap actions intentionally skip room-name -> segment-ID
+                    // replacement and error alerts (see ActionRunner divergence notes).
+                    executeAction(this.mapContext._hass, act, target);
                 });
                 return;
             }

@@ -1,5 +1,6 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.0.3-77a150e-dev-015941';
-import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.0.3-77a150e-dev-015941';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.1.0';
+import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.1.0';
+import { resolveOriented, getPosition } from '../shared/OrientationProps.js?v=3.1.0';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -313,12 +314,8 @@ export class CanvasEngine {
         }
 
         shortcuts.forEach((sc, idx) => {
-            let pos = sc.position;
             const activeMode = this.activeMode || 'horizontal';
-            if (pos && typeof pos === 'object' && !Array.isArray(pos)) {
-                pos = pos[activeMode] || pos.horizontal || [50, 50];
-            }
-            if (!pos) pos = [50, 50];
+            const pos = getPosition(sc, activeMode);
 
             const x = (pos[0] / 100) * bgW;
             const y = (pos[1] / 100) * bgH;
@@ -335,13 +332,7 @@ export class CanvasEngine {
                 if (val === undefined) {
                     val = sc[prop] !== undefined ? sc[prop] : sc.config?.[prop];
                 }
-                if (val !== undefined) {
-                    if (typeof val === 'object' && !Array.isArray(val)) {
-                        return val[activeMode] !== undefined ? val[activeMode] : (val.horizontal || defaultVal);
-                    }
-                    return val;
-                }
-                return defaultVal;
+                return resolveOriented(val, activeMode, defaultVal);
             };
 
             let scScale = resolveProperty('scale', 1.0);
