@@ -274,7 +274,27 @@
                 <button id="exportYamlBtn" class="primary" style="flex: 1; margin: 0;">📄 Gen YAML</button>
             </div>
             <textarea id="yamlOutput" placeholder="YAML will appear here..." readonly></textarea>
-            <button id="toggleRecomputeBtn" style="margin-top: 10px; width: 100%;">⚙️ Recompute Floors</button>
+            <button id="outsideBtn" style="margin-top: 10px; width: 100%;">🌤️ Outside Dashboard</button>
+            <button id="toggleRecomputeBtn" style="margin-top: 6px; width: 100%;">⚙️ Recompute Floors</button>
+        </div>
+    </div>
+
+    <!-- Outside Dashboard Modal -->
+    <div id="outsideModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(5px);">
+        <div style="background: var(--panel); color: var(--text); border: 1px solid var(--border); border-radius: 10px; padding: 18px; width: min(640px, 92vw); max-height: 84vh; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <h3 style="margin: 0; font-size: 15px;">🌤️ Outside Dashboard</h3>
+                <button id="closeOutsideBtn" style="background: none; border: none; color: var(--text); font-size: 20px; cursor: pointer; width: auto; padding: 0; margin: 0;">×</button>
+            </div>
+            <div style="font-size: 11px; color: var(--muted);">
+                Shown as a fixed bar at the top of the floorplan card — it never moves with the map.
+                Add any outside entities: temperature, humidity, pollen levels, UV, a weather entity for the forecast icon…
+                Leave the label empty to show just the value. "Attribute" reads an entity attribute instead of its state (optional).
+            </div>
+            <div id="outsideRows" style="display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; min-height: 60px;"></div>
+            <button id="addOutsideRowBtn" style="width: 100%; margin: 0;">+ Add Item</button>
+            <button id="saveOutsideBtn" class="primary" style="width: 100%; margin: 0;">💾 Save Outside Dashboard</button>
+            <div id="outsideStatus" style="font-size: 11px; color: var(--accent); min-height: 14px;"></div>
         </div>
     </div>
 

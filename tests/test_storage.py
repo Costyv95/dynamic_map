@@ -24,6 +24,7 @@ class TestIsAllowedDataFilename:
         "shortcuts_floor2.json",
         "config_floor10.json",
         "bg_floor3.png",
+        "outside.json",
     ])
     def test_accepts_managed_files(self, name):
         assert storage.is_allowed_data_filename(name)
@@ -40,6 +41,8 @@ class TestIsAllowedDataFilename:
         "rooms_floor1.png",          # wrong pairing
         "shortcuts_floor2.json/",
         "a/rooms_floor1.json",
+        "outside.json.bak",
+        "outside_floor1.json",
     ])
     def test_rejects_everything_else(self, name):
         assert not storage.is_allowed_data_filename(name)
@@ -110,3 +113,9 @@ class TestValidateSaveContent:
 
     def test_unknown_prefix_rejected(self):
         assert not storage.validate_save_content("bg_floor1.png", {})
+
+    def test_outside_must_be_list_of_objects(self):
+        assert storage.validate_save_content("outside.json", [{"entity_id": "sensor.x"}])
+        assert storage.validate_save_content("outside.json", [])
+        assert not storage.validate_save_content("outside.json", {"entity_id": "sensor.x"})
+        assert not storage.validate_save_content("outside.json", ["sensor.x"])

@@ -160,6 +160,26 @@ export class ApiManager {
         return { rooms, shortcuts, config };
     }
 
+    /** Global outside-dashboard items (fixed bar at the top of the card). */
+    static async fetchOutside() {
+        try {
+            const res = await fetch(`/dynamic_map_data/outside.json?t=${Date.now()}`);
+            return res.ok ? await res.json() : [];
+        } catch (e) {
+            return [];
+        }
+    }
+
+    static async saveOutside(items) {
+        const res = await apiFetch('/api/dynamic_map/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: 'outside.json', content: items }),
+        });
+        if (!res.ok) throw new Error(`Outside dashboard save failed: ${res.statusText}`);
+        return true;
+    }
+
     static async saveToHA(activeFloor, rooms, shortcuts, config) {
         // Strip the runtime _imgCache object from shortcuts to prevent serializing DOM Image objects
         const cleanShortcuts = JSON.parse(JSON.stringify(shortcuts, (key, value) => {

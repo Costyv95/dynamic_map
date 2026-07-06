@@ -6,6 +6,13 @@ import { MapBuilder } from './card/MapBuilder.js?v=3.2.0';
 
 const ZOOM_ANIMATION_MS = 320;
 
+const WEATHER_ICONS = {
+    'clear-night': '🌙', 'cloudy': '☁️', 'fog': '🌫️', 'hail': '🌨️',
+    'lightning': '⛈️', 'lightning-rainy': '⛈️', 'partlycloudy': '⛅',
+    'pouring': '🌧️', 'rainy': '🌦️', 'snowy': '🌨️', 'snowy-rainy': '🌨️',
+    'sunny': '☀️', 'windy': '💨', 'windy-variant': '💨', 'exceptional': '⚠️'
+};
+
 const CARD_STYLES = `
     :host {
         display: block;
@@ -91,6 +98,63 @@ const CARD_STYLES = `
     }
     .dm-icon-btn:hover { background: rgba(127, 127, 127, 0.14); }
     .dm-icon-btn:active { transform: scale(0.94); }
+    .dm-outside-bar {
+        position: absolute;
+        top: 14px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        align-items: stretch;
+        padding: 5px 4px;
+        background: var(--dm-glass);
+        border: 1px solid var(--dm-glass-border);
+        border-radius: 18px;
+        box-shadow: var(--dm-shadow);
+        backdrop-filter: blur(14px) saturate(1.4);
+        -webkit-backdrop-filter: blur(14px) saturate(1.4);
+        z-index: 10;
+        max-width: min(70vw, 640px);
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+    .dm-outside-bar::-webkit-scrollbar { display: none; }
+    .dm-outside-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1px;
+        padding: 3px 13px;
+        min-width: 48px;
+        cursor: pointer;
+        border-radius: 12px;
+        transition: background 0.2s ease;
+    }
+    .dm-outside-item:hover { background: rgba(127, 127, 127, 0.14); }
+    .dm-outside-item:not(:first-child) { border-left: 1px solid var(--dm-glass-border); border-radius: 0; }
+    .dm-outside-item:last-child { border-radius: 0 12px 12px 0; }
+    .dm-outside-item:first-child { border-radius: 12px 0 0 12px; }
+    .dm-outside-item:only-child { border-radius: 12px; }
+    .dm-outside-item.dm-unavailable { opacity: 0.45; }
+    .dm-outside-value {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--dm-text);
+        white-space: nowrap;
+    }
+    .dm-outside-value .dm-oi-icon { font-size: 14px; }
+    .dm-outside-label {
+        font-size: 9.5px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--dm-muted);
+        white-space: nowrap;
+    }
+    .dm-render-root.dm-has-outside .dm-focus-pill { top: 68px; }
     .dm-focus-pill {
         position: absolute;
         top: 14px;
@@ -256,16 +320,18 @@ class CustomSvgMap extends HTMLElement {
         };
 
         try {
-            const [rooms, shortcuts, config] = await Promise.all([
+            const [rooms, shortcuts, config, outside] = await Promise.all([
                 fetchJson(`/dynamic_map_data/rooms_floor${floor}.json?t=${t}`),
                 fetchJson(`/dynamic_map_data/shortcuts_floor${floor}.json?t=${t}`),
-                fetchJson(`/dynamic_map_data/config_floor${floor}.json?t=${t}`)
+                fetchJson(`/dynamic_map_data/config_floor${floor}.json?t=${t}`),
+                fetchJson(`/dynamic_map_data/outside.json?t=${t}`)
             ]);
             // A newer floor switch superseded this load — drop it.
             if (requestId !== this._loadSeq) return;
 
             this.rooms = rooms || [];
             this.shortcuts = shortcuts || [];
+            this.outsideItems = outside || [];
 
             const floorConfig = config || { rotation_mode: 'auto' };
             this.rotationMode = floorConfig.rotation_mode || 'auto';
@@ -410,6 +476,7 @@ class CustomSvgMap extends HTMLElement {
         this.buildFloorSwitcher();
         this.buildRotationSwitcher();
         this.buildFocusPill();
+        this.buildOutsideBar();
 
         if (this.cameraManager) this.cameraManager.destroy();
         this.cameraManager = new CameraManager(this.svg, this);
@@ -428,6 +495,86 @@ class CustomSvgMap extends HTMLElement {
             this.zoomOutToDefault();
         });
         this.renderRoot.appendChild(this.focusPill);
+    }
+
+    /**
+     * Fixed screen-space "outside" dashboard docked at the top of the card.
+     * Items come from the global outside.json (managed in the Map Editor);
+     * unlike shortcuts it never pans or zooms with the camera.
+     */
+    buildOutsideBar() {
+        this.outsideBar = null;
+        this._outsideEls = null;
+        this.renderRoot.classList.remove('dm-has-outside');
+        if (this.config.outside_bar === false) return;
+        const items = this.outsideItems || [];
+        if (!items.length) return;
+
+        const bar = document.createElement('div');
+        bar.className = 'dm-outside-bar';
+        this._outsideEls = items.map(item => {
+            const el = document.createElement('div');
+            el.className = 'dm-outside-item';
+            el.title = item.name || item.entity_id || '';
+            el.innerHTML = `<span class="dm-outside-value"><span class="dm-oi-icon"></span><span class="dm-oi-text">—</span></span><span class="dm-outside-label"></span>`;
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (item.entity_id) {
+                    this.dispatchEvent(new CustomEvent('hass-more-info', {
+                        detail: { entityId: item.entity_id }, bubbles: true, composed: true
+                    }));
+                }
+            });
+            bar.appendChild(el);
+            return { el, item };
+        });
+        this.renderRoot.appendChild(bar);
+        this.outsideBar = bar;
+        this.renderRoot.classList.add('dm-has-outside');
+        if (this._hass) this.updateOutsideBar(this._hass);
+    }
+
+    updateOutsideBar(hass) {
+        if (!this._outsideEls) return;
+        this._outsideEls.forEach(({ el, item }) => {
+            const st = item.entity_id ? hass.states[item.entity_id] : null;
+            let icon = item.icon || '';
+            let value = '—';
+            let label = item.name || '';
+
+            if (st && st.state !== 'unavailable' && st.state !== 'unknown') {
+                const isWeather = item.entity_id.startsWith('weather.');
+                if (isWeather && !item.attribute) {
+                    // Weather entity: condition icon + current temperature.
+                    if (!icon) icon = WEATHER_ICONS[st.state] || '🌤️';
+                    const temp = st.attributes.temperature;
+                    value = (temp !== undefined && temp !== null)
+                        ? `${temp}°`
+                        : String(st.state).replace(/[-_]/g, ' ');
+                    if (!label) label = String(st.state).replace(/[-_]/g, ' ');
+                } else {
+                    const raw = item.attribute ? st.attributes[item.attribute] : st.state;
+                    const num = Number(raw);
+                    if (raw === undefined || raw === null || raw === '') {
+                        value = '—';
+                    } else if (Number.isFinite(num)) {
+                        value = String(Math.round(num * 10) / 10);
+                        const unit = item.unit !== undefined ? item.unit : (st.attributes.unit_of_measurement || '');
+                        if (unit) value += unit.startsWith('°') ? unit : ` ${unit}`;
+                    } else {
+                        value = String(raw).replace(/[-_]/g, ' ');
+                    }
+                }
+            }
+
+            el.classList.toggle('dm-unavailable', !st || st.state === 'unavailable' || st.state === 'unknown');
+            el.querySelector('.dm-oi-icon').textContent = icon;
+            el.querySelector('.dm-oi-icon').style.display = icon ? '' : 'none';
+            el.querySelector('.dm-oi-text').textContent = value;
+            const labelEl = el.querySelector('.dm-outside-label');
+            labelEl.textContent = label;
+            labelEl.style.display = label ? '' : 'none';
+        });
     }
 
     getRoomLabelCenter(room) {
@@ -800,6 +947,8 @@ class CustomSvgMap extends HTMLElement {
             this.updateRoomStyles();
             this._initialStylesRendered = true;
         }
+
+        this.updateOutsideBar(hass);
     }
 
     updateRoomStyles() {

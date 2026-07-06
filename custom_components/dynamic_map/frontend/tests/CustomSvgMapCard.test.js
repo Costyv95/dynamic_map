@@ -245,6 +245,78 @@ describe('CustomSvgMap card', () => {
         });
     });
 
+    describe('outside bar', () => {
+        function outsideSetup(items, config = {}) {
+            const card = makeCard();
+            card.loadData = vi.fn();
+            card.setConfig({ floors: [1], ...config });
+            card.outsideItems = items;
+            card.buildOutsideBar();
+            return card;
+        }
+
+        it('renders one chip per item and formats values with units', () => {
+            const card = outsideSetup([
+                { entity_id: 'sensor.out_temp', icon: '🌡️', name: 'Outside' },
+                { entity_id: 'sensor.pollen_grass', name: 'Grass' },
+            ]);
+            const hass = makeHass();
+            hass.states['sensor.out_temp'] = { state: '23.14', attributes: { unit_of_measurement: '°C' } };
+            hass.states['sensor.pollen_grass'] = { state: '31', attributes: { unit_of_measurement: 'gr/m³' } };
+            card.updateOutsideBar(hass);
+            const chips = card.outsideBar.querySelectorAll('.dm-outside-item');
+            expect(chips.length).toBe(2);
+            expect(chips[0].querySelector('.dm-oi-text').textContent).toBe('23.1°C');
+            expect(chips[0].querySelector('.dm-outside-label').textContent).toBe('Outside');
+            expect(chips[1].querySelector('.dm-oi-text').textContent).toBe('31 gr/m³');
+        });
+
+        it('weather entities show a condition icon and current temperature', () => {
+            const card = outsideSetup([{ entity_id: 'weather.forecast_home' }]);
+            const hass = makeHass();
+            hass.states['weather.forecast_home'] = { state: 'partlycloudy', attributes: { temperature: 21.5 } };
+            card.updateOutsideBar(hass);
+            const chip = card.outsideBar.querySelector('.dm-outside-item');
+            expect(chip.querySelector('.dm-oi-icon').textContent).toBe('⛅');
+            expect(chip.querySelector('.dm-oi-text').textContent).toBe('21.5°');
+            expect(chip.querySelector('.dm-outside-label').textContent).toBe('partlycloudy');
+        });
+
+        it('marks unavailable entities and shows an em dash', () => {
+            const card = outsideSetup([{ entity_id: 'sensor.gone' }]);
+            const hass = makeHass();
+            hass.states['sensor.gone'] = { state: 'unavailable', attributes: {} };
+            card.updateOutsideBar(hass);
+            const chip = card.outsideBar.querySelector('.dm-outside-item');
+            expect(chip.classList.contains('dm-unavailable')).toBe(true);
+            expect(chip.querySelector('.dm-oi-text').textContent).toBe('—');
+        });
+
+        it('renders nothing without items or when outside_bar is false', () => {
+            expect(outsideSetup([]).outsideBar).toBeNull();
+            expect(outsideSetup([{ entity_id: 'sensor.x' }], { outside_bar: false }).outsideBar).toBeNull();
+        });
+
+        it('chip click dispatches hass-more-info for the entity', () => {
+            const card = outsideSetup([{ entity_id: 'sensor.out_temp' }]);
+            const listener = vi.fn();
+            card.addEventListener('hass-more-info', listener);
+            card.outsideBar.querySelector('.dm-outside-item').click();
+            expect(listener).toHaveBeenCalled();
+            expect(listener.mock.calls[0][0].detail).toEqual({ entityId: 'sensor.out_temp' });
+        });
+
+        it('reads an attribute instead of state when configured', () => {
+            const card = outsideSetup([{ entity_id: 'weather.forecast_home', attribute: 'humidity', unit: '%', icon: '💧' }]);
+            const hass = makeHass();
+            hass.states['weather.forecast_home'] = { state: 'sunny', attributes: { humidity: 58 } };
+            card.updateOutsideBar(hass);
+            const chip = card.outsideBar.querySelector('.dm-outside-item');
+            expect(chip.querySelector('.dm-oi-text').textContent).toBe('58 %');
+            expect(chip.querySelector('.dm-oi-icon').textContent).toBe('💧');
+        });
+    });
+
     describe('loadData stale-response guard', () => {
         it('drops results of a superseded floor load', async () => {
             const card = makeCard();

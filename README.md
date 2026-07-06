@@ -7,6 +7,7 @@ A Home Assistant custom integration that turns your floor plan into a live, inte
 - **Interactive map card** (`custom:custom-svg-map`) — rooms light up with their entities, shortcuts show live state (lights, sensors, vacuum, media), auto-rotation fits any screen orientation, pinch/pan/zoom.
 - **Native sidebar editor** — draw, split, merge and reshape room polygons; place and style shortcut objects; per-orientation layouts; undo/redo; no external tools required.
 - **Room actions** — tap a room to smoothly zoom into it (making its shortcuts easy to tap), toggle its light (or all lights in its HA area), open more-info, or select rooms for vacuum segment cleaning. Configurable per card and per room.
+- **Outside dashboard** — a fixed glass bar at the top of the card for outdoor data (temperature, humidity, pollen, UV, a weather entity for the forecast icon). Managed from the editor, stored in `outside.json`; unlike map shortcuts it never pans or zooms out of sight.
 - **Floor management** — floors are auto-discovered from your data; add floors from a plan image or a blank canvas ("Builder Mode"), or generate rooms automatically from DXF/SVG architectural drawings via the optional sidecar.
 - **Theme-aware** — the card follows your HA theme (light/dark); the editor follows your OS theme.
 
@@ -37,7 +38,14 @@ floor_names:              # switcher labels (default "Floor N")
   2: Upstairs
 room_tap_action: zoom     # zoom | toggle | area_toggle | more-info | none
 vacuum_entity: vacuum.silvester
+outside_bar: true         # set false to hide the outside dashboard on this card
 ```
+
+**Outside dashboard**: open the editor → *🌤️ Outside Dashboard* and add items. Each item is
+`{entity_id, icon?, name?, unit?, attribute?}` — weather entities automatically show a condition
+icon plus the current temperature, numeric sensors show their value with the entity's (or an
+overridden) unit, and tapping a chip opens the entity's more-info dialog. Items live in
+`dynamic_map_data/outside.json` and apply to every floor.
 
 `room_tap_action`:
 - `zoom` (default) — animates the camera into the room so its shortcuts are large and easy to tap. Tap the room again, the room-name pill, or the background to zoom back out; pinch/wheel zooming out also releases the focus.

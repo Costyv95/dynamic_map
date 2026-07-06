@@ -6,9 +6,10 @@ unit-tested outside a HA environment.
 import os
 import re
 
-# Per-floor data files. The save endpoint only accepts these names so the
-# HTTP API can never be used to write arbitrary files into the config dir.
-ALLOWED_SAVE_RE = re.compile(r"^(?:(?:rooms|shortcuts|config)_floor\d+\.json|bg_floor\d+\.png)$")
+# Managed data files: per-floor sets plus the global outside-dashboard config.
+# The save endpoint only accepts these names so the HTTP API can never be
+# used to write arbitrary files into the config dir.
+ALLOWED_SAVE_RE = re.compile(r"^(?:(?:rooms|shortcuts|config)_floor\d+\.json|bg_floor\d+\.png|outside\.json)$")
 FLOOR_NUM_RE = re.compile(r"^(?:rooms|shortcuts|config|bg)_floor(\d+)\.(?:json|png)$")
 
 ICON_EXTENSIONS = (".png", ".jpg", ".jpeg", ".svg", ".webp")
@@ -67,11 +68,11 @@ def list_icons(data_dir, url_base):
 def validate_save_content(filename, content):
     """Light structural validation of JSON payloads before they hit disk.
 
-    Rooms and shortcuts are lists of objects; per-floor config is an object.
-    Kept intentionally lenient so schema evolution doesn't require a
-    lockstep backend change.
+    Rooms, shortcuts and outside items are lists of objects; per-floor
+    config is an object. Kept intentionally lenient so schema evolution
+    doesn't require a lockstep backend change.
     """
-    if filename.startswith(("rooms_", "shortcuts_")):
+    if filename.startswith(("rooms_", "shortcuts_")) or filename == "outside.json":
         return isinstance(content, list) and all(isinstance(item, dict) for item in content)
     if filename.startswith("config_"):
         return isinstance(content, dict)
