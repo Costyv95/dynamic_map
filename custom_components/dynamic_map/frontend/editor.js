@@ -162,10 +162,14 @@ async function loadFloor(floorNum) {
         if (data.config) {
             if (data.config.rotation_mode) engine.rotationMode = data.config.rotation_mode;
             if (data.config.flips) engine.flips = data.config.flips;
+            engine.backgroundColor = data.config.background_color || null;
         } else {
             engine.rotationMode = 'auto';
             engine.flips = { horizontal: { h: false, v: false }, vertical: { h: false, v: false } };
+            engine.backgroundColor = null;
         }
+        const bgColorInput = document.getElementById('floorBgColorInput');
+        if (bgColorInput && engine.backgroundColor) bgColorInput.value = engine.backgroundColor;
         stateManager.saveState();
         uiManager.updateSidebar();
         dataLoaded = true;
@@ -296,7 +300,8 @@ document.getElementById('exportJsonBtn').addEventListener('click', async () => {
     btn.textContent = "Saving to HA...";
     try {
         await ApiManager.saveToHA(stateManager.activeFloor, stateManager.rooms, stateManager.shortcuts, {
-            rotation_mode: engine.rotationMode, flips: engine.flips
+            rotation_mode: engine.rotationMode, flips: engine.flips,
+            background_color: engine.backgroundColor || undefined
         });
         btn.textContent = "✅ Saved to HA Successfully!";
     } catch (err) {
@@ -340,6 +345,32 @@ async function loadAvailableFiles() {
         console.warn('[editor] Failed to load available files:', err.message);
     }
 }
+
+// Floor background color: stored as background_color in config_floorN.json
+// (used by the card behind/around the plan). Optionally repaints the actual
+// canvas PNG — the right choice for blank Builder-Mode floors.
+document.getElementById('floorBgColorInput').addEventListener('change', async (e) => {
+    const color = e.target.value;
+    engine.backgroundColor = color;
+    const repaint = confirm(
+        'Also repaint the floor background canvas with this color?\n\n' +
+        'OK = repaint the canvas image (best for blank Builder-Mode floors).\n' +
+        'Cancel = keep the current image; the color is only used around/behind it.'
+    );
+    try {
+        if (repaint) {
+            const w = stateManager.bgImage?.naturalWidth || 1600;
+            const h = stateManager.bgImage?.naturalHeight || 1000;
+            await ApiManager.saveImage(`bg_floor${stateManager.activeFloor}.png`, makeBlankCanvas(w, h, color));
+        }
+        await ApiManager.saveToHA(stateManager.activeFloor, stateManager.rooms, stateManager.shortcuts, {
+            rotation_mode: engine.rotationMode, flips: engine.flips, background_color: color
+        });
+        if (repaint) loadFloor(String(stateManager.activeFloor));
+    } catch (err) {
+        alert('Failed to save background color: ' + err.message);
+    }
+});
 
 // ----- Outside Dashboard editor -----
 // Manages the global outside.json: a fixed info bar (temperature, pollen,

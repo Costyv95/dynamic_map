@@ -317,6 +317,18 @@ describe('CustomSvgMap card', () => {
         });
     });
 
+    describe('floor background color', () => {
+        it('paints and clears the render root background', () => {
+            const card = makeCard();
+            card.floorBgColor = '#334455';
+            card.applyFloorBackground();
+            expect(card.renderRoot.style.background).not.toBe('');
+            card.floorBgColor = null;
+            card.applyFloorBackground();
+            expect(card.renderRoot.style.background).toBe('');
+        });
+    });
+
     describe('loadData stale-response guard', () => {
         it('drops results of a superseded floor load', async () => {
             const card = makeCard();

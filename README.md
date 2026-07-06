@@ -8,7 +8,9 @@ A Home Assistant custom integration that turns your floor plan into a live, inte
 - **Native sidebar editor** — draw, split, merge and reshape room polygons; place and style shortcut objects; per-orientation layouts; undo/redo; no external tools required.
 - **Room actions** — tap a room to smoothly zoom into it (making its shortcuts easy to tap), toggle its light (or all lights in its HA area), open more-info, or select rooms for vacuum segment cleaning. Configurable per card and per room.
 - **Outside dashboard** — a fixed glass bar at the top of the card for outdoor data (temperature, humidity, pollen, UV, a weather entity for the forecast icon). Managed from the editor, stored in `outside.json`; unlike map shortcuts it never pans or zooms out of sight.
-- **Floor management** — floors are auto-discovered from your data; add floors from a plan image or a blank canvas ("Builder Mode"), or generate rooms automatically from DXF/SVG architectural drawings via the optional sidecar.
+- **Floor management** — floors are auto-discovered from your data; add floors from a plan image or a blank canvas ("Builder Mode"), or generate rooms automatically from DXF/SVG architectural drawings via the optional sidecar. The editor's 🎨 button sets a per-floor background color (`background_color` in `config_floorN.json`) and can repaint blank-canvas floors.
+
+> **Auto-discovery caveat:** if your card config lists `floors: [...]` explicitly, newly added floors will NOT appear until you add them there — or simply remove the `floors:` line to let the card discover floors from the backend.
 - **Theme-aware** — the card follows your HA theme (light/dark); the editor follows your OS theme.
 
 ## Installation (HACS)

@@ -403,7 +403,8 @@ export class EditorUIManager {
                 e.target.textContent = "Saving to HA...";
                 try {
                     await ApiManager.saveToHA(this.state.activeFloor, this.state.rooms, this.state.shortcuts, {
-                        rotation_mode: this.engine.rotationMode, flips: this.engine.flips
+                        rotation_mode: this.engine.rotationMode, flips: this.engine.flips,
+                        background_color: this.engine.backgroundColor || undefined
                     });
                     e.target.textContent = "Saved to HA!";
                     e.target.style.background = '#10b981';

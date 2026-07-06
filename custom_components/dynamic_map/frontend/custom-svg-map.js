@@ -335,6 +335,7 @@ class CustomSvgMap extends HTMLElement {
 
             const floorConfig = config || { rotation_mode: 'auto' };
             this.rotationMode = floorConfig.rotation_mode || 'auto';
+            this.floorBgColor = floorConfig.background_color || null;
             this.flips = floorConfig.flips || {
                 horizontal: { h: false, v: false },
                 vertical: { h: false, v: false }
@@ -392,6 +393,17 @@ class CustomSvgMap extends HTMLElement {
 
         this.mapRoot = document.createElementNS(this.svgNS, 'g');
         this.mapRoot.id = 'map-root';
+
+        this.applyFloorBackground();
+        if (this.floorBgColor) {
+            // Underlay in the floor color: shows around the plan and through
+            // any transparent parts of the background image.
+            const underlay = document.createElementNS(this.svgNS, 'rect');
+            underlay.setAttribute('width', this.imgW.toString());
+            underlay.setAttribute('height', this.imgH.toString());
+            underlay.setAttribute('fill', this.floorBgColor);
+            this.mapRoot.appendChild(underlay);
+        }
 
         const image = document.createElementNS(this.svgNS, 'image');
         image.setAttribute('href', bgUrl);
@@ -484,6 +496,11 @@ class CustomSvgMap extends HTMLElement {
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.lastTime = performance.now();
         this.animate(this.lastTime);
+    }
+
+    /** Paint the letterbox area around the map in the floor's background color. */
+    applyFloorBackground() {
+        if (this.renderRoot) this.renderRoot.style.background = this.floorBgColor || '';
     }
 
     buildFocusPill() {
