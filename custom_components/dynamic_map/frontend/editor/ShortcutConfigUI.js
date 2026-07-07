@@ -26,7 +26,8 @@ export function renderActionsAndStates(sc, onStateChange) {
         if (typeText === 'CALL_SERVICE') typeText = 'Call Service';
         if (typeText === 'ROOM_SELECTOR') typeText = 'Select Rooms';
         if (typeText === 'SENSOR_OVERLAY') typeText = 'Sensor Dials Overlay';
-        
+        if (typeText === 'COLOR_PICKER') typeText = 'Color Honeycomb';
+
         const triggerText = (act.trigger === 'long_press' || act.trigger === 'overlay') ? 'Long Press' : 'Tap';
         const title = act.name || `${triggerText} - ${typeText}`;
         
@@ -64,6 +65,7 @@ export function renderActionsAndStates(sc, onStateChange) {
                         <option value="SLIDER" ${act.type === 'SLIDER' ? 'selected' : ''}>Slider (Brightness)</option>
                         <option value="ROOM_SELECTOR" ${act.type === 'ROOM_SELECTOR' ? 'selected' : ''}>Select Rooms on Map</option>
                         <option value="SENSOR_OVERLAY" ${act.type === 'SENSOR_OVERLAY' ? 'selected' : ''}>Sensor Dials Overlay</option>
+                        <option value="COLOR_PICKER" ${act.type === 'COLOR_PICKER' ? 'selected' : ''}>Color Honeycomb (Light)</option>
                     </select>
                 </div>
                 <div style="display: flex; gap: 5px; margin-bottom: 5px;">
