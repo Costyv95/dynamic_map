@@ -338,8 +338,214 @@ export class MapShortcut {
             if (this.iconText) this.iconText.style.filter = '';
             this.unavailableLine.style.display = 'none';
         }
+
+        this._updateGlow(isUnavailable ? null : hass);
+
+        // One-artwork state styling: image shortcuts without explicit state
+        // overrides derive their off-look automatically (dim + desaturate),
+        // so a single texture per object covers all states.
+        if (this.iconImage && !(this.config.states && this.config.states.length) && !isUnavailable) {
+            const tgt = this.sc.entity_id || this.config.state_entity;
+            const stObj = tgt && hass && hass.states ? hass.states[tgt] : null;
+            const isOff = stObj && stObj.state === 'off';
+            this.contentGroup.style.filter = isOff ? 'grayscale(55%) brightness(0.75)' : '';
+        }
     }
-    
+
+    /** Stable, id-safe suffix for this shortcut's SVG defs. */
+    _defsUid() {
+        if (!this._uid) {
+            this._uid = String(this.sc.id || 'sc').replace(/[^a-zA-Z0-9_-]/g, '') || 'sc';
+        }
+        return this._uid;
+    }
+
+    _ensureDefs() {
+        if (!this.defsEl) {
+            this.defsEl = document.createElementNS(this.svgNS, 'defs');
+            this.group.insertBefore(this.defsEl, this.group.firstChild);
+        }
+        return this.defsEl;
+    }
+
+    /**
+     * Unified badge styling: every solid shape gets the same programmatic
+     * "texture" — a top-left gloss + bottom edge shading overlay and a soft
+     * drop shadow. One consistent style for all shortcuts and states, no
+     * image assets needed.
+     */
+    _applyBadgeDepth(el, comp) {
+        const fill = comp.color || '';
+        if (!fill || fill === 'none' || /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)/.test(fill)) return;
+
+        const uid = this._defsUid();
+        const defs = this._ensureDefs();
+
+        if (!defs.querySelector(`#dm_gloss_${uid}`)) {
+            const grad = document.createElementNS(this.svgNS, 'radialGradient');
+            grad.setAttribute('id', `dm_gloss_${uid}`);
+            grad.setAttribute('cx', '33%');
+            grad.setAttribute('cy', '28%');
+            grad.setAttribute('r', '80%');
+            [['0%', '#ffffff', '0.45'], ['45%', '#ffffff', '0.13'], ['70%', '#ffffff', '0'], ['100%', '#000000', '0.18']]
+                .forEach(([offset, color, opacity]) => {
+                    const stop = document.createElementNS(this.svgNS, 'stop');
+                    stop.setAttribute('offset', offset);
+                    stop.setAttribute('stop-color', color);
+                    stop.setAttribute('stop-opacity', opacity);
+                    grad.appendChild(stop);
+                });
+            defs.appendChild(grad);
+
+            const filter = document.createElementNS(this.svgNS, 'filter');
+            filter.setAttribute('id', `dm_shadow_${uid}`);
+            filter.setAttribute('x', '-40%');
+            filter.setAttribute('y', '-40%');
+            filter.setAttribute('width', '180%');
+            filter.setAttribute('height', '180%');
+            const shadow = document.createElementNS(this.svgNS, 'feDropShadow');
+            shadow.setAttribute('dx', '0');
+            shadow.setAttribute('dy', '1.4');
+            shadow.setAttribute('stdDeviation', '1.6');
+            shadow.setAttribute('flood-opacity', '0.35');
+            filter.appendChild(shadow);
+            defs.appendChild(filter);
+        }
+
+        el.setAttribute('filter', `url(#dm_shadow_${uid})`);
+
+        const gloss = el.cloneNode(false);
+        gloss.removeAttribute('id');
+        gloss.removeAttribute('filter');
+        gloss.setAttribute('fill', `url(#dm_gloss_${uid})`);
+        gloss.setAttribute('stroke', 'none');
+        gloss.setAttribute('pointer-events', 'none');
+        gloss.classList.add('dm-badge-gloss');
+        this.bgGroup.appendChild(gloss);
+    }
+
+    /** Rotate an rgb()/#hex color's hue by deg, returning an rgb() string. */
+    _shiftHue(color, deg) {
+        let r, g, b;
+        const mRgb = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(color || '');
+        if (mRgb) {
+            r = +mRgb[1] / 255; g = +mRgb[2] / 255; b = +mRgb[3] / 255;
+        } else if (/^#[0-9a-f]{6}$/i.test(color || '')) {
+            r = parseInt(color.slice(1, 3), 16) / 255;
+            g = parseInt(color.slice(3, 5), 16) / 255;
+            b = parseInt(color.slice(5, 7), 16) / 255;
+        } else {
+            return color;
+        }
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        const l = (max + min) / 2;
+        let h = 0, s = 0;
+        if (max !== min) {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+            else if (max === g) h = ((b - r) / d + 2) / 6;
+            else h = ((r - g) / d + 4) / 6;
+        }
+        h = (h + deg / 360 + 1) % 1;
+        const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        const p = 2 * l - q;
+        const hue2rgb = (t) => {
+            t = (t + 1) % 1;
+            if (t < 1 / 6) return p + (q - p) * 6 * t;
+            if (t < 1 / 2) return q;
+            if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+            return p;
+        };
+        const to255 = (v) => Math.round(v * 255);
+        return `rgb(${to255(hue2rgb(h + 1 / 3))}, ${to255(hue2rgb(h))}, ${to255(hue2rgb(h - 1 / 3))})`;
+    }
+
+    _makeGlowGradient(defs, id) {
+        const grad = document.createElementNS(this.svgNS, 'radialGradient');
+        grad.setAttribute('id', id);
+        [['0%', '0.5'], ['55%', '0.18'], ['100%', '0']].forEach(([offset, opacity]) => {
+            const stop = document.createElementNS(this.svgNS, 'stop');
+            stop.setAttribute('offset', offset);
+            stop.setAttribute('stop-opacity', opacity);
+            grad.appendChild(stop);
+        });
+        defs.appendChild(grad);
+        return grad;
+    }
+
+    /**
+     * Light-pool glow: lights that are on cast two soft radial pools in
+     * their live color (the second slightly hue-shifted) that drift and
+     * intertwine (see animate()). Blobs use screen blending, so pools of
+     * neighboring lights combine additively where they overlap — a red
+     * lamp and a blue LED genuinely mix. Default for type 'light'; opt any
+     * shortcut in/out via config.glow.
+     */
+    _updateGlow(hass) {
+        const wantsGlow = this.config.glow === true || (this.sc.type === 'light' && this.config.glow !== false);
+        const target = this.sc.entity_id || this.config.state_entity;
+        const st = target && hass && hass.states ? hass.states[target] : null;
+        const isOn = wantsGlow && st && st.state === 'on';
+
+        if (!isOn) {
+            this._glowVisible = false;
+            if (this.glowGroup) this.glowGroup.style.display = 'none';
+            return;
+        }
+
+        const uid = this._defsUid();
+        const defs = this._ensureDefs();
+        let grad = defs.querySelector(`#dm_glow_${uid}`);
+        if (!grad) grad = this._makeGlowGradient(defs, `dm_glow_${uid}`);
+        let grad2 = defs.querySelector(`#dm_glow2_${uid}`);
+        if (!grad2) grad2 = this._makeGlowGradient(defs, `dm_glow2_${uid}`);
+
+        let color = this.activeState && this.activeState.color ? this.activeState.color : 'entity';
+        color = this._resolveColor(color, hass) || '#f59e0b';
+        const color2 = this._shiftHue(color, 28);
+        grad.querySelectorAll('stop').forEach(stop => stop.setAttribute('stop-color', color));
+        grad2.querySelectorAll('stop').forEach(stop => stop.setAttribute('stop-color', color2));
+
+        if (!this.glowGroup) {
+            this.glowGroup = document.createElementNS(this.svgNS, 'g');
+            this.glowGroup.setAttribute('pointer-events', 'none');
+            this.glowGroup.classList.add('dm-light-glow');
+            const blob = (gradId) => {
+                const c = document.createElementNS(this.svgNS, 'circle');
+                c.setAttribute('fill', `url(#${gradId})`);
+                c.style.mixBlendMode = 'screen';
+                this.glowGroup.appendChild(c);
+                return c;
+            };
+            this.glowEl = blob(`dm_glow_${uid}`);
+            this.glowBlob2 = blob(`dm_glow2_${uid}`);
+            // Behind the badge, in front of the floorplan.
+            this.group.insertBefore(this.glowGroup, this.defsEl.nextSibling);
+        }
+        this.glowEl.setAttribute('r', (this.imgW * 0.075).toString());
+        this.glowBlob2.setAttribute('r', (this.imgW * 0.05).toString());
+        this.glowGroup.style.display = 'block';
+        this._glowVisible = true;
+    }
+
+    /**
+     * Per-frame hook driven by the card's animation loop: the glow pools
+     * breathe and slowly drift around each other, intertwining their colors.
+     */
+    animate(dt) {
+        if (!this._glowVisible || !this.glowGroup) return;
+        this._glowT = (this._glowT || 0) + dt;
+        const t = this._glowT;
+        const k = 0.82 + 0.18 * Math.sin(t * 1.7);
+        this.glowGroup.setAttribute('opacity', k.toFixed(3));
+        const d = this.imgW * 0.012;
+        this.glowEl.setAttribute('transform',
+            `translate(${(Math.sin(t * 0.50) * d).toFixed(1)}, ${(Math.cos(t * 0.37) * d).toFixed(1)})`);
+        this.glowBlob2.setAttribute('transform',
+            `translate(${(Math.cos(t * 0.43) * d * 1.5).toFixed(1)}, ${(Math.sin(t * 0.61) * d * 1.3).toFixed(1)})`);
+    }
+
     /**
      * Pick a readable icon color for a given background: dark slate on
      * light backgrounds, white otherwise. Understands rgb() and #rrggbb;
@@ -465,6 +671,7 @@ export class MapShortcut {
                 if (comp.type === 'rect' || comp.type === 'circle') {
                     this.shape = el;
                     this.bgGroup.appendChild(el);
+                    this._applyBadgeDepth(el, comp);
                 } else {
                     this.contentGroup.appendChild(el);
                 }
