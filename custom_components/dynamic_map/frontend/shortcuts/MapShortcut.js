@@ -196,7 +196,7 @@ export class MapShortcut {
                         type: 'icon',
                         value: iconVal,
                         size: 18 * scale,
-                        color: stTrans ? (stColor || '#facaca') : '#ffffff'
+                        color: stTrans ? (stColor || '#facaca') : this._contrastText(stColor || '#0ea5e9')
                     });
                 }
             }
@@ -340,6 +340,27 @@ export class MapShortcut {
         }
     }
     
+    /**
+     * Pick a readable icon color for a given background: dark slate on
+     * light backgrounds, white otherwise. Understands rgb() and #rrggbb;
+     * anything else keeps the classic white.
+     */
+    _contrastText(color) {
+        let r, g, b;
+        const mRgb = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(color || '');
+        if (mRgb) {
+            r = +mRgb[1]; g = +mRgb[2]; b = +mRgb[3];
+        } else if (/^#[0-9a-f]{6}$/i.test(color || '')) {
+            r = parseInt(color.slice(1, 3), 16);
+            g = parseInt(color.slice(3, 5), 16);
+            b = parseInt(color.slice(5, 7), 16);
+        } else {
+            return '#ffffff';
+        }
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        return lum > 186 ? '#1e293b' : '#ffffff';
+    }
+
     /**
      * Resolve a configured color, supporting the 'entity' sentinel: the
      * bound entity's live rgb_color (e.g. the current color of a color

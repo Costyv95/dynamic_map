@@ -316,13 +316,14 @@ describe('MapShortcut JSDOM Integration', () => {
         expect(shortcut.iconText.getAttribute('fill')).toBe('#facaca');
         expect(['rgb(250, 202, 202)', '#facaca']).toContain(shortcut.haIcon.style.color);
 
-        // 2. With transparent = false
+        // 2. With transparent = false — #facaca is a light background, so the
+        // icon gets the contrast-aware dark color instead of classic white.
         shortcut.config.transparent = false;
         shortcut.updateState(mockHass);
         expect(shortcut.shape.getAttribute('fill')).toBe('#facaca');
         expect(shortcut.shape.getAttribute('stroke')).toBe('white');
-        expect(shortcut.iconText.getAttribute('fill')).toBe('white');
-        expect(shortcut.haIcon.style.color).toBe('white');
+        expect(shortcut.iconText.getAttribute('fill')).toBe('#1e293b');
+        expect(shortcut.haIcon.style.color).toBe('#1e293b');
     });
 
     it('should correctly calculate auto-rotate status and swap dimensions on rotated maps', () => {

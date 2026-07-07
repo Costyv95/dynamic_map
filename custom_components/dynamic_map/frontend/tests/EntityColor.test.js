@@ -29,3 +29,23 @@ describe("'entity' color sentinel", () => {
         expect(resolve('entity', hass, { sc: {}, config: { state_entity: 'light.other' } })).toBe('rgb(1, 2, 3)');
     });
 });
+
+describe('contrast-aware icon color', () => {
+    const contrast = (bg) => MapShortcut.prototype._contrastText.call({}, bg);
+
+    it('uses dark text on light backgrounds', () => {
+        expect(contrast('rgb(255, 255, 255)')).toBe('#1e293b');
+        expect(contrast('#f5f5dc')).toBe('#1e293b');
+    });
+
+    it('uses white text on dark or vivid backgrounds', () => {
+        expect(contrast('rgb(255, 29, 30)')).toBe('#ffffff');
+        expect(contrast('#0ea5e9')).toBe('#ffffff');
+        expect(contrast('#1e293b')).toBe('#ffffff');
+    });
+
+    it('defaults to white for unparseable values', () => {
+        expect(contrast('entity')).toBe('#ffffff');
+        expect(contrast(undefined)).toBe('#ffffff');
+    });
+});

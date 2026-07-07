@@ -214,6 +214,18 @@ async function initFloors() {
     } catch (err) {
         console.warn('[editor] Floor discovery failed:', err.message);
     }
+    if (!floors.length) {
+        // Authenticated API unavailable (e.g. companion-app webview without a
+        // web session): probe the public static data files instead so the
+        // floor list still populates. Saving still requires a browser login.
+        const t = Date.now();
+        const probes = await Promise.all([...Array(12)].map((_, i) =>
+            fetch(`/dynamic_map_data/rooms_floor${i + 1}.json?t=${t}`, { method: 'HEAD' })
+                .then(r => (r.ok ? i + 1 : null))
+                .catch(() => null)
+        ));
+        floors = probes.filter(Boolean);
+    }
     if (!floors.length) floors = [1];
 
     document.querySelectorAll('.floor-btn[data-floor]').forEach(b => b.remove());
