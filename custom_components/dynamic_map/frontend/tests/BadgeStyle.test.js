@@ -61,14 +61,49 @@ describe('light-pool glow', () => {
         expect(shortcut.glowGroup).toBeTruthy();
         expect(shortcut.glowGroup.style.display).toBe('block');
         expect(shortcut._glowVisible).toBe(true);
-        expect(Number(shortcut.glowEl.getAttribute('r'))).toBe(75);
-        expect(Number(shortcut.glowBlob2.getAttribute('r'))).toBe(50);
+        // circle badge (r 12) + full-brightness range (1000 * 0.09): round pool
+        expect(Number(shortcut.glowEl.getAttribute('rx'))).toBeCloseTo(102, 0);
+        expect(shortcut.glowEl.getAttribute('rx')).toBe(shortcut.glowEl.getAttribute('ry'));
         expect(shortcut.glowEl.style.mixBlendMode).toBe('screen');
-        const stop = shortcut.group.querySelector('#dm_glow_sc_glow stop');
+        const stop = shortcut.glowDefs.querySelector('#dm_glow_sc_glow stop');
         expect(stop.getAttribute('stop-color')).toBe('rgb(255, 29, 30)');
         // second blob is hue-shifted, not identical
-        const stop2 = shortcut.group.querySelector('#dm_glow2_sc_glow stop');
+        const stop2 = shortcut.glowDefs.querySelector('#dm_glow2_sc_glow stop');
         expect(stop2.getAttribute('stop-color')).not.toBe(stop.getAttribute('stop-color'));
+    });
+
+    it('brightness scales the pool range; glow_strength raises the max', () => {
+        const dim = { states: { 'light.lamp': { state: 'on', attributes: { rgb_color: [255, 0, 0], brightness: 128 } } } };
+        const dimSc = makeShortcut(lightData(), dim);
+        const dimRx = Number(dimSc.glowEl.getAttribute('rx'));
+        expect(dimRx).toBeLessThan(70);
+
+        const strong = makeShortcut(lightData({ glow_strength: 2 }), dim);
+        expect(Number(strong.glowEl.getAttribute('rx'))).toBeGreaterThan(dimRx * 1.5);
+    });
+
+    it('clips the pool to the containing room when map context is available', () => {
+        const svg = document.createElementNS(svgNS, 'svg');
+        const mapRoot = document.createElementNS(svgNS, 'g');
+        svg.appendChild(mapRoot);
+        const mapContext = {
+            _hass: null,
+            imgW: 1000,
+            imgH: 1000,
+            mapRoot,
+            rooms: [{ id: 'room_a', polygon: [[40, 40], [60, 40], [60, 60], [40, 60]] }],
+            isPointInPolygon: (pt, poly) =>
+                pt[0] >= 40 && pt[0] <= 60 && pt[1] >= 40 && pt[1] <= 60,
+        };
+        const hass = { states: { 'light.lamp': { state: 'on', attributes: { rgb_color: [0, 0, 255] } } } };
+        const shortcut = new MapShortcut(lightData(), svgNS, 1000, 1000, mapContext);
+        mapRoot.appendChild(shortcut.render());
+        shortcut.updateState(hass);
+
+        expect(shortcut.glowGroup.parentNode).toBe(mapRoot);
+        expect(shortcut.glowGroup.getAttribute('clip-path')).toBe('url(#dm_clip_sc_glow)');
+        const clipPoly = shortcut.glowDefs.querySelector('#dm_clip_sc_glow polygon');
+        expect(clipPoly.getAttribute('points')).toContain('400,400');
     });
 
     it('hides the glow when the light turns off', () => {
@@ -97,10 +132,10 @@ describe('light-pool glow', () => {
         const hass = { states: { 'light.lamp': { state: 'on', attributes: { rgb_color: [10, 20, 30] } } } };
         const shortcut = makeShortcut(lightData(), hass);
         shortcut.animate(0.5);
-        const first = Number(shortcut.glowGroup.getAttribute('opacity'));
+        const first = Number(shortcut.glowInner.getAttribute('opacity'));
         const t1 = shortcut.glowEl.getAttribute('transform');
         shortcut.animate(0.9);
-        const second = Number(shortcut.glowGroup.getAttribute('opacity'));
+        const second = Number(shortcut.glowInner.getAttribute('opacity'));
         const t2 = shortcut.glowEl.getAttribute('transform');
         [first, second].forEach(v => {
             expect(v).toBeGreaterThan(0.6);

@@ -464,7 +464,7 @@ export class MapShortcut {
     _makeGlowGradient(defs, id) {
         const grad = document.createElementNS(this.svgNS, 'radialGradient');
         grad.setAttribute('id', id);
-        [['0%', '0.5'], ['55%', '0.18'], ['100%', '0']].forEach(([offset, opacity]) => {
+        [['0%', '0.7'], ['50%', '0.3'], ['100%', '0']].forEach(([offset, opacity]) => {
             const stop = document.createElementNS(this.svgNS, 'stop');
             stop.setAttribute('offset', offset);
             stop.setAttribute('stop-opacity', opacity);
@@ -475,12 +475,16 @@ export class MapShortcut {
     }
 
     /**
-     * Light-pool glow: lights that are on cast two soft radial pools in
-     * their live color (the second slightly hue-shifted) that drift and
-     * intertwine (see animate()). Blobs use screen blending, so pools of
-     * neighboring lights combine additively where they overlap — a red
-     * lamp and a blue LED genuinely mix. Default for type 'light'; opt any
-     * shortcut in/out via config.glow.
+     * Light-pool glow: lights that are on cast two soft pools in their live
+     * color (the second slightly hue-shifted) that drift and intertwine
+     * (see animate()). The pool follows the badge's footprint — a strip's
+     * rectangle yields an elongated pool — its reach scales with the
+     * light's brightness up to config.glow_strength (default 1), and it is
+     * clipped to the room containing the light so it never crosses walls.
+     * Blobs live in map coordinates (outside the badge's filtered subtree,
+     * which caused compositing flicker) and use screen blending, so
+     * neighboring lights' pools combine additively where they overlap.
+     * Default for type 'light'; opt any shortcut in/out via config.glow.
      */
     _updateGlow(hass) {
         const wantsGlow = this.config.glow === true || (this.sc.type === 'light' && this.config.glow !== false);
@@ -495,51 +499,120 @@ export class MapShortcut {
         }
 
         const uid = this._defsUid();
-        const defs = this._ensureDefs();
-        let grad = defs.querySelector(`#dm_glow_${uid}`);
-        if (!grad) grad = this._makeGlowGradient(defs, `dm_glow_${uid}`);
-        let grad2 = defs.querySelector(`#dm_glow2_${uid}`);
-        if (!grad2) grad2 = this._makeGlowGradient(defs, `dm_glow2_${uid}`);
-
-        let color = this.activeState && this.activeState.color ? this.activeState.color : 'entity';
-        color = this._resolveColor(color, hass) || '#f59e0b';
-        const color2 = this._shiftHue(color, 28);
-        grad.querySelectorAll('stop').forEach(stop => stop.setAttribute('stop-color', color));
-        grad2.querySelectorAll('stop').forEach(stop => stop.setAttribute('stop-color', color2));
+        const host = (this.mapContext && this.mapContext.mapRoot) ? this.mapContext.mapRoot : this.group;
 
         if (!this.glowGroup) {
             this.glowGroup = document.createElementNS(this.svgNS, 'g');
             this.glowGroup.setAttribute('pointer-events', 'none');
             this.glowGroup.classList.add('dm-light-glow');
+
+            this.glowDefs = document.createElementNS(this.svgNS, 'defs');
+            this.glowGroup.appendChild(this.glowDefs);
+            this._glowGrad = this._makeGlowGradient(this.glowDefs, `dm_glow_${uid}`);
+            this._glowGrad2 = this._makeGlowGradient(this.glowDefs, `dm_glow2_${uid}`);
+
+            this.glowInner = document.createElementNS(this.svgNS, 'g');
+            this.glowGroup.appendChild(this.glowInner);
             const blob = (gradId) => {
-                const c = document.createElementNS(this.svgNS, 'circle');
-                c.setAttribute('fill', `url(#${gradId})`);
-                c.style.mixBlendMode = 'screen';
-                this.glowGroup.appendChild(c);
-                return c;
+                const e = document.createElementNS(this.svgNS, 'ellipse');
+                e.setAttribute('fill', `url(#${gradId})`);
+                e.style.mixBlendMode = 'screen';
+                this.glowInner.appendChild(e);
+                return e;
             };
             this.glowEl = blob(`dm_glow_${uid}`);
             this.glowBlob2 = blob(`dm_glow2_${uid}`);
-            // Behind the badge, in front of the floorplan.
-            this.group.insertBefore(this.glowGroup, this.defsEl.nextSibling);
+
+            if (host === this.group) {
+                // No map context (tests/previews): keep the glow local.
+                this.group.insertBefore(this.glowGroup, this.group.firstChild);
+            } else {
+                // Under the shortcut layer, above rooms and the floorplan.
+                const firstShortcut = host.querySelector('.shortcut-group');
+                host.insertBefore(this.glowGroup, firstShortcut || null);
+            }
         }
-        this.glowEl.setAttribute('r', (this.imgW * 0.075).toString());
-        this.glowBlob2.setAttribute('r', (this.imgW * 0.05).toString());
+
+        let color = this.activeState && this.activeState.color ? this.activeState.color : 'entity';
+        color = this._resolveColor(color, hass) || '#f59e0b';
+        const color2 = this._shiftHue(color, 28);
+        this._glowGrad.querySelectorAll('stop').forEach(stop => stop.setAttribute('stop-color', color));
+        this._glowGrad2.querySelectorAll('stop').forEach(stop => stop.setAttribute('stop-color', color2));
+
+        // Shape-aware pool that reaches further the brighter the light is.
+        let baseW = 24, baseH = 24;
+        if (this.shape && this.shape.tagName === 'rect') {
+            baseW = parseFloat(this.shape.getAttribute('width')) || 24;
+            baseH = parseFloat(this.shape.getAttribute('height')) || 24;
+        } else if (this.shape) {
+            const r = parseFloat(this.shape.getAttribute('r')) || 12;
+            baseW = baseH = r * 2;
+        }
+        const strength = Number(this.config.glow_strength) > 0 ? Number(this.config.glow_strength) : 1;
+        const bri = (st.attributes && Number.isFinite(st.attributes.brightness))
+            ? Math.max(st.attributes.brightness / 255, 0.15) : 1;
+        const range = this.imgW * 0.09 * strength * bri;
+        const rx = baseW / 2 + range;
+        const ry = baseH / 2 + range;
+        this.glowEl.setAttribute('rx', rx.toFixed(1));
+        this.glowEl.setAttribute('ry', ry.toFixed(1));
+        this.glowBlob2.setAttribute('rx', (rx * 0.65).toFixed(1));
+        this.glowBlob2.setAttribute('ry', (ry * 0.65).toFixed(1));
+
+        if (host !== this.group) {
+            const activeMode = this.mapContext.activeMode || 'horizontal';
+            const rot = resolveOriented(this.sc.rotation, activeMode, 0);
+            this.glowInner.setAttribute('transform',
+                `translate(${this.px}, ${this.py})${rot ? ` rotate(${rot})` : ''}`);
+            this._updateGlowClip(uid);
+        }
+
         this.glowGroup.style.display = 'block';
         this._glowVisible = true;
     }
 
+    /** Clip the light pool to the room containing the light — no light through walls. */
+    _updateGlowClip(uid) {
+        const mc = this.mapContext;
+        if (!mc || !Array.isArray(mc.rooms) || typeof mc.isPointInPolygon !== 'function') return;
+        const pxPct = (this.px / this.imgW) * 100;
+        const pyPct = (this.py / this.imgH) * 100;
+        const room = mc.rooms.find(r => r.polygon && mc.isPointInPolygon([pxPct, pyPct], r.polygon));
+        const roomId = room ? room.id : null;
+        if (roomId === this._glowClipRoom) return;
+        this._glowClipRoom = roomId;
+
+        let clip = this.glowDefs.querySelector(`#dm_clip_${uid}`);
+        if (!room) {
+            if (clip) clip.remove();
+            this.glowGroup.removeAttribute('clip-path');
+            return;
+        }
+        if (!clip) {
+            clip = document.createElementNS(this.svgNS, 'clipPath');
+            clip.setAttribute('id', `dm_clip_${uid}`);
+            this.glowDefs.appendChild(clip);
+        }
+        while (clip.firstChild) clip.removeChild(clip.firstChild);
+        const poly = document.createElementNS(this.svgNS, 'polygon');
+        poly.setAttribute('points', room.polygon.map(p =>
+            `${(p[0] / 100) * this.imgW},${(p[1] / 100) * this.imgH}`
+        ).join(' '));
+        clip.appendChild(poly);
+        this.glowGroup.setAttribute('clip-path', `url(#dm_clip_${uid})`);
+    }
+
     /**
      * Per-frame hook driven by the card's animation loop: the glow pools
-     * breathe and slowly drift around each other, intertwining their colors.
+     * breathe gently and slowly drift around each other, intertwining.
      */
     animate(dt) {
-        if (!this._glowVisible || !this.glowGroup) return;
+        if (!this._glowVisible || !this.glowEl) return;
         this._glowT = (this._glowT || 0) + dt;
         const t = this._glowT;
-        const k = 0.82 + 0.18 * Math.sin(t * 1.7);
-        this.glowGroup.setAttribute('opacity', k.toFixed(3));
-        const d = this.imgW * 0.012;
+        const k = 0.88 + 0.12 * Math.sin(t * 0.9);
+        this.glowInner.setAttribute('opacity', k.toFixed(3));
+        const d = this.imgW * 0.008;
         this.glowEl.setAttribute('transform',
             `translate(${(Math.sin(t * 0.50) * d).toFixed(1)}, ${(Math.cos(t * 0.37) * d).toFixed(1)})`);
         this.glowBlob2.setAttribute('transform',
