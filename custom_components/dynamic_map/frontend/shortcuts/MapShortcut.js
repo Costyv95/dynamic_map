@@ -156,7 +156,7 @@ export class MapShortcut {
 
             // Auto-built layouts resolve state overrides (color, transparent,
             // icon/image) up front — no second build-then-patch pass needed.
-            const stColor = matchedState?.color || this.config.color;
+            const stColor = this._resolveColor(matchedState?.color || this.config.color, hass);
             const stTrans = matchedState?.transparent !== undefined ? matchedState.transparent : this.config.transparent;
 
             if (isSensor) {
@@ -210,7 +210,7 @@ export class MapShortcut {
                 // auto-built layouts above already baked the state in.
                 const baseCopy = JSON.parse(JSON.stringify(activeLayout));
                 if (baseCopy.length > 0) {
-                    const stColor = matchedState.color || this.config.color;
+                    const stColor = this._resolveColor(matchedState.color || this.config.color, hass);
                     const stTrans = matchedState.transparent !== undefined ? matchedState.transparent : this.config.transparent;
                     
                     if (stColor) {
@@ -289,7 +289,7 @@ export class MapShortcut {
                 const valueTemplate = this.config.value_template || defaultTemplate;
                 valueEl.value = valueTemplate;
                 if (this.config.transparent) {
-                    valueEl.color = this.config.color || '#10b981';
+                    valueEl.color = this._resolveColor(this.config.color, hass) || '#10b981';
                 } else {
                     valueEl.color = '#ffffff';
                 }
@@ -297,7 +297,7 @@ export class MapShortcut {
             const emojiEl = baseCopy.find(el => el.id === 'sensor_emoji');
             if (emojiEl) {
                 if (this.config.transparent) {
-                    emojiEl.color = this.config.color || '#10b981';
+                    emojiEl.color = this._resolveColor(this.config.color, hass) || '#10b981';
                 } else {
                     emojiEl.color = '#ffffff';
                 }
@@ -341,6 +341,23 @@ export class MapShortcut {
     }
     
     /**
+     * Resolve a configured color, supporting the 'entity' sentinel: the
+     * bound entity's live rgb_color (e.g. the current color of a color
+     * light), re-resolved on every state update so the shortcut follows
+     * the light. Falls back to amber when the entity reports no color.
+     */
+    _resolveColor(color, hass) {
+        if (color !== 'entity') return color;
+        const target = this.sc.entity_id || this.config.state_entity;
+        const st = target && hass && hass.states ? hass.states[target] : null;
+        const rgb = st && st.attributes ? st.attributes.rgb_color : null;
+        if (Array.isArray(rgb) && rgb.length >= 3) {
+            return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+        }
+        return '#f59e0b';
+    }
+
+    /**
      * Auto-sized sensor pill layout. Geometry and content resolution live in
      * the shared SensorPill module (also used by the editor canvas preview);
      * this just maps them onto the generic component layout schema.
@@ -350,6 +367,10 @@ export class MapShortcut {
             sc: this.sc, state: matchedState, hass, scaleX, scaleY,
             displayOverride: this.displayOverride || null
         });
+        if (p.color === 'entity') {
+            p.color = this._resolveColor('entity', hass);
+            if (p.transparent) p.fg = p.color;
+        }
         this._pillHalfW = p.width / 2; // real half-width for the unavailable strike-line
         return [
             {

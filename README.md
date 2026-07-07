@@ -56,7 +56,7 @@ overridden) unit, and tapping a chip opens the entity's more-info dialog. Items 
 - `more-info` — opens the HA more-info dialog for the room entity.
 - `none` — taps are ignored.
 
-A room can override the card-level action with its own `tap_action` (set via Raw JSON in the editor, or in `rooms_floorN.json`).
+Any shortcut color (base, per-state, sensor pill) accepts the special value `entity` — it resolves live to the bound light's current `rgb_color`, so e.g. a bulb glows in whatever color the light is showing. A room can override the card-level action with its own `tap_action` (set via Raw JSON in the editor, or in `rooms_floorN.json`).
 
 ## Data files
 
