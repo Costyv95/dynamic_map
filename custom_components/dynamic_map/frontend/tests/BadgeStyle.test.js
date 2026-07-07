@@ -61,8 +61,8 @@ describe('light-pool glow', () => {
         expect(shortcut.glowGroup).toBeTruthy();
         expect(shortcut.glowGroup.style.display).toBe('block');
         expect(shortcut._glowVisible).toBe(true);
-        // circle badge (r 12) + full-brightness range (1000 * 0.09): round pool
-        expect(Number(shortcut.glowEl.getAttribute('rx'))).toBeCloseTo(102, 0);
+        // circle badge (r 12) + full-brightness range (1000 * 0.16): round pool
+        expect(Number(shortcut.glowEl.getAttribute('rx'))).toBeCloseTo(172, 0);
         expect(shortcut.glowEl.getAttribute('rx')).toBe(shortcut.glowEl.getAttribute('ry'));
         expect(shortcut.glowEl.style.mixBlendMode).toBe('screen');
         const stop = shortcut.glowDefs.querySelector('#dm_glow_sc_glow stop');
@@ -76,7 +76,7 @@ describe('light-pool glow', () => {
         const dim = { states: { 'light.lamp': { state: 'on', attributes: { rgb_color: [255, 0, 0], brightness: 128 } } } };
         const dimSc = makeShortcut(lightData(), dim);
         const dimRx = Number(dimSc.glowEl.getAttribute('rx'));
-        expect(dimRx).toBeLessThan(70);
+        expect(dimRx).toBeLessThan(110);
 
         const strong = makeShortcut(lightData({ glow_strength: 2 }), dim);
         expect(Number(strong.glowEl.getAttribute('rx'))).toBeGreaterThan(dimRx * 1.5);

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="fl_body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffa9c2"/>
+      <stop offset="1" stop-color="#e56e92"/>
+    </linearGradient>
+    <radialGradient id="fl_glow" cx="0.5" cy="0.55" r="0.65">
+      <stop offset="0" stop-color="#ffe3ae" stop-opacity="0.95"/>
+      <stop offset="0.7" stop-color="#ffc46e" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ffc46e" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fl_base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d3a659"/>
+      <stop offset="1" stop-color="#9a742f"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="64" cy="117" rx="26" ry="5" fill="rgba(15, 23, 42, 0.18)"/>
+  <path d="M62 82 L60 95 L64 95 L64 112" fill="none" stroke="#d86a8b" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M70 82 L72 92 L68 96" fill="none" stroke="#c25a7a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="46" y="110" width="36" height="8" rx="4" fill="url(#fl_base)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M52 62 C 38 54, 36 36, 46 28 C 52 23, 60 26, 60 33" fill="none" stroke="#f2789b" stroke-width="7.5" stroke-linecap="round"/>
+  <circle cx="59" cy="32" r="7" fill="url(#fl_body)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2"/>
+  <path d="M53 34 C 48 36, 44 38, 41 42 L 46 44 C 49 40, 52 38, 55 38 Z" fill="#39414f"/>
+  <path d="M53 33 C 49 34.5, 46 36, 43 39 L 41 42 C 44 38, 48 36, 53 34 Z" fill="#f7b6c9"/>
+  <circle cx="61" cy="30" r="1.6" fill="#1e293b"/>
+  <ellipse cx="66" cy="68" rx="21" ry="15" fill="url(#fl_body)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2"/>
+  <ellipse cx="64" cy="70" rx="13" ry="9" fill="url(#fl_glow)"/>
+  <path d="M60 62 C 70 58, 80 62, 82 68 C 76 66, 68 66, 62 70 Z" fill="#e56e92" opacity="0.85"/>
+  <path d="M84 62 C 90 58, 94 60, 95 66 C 91 64, 88 66, 85 70 Z" fill="#f2a4bd"/>
+</svg>

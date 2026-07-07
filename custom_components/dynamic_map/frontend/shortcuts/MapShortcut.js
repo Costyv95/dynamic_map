@@ -551,7 +551,7 @@ export class MapShortcut {
         const strength = Number(this.config.glow_strength) > 0 ? Number(this.config.glow_strength) : 1;
         const bri = (st.attributes && Number.isFinite(st.attributes.brightness))
             ? Math.max(st.attributes.brightness / 255, 0.15) : 1;
-        const range = this.imgW * 0.09 * strength * bri;
+        const range = this.imgW * 0.16 * strength * bri;
         const rx = baseW / 2 + range;
         const ry = baseH / 2 + range;
         this.glowEl.setAttribute('rx', rx.toFixed(1));

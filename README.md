@@ -103,4 +103,4 @@ python -m pytest tests/
 
 A disposable HA instance for manual testing is in `ha_test/` (`docker compose up`). Deployment to a live box: `scratch/deploy.sh` (stamps cache-busting versions into a temp build dir — the repo stays clean — then rsyncs and restarts HA core).
 
-Docs: [architecture](docs/project.md) · [map card](docs/map.md) · [use cases & roadmap](docs/use_cases.md) · [sidecar](docs/server.md)
+Docs: [architecture](docs/project.md) · [textures & style recipe](docs/textures.md) · [map card](docs/map.md) · [use cases & roadmap](docs/use_cases.md) · [sidecar](docs/server.md)
