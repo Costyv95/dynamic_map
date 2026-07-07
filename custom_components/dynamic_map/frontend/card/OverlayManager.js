@@ -43,13 +43,16 @@ function clampAndPositionOverlay(overlayEl, rect, posX, posY, defaultW = 0, defa
 
 export class OverlayManager {
     /**
-     * Honeycomb color picker for COLOR_PICKER overlay actions: 19 hexagonal
-     * swatches arranged as a hue wheel — saturated outer ring, softer inner
-     * ring, warm white center. Tapping a swatch calls light.turn_on with its
-     * rgb_color; the overlay stays open so colors can be tried in sequence.
+     * Honeycomb color picker for COLOR_PICKER overlay actions: a dense
+     * hexagonal hue wheel (61 swatches in 4 rings). Hue follows the angle,
+     * saturation grows smoothly from the warm-white center to vivid edges,
+     * so adjacent cells differ only slightly. Tapping a swatch calls
+     * light.turn_on with its rgb_color; the overlay stays open so colors
+     * can be tried in sequence.
      */
     static buildColorHoneycomb(mapContext, target, act) {
-        const HEX_R = 17;                    // hexagon radius (px)
+        const RINGS = 4;                     // 1 + 6 + 12 + 18 + 24 = 61 cells
+        const HEX_R = 11;                    // hexagon radius (px)
         const cellW = HEX_R * 2;             // flat-top hexagon width
         const cellH = Math.sqrt(3) * HEX_R;  // flat-top hexagon height
 
@@ -61,10 +64,10 @@ export class OverlayManager {
             return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
         };
 
-        // Axial coordinates for hex rings 0..2 (1 + 6 + 12 = 19 cells).
+        // Axial coordinates for hex rings 0..RINGS.
         const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
         const cells = [{ q: 0, r: 0 }];
-        for (let ring = 1; ring <= 2; ring++) {
+        for (let ring = 1; ring <= RINGS; ring++) {
             let q = DIRS[4][0] * ring;
             let r = DIRS[4][1] * ring;
             for (let side = 0; side < 6; side++) {
@@ -91,14 +94,16 @@ export class OverlayManager {
             wrap.appendChild(label);
         }
 
+        const gridW = 1.5 * HEX_R * RINGS * 2 + cellW + 8;
+        const gridH = cellH * (RINGS * 2 + 1) + 8;
         const grid = document.createElement('div');
         grid.style.position = 'relative';
-        grid.style.width = `${cellW * 4 + 8}px`;
-        grid.style.height = `${cellH * 5 + 8}px`;
+        grid.style.width = `${gridW}px`;
+        grid.style.height = `${gridH}px`;
         wrap.appendChild(grid);
 
-        const centerX = (cellW * 4 + 8) / 2;
-        const centerY = (cellH * 5 + 8) / 2;
+        const centerX = gridW / 2;
+        const centerY = gridH / 2;
 
         cells.forEach(({ q, r }) => {
             const x = 1.5 * HEX_R * q;
@@ -109,8 +114,11 @@ export class OverlayManager {
             if (ring === 0) {
                 rgb = [255, 241, 224]; // warm white
             } else {
+                // Smooth wheel: hue by angle, saturation ramps with radius.
                 const hue = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-                rgb = ring === 1 ? hslToRgb(hue, 65, 66) : hslToRgb(hue, 95, 55);
+                const sat = Math.round(25 + (ring / RINGS) * 72);
+                const light = Math.round(72 - (ring / RINGS) * 18);
+                rgb = hslToRgb(hue, sat, light);
             }
 
             const cell = document.createElement('div');

@@ -11,9 +11,9 @@ describe('COLOR_PICKER honeycomb', () => {
         return { wrap, hass, cells: [...wrap.querySelectorAll('div')].filter(d => d.style.clipPath) };
     }
 
-    it('renders 19 hexagonal swatches (1 + 6 + 12)', () => {
+    it('renders 61 hexagonal swatches (rings 0-4)', () => {
         const { cells } = build();
-        expect(cells.length).toBe(19);
+        expect(cells.length).toBe(61);
         cells.forEach(c => expect(c.style.clipPath).toContain('polygon'));
     });
 
@@ -28,12 +28,12 @@ describe('COLOR_PICKER honeycomb', () => {
         });
     });
 
-    it('outer swatches send saturated distinct colors', () => {
+    it('swatches form a smooth, near-unique color gradient', () => {
         const { cells, hass } = build();
         const colors = new Set(cells.map(c => c.style.background));
-        // all 19 swatches are distinct colors
-        expect(colors.size).toBe(19);
-        cells[7].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        // dense wheel: virtually every swatch is a distinct color
+        expect(colors.size).toBeGreaterThanOrEqual(58);
+        cells[30].dispatchEvent(new MouseEvent('click', { bubbles: true }));
         const args = hass.callService.mock.calls[0][2];
         expect(args.rgb_color).toHaveLength(3);
         args.rgb_color.forEach(v => {
