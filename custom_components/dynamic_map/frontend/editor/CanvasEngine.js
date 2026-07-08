@@ -482,6 +482,24 @@ export class CanvasEngine {
                 drawHandle(x + rx, y - ry);
                 drawHandle(x - rx, y + ry);
                 drawHandle(x + rx, y + ry);
+
+                // Rotation handle: a dot on a stem above the top edge; drag
+                // it to rotate the shortcut (drawn in the rotated frame so it
+                // tracks the shape).
+                const rotOff = 18 / currentScale;
+                this.ctx.beginPath();
+                this.ctx.moveTo(x, y - ry);
+                this.ctx.lineTo(x, y - ry - rotOff);
+                this.ctx.strokeStyle = '#0ea5e9';
+                this.ctx.lineWidth = 1.5 / currentScale;
+                this.ctx.stroke();
+                this.ctx.beginPath();
+                this.ctx.arc(x, y - ry - rotOff, hSize * 1.4, 0, Math.PI * 2);
+                this.ctx.fillStyle = '#0ea5e9';
+                this.ctx.fill();
+                this.ctx.strokeStyle = 'white';
+                this.ctx.lineWidth = 1 / currentScale;
+                this.ctx.stroke();
             }
             this.ctx.restore();
 

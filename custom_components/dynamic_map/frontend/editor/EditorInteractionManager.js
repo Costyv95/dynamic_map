@@ -218,6 +218,9 @@ export class EditorInteractionManager {
                 checkY = scY + (dx * sin + dy * cos);
             }
 
+            // Rotation handle: the dot on a stem above the shape's top edge
+            if (hitTest(checkX, checkY, scX, scY - ry - 18 / currentScale)) { this.interactionState = 'ROTATE_SC'; return; }
+
             if (hitTest(checkX, checkY, scX - rx, scY - ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'NW'; return; }
             if (hitTest(checkX, checkY, scX + rx, scY - ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'NE'; return; }
             if (hitTest(checkX, checkY, scX - rx, scY + ry)) { this.interactionState = 'RESIZE_SC'; this.resizeHandle = 'SW'; return; }
@@ -359,7 +362,9 @@ export class EditorInteractionManager {
                     checkY = scY + (dx * sin + dy * cos);
                 }
 
-                if (hitTest(checkX, checkY, scX - rx, scY - ry) || hitTest(checkX, checkY, scX + rx, scY + ry)) {
+                if (hitTest(checkX, checkY, scX, scY - ry - 18 / currentScale)) {
+                    cursorStyle = 'grab';
+                } else if (hitTest(checkX, checkY, scX - rx, scY - ry) || hitTest(checkX, checkY, scX + rx, scY + ry)) {
                     cursorStyle = this.engine.isRotated ? 'nesw-resize' : 'nwse-resize';
                 } else if (hitTest(checkX, checkY, scX + rx, scY - ry) || hitTest(checkX, checkY, scX - rx, scY + ry)) {
                     cursorStyle = this.engine.isRotated ? 'nwse-resize' : 'nesw-resize';
@@ -438,6 +443,37 @@ export class EditorInteractionManager {
             return;
         }
 
+        if (this.interactionState === 'ROTATE_SC') {
+            this.isDragging = true;
+            const worldPos = this.getMousePos(e);
+            const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+            const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+            const pos = this.getShortcutPos(sc);
+            const scX = (pos[0] / 100) * bgW;
+            const scY = (pos[1] / 100) * bgH;
+            const autoRotate = sc.config?.autoRotate || false;
+            let px = worldPos.x;
+            let py = worldPos.y;
+            if (this.engine.isRotated && !autoRotate) {
+                const rDx = worldPos.x - scX;
+                const rDy = worldPos.y - scY;
+                px = scX - rDy;
+                py = scY + rDx;
+            }
+            // The handle sticks out of the top edge, so mouse straight "up"
+            // from the center = 0deg. Soft-snap near multiples of 15deg.
+            let ang = Math.atan2(py - scY, px - scX) * 180 / Math.PI + 90;
+            const snap = Math.round(ang / 15) * 15;
+            if (Math.abs(ang - snap) <= 4) ang = snap;
+            ang = ((Math.round(ang) % 360) + 360) % 360;
+            this.setShortcutRotation(sc, ang);
+            if (this.state.updateUICallback) {
+                this.state.updateUICallback();
+            }
+            this.state.requestDrawCallback();
+            return;
+        }
+
         if (this.interactionState === 'RESIZE_SC') {
             this.isDragging = true;
             const worldPos = this.getMousePos(e);
@@ -455,6 +491,20 @@ export class EditorInteractionManager {
                 const rDy = worldPos.y - scY;
                 checkX = scX - rDy;
                 checkY = scY + rDx;
+            }
+
+            // Un-rotate the drag point into the shortcut's local frame (the
+            // hit-test above does the same) so a rotated shape's handles pull
+            // along its own axes instead of the screen's.
+            const scRotation = this.getShortcutRotation(sc);
+            if (scRotation) {
+                const rDx = checkX - scX;
+                const rDy = checkY - scY;
+                const rad = (-scRotation * Math.PI) / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                checkX = scX + (rDx * cos - rDy * sin);
+                checkY = scY + (rDx * sin + rDy * cos);
             }
 
             const dx = Math.abs(checkX - scX);
@@ -552,7 +602,7 @@ export class EditorInteractionManager {
             return;
         }
 
-        if (this.interactionState === 'DRAG_SC' || this.interactionState === 'RESIZE_SC' || this.interactionState === 'DRAG_VERTEX') {
+        if (this.interactionState === 'DRAG_SC' || this.interactionState === 'RESIZE_SC' || this.interactionState === 'ROTATE_SC' || this.interactionState === 'DRAG_VERTEX') {
             if (this.isDragging) {
                 this.state.saveState();
                 this.state.updateUICallback();

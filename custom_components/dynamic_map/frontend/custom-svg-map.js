@@ -953,6 +953,19 @@ class CustomSvgMap extends HTMLElement {
 
         this.defaultVb = { ...this.vb };
         this.updateViewBox();
+
+        // Shortcut layouts resolve per-orientation props (scale, rotation,
+        // tiling direction) at render time. When the active mode flips -
+        // e.g. the first layout pass after load decides the map is rotated -
+        // rebuild them NOW instead of leaving stale-orientation strips on
+        // screen until the next hass state change happens to arrive.
+        if (this._lastAppliedMode !== this.activeMode && this.shortcutElements && this._hass) {
+            for (const id in this.shortcutElements) {
+                this.shortcutElements[id].updateState(this._hass);
+            }
+            this.applyShortcutTransforms(this.isRotated ? this.mapScaleX : 1, this.isRotated ? this.mapScaleY : 1);
+        }
+        this._lastAppliedMode = this.activeMode;
     }
 
     /** Apply per-shortcut counter-transforms for the current rotation/flip state. */
