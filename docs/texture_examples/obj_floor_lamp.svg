@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="fp_shade" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f2d9ab"/>
+      <stop offset="1" stop-color="#d3ab6e"/>
+    </linearGradient>
+    <linearGradient id="fp_metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6b7a92"/>
+      <stop offset="1" stop-color="#3d4859"/>
+    </linearGradient>
+    <linearGradient id="fp_beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd9a0" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#ffd9a0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="64" cy="114" rx="28" ry="5" fill="rgba(15, 23, 42, 0.18)"/>
+  <path d="M42 54 L86 54 L98 102 L30 102 Z" fill="url(#fp_beam)"/>
+  <rect x="61.5" y="52" width="5" height="54" fill="url(#fp_metal)"/>
+  <ellipse cx="64" cy="108" rx="20" ry="5" fill="url(#fp_metal)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2"/>
+  <path d="M46 20 L82 20 L90 52 L38 52 Z" fill="url(#fp_shade)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2" stroke-linejoin="round"/>
+  <ellipse cx="64" cy="52" rx="26" ry="5" fill="#ffe3ae"/>
+</svg>

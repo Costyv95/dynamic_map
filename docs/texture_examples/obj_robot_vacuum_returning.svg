@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="rvr_body" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f7fa"/>
+      <stop offset="1" stop-color="#c3cdd9"/>
+    </linearGradient>
+    <linearGradient id="rvr_lidar" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5b6a80"/>
+      <stop offset="1" stop-color="#3a4557"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="58" cy="114" rx="32" ry="5" fill="rgba(15, 23, 42, 0.18)"/>
+  <path d="M92 14 L112 30 L107 30 L107 44 L97 44 L97 30 L92 30 L102 22 Z" fill="#7c8ba1" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M58 30 C 74 22, 88 22, 98 28" fill="none" stroke="#f0a850" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 6"/>
+  <path d="M94 22 L100 29 L91 31 Z" fill="#f0a850"/>
+  <circle cx="58" cy="70" r="40" fill="url(#rvr_body)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2"/>
+  <path d="M24 51 A 40 40 0 0 1 92 51 L 86 54 A 33 33 0 0 0 30 54 Z" fill="#aeb9c7"/>
+  <circle cx="58" cy="70" r="32" fill="none" stroke="rgba(30, 41, 59, 0.15)" stroke-width="2"/>
+  <circle cx="58" cy="66" r="13" fill="url(#rvr_lidar)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2"/>
+  <circle cx="58" cy="66" r="6" fill="#7c8ba1"/>
+  <circle cx="48" cy="94" r="3" fill="#94a3b8"/>
+  <circle cx="68" cy="94" r="3" fill="#94a3b8"/>
+</svg>

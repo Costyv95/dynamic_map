@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="cl_dome" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fdfefe"/>
+      <stop offset="1" stop-color="#d4dbe4"/>
+    </linearGradient>
+    <linearGradient id="cl_plate" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a8b3c2"/>
+      <stop offset="1" stop-color="#7c8798"/>
+    </linearGradient>
+    <linearGradient id="cl_beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd9a0" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ffd9a0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="64" cy="112" rx="30" ry="5" fill="rgba(15, 23, 42, 0.18)"/>
+  <path d="M34 58 L94 58 L110 106 L18 106 Z" fill="url(#cl_beam)"/>
+  <path d="M26 26 A 38 34 0 0 0 102 26 Z" fill="url(#cl_dome)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2" stroke-linejoin="round"/>
+  <ellipse cx="64" cy="54" rx="20" ry="6" fill="#ffe3ae" opacity="0.85"/>
+  <rect x="22" y="18" width="84" height="9" rx="4.5" fill="url(#cl_plate)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2" stroke-linejoin="round"/>
+</svg>

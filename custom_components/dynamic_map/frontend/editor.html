@@ -70,6 +70,9 @@
             <input type="text" id="scName" placeholder="e.g. Silvester Vacuum">
             <label>Entity ID</label>
             <input type="text" id="scEntity" autocomplete="off" placeholder="e.g. vacuum.silvester">
+            <label>Appearance (drives texture generation)</label>
+            <input type="text" id="scDescription" autocomplete="off" placeholder="e.g. a pink flamingo-shaped table lamp">
+            <button id="scGenerateTexture" style="width: 100%; margin: 4px 0 0 0; padding: 5px;">✨ Generate texture from appearance</button>
             <label>Availability Entity ID (Optional)</label>
             <input type="text" id="scAvailabilityEntity" autocomplete="off" placeholder="e.g. button.desk_lamp_identify">
             <label>Parent Context</label>
@@ -106,6 +109,9 @@
             <div style="margin-top: 10px;">
                 <label>Default Image URL</label>
                 <input type="text" id="scImage" list="iconList" placeholder="e.g. /local/img.png (Overrides Icon)" style="padding: 4px;">
+                <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em; margin-top: 4px;">
+                    <input type="checkbox" id="scImageTiling" style="width: auto; margin: 0;"> Tile image (repeat along shape)
+                </label>
             </div>
             
             <div style="margin-top: 10px;">

@@ -23,6 +23,10 @@ A Home Assistant custom integration that turns your floor plan into a live, inte
 dynamic_map:
   # Optional: address of the DXF/SVG processing sidecar (see server/)
   # sidecar_url: http://192.168.1.50:5000
+  # Optional: enables the editor's "✨ Generate texture" button (Claude-drawn
+  # object artwork). ALWAYS reference a !secret - never paste the key inline.
+  # anthropic_api_key: !secret anthropic_api_key
+  # texture_model: claude-opus-4-8
 ```
 
 4. Restart HA. A **Map Editor** entry appears in the sidebar (admin only).

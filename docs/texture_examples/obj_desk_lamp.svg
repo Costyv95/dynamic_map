@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="dl_metal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6b7a92"/>
+      <stop offset="1" stop-color="#3d4859"/>
+    </linearGradient>
+    <linearGradient id="dl_beam" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd9a0" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#ffd9a0" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="64" cy="112" rx="30" ry="5" fill="rgba(15, 23, 42, 0.18)"/>
+  <path d="M70 52 L98 52 L110 104 L52 104 Z" fill="url(#dl_beam)"/>
+  <path d="M58 102 L40 64" stroke="#4b5768" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <path d="M40 64 L76 38" stroke="#57637a" stroke-width="6" stroke-linecap="round" fill="none"/>
+  <circle cx="40" cy="64" r="5" fill="#334155"/>
+  <path d="M64 34 C 70 22, 92 20, 102 32 C 98 46, 82 54, 68 50 Z" fill="url(#dl_metal)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2" stroke-linejoin="round"/>
+  <ellipse cx="84" cy="50" rx="13" ry="5.5" fill="#ffe3ae"/>
+  <rect x="36" y="100" width="46" height="10" rx="5" fill="url(#dl_metal)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2" stroke-linejoin="round"/>
+</svg>

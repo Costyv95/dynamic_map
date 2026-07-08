@@ -86,6 +86,54 @@ export class EditorUIManager {
             this.state.requestDrawCallback();
         });
 
+        document.getElementById('scDescription').addEventListener('input', (e) => {
+            if(this.state.selectedShortcutIdx !== -1) {
+                this.state.shortcuts[this.state.selectedShortcutIdx].description = e.target.value;
+            }
+        });
+        document.getElementById('scDescription').addEventListener('change', () => {
+            this.state.saveState();
+        });
+
+        const genBtn = document.getElementById('scGenerateTexture');
+        genBtn.addEventListener('click', async () => {
+            if (this.state.selectedShortcutIdx === -1) return;
+            const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+            const description = (sc.description || '').trim() || (sc.name || '').trim();
+            if (!description) {
+                alert('Fill the Appearance field (or at least the Name) first.');
+                return;
+            }
+            // When a state is being previewed, generate that state's artwork
+            // (prompt = shortcut appearance + state appearance).
+            const previewIdx = this.state.previewStateIdx;
+            const previewState = (previewIdx !== -1 && sc.config?.states) ? sc.config.states[previewIdx] : null;
+            genBtn.disabled = true;
+            const oldLabel = genBtn.textContent;
+            genBtn.textContent = '⏳ Generating - this can take a minute…';
+            try {
+                const result = await ApiManager.generateTexture(description, {
+                    stateDescription: previewState?.description || undefined,
+                    tileable: !!(previewState?.image_tiling ?? sc.config?.image_tiling),
+                });
+                if (!sc.config) sc.config = {};
+                if (previewState) {
+                    previewState.image = result.path;
+                } else {
+                    sc.config.image = result.path;
+                }
+                document.getElementById('scImage').value = result.path;
+                this.state.saveState();
+                this.state.requestDrawCallback();
+                this.updateSidebar();
+            } catch (e) {
+                alert(`Texture generation failed: ${e.message}`);
+            } finally {
+                genBtn.disabled = false;
+                genBtn.textContent = oldLabel;
+            }
+        });
+
         let oldEntityId = '';
         document.getElementById('scEntity').addEventListener('focus', (e) => {
             oldEntityId = e.target.value;
@@ -304,6 +352,7 @@ export class EditorUIManager {
         }
         bindScProp('scIcon', 'icon');
         bindScProp('scImage', 'image');
+        bindScProp('scImageTiling', 'image_tiling', true, true);
         bindScProp('scAutoRotate', 'autoRotate', true, true);
         bindScProp('scHasBackground', 'transparent', true);
         bindScProp('scProportionalScale', 'proportional', true, true);
@@ -705,6 +754,7 @@ export class EditorUIManager {
             window.previewStateIdx = this.state.previewStateIdx;
             document.getElementById('scName').value = sc.name || '';
             document.getElementById('scEntity').value = sc.entity_id || '';
+            document.getElementById('scDescription').value = sc.description || '';
             document.getElementById('scAvailabilityEntity').value = sc.config?.availability_entity || '';
             document.getElementById('scType').value = sc.type || 'generic';
             
@@ -733,6 +783,7 @@ export class EditorUIManager {
             
             document.getElementById('scImage').value = targetObj.image || '';
             document.getElementById('scImage').placeholder = isPreview ? (sc.config?.image || 'e.g. /local/img.png') : 'e.g. /local/img.png';
+            document.getElementById('scImageTiling').checked = !!(targetObj.image_tiling !== undefined ? targetObj.image_tiling : sc.config?.image_tiling);
             
             document.getElementById('scAutoRotate').checked = targetObj.autoRotate !== undefined ? !!targetObj.autoRotate : !!sc.config?.autoRotate;
             document.getElementById('scHasBackground').checked = !(targetObj.transparent !== undefined ? targetObj.transparent : sc.config?.transparent);
@@ -884,6 +935,7 @@ export class EditorUIManager {
             'scRotationInput': 'rotation',
             'scAutoRotate': 'autoRotate',
             'scProportionalScale': 'proportional',
+            'scImageTiling': 'image_tiling',
             'scContentXInput': 'content_x',
             'scContentYInput': 'content_y',
             'scContentScaleXInput': 'content_scaleX',

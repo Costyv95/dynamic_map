@@ -15,12 +15,20 @@ from homeassistant.components.http import HomeAssistantView
 from homeassistant.helpers import area_registry, entity_registry, floor_registry
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import CONF_SIDECAR_URL, DATA_DIR, DOMAIN, URL_BASE_DATA
-from . import storage
+from .const import (
+    CONF_ANTHROPIC_API_KEY,
+    CONF_SIDECAR_URL,
+    CONF_TEXTURE_MODEL,
+    DATA_DIR,
+    DOMAIN,
+    URL_BASE_DATA,
+)
+from . import storage, texture_gen
 
 _LOGGER = logging.getLogger(__name__)
 
 SIDECAR_TIMEOUT = aiohttp.ClientTimeout(total=300)
+TEXTURE_TIMEOUT = aiohttp.ClientTimeout(total=240)
 
 
 class DynamicMapView(HomeAssistantView):
@@ -324,6 +332,94 @@ class DynamicMapRoborockRoomsView(DynamicMapView):
         return self.json({"success": True, "data": response})
 
 
+class DynamicMapGenerateTextureView(DynamicMapView):
+    """Generate a style-recipe texture SVG with Claude and save it to icons/.
+
+    The Anthropic key comes from configuration.yaml (use !secret); it lives
+    only in hass.data and is never logged or echoed back to the client.
+    """
+
+    url = "/api/dynamic_map/generate_texture"
+    name = "api:dynamic_map:generate_texture"
+
+    async def post(self, request):
+        if (denied := self.forbidden_unless_admin(request)) is not None:
+            return denied
+        try:
+            data = await request.json()
+        except ValueError:
+            return self.error("Invalid JSON body.")
+
+        description = (data.get("description") or "").strip()
+        if not description:
+            return self.error("Missing 'description'.")
+        state_description = (data.get("state_description") or "").strip()
+        subject = (
+            f"{description}, {state_description}" if state_description else description
+        )
+        tileable = bool(data.get("tileable"))
+
+        api_key = self.hass.data.get(DOMAIN, {}).get(CONF_ANTHROPIC_API_KEY)
+        if not api_key:
+            return self.error(
+                "No anthropic_api_key configured for dynamic_map. Add it in "
+                "configuration.yaml via !secret - never store the key in map data.",
+                status=409,
+            )
+        try:
+            filename = texture_gen.texture_filename(subject, data.get("filename"))
+        except ValueError as err:
+            return self.error(str(err))
+
+        model = (
+            self.hass.data.get(DOMAIN, {}).get(CONF_TEXTURE_MODEL)
+            or texture_gen.DEFAULT_TEXTURE_MODEL
+        )
+        session = async_get_clientsession(self.hass)
+        try:
+            async with session.post(
+                texture_gen.ANTHROPIC_API_URL,
+                json=texture_gen.build_request_body(subject, model, tileable),
+                headers={
+                    "x-api-key": api_key,
+                    "anthropic-version": texture_gen.ANTHROPIC_VERSION,
+                },
+                timeout=TEXTURE_TIMEOUT,
+            ) as resp:
+                body = await resp.json()
+                if resp.status != 200:
+                    message = (body.get("error") or {}).get("message", "unknown error")
+                    return self.error(
+                        f"Claude API error {resp.status}: {message}", status=502
+                    )
+        except (aiohttp.ClientError, TimeoutError) as err:
+            return self.error(f"Claude API request failed: {err}", status=502)
+
+        try:
+            svg = texture_gen.extract_svg(texture_gen.response_text(body))
+            texture_gen.validate_svg(svg)
+        except ValueError as err:
+            return self.error(f"Generated SVG rejected: {err}", status=502)
+
+        icons_dir = os.path.join(self.data_dir, "icons")
+        path = os.path.join(icons_dir, filename)
+
+        def _write():
+            os.makedirs(icons_dir, exist_ok=True)
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(svg)
+
+        await self.hass.async_add_executor_job(_write)
+        _LOGGER.info("Generated texture %s (%d bytes)", filename, len(svg))
+        return self.json(
+            {
+                "success": True,
+                "path": f"{URL_BASE_DATA}/icons/{filename}",
+                "bytes": len(svg),
+            }
+        )
+
+
 ALL_VIEWS = (
     DynamicMapSaveView,
     DynamicMapStateView,
@@ -334,4 +430,5 @@ ALL_VIEWS = (
     DynamicMapDeleteFloorView,
     DynamicMapRegistryView,
     DynamicMapRoborockRoomsView,
+    DynamicMapGenerateTextureView,
 )

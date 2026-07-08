@@ -180,6 +180,21 @@ export class ApiManager {
         return true;
     }
 
+    /**
+     * Ask the backend to draw a style-recipe texture with Claude and save it
+     * into dynamic_map_data/icons/. Slow (up to a couple of minutes).
+     * Returns { path } of the served SVG; throws with the backend's message.
+     */
+    static async generateTexture(description, { stateDescription, tileable, filename } = {}) {
+        const body = { description };
+        if (stateDescription) body.state_description = stateDescription;
+        if (tileable) body.tileable = true;
+        if (filename) body.filename = filename;
+        const data = await postJson('/api/dynamic_map/generate_texture', body);
+        if (!data.success) throw new Error(data.error || 'Texture generation failed');
+        return data;
+    }
+
     static async saveToHA(activeFloor, rooms, shortcuts, config) {
         // Strip the runtime _imgCache object from shortcuts to prevent serializing DOM Image objects
         const cleanShortcuts = JSON.parse(JSON.stringify(shortcuts, (key, value) => {

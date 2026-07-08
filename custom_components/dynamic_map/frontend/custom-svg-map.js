@@ -481,6 +481,9 @@ class CustomSvgMap extends HTMLElement {
             }
         });
 
+        this.buildAmbientTint();
+        this.buildPresenceLayer();
+
         this.svg.appendChild(this.mapRoot);
         this.mapWrapper.appendChild(this.svg);
         this.renderRoot.appendChild(this.mapWrapper);
@@ -1012,6 +1015,140 @@ class CustomSvgMap extends HTMLElement {
         }
 
         this.updateOutsideBar(hass);
+        this.updateAmbientTint(hass);
+        this.updatePresence(hass);
+    }
+
+    /**
+     * Day/night ambient tint: a full-map multiply overlay driven by sun.sun's
+     * elevation - clear at day, warm around sunset, cool blue-grey at night.
+     * Disable with `ambient_tint: false` in the card config.
+     */
+    buildAmbientTint() {
+        this.ambientTint = null;
+        if (this.config.ambient_tint === false) return;
+        const rect = document.createElementNS(this.svgNS, 'rect');
+        rect.classList.add('dm-ambient-tint');
+        rect.setAttribute('width', this.imgW.toString());
+        rect.setAttribute('height', this.imgH.toString());
+        rect.setAttribute('opacity', '0');
+        rect.style.pointerEvents = 'none';
+        rect.style.mixBlendMode = 'multiply';
+        this.ambientTint = rect;
+        this.mapRoot.appendChild(rect);
+    }
+
+    updateAmbientTint(hass) {
+        if (!this.ambientTint || !hass || !hass.states) return;
+        const sun = hass.states['sun.sun'];
+        const elev = sun && sun.attributes ? Number(sun.attributes.elevation) : NaN;
+        if (!Number.isFinite(elev)) {
+            this.ambientTint.setAttribute('opacity', '0');
+            return;
+        }
+        const lerp = (a, b, t) => a + (b - a) * t;
+        const mix = (c1, c2, t) => `rgb(${Math.round(lerp(c1[0], c2[0], t))}, ${Math.round(lerp(c1[1], c2[1], t))}, ${Math.round(lerp(c1[2], c2[2], t))})`;
+        const WARM = [255, 158, 87], NIGHT = [95, 116, 160];
+        let color, opacity;
+        if (elev >= 10) {
+            opacity = 0;
+            color = mix(WARM, WARM, 0);
+        } else if (elev >= -4) {
+            // golden hour: warm tint fading in as the sun drops from 10 to -4
+            opacity = lerp(0, 0.18, (10 - elev) / 14);
+            color = mix(WARM, WARM, 0);
+        } else if (elev >= -10) {
+            // dusk: warm shifts to a cool night tone
+            const t = (-4 - elev) / 6;
+            opacity = lerp(0.18, 0.3, t);
+            color = mix(WARM, NIGHT, t);
+        } else {
+            opacity = 0.3;
+            color = mix(NIGHT, NIGHT, 0);
+        }
+        this.ambientTint.setAttribute('fill', color);
+        this.ambientTint.setAttribute('opacity', opacity.toFixed(3));
+    }
+
+    /**
+     * Presence dots: card config `presence: [{entity, name?, color?}]` where
+     * each entity's state names the room (room name, HA area id, or area
+     * name - e.g. a Bermuda/ESPresense area sensor). The dot glides to that
+     * room's center and hides when the person isn't on this floor.
+     */
+    buildPresenceLayer() {
+        this._presenceDots = null;
+        const items = Array.isArray(this.config.presence) ? this.config.presence : [];
+        if (!items.length) return;
+        const layer = document.createElementNS(this.svgNS, 'g');
+        layer.classList.add('dm-presence-layer');
+        layer.style.pointerEvents = 'none';
+        const r = this.imgW * 0.016;
+        this._presenceDots = items.filter(it => it && it.entity).map((it, idx) => {
+            const el = document.createElementNS(this.svgNS, 'g');
+            el.classList.add('dm-presence-dot');
+            el.style.display = 'none';
+            const circle = document.createElementNS(this.svgNS, 'circle');
+            circle.setAttribute('r', r.toFixed(1));
+            circle.setAttribute('fill', it.color || ['#f472b6', '#38bdf8', '#a3e635', '#fb923c'][idx % 4]);
+            circle.setAttribute('stroke', 'rgba(255, 255, 255, 0.9)');
+            circle.setAttribute('stroke-width', (this.imgW * 0.004).toFixed(1));
+            el.appendChild(circle);
+            const initial = (it.name || it.entity.split('.')[1] || '?').trim().charAt(0).toUpperCase();
+            const label = document.createElementNS(this.svgNS, 'text');
+            label.setAttribute('text-anchor', 'middle');
+            label.setAttribute('dominant-baseline', 'central');
+            label.setAttribute('font-size', (r * 1.1).toFixed(1));
+            label.setAttribute('font-weight', '700');
+            label.setAttribute('fill', '#ffffff');
+            label.textContent = initial;
+            el.appendChild(label);
+            layer.appendChild(el);
+            return { el, entity: it.entity, visible: false, curX: 0, curY: 0, tx: 0, ty: 0 };
+        });
+        this.presenceLayer = layer;
+        this.mapRoot.appendChild(layer);
+    }
+
+    updatePresence(hass) {
+        if (!this._presenceDots || !hass || !hass.states) return;
+        const areas = hass.areas || {};
+        const NOWHERE = ['', 'unknown', 'unavailable', 'not_home', 'away', 'none', 'off'];
+        const byRoom = {};
+        this._presenceDots.forEach(dot => {
+            const st = hass.states[dot.entity];
+            const s = st ? String(st.state).trim().toLowerCase() : '';
+            let room = null;
+            if (!NOWHERE.includes(s)) {
+                room = this.rooms.find(rm => (rm.name || '').trim().toLowerCase() === s)
+                    || this.rooms.find(rm => rm.area_id && String(rm.area_id).toLowerCase() === s)
+                    || this.rooms.find(rm => rm.area_id && (areas[rm.area_id]?.name || '').trim().toLowerCase() === s);
+            }
+            if (!room) {
+                dot.visible = false;
+                dot.el.style.display = 'none';
+                return;
+            }
+            (byRoom[room.id] = byRoom[room.id] || []).push({ dot, room });
+        });
+        for (const id in byRoom) {
+            const group = byRoom[id];
+            group.forEach(({ dot, room }, i) => {
+                const c = MapGeometry.getPolygonCenter(room.polygon);
+                const off = group.length > 1 ? this.imgW * 0.025 : 0;
+                const angle = (i / group.length) * Math.PI * 2;
+                dot.tx = (c[0] / 100) * this.imgW + Math.cos(angle) * off;
+                dot.ty = (c[1] / 100) * this.imgH + Math.sin(angle) * off;
+                if (!dot.visible) {
+                    // First appearance: place directly, no glide from (0,0).
+                    dot.curX = dot.tx;
+                    dot.curY = dot.ty;
+                    dot.el.setAttribute('transform', `translate(${dot.curX.toFixed(1)}, ${dot.curY.toFixed(1)})`);
+                }
+                dot.visible = true;
+                dot.el.style.display = 'block';
+            });
+        }
     }
 
     updateRoomStyles() {
@@ -1085,6 +1222,16 @@ class CustomSvgMap extends HTMLElement {
             if (obj.animate) {
                 obj.animate(deltaTime);
             }
+        }
+
+        if (this._presenceDots && Number.isFinite(deltaTime) && deltaTime > 0) {
+            const k = 1 - Math.exp(-deltaTime * 3);
+            this._presenceDots.forEach(dot => {
+                if (!dot.visible) return;
+                dot.curX += (dot.tx - dot.curX) * k;
+                dot.curY += (dot.ty - dot.curY) * k;
+                dot.el.setAttribute('transform', `translate(${dot.curX.toFixed(1)}, ${dot.curY.toFixed(1)})`);
+            });
         }
 
         this.animationFrame = requestAnimationFrame((t) => this.animate(t));

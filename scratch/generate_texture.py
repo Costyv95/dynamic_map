@@ -18,8 +18,6 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-import anthropic
-
 STYLE_RECIPE = """\
 1. Canvas: viewBox="0 0 128 128", subject centered, ~8px breathing room on all
    sides. Transparent background - no backdrop rectangle.
@@ -77,6 +75,7 @@ def main() -> int:
     parser.add_argument("--model", default="claude-opus-4-8")
     args = parser.parse_args()
 
+    import anthropic
     client = anthropic.Anthropic()
     with client.messages.stream(
         model=args.model,

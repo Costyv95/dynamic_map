@@ -11,7 +11,15 @@ from homeassistant.components.http import StaticPathConfig
 from homeassistant.core import HomeAssistant
 from homeassistant.loader import async_get_integration
 
-from .const import CONF_SIDECAR_URL, DATA_DIR, DOMAIN, URL_BASE_DATA, URL_BASE_UI
+from .const import (
+    CONF_ANTHROPIC_API_KEY,
+    CONF_SIDECAR_URL,
+    CONF_TEXTURE_MODEL,
+    DATA_DIR,
+    DOMAIN,
+    URL_BASE_DATA,
+    URL_BASE_UI,
+)
 from .views import ALL_VIEWS
 
 _LOGGER = logging.getLogger(__name__)
@@ -19,7 +27,11 @@ _LOGGER = logging.getLogger(__name__)
 CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: vol.Schema(
-            {vol.Optional(CONF_SIDECAR_URL): cv.url},
+            {
+                vol.Optional(CONF_SIDECAR_URL): cv.url,
+                vol.Optional(CONF_ANTHROPIC_API_KEY): cv.string,
+                vol.Optional(CONF_TEXTURE_MODEL): cv.string,
+            },
         )
     },
     extra=vol.ALLOW_EXTRA,
@@ -34,6 +46,8 @@ async def async_setup(hass: HomeAssistant, config: dict):
     hass.data[DOMAIN] = {
         "version": integration.version,
         CONF_SIDECAR_URL: conf.get(CONF_SIDECAR_URL),
+        CONF_ANTHROPIC_API_KEY: conf.get(CONF_ANTHROPIC_API_KEY),
+        CONF_TEXTURE_MODEL: conf.get(CONF_TEXTURE_MODEL),
     }
 
     for view_cls in ALL_VIEWS:

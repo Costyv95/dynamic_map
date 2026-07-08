@@ -36,6 +36,38 @@ Every texture MUST follow these rules — they are what makes the set coherent:
 - The editor's icon list picks up everything in `icons/`; set it as the shortcut's
   `image` (or a state's `image`) and the auto-state styling does the rest.
 
+## Appearance descriptions & the dataset
+
+Every shortcut can carry a `description` — a one-line English description of how the
+object looks (set in the Map Editor's **Appearance** field, stored on the shortcut in
+`shortcuts_floorN.json`). It is the generation prompt for that object's texture.
+Shortcuts without one fall back to a generic subject by type ("a sensor puck", "a
+light fixture", ...) — not everything needs to look exactly like reality.
+
+Generate (or re-generate) the whole set for a data directory:
+
+```bash
+python3 scratch/generate_dataset.py /path/to/dynamic_map_data --dry-run   # list groups
+python3 scratch/generate_dataset.py /path/to/dynamic_map_data --out ./generated_textures
+```
+
+Shortcuts sharing a description share one artwork. The script skips SVGs that already
+exist in `--out`, and writes a `preview.html` contact sheet next to the results.
+
+**Per-state artwork:** states whose on/off look isn't enough (a vacuum's docked /
+returning / error, a window's open / closed) can carry their own `description`
+(the state editor's "Appearance in this state" field). The generation prompt combines
+shortcut + state descriptions — "a round white robot vacuum, **parked on its charging
+dock**" — and the artwork goes on that state's `image`. Plain on/off never needs
+this: the card derives the off-look from the base artwork automatically.
+
+**Tileable textures:** strip-like objects (LED strips, garlands) should be drawn
+seamless — the artwork continues when repeated horizontally: elements spaced so the
+pattern wraps at the canvas edge, full-bleed body, no ground shadow, no outline on
+the cut edges. Check the shortcut's **Tile image** box (`image_tiling: true`) and the
+card fills the rect with square repeating tiles instead of stretching one copy. See
+`obj_led_strip_tile.svg` / `obj_fairy_lights_tile.svg`.
+
 ## Generating a new texture
 
 **Interactive (no API key needed):** ask Claude Code —

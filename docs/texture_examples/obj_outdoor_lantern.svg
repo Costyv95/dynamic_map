@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="ol_frame" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4b5768"/>
+      <stop offset="1" stop-color="#2b3444"/>
+    </linearGradient>
+    <radialGradient id="ol_glass" cx="0.5" cy="0.55" r="0.7">
+      <stop offset="0" stop-color="#ffe6b0"/>
+      <stop offset="1" stop-color="#f0a850"/>
+    </radialGradient>
+    <radialGradient id="ol_halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffd9a0" stop-opacity="0.5"/>
+      <stop offset="1" stop-color="#ffd9a0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="66" cy="112" rx="24" ry="5" fill="rgba(15, 23, 42, 0.18)"/>
+  <circle cx="64" cy="62" r="34" fill="url(#ol_halo)"/>
+  <rect x="26" y="34" width="8" height="42" rx="3" fill="url(#ol_frame)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M34 42 C 48 32, 60 32, 64 42" fill="none" stroke="#3a4557" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="64" cy="32" r="2.5" fill="#3a4557"/>
+  <path d="M50 48 L78 48 L72 36 L56 36 Z" fill="url(#ol_frame)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="52" y="48" width="24" height="28" rx="2" fill="url(#ol_glass)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2"/>
+  <line x1="64" y1="48" x2="64" y2="76" stroke="#3a4557" stroke-width="1.5"/>
+  <line x1="52" y1="62" x2="76" y2="62" stroke="#3a4557" stroke-width="1.5"/>
+  <rect x="49" y="76" width="30" height="7" rx="3" fill="url(#ol_frame)" stroke="rgba(30, 41, 59, 0.35)" stroke-width="2" stroke-linejoin="round"/>
+</svg>

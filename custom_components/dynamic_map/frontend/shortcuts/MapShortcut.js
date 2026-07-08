@@ -183,12 +183,17 @@ export class MapShortcut {
                 const imgVal = matchedState?.image || this.config.image;
 
                 if (imgVal && (matchedState?.image || !iconVal)) {
+                    const tiling = matchedState?.image_tiling !== undefined
+                        ? matchedState.image_tiling : this.config.image_tiling;
                     activeLayout.push({
                         id: 'fallback_image',
                         type: 'image',
                         value: imgVal,
                         width: contentMatchSize ? w : 24,
-                        height: contentMatchSize ? h : 24
+                        height: contentMatchSize ? h : 24,
+                        // Seamless textures repeat as square tiles along the
+                        // shape instead of stretching (LED strips, garlands).
+                        tiling: !!tiling && isRect
                     });
                 } else if (iconVal) {
                     activeLayout.push({
@@ -340,6 +345,7 @@ export class MapShortcut {
         }
 
         this._updateGlow(isUnavailable ? null : hass);
+        this._updateActivityFx(isUnavailable ? null : hass);
 
         // One-artwork state styling: image shortcuts without explicit state
         // overrides derive their off-look automatically (dim + desaturate),
@@ -366,6 +372,44 @@ export class MapShortcut {
             this.group.insertBefore(this.defsEl, this.group.firstChild);
         }
         return this.defsEl;
+    }
+
+    /**
+     * A rounded rect filled with the image repeated as square tiles (side =
+     * shape height) instead of one stretched copy - for seamless textures
+     * like LED strips or fairy-light garlands drawn to continue horizontally.
+     */
+    _buildTiledImage(comp) {
+        const defs = this._ensureDefs();
+        const pid = `dm_tile_${this._defsUid()}`;
+        let pattern = defs.querySelector(`pattern[id="${pid}"]`);
+        if (!pattern) {
+            pattern = document.createElementNS(this.svgNS, 'pattern');
+            pattern.setAttribute('id', pid);
+            pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+            pattern.appendChild(document.createElementNS(this.svgNS, 'image'));
+            defs.appendChild(pattern);
+        }
+        const w = comp.width || 24;
+        const h = comp.height || 24;
+        const tile = h;
+        pattern.setAttribute('x', ((comp.x || 0) - w / 2).toString());
+        pattern.setAttribute('y', ((comp.y || 0) - h / 2).toString());
+        pattern.setAttribute('width', tile.toString());
+        pattern.setAttribute('height', tile.toString());
+        const img = pattern.querySelector('image');
+        img.setAttribute('width', tile.toString());
+        img.setAttribute('height', tile.toString());
+        img.setAttribute('href', comp.value || '');
+        img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', comp.value || '');
+        const rect = document.createElementNS(this.svgNS, 'rect');
+        rect.setAttribute('x', ((comp.x || 0) - w / 2).toString());
+        rect.setAttribute('y', ((comp.y || 0) - h / 2).toString());
+        rect.setAttribute('width', w.toString());
+        rect.setAttribute('height', h.toString());
+        rect.setAttribute('rx', Math.min(h * 0.25, 12).toString());
+        rect.setAttribute('fill', `url(#${pid})`);
+        return rect;
     }
 
     /**
@@ -602,21 +646,128 @@ export class MapShortcut {
         this.glowGroup.setAttribute('clip-path', `url(#dm_clip_${uid})`);
     }
 
+    /** Current badge width/height in map units (mirrors the glow geometry). */
+    _badgeSize() {
+        let baseW = 24, baseH = 24;
+        if (this.shape && this.shape.tagName === 'rect') {
+            baseW = parseFloat(this.shape.getAttribute('width')) || 24;
+            baseH = parseFloat(this.shape.getAttribute('height')) || 24;
+        } else if (this.shape) {
+            const r = parseFloat(this.shape.getAttribute('r')) || 12;
+            baseW = baseH = r * 2;
+        }
+        return [baseW, baseH];
+    }
+
     /**
-     * Per-frame hook driven by the card's animation loop: the glow pools
-     * breathe gently and slowly drift around each other, intertwining.
+     * Live-activity effects: a tiny animated equalizer while a media player
+     * is playing, and trailing dust puffs while a vacuum is cleaning.
+     */
+    _updateActivityFx(hass) {
+        const tgt = this.sc.entity_id || this.config.state_entity;
+        const stObj = tgt && hass && hass.states ? hass.states[tgt] : null;
+        const state = stObj ? stObj.state : null;
+        const domain = (tgt || '').split('.')[0];
+        this._setEqualizer((this.sc.type === 'media' || domain === 'media_player') && state === 'playing');
+        this._setDust(this.sc.type === 'vacuum' && state === 'cleaning');
+    }
+
+    _setEqualizer(on) {
+        this._eqVisible = !!on;
+        if (!on) {
+            if (this.eqGroup) this.eqGroup.style.display = 'none';
+            return;
+        }
+        if (!this.eqGroup) {
+            this.eqGroup = document.createElementNS(this.svgNS, 'g');
+            this.eqGroup.classList.add('dm-eq');
+            this.eqGroup.style.pointerEvents = 'none';
+            this.eqPill = document.createElementNS(this.svgNS, 'rect');
+            this.eqPill.setAttribute('fill', 'rgba(15, 23, 42, 0.55)');
+            this.eqGroup.appendChild(this.eqPill);
+            this.eqBars = [0, 1, 2].map(() => {
+                const bar = document.createElementNS(this.svgNS, 'rect');
+                bar.setAttribute('fill', '#ffffff');
+                this.eqGroup.appendChild(bar);
+                return bar;
+            });
+            this.group.appendChild(this.eqGroup);
+        }
+        const [bw, bh] = this._badgeSize();
+        const s = Math.max(bw, 18) / 24;
+        this._eqScale = s;
+        this.eqGroup.setAttribute('transform', `translate(${(bw / 2).toFixed(1)}, ${(-bh / 2).toFixed(1)})`);
+        this.eqPill.setAttribute('x', -8 * s);
+        this.eqPill.setAttribute('y', -8 * s);
+        this.eqPill.setAttribute('width', 16 * s);
+        this.eqPill.setAttribute('height', 13 * s);
+        this.eqPill.setAttribute('rx', 4 * s);
+        this.eqBars.forEach((bar, i) => {
+            bar.setAttribute('x', (-5.4 + i * 4) * s);
+            bar.setAttribute('width', 2.6 * s);
+            bar.setAttribute('rx', 1.2 * s);
+            bar.setAttribute('y', -3 * s);
+            bar.setAttribute('height', 6 * s);
+        });
+        this.eqGroup.style.display = 'block';
+    }
+
+    _setDust(on) {
+        this._dustActive = !!on;
+        if (!on) {
+            if (this.dustGroup) this.dustGroup.style.display = 'none';
+            return;
+        }
+        if (!this.dustGroup) {
+            this.dustGroup = document.createElementNS(this.svgNS, 'g');
+            this.dustGroup.classList.add('dm-dust');
+            this.dustGroup.style.pointerEvents = 'none';
+            this.dustPuffs = [0, 1, 2].map(() => {
+                const c = document.createElementNS(this.svgNS, 'circle');
+                c.setAttribute('fill', '#94a3b8');
+                this.dustGroup.appendChild(c);
+                return c;
+            });
+            this.group.insertBefore(this.dustGroup, this.group.firstChild);
+        }
+        this._dustScale = Math.max(this._badgeSize()[0], 18) / 24;
+        this.dustGroup.style.display = 'block';
+    }
+
+    /**
+     * Per-frame hook driven by the card's animation loop: glow pools breathe
+     * and drift, equalizer bars bounce, dust puffs trail behind the vacuum.
      */
     animate(dt) {
-        if (!this._glowVisible || !this.glowEl) return;
-        this._glowT = (this._glowT || 0) + dt;
-        const t = this._glowT;
-        const k = 0.88 + 0.12 * Math.sin(t * 0.9);
-        this.glowInner.setAttribute('opacity', k.toFixed(3));
-        const d = this.imgW * 0.008;
-        this.glowEl.setAttribute('transform',
-            `translate(${(Math.sin(t * 0.50) * d).toFixed(1)}, ${(Math.cos(t * 0.37) * d).toFixed(1)})`);
-        this.glowBlob2.setAttribute('transform',
-            `translate(${(Math.cos(t * 0.43) * d * 1.5).toFixed(1)}, ${(Math.sin(t * 0.61) * d * 1.3).toFixed(1)})`);
+        this._fxT = (this._fxT || 0) + dt;
+        const t = this._fxT;
+        if (this._glowVisible && this.glowEl) {
+            const k = 0.88 + 0.12 * Math.sin(t * 0.9);
+            this.glowInner.setAttribute('opacity', k.toFixed(3));
+            const d = this.imgW * 0.008;
+            this.glowEl.setAttribute('transform',
+                `translate(${(Math.sin(t * 0.50) * d).toFixed(1)}, ${(Math.cos(t * 0.37) * d).toFixed(1)})`);
+            this.glowBlob2.setAttribute('transform',
+                `translate(${(Math.cos(t * 0.43) * d * 1.5).toFixed(1)}, ${(Math.sin(t * 0.61) * d * 1.3).toFixed(1)})`);
+        }
+        if (this._eqVisible && this.eqBars) {
+            const s = this._eqScale || 1;
+            this.eqBars.forEach((bar, i) => {
+                const h = (3 + 6 * Math.abs(Math.sin(t * (2.1 + i * 0.7) + i * 1.3))) * s;
+                bar.setAttribute('height', h.toFixed(2));
+                bar.setAttribute('y', (3 * s - h).toFixed(2));
+            });
+        }
+        if (this._dustActive && this.dustPuffs) {
+            const s = this._dustScale || 1;
+            this.dustPuffs.forEach((c, i) => {
+                const p = ((t * 0.45) + i / 3) % 1;
+                c.setAttribute('cx', (-(8 + p * 18) * s).toFixed(1));
+                c.setAttribute('cy', (Math.sin((t + i * 2.1) * 1.7) * 4 * s).toFixed(1));
+                c.setAttribute('r', ((2 + p * 3.5) * s).toFixed(1));
+                c.setAttribute('opacity', ((1 - p) * 0.45).toFixed(2));
+            });
+        }
     }
 
     /**
@@ -721,6 +872,13 @@ export class MapShortcut {
         let fallbackIcon = '💡';
         
         layout.forEach(comp => {
+            if (comp.type === 'image' && comp.tiling) {
+                const el = this._buildTiledImage(comp, hass);
+                if (comp.id) el.setAttribute('id', comp.id);
+                this.contentGroup.appendChild(el);
+                this.iconImage = el;
+                return;
+            }
             const renderer = ComponentRegistry[comp.type];
             if (renderer) {
                 // Pre-evaluate dynamic JS templates inside text, icons, and image paths on a shallow copy
