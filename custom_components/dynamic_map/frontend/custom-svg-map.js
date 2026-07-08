@@ -1041,13 +1041,15 @@ class CustomSvgMap extends HTMLElement {
         this.ambientTint = null;
         if (this.config.ambient_tint === false) return;
         let el;
-        if (this.floorBgMode === 'fit') {
-            // No full-canvas background: match the room plate so the tint
-            // never spills past the plan. Group opacity flattens the
-            // overlapping room polygons first, so multiply doesn't
-            // double-darken the seams between adjacent rooms.
+        if (this.rooms && this.rooms.length) {
+            // Shape the tint to the house (the rooms), never the full canvas —
+            // otherwise it darkens the empty margins around the plan (and, in
+            // fit mode, spills past it entirely). A fattened plate covers the
+            // walls just outside the room polygons; group opacity flattens the
+            // overlapping rooms first, so multiply doesn't double-darken the
+            // seams between adjacent rooms.
             el = document.createElementNS(this.svgNS, 'g');
-            const pad = Math.max(this.imgW, this.imgH) * 0.035;
+            const pad = Math.max(this.imgW, this.imgH) * 0.02;
             this.rooms.forEach(room => {
                 const poly = document.createElementNS(this.svgNS, 'polygon');
                 poly.setAttribute('points', room.polygon.map(pt =>
@@ -1057,6 +1059,7 @@ class CustomSvgMap extends HTMLElement {
                 el.appendChild(poly);   // fill + stroke inherit from the group
             });
         } else {
+            // No rooms defined yet: fall back to the full background.
             el = document.createElementNS(this.svgNS, 'rect');
             el.setAttribute('width', this.imgW.toString());
             el.setAttribute('height', this.imgH.toString());

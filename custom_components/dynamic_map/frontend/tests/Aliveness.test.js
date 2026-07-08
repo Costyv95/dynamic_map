@@ -72,26 +72,28 @@ describe('ambient day/night tint', () => {
         expect(Number(card.ambientTint.getAttribute('opacity'))).toBe(0);
     });
 
-    it('covers the full canvas in image mode', () => {
+    it('shapes the tint to the rooms (the house), not the full canvas, in both modes', () => {
+        for (const mode of ['image', 'fit']) {
+            const card = makeCard();
+            card.floorBgMode = mode;
+            card.buildAmbientTint();
+            expect(card.ambientTint.tagName.toLowerCase()).toBe('g');
+            const polys = card.ambientTint.querySelectorAll('polygon');
+            expect(polys.length).toBe(card.rooms.length);
+            // tint color drives both fill and stroke (the plate fattening)
+            card.updateAmbientTint(hassAt(-30));
+            expect(card.ambientTint.getAttribute('fill')).toBe('rgb(95, 116, 160)');
+            expect(card.ambientTint.getAttribute('stroke')).toBe('rgb(95, 116, 160)');
+        }
+    });
+
+    it('falls back to a full rect only when the floor has no rooms', () => {
         const card = makeCard();
+        card.rooms = [];
         card.floorBgMode = 'image';
         card.buildAmbientTint();
         expect(card.ambientTint.tagName.toLowerCase()).toBe('rect');
         expect(card.ambientTint.getAttribute('width')).toBe('1000');
-    });
-
-    it('hugs the room plate in fit mode instead of overflowing the canvas', () => {
-        const card = makeCard();
-        card.floorBgMode = 'fit';
-        card.buildAmbientTint();
-        // a group of per-room polygons, not a full-canvas rect
-        expect(card.ambientTint.tagName.toLowerCase()).toBe('g');
-        const polys = card.ambientTint.querySelectorAll('polygon');
-        expect(polys.length).toBe(card.rooms.length);
-        // tint color drives both fill and stroke (the plate fattening)
-        card.updateAmbientTint(hassAt(-30));
-        expect(card.ambientTint.getAttribute('fill')).toBe('rgb(95, 116, 160)');
-        expect(card.ambientTint.getAttribute('stroke')).toBe('rgb(95, 116, 160)');
     });
 });
 
