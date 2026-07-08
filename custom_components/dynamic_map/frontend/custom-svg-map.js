@@ -1040,15 +1040,33 @@ class CustomSvgMap extends HTMLElement {
     buildAmbientTint() {
         this.ambientTint = null;
         if (this.config.ambient_tint === false) return;
-        const rect = document.createElementNS(this.svgNS, 'rect');
-        rect.classList.add('dm-ambient-tint');
-        rect.setAttribute('width', this.imgW.toString());
-        rect.setAttribute('height', this.imgH.toString());
-        rect.setAttribute('opacity', '0');
-        rect.style.pointerEvents = 'none';
-        rect.style.mixBlendMode = 'multiply';
-        this.ambientTint = rect;
-        this.mapRoot.appendChild(rect);
+        let el;
+        if (this.floorBgMode === 'fit') {
+            // No full-canvas background: match the room plate so the tint
+            // never spills past the plan. Group opacity flattens the
+            // overlapping room polygons first, so multiply doesn't
+            // double-darken the seams between adjacent rooms.
+            el = document.createElementNS(this.svgNS, 'g');
+            const pad = Math.max(this.imgW, this.imgH) * 0.035;
+            this.rooms.forEach(room => {
+                const poly = document.createElementNS(this.svgNS, 'polygon');
+                poly.setAttribute('points', room.polygon.map(pt =>
+                    `${(pt[0] / 100) * this.imgW},${(pt[1] / 100) * this.imgH}`).join(' '));
+                poly.setAttribute('stroke-width', (pad * 2).toString());
+                poly.setAttribute('stroke-linejoin', 'round');
+                el.appendChild(poly);   // fill + stroke inherit from the group
+            });
+        } else {
+            el = document.createElementNS(this.svgNS, 'rect');
+            el.setAttribute('width', this.imgW.toString());
+            el.setAttribute('height', this.imgH.toString());
+        }
+        el.classList.add('dm-ambient-tint');
+        el.setAttribute('opacity', '0');
+        el.style.pointerEvents = 'none';
+        el.style.mixBlendMode = 'multiply';
+        this.ambientTint = el;
+        this.mapRoot.appendChild(el);
     }
 
     updateAmbientTint(hass) {
@@ -1080,6 +1098,9 @@ class CustomSvgMap extends HTMLElement {
             color = mix(NIGHT, NIGHT, 0);
         }
         this.ambientTint.setAttribute('fill', color);
+        // In fit mode the plate is fattened with a stroke; the polygons
+        // inherit both fill and stroke from the group.
+        this.ambientTint.setAttribute('stroke', color);
         this.ambientTint.setAttribute('opacity', opacity.toFixed(3));
     }
 

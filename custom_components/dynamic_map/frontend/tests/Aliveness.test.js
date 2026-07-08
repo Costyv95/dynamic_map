@@ -71,6 +71,28 @@ describe('ambient day/night tint', () => {
         card.updateAmbientTint({ states: {} });
         expect(Number(card.ambientTint.getAttribute('opacity'))).toBe(0);
     });
+
+    it('covers the full canvas in image mode', () => {
+        const card = makeCard();
+        card.floorBgMode = 'image';
+        card.buildAmbientTint();
+        expect(card.ambientTint.tagName.toLowerCase()).toBe('rect');
+        expect(card.ambientTint.getAttribute('width')).toBe('1000');
+    });
+
+    it('hugs the room plate in fit mode instead of overflowing the canvas', () => {
+        const card = makeCard();
+        card.floorBgMode = 'fit';
+        card.buildAmbientTint();
+        // a group of per-room polygons, not a full-canvas rect
+        expect(card.ambientTint.tagName.toLowerCase()).toBe('g');
+        const polys = card.ambientTint.querySelectorAll('polygon');
+        expect(polys.length).toBe(card.rooms.length);
+        // tint color drives both fill and stroke (the plate fattening)
+        card.updateAmbientTint(hassAt(-30));
+        expect(card.ambientTint.getAttribute('fill')).toBe('rgb(95, 116, 160)');
+        expect(card.ambientTint.getAttribute('stroke')).toBe('rgb(95, 116, 160)');
+    });
 });
 
 describe('presence dots', () => {
