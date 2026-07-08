@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect x="0" y="0" width="128" height="128" fill="#2e3748"/>
+  <g fill="#242c3a">
+    <circle cx="16" cy="16" r="7"/><circle cx="48" cy="16" r="7"/><circle cx="80" cy="16" r="7"/><circle cx="112" cy="16" r="7"/>
+    <circle cx="16" cy="48" r="7"/><circle cx="48" cy="48" r="7"/><circle cx="80" cy="48" r="7"/><circle cx="112" cy="48" r="7"/>
+    <circle cx="16" cy="80" r="7"/><circle cx="48" cy="80" r="7"/><circle cx="80" cy="80" r="7"/><circle cx="112" cy="80" r="7"/>
+    <circle cx="16" cy="112" r="7"/><circle cx="48" cy="112" r="7"/><circle cx="80" cy="112" r="7"/><circle cx="112" cy="112" r="7"/>
+  </g>
+  <g opacity="0.35">
+    <circle cx="16" cy="16" r="12" fill="#f87171"/><circle cx="48" cy="16" r="12" fill="#4ade80"/><circle cx="80" cy="16" r="12" fill="#fbbf24"/><circle cx="112" cy="16" r="12" fill="#60a5fa"/>
+    <circle cx="16" cy="48" r="12" fill="#c084fc"/><circle cx="48" cy="48" r="12" fill="#fbbf24"/><circle cx="80" cy="48" r="12" fill="#f87171"/><circle cx="112" cy="48" r="12" fill="#4ade80"/>
+    <circle cx="16" cy="80" r="12" fill="#60a5fa"/><circle cx="48" cy="80" r="12" fill="#f87171"/><circle cx="80" cy="80" r="12" fill="#c084fc"/><circle cx="112" cy="80" r="12" fill="#fbbf24"/>
+    <circle cx="16" cy="112" r="12" fill="#4ade80"/><circle cx="48" cy="112" r="12" fill="#60a5fa"/><circle cx="80" cy="112" r="12" fill="#fbbf24"/><circle cx="112" cy="112" r="12" fill="#f87171"/>
+  </g>
+  <g>
+    <circle cx="16" cy="16" r="5" fill="#f88f8f"/><circle cx="48" cy="16" r="5" fill="#6fe39c"/><circle cx="80" cy="16" r="5" fill="#fccf52"/><circle cx="112" cy="16" r="5" fill="#84b8fb"/>
+    <circle cx="16" cy="48" r="5" fill="#d0a3fd"/><circle cx="48" cy="48" r="5" fill="#fccf52"/><circle cx="80" cy="48" r="5" fill="#f88f8f"/><circle cx="112" cy="48" r="5" fill="#6fe39c"/>
+    <circle cx="16" cy="80" r="5" fill="#84b8fb"/><circle cx="48" cy="80" r="5" fill="#f88f8f"/><circle cx="80" cy="80" r="5" fill="#d0a3fd"/><circle cx="112" cy="80" r="5" fill="#fccf52"/>
+    <circle cx="16" cy="112" r="5" fill="#6fe39c"/><circle cx="48" cy="112" r="5" fill="#84b8fb"/><circle cx="80" cy="112" r="5" fill="#fccf52"/><circle cx="112" cy="112" r="5" fill="#f88f8f"/>
+  </g>
+</svg>

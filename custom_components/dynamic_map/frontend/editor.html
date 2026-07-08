@@ -109,8 +109,13 @@
             <div style="margin-top: 10px;">
                 <label>Default Image URL</label>
                 <input type="text" id="scImage" list="iconList" placeholder="e.g. /local/img.png (Overrides Icon)" style="padding: 4px;">
-                <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; font-size: 0.9em; margin-top: 4px;">
-                    <input type="checkbox" id="scImageTiling" style="width: auto; margin: 0;"> Tile image (repeat along shape)
+                <label style="display: flex; align-items: center; gap: 5px; font-size: 0.9em; margin-top: 4px;">
+                    Tile image
+                    <select id="scImageTiling" style="flex: 1; margin: 0; padding: 3px;">
+                        <option value="off">Off (stretch to fit)</option>
+                        <option value="axis">Repeat along shape</option>
+                        <option value="both">Repeat in both directions</option>
+                    </select>
                 </label>
             </div>
             

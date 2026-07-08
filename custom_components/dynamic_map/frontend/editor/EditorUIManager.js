@@ -352,7 +352,24 @@ export class EditorUIManager {
         }
         bindScProp('scIcon', 'icon');
         bindScProp('scImage', 'image');
-        bindScProp('scImageTiling', 'image_tiling', true, true);
+        document.getElementById('scImageTiling').addEventListener('change', (e) => {
+            if (this.state.selectedShortcutIdx === -1) return;
+            const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+            if (!sc.config) sc.config = {};
+            let targetObj = sc.config;
+            if (this.state.previewStateIdx !== -1 && sc.config.states && sc.config.states[this.state.previewStateIdx]) {
+                targetObj = sc.config.states[this.state.previewStateIdx];
+            }
+            const v = e.target.value;
+            if (v === 'off') {
+                delete targetObj.image_tiling;
+            } else {
+                // 'axis' is stored as true for back-compat with older data
+                targetObj.image_tiling = v === 'both' ? 'both' : true;
+            }
+            this.state.saveState();
+            this.state.requestDrawCallback();
+        });
         bindScProp('scAutoRotate', 'autoRotate', true, true);
         bindScProp('scHasBackground', 'transparent', true);
         bindScProp('scProportionalScale', 'proportional', true, true);
@@ -783,7 +800,8 @@ export class EditorUIManager {
             
             document.getElementById('scImage').value = targetObj.image || '';
             document.getElementById('scImage').placeholder = isPreview ? (sc.config?.image || 'e.g. /local/img.png') : 'e.g. /local/img.png';
-            document.getElementById('scImageTiling').checked = !!(targetObj.image_tiling !== undefined ? targetObj.image_tiling : sc.config?.image_tiling);
+            const tilingVal = targetObj.image_tiling !== undefined ? targetObj.image_tiling : sc.config?.image_tiling;
+            document.getElementById('scImageTiling').value = tilingVal === 'both' ? 'both' : (tilingVal ? 'axis' : 'off');
             
             document.getElementById('scAutoRotate').checked = targetObj.autoRotate !== undefined ? !!targetObj.autoRotate : !!sc.config?.autoRotate;
             document.getElementById('scHasBackground').checked = !(targetObj.transparent !== undefined ? targetObj.transparent : sc.config?.transparent);

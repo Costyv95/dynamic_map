@@ -217,6 +217,22 @@ describe('tiled image textures', () => {
         expect(pattern.getAttribute('height')).toBe('24');
         expect(pattern.querySelector('g').getAttribute('transform')).toBe('rotate(90 12 12)');
     });
+
+    it("tiles a panel in both directions with 'both' + tile_size", () => {
+        const data = {
+            ...stripData('both'), scaleX: 4, scaleY: 4,
+            config: { ...stripData('both').config, image_tiling: 'both', image_tile_size: 12 }
+        };
+        const sc = makeShortcut(data, hass);
+        const rect = sc.contentGroup.querySelector('rect#fallback_image');
+        expect(rect.getAttribute('width')).toBe('96');
+        expect(rect.getAttribute('height')).toBe('96');
+        const pattern = sc.group.querySelector('defs pattern#dm_tile_sc_strip');
+        // 8x8 grid of 12px tiles, never rotated in 2D mode
+        expect(pattern.getAttribute('width')).toBe('12');
+        expect(pattern.getAttribute('height')).toBe('12');
+        expect(pattern.querySelector('g').getAttribute('transform')).toBeNull();
+    });
 });
 
 describe('vacuum dust puffs', () => {

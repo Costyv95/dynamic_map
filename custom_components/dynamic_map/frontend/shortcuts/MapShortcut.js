@@ -185,15 +185,19 @@ export class MapShortcut {
                 if (imgVal && (matchedState?.image || !iconVal)) {
                     const tiling = matchedState?.image_tiling !== undefined
                         ? matchedState.image_tiling : this.config.image_tiling;
+                    const tileSize = matchedState?.image_tile_size !== undefined
+                        ? matchedState.image_tile_size : this.config.image_tile_size;
                     activeLayout.push({
                         id: 'fallback_image',
                         type: 'image',
                         value: imgVal,
                         width: contentMatchSize ? w : 24,
                         height: contentMatchSize ? h : 24,
-                        // Seamless textures repeat as square tiles along the
-                        // shape instead of stretching (LED strips, garlands).
-                        tiling: !!tiling && isRect
+                        // Seamless textures repeat as square tiles instead of
+                        // stretching: 'axis' runs along the shape's long side
+                        // (LED strips), 'both' fills the rect in 2D (panels).
+                        tiling: isRect && tiling ? (tiling === 'both' ? 'both' : 'axis') : false,
+                        tile_size: tileSize
                     });
                 } else if (iconVal) {
                     activeLayout.push({
@@ -394,13 +398,13 @@ export class MapShortcut {
         }
         const w = comp.width || 24;
         const h = comp.height || 24;
-        // Tiles repeat along the rect's LONG axis: the tile is a square with
-        // side = the short side, and when the strip stands vertically the
-        // artwork rotates 90deg so it still runs along the strip. Shapes can
-        // differ per orientation (wide in landscape, tall in portrait) and
-        // the texture follows automatically.
-        const vertical = h > w;
-        const tile = Math.min(w, h);
+        // 'axis' tiles repeat along the rect's LONG side: the tile is a
+        // square on the short side, and when the strip stands vertically the
+        // artwork rotates 90deg so it still runs along the strip. 'both'
+        // fills the rect in 2D (e.g. an LED pixel panel); tile_size sets the
+        // density (defaults to the short side).
+        const vertical = comp.tiling !== 'both' && h > w;
+        const tile = Number(comp.tile_size) > 0 ? Number(comp.tile_size) : Math.min(w, h);
         pattern.setAttribute('x', ((comp.x || 0) - w / 2).toString());
         pattern.setAttribute('y', ((comp.y || 0) - h / 2).toString());
         pattern.setAttribute('width', tile.toString());
