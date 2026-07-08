@@ -538,6 +538,22 @@ export class MapShortcut {
         return grad;
     }
 
+    /** Gradient for a strip's line source: transparent → bright → transparent
+     *  ACROSS the strip (orientation set at layout time), giving a smooth
+     *  perpendicular falloff with a full-length bright core. */
+    _makeGlowLineGradient(defs, id) {
+        const grad = document.createElementNS(this.svgNS, 'linearGradient');
+        grad.setAttribute('id', id);
+        [['0%', '0'], ['50%', '0.85'], ['100%', '0']].forEach(([offset, opacity]) => {
+            const stop = document.createElementNS(this.svgNS, 'stop');
+            stop.setAttribute('offset', offset);
+            stop.setAttribute('stop-opacity', opacity);
+            grad.appendChild(stop);
+        });
+        defs.appendChild(grad);
+        return grad;
+    }
+
     /**
      * Light-pool glow: lights that are on cast two soft pools in their live
      * color (the second slightly hue-shifted) that drift and intertwine
@@ -574,6 +590,7 @@ export class MapShortcut {
             this.glowGroup.appendChild(this.glowDefs);
             this._glowGrad = this._makeGlowGradient(this.glowDefs, `dm_glow_${uid}`);
             this._glowGrad2 = this._makeGlowGradient(this.glowDefs, `dm_glow2_${uid}`);
+            this._glowLineGrad = this._makeGlowLineGradient(this.glowDefs, `dm_glowline_${uid}`);
 
             this.glowInner = document.createElementNS(this.svgNS, 'g');
             this.glowGroup.appendChild(this.glowInner);
@@ -611,35 +628,54 @@ export class MapShortcut {
 
         const longAxis = Math.max(baseW, baseH);
         const shortAxis = Math.min(baseW, baseH);
-        // An elongated rect (a strip) emits from a LINE: a row of overlapping
-        // radial pools spaced along the middle length. Screen-blended they sum
-        // to an even band of light along the whole strip instead of one pool
-        // brightest at the center point. Everything else emits from a POINT.
+        // An elongated rect (a strip) emits from a LINE, like a fluorescent
+        // tube: one full-length rounded rect whose fill is a gradient running
+        // ACROSS the strip (bright core line, fading to transparent at both
+        // perpendicular edges). The bright core is the FULL strip length at
+        // every brightness; only the PERPENDICULAR reach grows/shrinks with
+        // brightness, and the ends stay flat (they barely extend). Everything
+        // else emits from a POINT (two intertwining radial pools).
         const isLine = this.shape && this.shape.tagName === 'rect'
             && (longAxis - shortAxis) > shortAxis * 0.6;
+        this._glowLine = isLine;
 
         if (isLine) {
-            const r = shortAxis / 2 + range;         // perpendicular + cap reach
-            const half = (longAxis - shortAxis) / 2; // half-span of blob centers
             const horizontal = baseW >= baseH;
-            const step = Math.max(shortAxis * 0.8, 1);
-            const n = Math.max(2, Math.ceil((half * 2) / step) + 1);
-            this._ensureGlowBlobs(n, uid);
-            for (let i = 0; i < n; i++) {
-                const f = n === 1 ? 0 : (i / (n - 1)) * 2 - 1; // -1..1 along axis
-                const off = f * half;
-                const b = this.glowBlobs[i];
-                b.setAttribute('rx', r.toFixed(1));
-                b.setAttribute('ry', r.toFixed(1));
-                b.setAttribute('cx', (horizontal ? off : 0).toFixed(1));
-                b.setAttribute('cy', (horizontal ? 0 : off).toFixed(1));
-            }
+            const halfLen = longAxis / 2;
+            const halfThick = shortAxis / 2;
+            const hy = halfThick + range;        // perpendicular reach
+            const hx = halfLen + range * 0.08;   // ends barely grow -> flat
+            const aHalf = horizontal ? hx : hy;
+            const bHalf = horizontal ? hy : hx;
+            this._ensureGlowShapes(1, 'rect', uid);
+            // Gradient runs across the strip (perpendicular to its length).
+            const [x1, y1, x2, y2] = horizontal ? ['0', '0', '0', '1'] : ['0', '0', '1', '0'];
+            this._glowLineGrad.setAttribute('x1', x1);
+            this._glowLineGrad.setAttribute('y1', y1);
+            this._glowLineGrad.setAttribute('x2', x2);
+            this._glowLineGrad.setAttribute('y2', y2);
+            this._glowLineGrad.querySelectorAll('stop').forEach(s => s.setAttribute('stop-color', color));
+            const rect = this.glowBlobs[0];
+            rect.setAttribute('x', (-aHalf).toFixed(1));
+            rect.setAttribute('y', (-bHalf).toFixed(1));
+            rect.setAttribute('width', (aHalf * 2).toFixed(1));
+            rect.setAttribute('height', (bHalf * 2).toFixed(1));
+            // Modest corner rounding tied to the strip thickness, so the ends
+            // stay flat instead of ballooning into semicircles.
+            const corner = halfThick + range * 0.15;
+            rect.setAttribute('rx', corner.toFixed(1));
+            rect.setAttribute('ry', corner.toFixed(1));
+            rect.setAttribute('fill', `url(#dm_glowline_${uid})`);
+            rect.removeAttribute('opacity');
         } else {
-            // Point source: two intertwining pools (the second smaller).
-            this._ensureGlowBlobs(2, uid);
+            // Point source: two intertwining radial pools (second smaller).
+            this._ensureGlowShapes(2, 'ellipse', uid);
             const rx = baseW / 2 + range;
             const ry = baseH / 2 + range;
             const b0 = this.glowBlobs[0], b1 = this.glowBlobs[1];
+            b0.setAttribute('fill', `url(#dm_glow_${uid})`);
+            b1.setAttribute('fill', `url(#dm_glow2_${uid})`);
+            b0.removeAttribute('opacity'); b1.removeAttribute('opacity');
             b0.setAttribute('rx', rx.toFixed(1)); b0.setAttribute('ry', ry.toFixed(1));
             b0.setAttribute('cx', 0); b0.setAttribute('cy', 0);
             b1.setAttribute('rx', (rx * 0.65).toFixed(1)); b1.setAttribute('ry', (ry * 0.65).toFixed(1));
@@ -662,14 +698,17 @@ export class MapShortcut {
     }
 
     /** Clip the light pool to the room containing the light — no light through walls. */
-    /** Grow/shrink the pool of glow ellipses to exactly n, alternating the
-     *  two hue gradients so overlapping pools mix subtly. */
-    _ensureGlowBlobs(n, uid) {
+    /** Grow/shrink the pool of glow shapes to exactly n of the given tag
+     *  ('ellipse' for point pools, 'rect' for strip capsules). Fill/geometry
+     *  are set by the caller. Rebuilds if the tag changed. */
+    _ensureGlowShapes(n, tag, uid) {
         if (!this.glowBlobs) this.glowBlobs = [];
+        if (this.glowBlobs.length && this.glowBlobs[0].tagName.toLowerCase() !== tag) {
+            this.glowBlobs.forEach(e => e.parentNode && e.parentNode.removeChild(e));
+            this.glowBlobs = [];
+        }
         while (this.glowBlobs.length < n) {
-            const i = this.glowBlobs.length;
-            const e = document.createElementNS(this.svgNS, 'ellipse');
-            e.setAttribute('fill', `url(#dm_glow${i % 2 === 1 ? '2' : ''}_${uid})`);
+            const e = document.createElementNS(this.svgNS, tag);
             e.style.mixBlendMode = 'screen';
             this.glowInner.appendChild(e);
             this.glowBlobs.push(e);
@@ -808,14 +847,19 @@ export class MapShortcut {
         if (this._glowVisible && this.glowBlobs && this.glowBlobs.length) {
             const k = 0.88 + 0.12 * Math.sin(t * 0.9);
             this.glowInner.setAttribute('opacity', k.toFixed(3));
-            const d = this.imgW * 0.008;
-            // Each pool drifts on its own phase so the band shimmers softly
-            // without any single blob standing out.
-            this.glowBlobs.forEach((b, i) => {
-                const px = Math.sin(t * (0.50 + i * 0.13) + i) * d * (1 + (i % 2) * 0.5);
-                const py = Math.cos(t * (0.37 + i * 0.11) + i * 1.7) * d * (1 + (i % 2) * 0.3);
-                b.setAttribute('transform', `translate(${px.toFixed(1)}, ${py.toFixed(1)})`);
-            });
+            if (this._glowLine) {
+                // Strip capsules stay aligned (drifting would break the line);
+                // the breathing opacity above is the only motion.
+                this.glowBlobs.forEach(b => b.removeAttribute('transform'));
+            } else {
+                const d = this.imgW * 0.008;
+                // Point pools drift on their own phase so they intertwine.
+                this.glowBlobs.forEach((b, i) => {
+                    const px = Math.sin(t * (0.50 + i * 0.13) + i) * d * (1 + (i % 2) * 0.5);
+                    const py = Math.cos(t * (0.37 + i * 0.11) + i * 1.7) * d * (1 + (i % 2) * 0.3);
+                    b.setAttribute('transform', `translate(${px.toFixed(1)}, ${py.toFixed(1)})`);
+                });
+            }
         }
         if (this._eqVisible && this.eqBars) {
             const s = this._eqScale || 1;

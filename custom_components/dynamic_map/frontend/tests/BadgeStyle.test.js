@@ -106,8 +106,8 @@ describe('light-pool glow', () => {
         expect(clipPoly.getAttribute('points')).toContain('400,400');
     });
 
-    it('an elongated rect light emits from a line of pools along its length', () => {
-        const hass = { states: { 'light.strip': { state: 'on', attributes: { rgb_color: [255, 0, 0] } } } };
+    const stripShortcut = (attrs) => {
+        const hass = { states: { 'light.strip': { state: 'on', attributes: attrs } } };
         const mapContext = { _hass: hass, imgW: 1000, imgH: 1000 };
         // wide, thin strip: width 240 (scaleX 10), height 24 (scaleY 1)
         const sc = new MapShortcut({
@@ -117,16 +117,32 @@ describe('light-pool glow', () => {
         }, svgNS, 1000, 1000, mapContext);
         sc.render();
         sc.updateState(hass);
-        // more than the 2 point-source blobs, laid out along the long (x) axis
-        expect(sc.glowBlobs.length).toBeGreaterThan(2);
-        const cxs = sc.glowBlobs.map(b => Number(b.getAttribute('cx')));
-        expect(Math.min(...cxs)).toBeLessThan(0);
-        expect(Math.max(...cxs)).toBeGreaterThan(0);
-        // pools are circular (uniform perpendicular reach) and all cy = 0
-        sc.glowBlobs.forEach(b => {
-            expect(b.getAttribute('rx')).toBe(b.getAttribute('ry'));
-            expect(Number(b.getAttribute('cy'))).toBe(0);
-        });
+        return sc;
+    };
+
+    it('an elongated rect light emits from a full-length rect with a cross gradient', () => {
+        const sc = stripShortcut({ rgb_color: [255, 0, 0] });
+        expect(sc.glowBlobs.length).toBe(1);
+        const rect = sc.glowBlobs[0];
+        expect(rect.tagName.toLowerCase()).toBe('rect');
+        // full strip length (width >= 240), filled by the perpendicular gradient
+        expect(Number(rect.getAttribute('width'))).toBeGreaterThanOrEqual(240);
+        expect(rect.getAttribute('fill')).toBe('url(#dm_glowline_sc_strip)');
+        // gradient runs vertically (across a horizontal strip)
+        expect(sc._glowLineGrad.getAttribute('y2')).toBe('1');
+        expect(sc._glowLineGrad.getAttribute('x2')).toBe('0');
+        expect(sc._glowLineGrad.querySelector('stop').getAttribute('stop-color')).toBe('rgb(255, 0, 0)');
+    });
+
+    it('lowering brightness shrinks only the perpendicular reach, never the length', () => {
+        const bright = stripShortcut({ rgb_color: [255, 0, 0], brightness: 255 });
+        const dim = stripShortcut({ rgb_color: [255, 0, 0], brightness: 40 });
+        const w = (sc) => Number(sc.glowBlobs[0].getAttribute('width'));
+        const h = (sc) => Number(sc.glowBlobs[0].getAttribute('height'));
+        // length (width) is essentially unchanged; perpendicular (height) shrinks a lot
+        expect(w(dim)).toBeGreaterThanOrEqual(240);
+        expect(h(dim)).toBeLessThan(h(bright));
+        expect(w(bright) - w(dim)).toBeLessThan(h(bright) - h(dim));
     });
 
     it('hides the glow when the light turns off', () => {
