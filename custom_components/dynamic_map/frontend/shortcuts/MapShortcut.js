@@ -387,16 +387,32 @@ export class MapShortcut {
             pattern = document.createElementNS(this.svgNS, 'pattern');
             pattern.setAttribute('id', pid);
             pattern.setAttribute('patternUnits', 'userSpaceOnUse');
-            pattern.appendChild(document.createElementNS(this.svgNS, 'image'));
+            const holder = document.createElementNS(this.svgNS, 'g');
+            holder.appendChild(document.createElementNS(this.svgNS, 'image'));
+            pattern.appendChild(holder);
             defs.appendChild(pattern);
         }
         const w = comp.width || 24;
         const h = comp.height || 24;
-        const tile = h;
+        // Tiles repeat along the rect's LONG axis: the tile is a square with
+        // side = the short side, and when the strip stands vertically the
+        // artwork rotates 90deg so it still runs along the strip. Shapes can
+        // differ per orientation (wide in landscape, tall in portrait) and
+        // the texture follows automatically.
+        const vertical = h > w;
+        const tile = Math.min(w, h);
         pattern.setAttribute('x', ((comp.x || 0) - w / 2).toString());
         pattern.setAttribute('y', ((comp.y || 0) - h / 2).toString());
         pattern.setAttribute('width', tile.toString());
         pattern.setAttribute('height', tile.toString());
+        // Rotate the artwork about the tile center (not the lattice about the
+        // user-space origin) so the tiles stay phase-anchored to the rect.
+        const holder = pattern.querySelector('g');
+        if (vertical) {
+            holder.setAttribute('transform', `rotate(90 ${tile / 2} ${tile / 2})`);
+        } else {
+            holder.removeAttribute('transform');
+        }
         const img = pattern.querySelector('image');
         img.setAttribute('width', tile.toString());
         img.setAttribute('height', tile.toString());
@@ -407,7 +423,7 @@ export class MapShortcut {
         rect.setAttribute('y', ((comp.y || 0) - h / 2).toString());
         rect.setAttribute('width', w.toString());
         rect.setAttribute('height', h.toString());
-        rect.setAttribute('rx', Math.min(h * 0.25, 12).toString());
+        rect.setAttribute('rx', Math.min(tile * 0.25, 12).toString());
         rect.setAttribute('fill', `url(#${pid})`);
         return rect;
     }

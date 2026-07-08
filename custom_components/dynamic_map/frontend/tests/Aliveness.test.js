@@ -204,6 +204,19 @@ describe('tiled image textures', () => {
         expect(sc.contentGroup.querySelector('rect#fallback_image')).toBeNull();
         expect(sc.iconImage && sc.iconImage.tagName).toBe('image');
     });
+
+    it('rotates the tiles along a vertical strip', () => {
+        const data = { ...stripData(true), scaleX: 1, scaleY: 4 };
+        const sc = makeShortcut(data, hass);
+        const rect = sc.contentGroup.querySelector('rect#fallback_image');
+        expect(rect.getAttribute('width')).toBe('24');
+        expect(rect.getAttribute('height')).toBe('96');
+        const pattern = sc.group.querySelector('defs pattern#dm_tile_sc_strip');
+        // tile stays square on the SHORT side; artwork turns to run down the strip
+        expect(pattern.getAttribute('width')).toBe('24');
+        expect(pattern.getAttribute('height')).toBe('24');
+        expect(pattern.querySelector('g').getAttribute('transform')).toBe('rotate(90 12 12)');
+    });
 });
 
 describe('vacuum dust puffs', () => {
