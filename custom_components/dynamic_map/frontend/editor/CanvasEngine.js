@@ -622,7 +622,41 @@ export class CanvasEngine {
                         if (cachedImg.complete && cachedImg.naturalWidth > 0 && !cachedImg._failed) {
                             let imgW = contentMatchSize ? (rx * 2 * currentScale) : (24 * currentScale);
                             let imgH = contentMatchSize ? (ry * 2 * currentScale) : (24 * currentScale);
-                            this.ctx.drawImage(cachedImg, -imgW/2, -imgH/2, imgW, imgH);
+                            const tilingCfg = targetConfig.image_tiling !== undefined ? targetConfig.image_tiling : sc.config?.image_tiling;
+                            if (tilingCfg) {
+                                // Same tiling the card renders: square tiles on the
+                                // short side ('axis', rotated when the strip stands
+                                // vertically) or a 2D grid ('both').
+                                const tsCfg = targetConfig.image_tile_size !== undefined ? targetConfig.image_tile_size : sc.config?.image_tile_size;
+                                const tile = Math.max(2, Number(tsCfg) > 0 ? Number(tsCfg) * currentScale : Math.min(imgW, imgH));
+                                const vertical = tilingCfg !== 'both' && imgH > imgW;
+                                this.ctx.save();
+                                this.ctx.beginPath();
+                                this.ctx.rect(-imgW / 2, -imgH / 2, imgW, imgH);
+                                this.ctx.clip();
+                                if (tilingCfg === 'both') {
+                                    for (let ty = -imgH / 2; ty < imgH / 2; ty += tile) {
+                                        for (let tx = -imgW / 2; tx < imgW / 2; tx += tile) {
+                                            this.ctx.drawImage(cachedImg, tx, ty, tile, tile);
+                                        }
+                                    }
+                                } else if (vertical) {
+                                    for (let ty = -imgH / 2; ty < imgH / 2; ty += tile) {
+                                        this.ctx.save();
+                                        this.ctx.translate(0, ty + tile / 2);
+                                        this.ctx.rotate(Math.PI / 2);
+                                        this.ctx.drawImage(cachedImg, -tile / 2, -tile / 2, tile, tile);
+                                        this.ctx.restore();
+                                    }
+                                } else {
+                                    for (let tx = -imgW / 2; tx < imgW / 2; tx += tile) {
+                                        this.ctx.drawImage(cachedImg, tx, -imgH / 2, tile, tile);
+                                    }
+                                }
+                                this.ctx.restore();
+                            } else {
+                                this.ctx.drawImage(cachedImg, -imgW/2, -imgH/2, imgW, imgH);
+                            }
                         } else if (cachedImg._failed) {
                             this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                             this.ctx.textBaseline = 'middle';

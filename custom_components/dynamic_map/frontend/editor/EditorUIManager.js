@@ -717,10 +717,18 @@ export class EditorUIManager {
         document.getElementById('rotIconAuto').style.display = 'none';
         document.getElementById('rotIconHoriz').style.display = 'none';
         document.getElementById('rotIconVert').style.display = 'none';
-        
-        if (this.engine.rotationMode === 'auto') document.getElementById('rotIconAuto').style.display = 'block';
-        else if (this.engine.rotationMode === 'horizontal') document.getElementById('rotIconHoriz').style.display = 'block';
-        else document.getElementById('rotIconVert').style.display = 'block';
+
+        const modeBtn = document.getElementById('rotationModeBtn');
+        if (this.engine.rotationMode === 'auto') {
+            document.getElementById('rotIconAuto').style.display = 'block';
+            modeBtn.title = 'CARD rotation: Auto — on each screen the card picks the orientation that fits best (recommended). Click to force landscape.';
+        } else if (this.engine.rotationMode === 'horizontal') {
+            document.getElementById('rotIconHoriz').style.display = 'block';
+            modeBtn.title = 'CARD rotation: forced LANDSCAPE on every screen (flips become available). Click to force portrait.';
+        } else {
+            document.getElementById('rotIconVert').style.display = 'block';
+            modeBtn.title = 'CARD rotation: forced PORTRAIT on every screen (flips become available). Click for Auto.';
+        }
 
         const flipHBtn = document.getElementById('flipHorizBtn');
         const flipVBtn = document.getElementById('flipVertBtn');
