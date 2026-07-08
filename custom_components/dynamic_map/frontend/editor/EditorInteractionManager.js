@@ -2,6 +2,27 @@ import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.0';
 import { CanvasEngine } from './CanvasEngine.js?v=3.2.0';
 import { resolvePreviewTarget, getPosition, setPosition, getScale, setScale, getRotation, setRotation } from '../shared/OrientationProps.js?v=3.2.0';
 
+/**
+ * Screen-space resize cursor for a handle at local direction (lx, ly),
+ * given the shape's total on-screen rotation (deg) and view mirror (fx, fy).
+ * Rotate the local direction into screen space, mirror it, then bucket the
+ * angle (mod 180, since resize cursors are bidirectional) into the four CSS
+ * resize cursors. Fixes cursors ignoring the shortcut's own rotation / flips.
+ */
+export function resizeCursorFor(lx, ly, thetaDeg, fx = 1, fy = 1) {
+    const t = (thetaDeg * Math.PI) / 180;
+    let sx = lx * Math.cos(t) - ly * Math.sin(t);
+    let sy = lx * Math.sin(t) + ly * Math.cos(t);
+    sx *= fx;
+    sy *= fy;
+    let a = (Math.atan2(sy, sx) * 180) / Math.PI;
+    a = ((a % 180) + 180) % 180;
+    if (a < 22.5 || a >= 157.5) return 'ew-resize';
+    if (a < 67.5) return 'nwse-resize';
+    if (a < 112.5) return 'ns-resize';
+    return 'nesw-resize';
+}
+
 export class EditorInteractionManager {
     constructor(canvas, engine, stateManager) {
         this.canvas = canvas;
@@ -362,16 +383,27 @@ export class EditorInteractionManager {
                     checkY = scY + (dx * sin + dy * cos);
                 }
 
+                // Cursor must reflect where each handle actually points ON
+                // SCREEN: fold in map rotation, the shortcut's own rotation,
+                // and the active-mode view flips.
+                const totalRot = ((this.engine.isRotated && !autoRotate) ? -90 : 0) + (scRotation || 0);
+                const activeMode = this.engine.getActiveMode ? this.engine.getActiveMode() : 'horizontal';
+                const flips = (this.engine.flips && this.engine.flips[activeMode]) || { h: false, v: false };
+                let fx = 1, fy = 1;
+                if (this.engine.isRotated) { if (flips.h) fy = -1; if (flips.v) fx = -1; }
+                else { if (flips.h) fx = -1; if (flips.v) fy = -1; }
+                const rc = (lx, ly) => resizeCursorFor(lx, ly, totalRot, fx, fy);
+
                 if (hitTest(checkX, checkY, scX, scY - ry - 18 / currentScale)) {
                     cursorStyle = 'grab';
                 } else if (hitTest(checkX, checkY, scX - rx, scY - ry) || hitTest(checkX, checkY, scX + rx, scY + ry)) {
-                    cursorStyle = this.engine.isRotated ? 'nesw-resize' : 'nwse-resize';
+                    cursorStyle = rc(-1, -1);
                 } else if (hitTest(checkX, checkY, scX + rx, scY - ry) || hitTest(checkX, checkY, scX - rx, scY + ry)) {
-                    cursorStyle = this.engine.isRotated ? 'nwse-resize' : 'nesw-resize';
+                    cursorStyle = rc(1, -1);
                 } else if (hitTest(checkX, checkY, scX, scY - ry) || hitTest(checkX, checkY, scX, scY + ry)) {
-                    cursorStyle = this.engine.isRotated ? 'ew-resize' : 'ns-resize';
+                    cursorStyle = rc(0, -1);
                 } else if (hitTest(checkX, checkY, scX - rx, scY) || hitTest(checkX, checkY, scX + rx, scY)) {
-                    cursorStyle = this.engine.isRotated ? 'ns-resize' : 'ew-resize';
+                    cursorStyle = rc(1, 0);
                 }
             }
 
