@@ -577,15 +577,7 @@ export class MapShortcut {
 
             this.glowInner = document.createElementNS(this.svgNS, 'g');
             this.glowGroup.appendChild(this.glowInner);
-            const blob = (gradId) => {
-                const e = document.createElementNS(this.svgNS, 'ellipse');
-                e.setAttribute('fill', `url(#${gradId})`);
-                e.style.mixBlendMode = 'screen';
-                this.glowInner.appendChild(e);
-                return e;
-            };
-            this.glowEl = blob(`dm_glow_${uid}`);
-            this.glowBlob2 = blob(`dm_glow2_${uid}`);
+            this.glowBlobs = [];
 
             if (host === this.group) {
                 // No map context (tests/previews): keep the glow local.
@@ -616,12 +608,46 @@ export class MapShortcut {
         const bri = (st.attributes && Number.isFinite(st.attributes.brightness))
             ? Math.max(st.attributes.brightness / 255, 0.15) : 1;
         const range = this.imgW * 0.16 * strength * bri;
-        const rx = baseW / 2 + range;
-        const ry = baseH / 2 + range;
-        this.glowEl.setAttribute('rx', rx.toFixed(1));
-        this.glowEl.setAttribute('ry', ry.toFixed(1));
-        this.glowBlob2.setAttribute('rx', (rx * 0.65).toFixed(1));
-        this.glowBlob2.setAttribute('ry', (ry * 0.65).toFixed(1));
+
+        const longAxis = Math.max(baseW, baseH);
+        const shortAxis = Math.min(baseW, baseH);
+        // An elongated rect (a strip) emits from a LINE: a row of overlapping
+        // radial pools spaced along the middle length. Screen-blended they sum
+        // to an even band of light along the whole strip instead of one pool
+        // brightest at the center point. Everything else emits from a POINT.
+        const isLine = this.shape && this.shape.tagName === 'rect'
+            && (longAxis - shortAxis) > shortAxis * 0.6;
+
+        if (isLine) {
+            const r = shortAxis / 2 + range;         // perpendicular + cap reach
+            const half = (longAxis - shortAxis) / 2; // half-span of blob centers
+            const horizontal = baseW >= baseH;
+            const step = Math.max(shortAxis * 0.8, 1);
+            const n = Math.max(2, Math.ceil((half * 2) / step) + 1);
+            this._ensureGlowBlobs(n, uid);
+            for (let i = 0; i < n; i++) {
+                const f = n === 1 ? 0 : (i / (n - 1)) * 2 - 1; // -1..1 along axis
+                const off = f * half;
+                const b = this.glowBlobs[i];
+                b.setAttribute('rx', r.toFixed(1));
+                b.setAttribute('ry', r.toFixed(1));
+                b.setAttribute('cx', (horizontal ? off : 0).toFixed(1));
+                b.setAttribute('cy', (horizontal ? 0 : off).toFixed(1));
+            }
+        } else {
+            // Point source: two intertwining pools (the second smaller).
+            this._ensureGlowBlobs(2, uid);
+            const rx = baseW / 2 + range;
+            const ry = baseH / 2 + range;
+            const b0 = this.glowBlobs[0], b1 = this.glowBlobs[1];
+            b0.setAttribute('rx', rx.toFixed(1)); b0.setAttribute('ry', ry.toFixed(1));
+            b0.setAttribute('cx', 0); b0.setAttribute('cy', 0);
+            b1.setAttribute('rx', (rx * 0.65).toFixed(1)); b1.setAttribute('ry', (ry * 0.65).toFixed(1));
+            b1.setAttribute('cx', 0); b1.setAttribute('cy', 0);
+        }
+        // Back-compat handles for tests / callers.
+        this.glowEl = this.glowBlobs[0];
+        this.glowBlob2 = this.glowBlobs[1];
 
         if (host !== this.group) {
             const activeMode = this.mapContext.activeMode || 'horizontal';
@@ -636,6 +662,24 @@ export class MapShortcut {
     }
 
     /** Clip the light pool to the room containing the light — no light through walls. */
+    /** Grow/shrink the pool of glow ellipses to exactly n, alternating the
+     *  two hue gradients so overlapping pools mix subtly. */
+    _ensureGlowBlobs(n, uid) {
+        if (!this.glowBlobs) this.glowBlobs = [];
+        while (this.glowBlobs.length < n) {
+            const i = this.glowBlobs.length;
+            const e = document.createElementNS(this.svgNS, 'ellipse');
+            e.setAttribute('fill', `url(#dm_glow${i % 2 === 1 ? '2' : ''}_${uid})`);
+            e.style.mixBlendMode = 'screen';
+            this.glowInner.appendChild(e);
+            this.glowBlobs.push(e);
+        }
+        while (this.glowBlobs.length > n) {
+            const e = this.glowBlobs.pop();
+            if (e.parentNode) e.parentNode.removeChild(e);
+        }
+    }
+
     _updateGlowClip(uid) {
         const mc = this.mapContext;
         if (!mc || !Array.isArray(mc.rooms) || typeof mc.isPointInPolygon !== 'function') return;
@@ -761,14 +805,17 @@ export class MapShortcut {
     animate(dt) {
         this._fxT = (this._fxT || 0) + dt;
         const t = this._fxT;
-        if (this._glowVisible && this.glowEl) {
+        if (this._glowVisible && this.glowBlobs && this.glowBlobs.length) {
             const k = 0.88 + 0.12 * Math.sin(t * 0.9);
             this.glowInner.setAttribute('opacity', k.toFixed(3));
             const d = this.imgW * 0.008;
-            this.glowEl.setAttribute('transform',
-                `translate(${(Math.sin(t * 0.50) * d).toFixed(1)}, ${(Math.cos(t * 0.37) * d).toFixed(1)})`);
-            this.glowBlob2.setAttribute('transform',
-                `translate(${(Math.cos(t * 0.43) * d * 1.5).toFixed(1)}, ${(Math.sin(t * 0.61) * d * 1.3).toFixed(1)})`);
+            // Each pool drifts on its own phase so the band shimmers softly
+            // without any single blob standing out.
+            this.glowBlobs.forEach((b, i) => {
+                const px = Math.sin(t * (0.50 + i * 0.13) + i) * d * (1 + (i % 2) * 0.5);
+                const py = Math.cos(t * (0.37 + i * 0.11) + i * 1.7) * d * (1 + (i % 2) * 0.3);
+                b.setAttribute('transform', `translate(${px.toFixed(1)}, ${py.toFixed(1)})`);
+            });
         }
         if (this._eqVisible && this.eqBars) {
             const s = this._eqScale || 1;

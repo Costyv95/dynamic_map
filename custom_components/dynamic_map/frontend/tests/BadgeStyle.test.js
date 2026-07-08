@@ -106,6 +106,29 @@ describe('light-pool glow', () => {
         expect(clipPoly.getAttribute('points')).toContain('400,400');
     });
 
+    it('an elongated rect light emits from a line of pools along its length', () => {
+        const hass = { states: { 'light.strip': { state: 'on', attributes: { rgb_color: [255, 0, 0] } } } };
+        const mapContext = { _hass: hass, imgW: 1000, imgH: 1000 };
+        // wide, thin strip: width 240 (scaleX 10), height 24 (scaleY 1)
+        const sc = new MapShortcut({
+            id: 'sc_strip', entity_id: 'light.strip', type: 'light',
+            position: [50, 50], scaleX: 10, scaleY: 1,
+            config: { shape: 'rect', color: '#475569', transparent: false, proportional: false }
+        }, svgNS, 1000, 1000, mapContext);
+        sc.render();
+        sc.updateState(hass);
+        // more than the 2 point-source blobs, laid out along the long (x) axis
+        expect(sc.glowBlobs.length).toBeGreaterThan(2);
+        const cxs = sc.glowBlobs.map(b => Number(b.getAttribute('cx')));
+        expect(Math.min(...cxs)).toBeLessThan(0);
+        expect(Math.max(...cxs)).toBeGreaterThan(0);
+        // pools are circular (uniform perpendicular reach) and all cy = 0
+        sc.glowBlobs.forEach(b => {
+            expect(b.getAttribute('rx')).toBe(b.getAttribute('ry'));
+            expect(Number(b.getAttribute('cy'))).toBe(0);
+        });
+    });
+
     it('hides the glow when the light turns off', () => {
         const hass = { states: { 'light.lamp': { state: 'on', attributes: { rgb_color: [1, 2, 3] } } } };
         const shortcut = makeShortcut(lightData(), hass);
