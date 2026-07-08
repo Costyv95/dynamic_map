@@ -379,12 +379,16 @@ class DynamicMapGenerateTextureView(DynamicMapView):
         try:
             if agent_url:
                 # Preferred: headless Claude Code (operator's subscription).
+                payload = {
+                    "prompt": texture_gen.build_prompt(subject, tileable),
+                    "timeout_s": 220,
+                }
+                if domain_data.get(CONF_TEXTURE_MODEL):
+                    # CLI-style alias ('sonnet', 'opus') or a full model id
+                    payload["model"] = domain_data[CONF_TEXTURE_MODEL]
                 async with session.post(
                     f"{agent_url.rstrip('/')}/run",
-                    json={
-                        "prompt": texture_gen.build_prompt(subject, tileable),
-                        "timeout_s": 220,
-                    },
+                    json=payload,
                     timeout=TEXTURE_TIMEOUT,
                 ) as resp:
                     body = await resp.json()
