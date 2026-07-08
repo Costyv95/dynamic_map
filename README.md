@@ -24,7 +24,11 @@ dynamic_map:
   # Optional: address of the DXF/SVG processing sidecar (see server/)
   # sidecar_url: http://192.168.1.50:5000
   # Optional: enables the editor's "✨ Generate texture" button (Claude-drawn
-  # object artwork). ALWAYS reference a !secret - never paste the key inline.
+  # object artwork). Two backends, first one configured wins:
+  #  - a claude-agent service (headless Claude Code on your subscription,
+  #    see https://github.com/Costyv95/home_net claude-agent/):
+  # texture_sidecar_url: http://192.168.1.202:8098
+  #  - or the paid Anthropic API. ALWAYS reference a !secret for the key:
   # anthropic_api_key: !secret anthropic_api_key
   # texture_model: claude-opus-4-8
 ```

@@ -19,6 +19,7 @@ from .const import (
     CONF_ANTHROPIC_API_KEY,
     CONF_SIDECAR_URL,
     CONF_TEXTURE_MODEL,
+    CONF_TEXTURE_SIDECAR_URL,
     DATA_DIR,
     DOMAIN,
     URL_BASE_DATA,
@@ -359,11 +360,14 @@ class DynamicMapGenerateTextureView(DynamicMapView):
         )
         tileable = bool(data.get("tileable"))
 
-        api_key = self.hass.data.get(DOMAIN, {}).get(CONF_ANTHROPIC_API_KEY)
-        if not api_key:
+        domain_data = self.hass.data.get(DOMAIN, {})
+        agent_url = domain_data.get(CONF_TEXTURE_SIDECAR_URL)
+        api_key = domain_data.get(CONF_ANTHROPIC_API_KEY)
+        if not agent_url and not api_key:
             return self.error(
-                "No anthropic_api_key configured for dynamic_map. Add it in "
-                "configuration.yaml via !secret - never store the key in map data.",
+                "No texture backend configured for dynamic_map: set "
+                "texture_sidecar_url (a claude-agent instance) or "
+                "anthropic_api_key (via !secret) in configuration.yaml.",
                 status=409,
             )
         try:
@@ -371,32 +375,51 @@ class DynamicMapGenerateTextureView(DynamicMapView):
         except ValueError as err:
             return self.error(str(err))
 
-        model = (
-            self.hass.data.get(DOMAIN, {}).get(CONF_TEXTURE_MODEL)
-            or texture_gen.DEFAULT_TEXTURE_MODEL
-        )
         session = async_get_clientsession(self.hass)
         try:
-            async with session.post(
-                texture_gen.ANTHROPIC_API_URL,
-                json=texture_gen.build_request_body(subject, model, tileable),
-                headers={
-                    "x-api-key": api_key,
-                    "anthropic-version": texture_gen.ANTHROPIC_VERSION,
-                },
-                timeout=TEXTURE_TIMEOUT,
-            ) as resp:
-                body = await resp.json()
-                if resp.status != 200:
-                    message = (body.get("error") or {}).get("message", "unknown error")
-                    return self.error(
-                        f"Claude API error {resp.status}: {message}", status=502
-                    )
+            if agent_url:
+                # Preferred: headless Claude Code (operator's subscription).
+                async with session.post(
+                    f"{agent_url.rstrip('/')}/run",
+                    json={
+                        "prompt": texture_gen.build_prompt(subject, tileable),
+                        "timeout_s": 220,
+                    },
+                    timeout=TEXTURE_TIMEOUT,
+                ) as resp:
+                    body = await resp.json()
+                    if resp.status != 200:
+                        return self.error(
+                            f"claude-agent error {resp.status}: {body.get('error', 'unknown')}",
+                            status=502,
+                        )
+                text = body.get("text", "")
+            else:
+                model = (
+                    domain_data.get(CONF_TEXTURE_MODEL)
+                    or texture_gen.DEFAULT_TEXTURE_MODEL
+                )
+                async with session.post(
+                    texture_gen.ANTHROPIC_API_URL,
+                    json=texture_gen.build_request_body(subject, model, tileable),
+                    headers={
+                        "x-api-key": api_key,
+                        "anthropic-version": texture_gen.ANTHROPIC_VERSION,
+                    },
+                    timeout=TEXTURE_TIMEOUT,
+                ) as resp:
+                    body = await resp.json()
+                    if resp.status != 200:
+                        message = (body.get("error") or {}).get("message", "unknown error")
+                        return self.error(
+                            f"Claude API error {resp.status}: {message}", status=502
+                        )
+                text = texture_gen.response_text(body)
         except (aiohttp.ClientError, TimeoutError) as err:
-            return self.error(f"Claude API request failed: {err}", status=502)
+            return self.error(f"Texture backend request failed: {err}", status=502)
 
         try:
-            svg = texture_gen.extract_svg(texture_gen.response_text(body))
+            svg = texture_gen.extract_svg(text)
             texture_gen.validate_svg(svg)
         except ValueError as err:
             return self.error(f"Generated SVG rejected: {err}", status=502)

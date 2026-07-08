@@ -15,3 +15,6 @@ CONF_SIDECAR_URL = "sidecar_url"
 # configuration.yaml; the value stays in hass.data and is never logged.
 CONF_ANTHROPIC_API_KEY = "anthropic_api_key"
 CONF_TEXTURE_MODEL = "texture_model"
+# Preferred texture backend: a claude-agent instance (headless Claude Code on
+# the operator's subscription) - e.g. http://192.168.1.202:8098
+CONF_TEXTURE_SIDECAR_URL = "texture_sidecar_url"

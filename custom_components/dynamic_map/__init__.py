@@ -15,6 +15,7 @@ from .const import (
     CONF_ANTHROPIC_API_KEY,
     CONF_SIDECAR_URL,
     CONF_TEXTURE_MODEL,
+    CONF_TEXTURE_SIDECAR_URL,
     DATA_DIR,
     DOMAIN,
     URL_BASE_DATA,
@@ -31,6 +32,7 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Optional(CONF_SIDECAR_URL): cv.url,
                 vol.Optional(CONF_ANTHROPIC_API_KEY): cv.string,
                 vol.Optional(CONF_TEXTURE_MODEL): cv.string,
+                vol.Optional(CONF_TEXTURE_SIDECAR_URL): cv.url,
             },
         )
     },
@@ -48,6 +50,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
         CONF_SIDECAR_URL: conf.get(CONF_SIDECAR_URL),
         CONF_ANTHROPIC_API_KEY: conf.get(CONF_ANTHROPIC_API_KEY),
         CONF_TEXTURE_MODEL: conf.get(CONF_TEXTURE_MODEL),
+        CONF_TEXTURE_SIDECAR_URL: conf.get(CONF_TEXTURE_SIDECAR_URL),
     }
 
     for view_cls in ALL_VIEWS:
