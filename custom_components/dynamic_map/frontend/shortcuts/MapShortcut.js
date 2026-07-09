@@ -70,11 +70,30 @@ export class MapShortcut {
         this.px = (pos[0] / 100) * this.imgW;
         this.py = (pos[1] / 100) * this.imgH;
 
-        const customRot = resolveOriented(this.sc.rotation, activeMode, 0);
+        this.group.setAttribute('transform', this._badgeTransformStr());
+        this._applyGlowTransform();
+    }
 
-        const extra = this.extraTransformStr || '';
+    /**
+     * The badge's full placement in map coordinates: position, the shortcut's
+     * own rotation, then the card's counter-transforms (flip scale, and the
+     * rotate(-90) that keeps a non-autoRotate shortcut upright while the map
+     * is rotated). The glow lives in mapRoot — a sibling space — so it must
+     * use this exact same transform or it will point the wrong way in one of
+     * the two orientations.
+     */
+    _badgeTransformStr() {
+        const activeMode = this.mapContext.activeMode || 'horizontal';
+        const customRot = resolveOriented(this.sc.rotation, activeMode, 0);
         const rotStr = customRot ? `rotate(${customRot})` : '';
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${rotStr} ${extra}`.trim());
+        const extra = this.extraTransformStr || '';
+        return `translate(${this.px}, ${this.py}) ${rotStr} ${extra}`.trim();
+    }
+
+    /** Keep the light pool locked to the badge's orientation. */
+    _applyGlowTransform() {
+        if (!this.glowInner || !this.mapContext || !this.mapContext.mapRoot) return;
+        this.glowInner.setAttribute('transform', this._badgeTransformStr());
     }
     
     getIsAutoRotateActive() {
@@ -555,6 +574,36 @@ export class MapShortcut {
     }
 
     /**
+     * Mask that fades a strip's pool at its two ends. The fill gradient only
+     * fades ACROSS the strip, which would leave the ends hard-cut; this fades
+     * ALONG it. The plateau between the two fades is the bright core, and the
+     * caller sizes it to the strip's own length so it never shrinks.
+     */
+    _makeGlowLineMask(defs, uid) {
+        const grad = document.createElementNS(this.svgNS, 'linearGradient');
+        grad.setAttribute('id', `dm_glowend_${uid}`);
+        ['0', '1', '1', '0'].forEach((opacity) => {
+            const stop = document.createElementNS(this.svgNS, 'stop');
+            stop.setAttribute('stop-color', '#fff');
+            stop.setAttribute('stop-opacity', opacity);
+            grad.appendChild(stop);
+        });
+        defs.appendChild(grad);
+
+        const mask = document.createElementNS(this.svgNS, 'mask');
+        mask.setAttribute('id', `dm_glowmask_${uid}`);
+        mask.setAttribute('maskContentUnits', 'userSpaceOnUse');
+        const rect = document.createElementNS(this.svgNS, 'rect');
+        rect.setAttribute('fill', `url(#dm_glowend_${uid})`);
+        mask.appendChild(rect);
+        defs.appendChild(mask);
+
+        this._glowEndGrad = grad;
+        this._glowMaskRect = rect;
+        return mask;
+    }
+
+    /**
      * Light-pool glow: lights that are on cast two soft pools in their live
      * color (the second slightly hue-shifted) that drift and intertwine
      * (see animate()). The pool follows the badge's footprint — a strip's
@@ -591,6 +640,7 @@ export class MapShortcut {
             this._glowGrad = this._makeGlowGradient(this.glowDefs, `dm_glow_${uid}`);
             this._glowGrad2 = this._makeGlowGradient(this.glowDefs, `dm_glow2_${uid}`);
             this._glowLineGrad = this._makeGlowLineGradient(this.glowDefs, `dm_glowline_${uid}`);
+            this._makeGlowLineMask(this.glowDefs, uid);
 
             this.glowInner = document.createElementNS(this.svgNS, 'g');
             this.glowGroup.appendChild(this.glowInner);
@@ -643,29 +693,54 @@ export class MapShortcut {
             const horizontal = baseW >= baseH;
             const halfLen = longAxis / 2;
             const halfThick = shortAxis / 2;
-            const hy = halfThick + range;        // perpendicular reach
-            const hx = halfLen + range * 0.08;   // ends barely grow -> flat
+            // Along the strip the ends grow only slightly, so the pool keeps
+            // flat ends instead of ballooning into semicircles. Across it the
+            // reach follows brightness, but never far enough to make the pool
+            // taller than it is long - a line source must always read as a
+            // line, never as a square blob.
+            // Across the strip the reach follows brightness, but never grows
+            // past the strip's own length: a line source must always read as a
+            // line, never as a square blob. Along the strip the pool spills
+            // only a little, and the mask below fades those ends out.
+            const spill = range * 0.35;
+            const hx = halfLen + spill;                             // along
+            const hy = Math.min(halfThick + range, halfLen * 0.85); // across
             const aHalf = horizontal ? hx : hy;
             const bHalf = horizontal ? hy : hx;
             this._ensureGlowShapes(1, 'rect', uid);
-            // Gradient runs across the strip (perpendicular to its length).
+            // Fill gradient fades ACROSS the strip; mask gradient fades ALONG
+            // it. Together: a soft stadium whose bright core is the full strip.
             const [x1, y1, x2, y2] = horizontal ? ['0', '0', '0', '1'] : ['0', '0', '1', '0'];
             this._glowLineGrad.setAttribute('x1', x1);
             this._glowLineGrad.setAttribute('y1', y1);
             this._glowLineGrad.setAttribute('x2', x2);
             this._glowLineGrad.setAttribute('y2', y2);
             this._glowLineGrad.querySelectorAll('stop').forEach(s => s.setAttribute('stop-color', color));
+
+            // The plateau spans exactly the strip's length, at any brightness.
+            const fade = Math.min(Math.max(spill / (2 * hx), 0.01), 0.45);
+            this._glowEndGrad.setAttribute('x1', horizontal ? '0' : '0');
+            this._glowEndGrad.setAttribute('y1', horizontal ? '0' : '0');
+            this._glowEndGrad.setAttribute('x2', horizontal ? '1' : '0');
+            this._glowEndGrad.setAttribute('y2', horizontal ? '0' : '1');
+            const offsets = [0, fade, 1 - fade, 1];
+            this._glowEndGrad.querySelectorAll('stop').forEach((s, i) => {
+                s.setAttribute('offset', offsets[i].toFixed(3));
+            });
+            this._glowMaskRect.setAttribute('x', (-aHalf).toFixed(1));
+            this._glowMaskRect.setAttribute('y', (-bHalf).toFixed(1));
+            this._glowMaskRect.setAttribute('width', (aHalf * 2).toFixed(1));
+            this._glowMaskRect.setAttribute('height', (bHalf * 2).toFixed(1));
+
             const rect = this.glowBlobs[0];
             rect.setAttribute('x', (-aHalf).toFixed(1));
             rect.setAttribute('y', (-bHalf).toFixed(1));
             rect.setAttribute('width', (aHalf * 2).toFixed(1));
             rect.setAttribute('height', (bHalf * 2).toFixed(1));
-            // Modest corner rounding tied to the strip thickness, so the ends
-            // stay flat instead of ballooning into semicircles.
-            const corner = halfThick + range * 0.15;
-            rect.setAttribute('rx', corner.toFixed(1));
-            rect.setAttribute('ry', corner.toFixed(1));
+            rect.removeAttribute('rx');
+            rect.removeAttribute('ry');
             rect.setAttribute('fill', `url(#dm_glowline_${uid})`);
+            rect.setAttribute('mask', `url(#dm_glowmask_${uid})`);
             rect.removeAttribute('opacity');
         } else {
             // Point source: two intertwining radial pools (second smaller).
@@ -686,10 +761,7 @@ export class MapShortcut {
         this.glowBlob2 = this.glowBlobs[1];
 
         if (host !== this.group) {
-            const activeMode = this.mapContext.activeMode || 'horizontal';
-            const rot = resolveOriented(this.sc.rotation, activeMode, 0);
-            this.glowInner.setAttribute('transform',
-                `translate(${this.px}, ${this.py})${rot ? ` rotate(${rot})` : ''}`);
+            this._applyGlowTransform();
             this._updateGlowClip(uid);
         }
 
@@ -1127,12 +1199,12 @@ export class MapShortcut {
     
     setTransformStr(str) {
         this.extraTransformStr = str;
-        
+
         const activeMode = this.mapContext.activeMode || 'horizontal';
         const customRot = resolveOriented(this.sc.rotation, activeMode, 0);
-        const rotStr = customRot ? `rotate(${customRot})` : '';
-        this.group.setAttribute('transform', `translate(${this.px}, ${this.py}) ${rotStr} ${str}`.trim());
-        
+        this.group.setAttribute('transform', this._badgeTransformStr());
+        this._applyGlowTransform();
+
         // Resolve target config for content matching options
         const targetConfig = this.activeState || this.config || {};
         const contentMatchSize = targetConfig.content_matchSize !== undefined ? !!targetConfig.content_matchSize : (this.config.content_matchSize !== undefined ? !!this.config.content_matchSize : true);

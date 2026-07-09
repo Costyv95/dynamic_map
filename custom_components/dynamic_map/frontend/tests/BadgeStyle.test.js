@@ -145,6 +145,74 @@ describe('light-pool glow', () => {
         expect(w(bright) - w(dim)).toBeLessThan(h(bright) - h(dim));
     });
 
+    it('masks both ends of the strip so neither is hard-cut', () => {
+        const sc = stripShortcut({ rgb_color: [255, 0, 0] });
+        expect(sc.glowBlobs[0].getAttribute('mask')).toBe('url(#dm_glowmask_sc_strip)');
+        const stops = [...sc._glowEndGrad.querySelectorAll('stop')];
+        // transparent -> opaque plateau -> transparent, symmetric about the middle
+        expect(stops.map(s => s.getAttribute('stop-opacity'))).toEqual(['0', '1', '1', '0']);
+        const off = stops.map(s => Number(s.getAttribute('offset')));
+        expect(off[0]).toBe(0);
+        expect(off[3]).toBe(1);
+        expect(off[1]).toBeGreaterThan(0);
+        expect(off[1]).toBeLessThan(off[2]);
+        expect(off[1]).toBeCloseTo(1 - off[2], 5);
+        // mask fades along the strip, fill fades across it
+        expect(sc._glowEndGrad.getAttribute('x2')).toBe('1');
+        expect(sc._glowLineGrad.getAttribute('y2')).toBe('1');
+    });
+
+    it('the pool stays elongated along the strip even at full brightness', () => {
+        // A line source must never balloon into a square blob: the reach
+        // across the strip is capped below its length.
+        const bright = stripShortcut({ rgb_color: [255, 0, 0], brightness: 255 });
+        const w = Number(bright.glowBlobs[0].getAttribute('width'));
+        const h = Number(bright.glowBlobs[0].getAttribute('height'));
+        expect(h).toBeLessThan(w);
+    });
+
+    it('the glow follows the badge through the map counter-rotation', () => {
+        // A non-autoRotate strip on a rotated map gets rotate(-90) so it stays
+        // upright on screen. Its light pool lives in mapRoot and must take the
+        // exact same transform, or the line points across the strip.
+        const hass = { states: { 'light.strip': { state: 'on', attributes: { rgb_color: [255, 0, 0] } } } };
+        const mapRoot = document.createElementNS(svgNS, 'g');
+        const mapContext = {
+            _hass: hass, imgW: 1000, imgH: 1000, mapRoot,
+            activeMode: 'horizontal', isRotated: true, rooms: [],
+        };
+        const sc = new MapShortcut({
+            id: 'sc_rot', entity_id: 'light.strip', type: 'light',
+            position: [50, 50], scaleX: 10, scaleY: 1,
+            config: { shape: 'rect', color: '#475569', transparent: false, autoRotate: false }
+        }, svgNS, 1000, 1000, mapContext);
+        mapRoot.appendChild(sc.render());
+        sc.updateState(hass);
+        sc.setTransformStr('rotate(-90)');
+
+        expect(sc.group.getAttribute('transform')).toContain('rotate(-90)');
+        expect(sc.glowInner.getAttribute('transform')).toBe(sc.group.getAttribute('transform'));
+    });
+
+    it('the glow follows the badge through a view flip', () => {
+        const hass = { states: { 'light.strip': { state: 'on', attributes: { rgb_color: [255, 0, 0] } } } };
+        const mapRoot = document.createElementNS(svgNS, 'g');
+        const mapContext = { _hass: hass, imgW: 1000, imgH: 1000, mapRoot, activeMode: 'vertical', rooms: [] };
+        const sc = new MapShortcut({
+            id: 'sc_flip', entity_id: 'light.strip', type: 'light',
+            position: [50, 50], scaleX: 10, scaleY: 1, rotation: 30,
+            config: { shape: 'rect', color: '#475569', transparent: false }
+        }, svgNS, 1000, 1000, mapContext);
+        mapRoot.appendChild(sc.render());
+        sc.updateState(hass);
+        sc.setTransformStr('scale(-1, 1)');
+
+        const t = sc.glowInner.getAttribute('transform');
+        expect(t).toContain('rotate(30)');
+        expect(t).toContain('scale(-1, 1)');
+        expect(t).toBe(sc.group.getAttribute('transform'));
+    });
+
     it('hides the glow when the light turns off', () => {
         const hass = { states: { 'light.lamp': { state: 'on', attributes: { rgb_color: [1, 2, 3] } } } };
         const shortcut = makeShortcut(lightData(), hass);
