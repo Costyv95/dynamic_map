@@ -75,6 +75,37 @@ export class EditorStateManager {
         return this.previewStateIdx;
     }
 
+    /**
+     * Deep-copy the selected shortcut (decor or object) right next to the
+     * original and select the copy. Runtime caches are stripped; per-
+     * orientation positions are offset in both layouts so the copy is
+     * visibly separate wherever you look.
+     */
+    duplicateSelectedShortcut() {
+        const src = this.shortcuts[this.selectedShortcutIdx];
+        if (!src) return null;
+        const copy = JSON.parse(JSON.stringify(src, (key, value) =>
+            key === '_imgCache' || key === '_sensorHalfW' ? undefined : value));
+        copy.id = `sc_${Date.now()}`;
+        copy.name = `${src.name || 'Shortcut'} copy`;
+        const nudge = (pos) => [Math.min(pos[0] + 2, 100), Math.min(pos[1] + 2, 100)];
+        if (Array.isArray(copy.position)) {
+            copy.position = nudge(copy.position);
+        } else if (copy.position && typeof copy.position === 'object') {
+            for (const k of Object.keys(copy.position)) {
+                if (Array.isArray(copy.position[k])) copy.position[k] = nudge(copy.position[k]);
+            }
+        } else {
+            copy.position = [52, 52];
+        }
+        this.shortcuts.push(copy);
+        this.selectedShortcutIdx = this.shortcuts.length - 1;
+        this.saveState();
+        if (this.updateUICallback) this.updateUICallback();
+        if (this.requestDrawCallback) this.requestDrawCallback();
+        return copy;
+    }
+
     setActiveLayer(layer) {
         if (this.activeLayer === layer) return;
         this.activeLayer = layer;

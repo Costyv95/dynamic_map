@@ -522,6 +522,11 @@ export class EditorUIManager {
             }
         });
 
+        document.getElementById('duplicateShortcutBtn').addEventListener('click', () => {
+            const copy = this.state.duplicateSelectedShortcut();
+            if (copy) this.updateSidebar();
+        });
+
         document.getElementById('deleteShortcutBtn').addEventListener('click', () => {
             if (this.state.selectedShortcutIdx !== -1) {
                 this.state.shortcuts.splice(this.state.selectedShortcutIdx, 1);

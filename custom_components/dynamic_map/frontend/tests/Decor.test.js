@@ -66,6 +66,47 @@ describe('decor layer (editor state)', () => {
         expect(draw).toHaveBeenCalled();
     });
 
+    it('duplicateSelectedShortcut deep-copies, nudges, renames, and selects the copy', () => {
+        const state = new EditorStateManager(vi.fn(), vi.fn());
+        state.shortcuts = [{
+            id: 'sc_pot', name: 'Pot west', type: 'generic',
+            position: { horizontal: [25, 59], vertical: [24, 58] },
+            scaleX: 2.5, scaleY: 2.5,
+            config: { shape: 'rect', decor: true, image: '/icons/pot.svg', actions: [{ type: 'TOGGLE' }] },
+            _imgCache: { junk: true },
+        }];
+        state.selectedShortcutIdx = 0;
+        const copy = state.duplicateSelectedShortcut();
+
+        expect(state.shortcuts.length).toBe(2);
+        expect(state.selectedShortcutIdx).toBe(1);
+        expect(copy.id).not.toBe('sc_pot');
+        expect(copy.name).toBe('Pot west copy');
+        expect(copy.position.horizontal).toEqual([27, 61]);
+        expect(copy.position.vertical).toEqual([26, 60]);
+        expect(copy._imgCache).toBeUndefined();
+        expect(copy.config.decor).toBe(true);
+        // deep copy: mutating the copy's config leaves the original alone
+        copy.config.actions.push({ type: 'X' });
+        expect(state.shortcuts[0].config.actions.length).toBe(1);
+    });
+
+    it('duplicate nudges a plain-array position and clamps at 100', () => {
+        const state = new EditorStateManager(vi.fn(), vi.fn());
+        state.shortcuts = [{ id: 'a', name: 'Edge', position: [99.5, 50], config: {} }];
+        state.selectedShortcutIdx = 0;
+        const copy = state.duplicateSelectedShortcut();
+        expect(copy.position).toEqual([100, 52]);
+    });
+
+    it('duplicate with nothing selected is a safe no-op', () => {
+        const state = new EditorStateManager(vi.fn(), vi.fn());
+        state.shortcuts = [];
+        state.selectedShortcutIdx = -1;
+        expect(state.duplicateSelectedShortcut()).toBeNull();
+        expect(state.shortcuts.length).toBe(0);
+    });
+
     it('re-selecting the active layer is a no-op', () => {
         const ui = vi.fn(), draw = vi.fn();
         const state = new EditorStateManager(ui, draw);
