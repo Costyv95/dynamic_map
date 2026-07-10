@@ -532,7 +532,14 @@ export class CanvasEngine {
                 if (scRotation) {
                     this.ctx.rotate((scRotation * Math.PI) / 180);
                 }
-                
+                // An autoRotate item follows the map: its box (drawn in world
+                // space) carries the view's 90° rotation, so its screen-space
+                // content must carry it too - otherwise textures render 90°
+                // off their own bounding box on rotated floors.
+                if (autoRotate && this.isRotated) {
+                    this.ctx.rotate(Math.PI / 2);
+                }
+
                 // Resolve target config for content matching options
                 const targetConfig = targetState || sc.config || {};
                 const contentMatchSize = targetConfig.content_matchSize !== undefined ? !!targetConfig.content_matchSize : (sc.config?.content_matchSize !== undefined ? !!sc.config.content_matchSize : true);
