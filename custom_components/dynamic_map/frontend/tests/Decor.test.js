@@ -53,6 +53,34 @@ describe('decor shortcuts (card)', () => {
     });
 });
 
+describe('borderless shapes (walls)', () => {
+    const wallData = (border) => ({
+        id: 'sc_wall', type: 'generic', position: [50, 20], scaleX: 20, scaleY: 0.6,
+        config: { shape: 'rect', color: '#0f172a', transparent: false, decor: true, ...(border !== undefined ? { border } : {}) }
+    });
+    const render = (data) => {
+        const sc = new MapShortcut(data, svgNS, 1000, 1000, { _hass: {}, imgW: 1000, imgH: 1000 });
+        sc.render();
+        sc.updateState({ states: {} });
+        return sc;
+    };
+
+    it('border: false drops the white outline and the badge gloss/shadow', () => {
+        const sc = render(wallData(false));
+        expect(sc.shape.getAttribute('stroke')).toBe('rgba(0,0,0,0)');
+        expect(sc.shape.getAttribute('stroke-width')).toBe('0');
+        expect(sc.shape.getAttribute('filter')).toBeNull();
+        expect(sc.bgGroup.querySelector('.dm-badge-gloss')).toBeNull();
+    });
+
+    it('default keeps the badge look: white outline, gloss, shadow', () => {
+        const sc = render(wallData(undefined));
+        expect(sc.shape.getAttribute('stroke')).toBe('white');
+        expect(sc.shape.getAttribute('filter')).toBe('url(#dm_shadow_sc_wall)');
+        expect(sc.bgGroup.querySelector('.dm-badge-gloss')).toBeTruthy();
+    });
+});
+
 describe('decor layer (editor state)', () => {
     it('switching layers deselects and notifies UI + canvas', () => {
         const ui = vi.fn(), draw = vi.fn();

@@ -361,6 +361,7 @@ export class CanvasEngine {
             
             let color = resolveProperty('color', '#0ea5e9');
             let isTrans = resolveProperty('transparent', false);
+            const hasBorder = resolveProperty('border', true) !== false;
             // No default icon: an object with neither icon nor image renders
             // as its bare shape, exactly like the dashboard card (a plain
             // black rect can be a wall).
@@ -470,7 +471,7 @@ export class CanvasEngine {
             } else {
                 this.ctx.fillStyle = isTrans ? 'rgba(0,0,0,0)' : color;
                 this.ctx.shadowBlur = 0;
-                this.ctx.strokeStyle = isTrans ? 'rgba(0,0,0,0)' : 'white';
+                this.ctx.strokeStyle = (isTrans || !hasBorder) ? 'rgba(0,0,0,0)' : 'white';
                 this.ctx.lineWidth = 2;
             }
             this.ctx.fill();

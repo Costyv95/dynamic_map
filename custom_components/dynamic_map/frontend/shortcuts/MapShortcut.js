@@ -188,6 +188,10 @@ export class MapShortcut {
                 activeLayout = this._buildSensorLayout(matchedState, hass, scaleX, scaleY);
             } else {
                 const isRect = shape === 'rect';
+                // config.border: false drops the white outline so solid
+                // shapes can read as architecture (walls) instead of badges.
+                const noBorder = (matchedState?.border !== undefined
+                    ? matchedState.border : this.config.border) === false;
                 activeLayout = [
                     {
                         id: 'fallback_bg',
@@ -198,8 +202,8 @@ export class MapShortcut {
                         width: w,
                         height: h,
                         color: stTrans ? 'rgba(0,0,0,0)' : (stColor || '#0ea5e9'),
-                        stroke_color: stTrans ? 'rgba(0,0,0,0)' : 'white',
-                        stroke_width: stTrans ? 0 : 1
+                        stroke_color: (stTrans || noBorder) ? 'rgba(0,0,0,0)' : 'white',
+                        stroke_width: (stTrans || noBorder) ? 0 : 1
                     }
                 ];
 
@@ -466,6 +470,9 @@ export class MapShortcut {
     _applyBadgeDepth(el, comp) {
         const fill = comp.color || '';
         if (!fill || fill === 'none' || /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)/.test(fill)) return;
+        // A borderless shape is architecture, not a badge: no gloss, no
+        // drop shadow - a wall must read as flat ink like the floorplan.
+        if (this.config.border === false) return;
 
         const uid = this._defsUid();
         const defs = this._ensureDefs();

@@ -408,6 +408,7 @@ export class EditorUIManager {
         });
         bindScProp('scAutoRotate', 'autoRotate', true, true);
         bindScProp('scHasBackground', 'transparent', true);
+        bindScProp('scHasBorder', 'border', true, true);
         bindScProp('scProportionalScale', 'proportional', true, true);
         
         bindScProp('scContentXInput', 'content_x');
@@ -917,6 +918,7 @@ export class EditorUIManager {
             
             document.getElementById('scAutoRotate').checked = targetObj.autoRotate !== undefined ? !!targetObj.autoRotate : !!sc.config?.autoRotate;
             document.getElementById('scHasBackground').checked = !(targetObj.transparent !== undefined ? targetObj.transparent : sc.config?.transparent);
+            document.getElementById('scHasBorder').checked = (targetObj.border !== undefined ? targetObj.border : sc.config?.border) !== false;
             
             const scScale = this.getShortcutScale(sc);
             const scRot = this.getShortcutRotation(sc);
@@ -1060,6 +1062,7 @@ export class EditorUIManager {
             'scShape': 'shape',
             'scColorText': 'color',
             'scHasBackground': 'transparent',
+            'scHasBorder': 'border',
             'scScaleXInput': 'scaleX',
             'scScaleYInput': 'scaleY',
             'scRotationInput': 'rotation',
