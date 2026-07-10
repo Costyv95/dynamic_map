@@ -185,11 +185,12 @@ export class ApiManager {
      * into dynamic_map_data/icons/. Slow (up to a couple of minutes).
      * Returns { path } of the served SVG; throws with the backend's message.
      */
-    static async generateTexture(description, { stateDescription, tileable, filename } = {}) {
+    static async generateTexture(description, { stateDescription, tileable, filename, style } = {}) {
         const body = { description };
         if (stateDescription) body.state_description = stateDescription;
         if (tileable) body.tileable = true;
         if (filename) body.filename = filename;
+        if (style) body.style = style;
         const data = await postJson('/api/dynamic_map/generate_texture', body);
         if (!data.success) throw new Error(data.error || 'Texture generation failed');
         return data;

@@ -84,6 +84,24 @@ class TestPromptAndBody:
         assert body["thinking"] == {"type": "adaptive"}
         assert body["messages"][0]["role"] == "user"
 
+    def test_decor_style_swaps_in_the_plan_recipe(self):
+        prompt = texture_gen.build_prompt("an outdoor couch", style="decor")
+        assert "top-down orthographic plan view" in prompt
+        assert "an outdoor couch" in prompt
+        # badge-recipe rules must not leak into decor
+        assert "Ground shadow" not in prompt
+        assert "saturated but slightly muted" not in prompt
+
+    def test_default_style_is_the_badge_recipe(self):
+        assert texture_gen.style_recipe() == texture_gen.STYLE_RECIPE
+        assert texture_gen.style_recipe("decor") == texture_gen.DECOR_RECIPE
+        prompt = texture_gen.build_prompt("a red barn")
+        assert "top-down orthographic" not in prompt
+
+    def test_decor_style_flows_into_request_body(self):
+        body = texture_gen.build_request_body("a bench", None, style="decor")
+        assert "plan view" in body["messages"][0]["content"]
+
     def test_response_text_concatenates_text_blocks(self):
         body = {"content": [
             {"type": "thinking", "thinking": "hmm"},

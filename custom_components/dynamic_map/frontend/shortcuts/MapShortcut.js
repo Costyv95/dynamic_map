@@ -49,15 +49,21 @@ export class MapShortcut {
         // Base positioning coordinates translation
         this.updateCoordinates();
         
-        // Invisible hitbox to expand click area for small elements
-        this.hitbox = document.createElementNS(svgNS, 'circle');
-        this.hitbox.setAttribute('r', 30);
-        this.hitbox.setAttribute('fill', 'rgba(0,0,0,0)');
-        this.hitbox.style.pointerEvents = 'all';
-        this.group.appendChild(this.hitbox);
-        
-        // Interaction listeners
-        this.setupInteractions();
+        if (this.config.decor) {
+            // Decor is scenery: it never intercepts a tap (clicks fall
+            // through to the room below) and binds no interaction handlers.
+            this.group.style.pointerEvents = 'none';
+        } else {
+            // Invisible hitbox to expand click area for small elements
+            this.hitbox = document.createElementNS(svgNS, 'circle');
+            this.hitbox.setAttribute('r', 30);
+            this.hitbox.setAttribute('fill', 'rgba(0,0,0,0)');
+            this.hitbox.style.pointerEvents = 'all';
+            this.group.appendChild(this.hitbox);
+
+            // Interaction listeners
+            this.setupInteractions();
+        }
     }
     
     updateCoordinates() {
@@ -651,8 +657,10 @@ export class MapShortcut {
                 this.group.insertBefore(this.glowGroup, this.group.firstChild);
             } else {
                 // Under the shortcut layer, above rooms and the floorplan.
-                const firstShortcut = host.querySelector('.shortcut-group');
-                host.insertBefore(this.glowGroup, firstShortcut || null);
+                // Must be a DIRECT child of host: decor groups live in a
+                // nested sub-layer and are not valid insertBefore anchors.
+                const anchor = host.querySelector(':scope > .dm-decor-layer, :scope > .shortcut-group');
+                host.insertBefore(this.glowGroup, anchor || null);
             }
         }
 

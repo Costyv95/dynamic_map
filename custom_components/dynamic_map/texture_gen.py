@@ -35,6 +35,33 @@ This texture must TILE seamlessly when repeated horizontally: elements spaced so
 the pattern continues across the left/right canvas edges, full-bleed body, NO
 ground shadow, and no outline on the cut edges (rules 1 and 6 do not apply)."""
 
+# Decor scenery (furniture, plants, stairs) is drawn in the architectural
+# floor-plan language of the magicplan backgrounds, so a generated table sits
+# next to scanned furniture without looking pasted on.
+DECOR_RECIPE = """\
+1. Canvas: viewBox="0 0 128 128", subject centered, ~6px breathing room.
+   Transparent background - no backdrop rectangle.
+2. View: STRICT top-down orthographic plan view, the way an architect draws
+   furniture on a floor plan. Never a side or three-quarter view.
+3. Form language: minimal plan symbol - clean geometric outlines (rects with
+   slightly rounded corners, circles, simple arcs). Suggest the object with as
+   few shapes as possible: a couch is its seat outline plus back/armrest
+   lines; a plant is a circle with a few leaf arcs inside.
+4. Color: fill "#ffffff" (or "#f8fafc" for secondary surfaces) with ONE
+   optional very muted accent at most (e.g. "#e2e8f0", or a desaturated green
+   "#d3e3d3" for plant foliage). No saturated colors, no gradients.
+5. Outline: every shape stroked "#0f172a", stroke-width="1.5",
+   stroke-linejoin="round". Interior detail lines the same color at
+   stroke-width="1".
+6. No lighting, no shadows, no ground ellipse - plan symbols are flat.
+7. Technical: pure vector - no <text>, no <image>, no external references, no
+   scripts, no CSS classes. Inline attributes only. Keep it under ~3 KB."""
+
+
+def style_recipe(style: str = "badge") -> str:
+    """The drawing recipe for a texture style: 'badge' (default) or 'decor'."""
+    return DECOR_RECIPE if style == "decor" else STYLE_RECIPE
+
 FORBIDDEN = re.compile(
     r"<\s*(text|image|script|foreignObject)\b|href\s*=", re.IGNORECASE
 )
@@ -59,8 +86,8 @@ def slugify(text: str) -> str:
     return slug or "device"
 
 
-def build_prompt(subject: str, tileable: bool = False) -> str:
-    recipe = STYLE_RECIPE + ("\n\n" + TILEABLE_ADDENDUM if tileable else "")
+def build_prompt(subject: str, tileable: bool = False, style: str = "badge") -> str:
+    recipe = style_recipe(style) + ("\n\n" + TILEABLE_ADDENDUM if tileable else "")
     return f"""You are the texture artist for a smart-home floorplan map. Draw a single
 SVG artwork of: {subject}.
 
@@ -102,12 +129,16 @@ def texture_filename(description: str, requested: str | None = None) -> str:
     return f"obj_{slugify(description)}.svg"
 
 
-def build_request_body(subject: str, model: str, tileable: bool = False) -> dict:
+def build_request_body(
+    subject: str, model: str, tileable: bool = False, style: str = "badge"
+) -> dict:
     return {
         "model": model or DEFAULT_TEXTURE_MODEL,
         "max_tokens": 16000,
         "thinking": {"type": "adaptive"},
-        "messages": [{"role": "user", "content": build_prompt(subject, tileable)}],
+        "messages": [
+            {"role": "user", "content": build_prompt(subject, tileable, style)}
+        ],
     }
 
 

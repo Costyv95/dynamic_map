@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="28 28 72 72">
+  <!-- potted plant from above: rim + leafy crown -->
+  <circle cx="64" cy="64" r="34" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
+  <g stroke="#0f172a" stroke-width="1">
+    <circle cx="64" cy="64" r="26" fill="#d3e3d3"/>
+    <path d="M 64 64 L 64 40" fill="none"/>
+    <path d="M 64 64 L 84 50" fill="none"/>
+    <path d="M 64 64 L 86 72" fill="none"/>
+    <path d="M 64 64 L 70 86" fill="none"/>
+    <path d="M 64 64 L 46 82" fill="none"/>
+    <path d="M 64 64 L 40 58" fill="none"/>
+    <path d="M 64 64 L 50 44" fill="none"/>
+  </g>
+</svg>

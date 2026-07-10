@@ -359,6 +359,7 @@ class DynamicMapGenerateTextureView(DynamicMapView):
             f"{description}, {state_description}" if state_description else description
         )
         tileable = bool(data.get("tileable"))
+        style = "decor" if data.get("style") == "decor" else "badge"
 
         domain_data = self.hass.data.get(DOMAIN, {})
         agent_url = domain_data.get(CONF_TEXTURE_SIDECAR_URL)
@@ -380,7 +381,7 @@ class DynamicMapGenerateTextureView(DynamicMapView):
             if agent_url:
                 # Preferred: headless Claude Code (operator's subscription).
                 payload = {
-                    "prompt": texture_gen.build_prompt(subject, tileable),
+                    "prompt": texture_gen.build_prompt(subject, tileable, style),
                     "timeout_s": 220,
                 }
                 if domain_data.get(CONF_TEXTURE_MODEL):
@@ -405,7 +406,7 @@ class DynamicMapGenerateTextureView(DynamicMapView):
                 )
                 async with session.post(
                     texture_gen.ANTHROPIC_API_URL,
-                    json=texture_gen.build_request_body(subject, model, tileable),
+                    json=texture_gen.build_request_body(subject, model, tileable, style),
                     headers={
                         "x-api-key": api_key,
                         "anthropic-version": texture_gen.ANTHROPIC_VERSION,

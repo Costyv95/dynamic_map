@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="12 22 108 96">
+  <!-- plan door: hinge bottom-left, leaf swung open, quarter-circle swing arc -->
+  <line x1="20" y1="116" x2="20" y2="24" stroke="#0f172a" stroke-width="2.5"/>
+  <path d="M 20 24 A 92 92 0 0 1 112 116" fill="none" stroke="#0f172a" stroke-width="1" stroke-dasharray="4 3"/>
+  <line x1="14" y1="116" x2="118" y2="116" stroke="#0f172a" stroke-width="1"/>
+</svg>

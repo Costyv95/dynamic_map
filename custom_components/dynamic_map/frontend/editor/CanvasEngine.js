@@ -313,7 +313,19 @@ export class CanvasEngine {
             this.ctx.stroke();
         }
 
-        shortcuts.forEach((sc, idx) => {
+        // Decor draws first (beneath badges, mirroring the card's decor
+        // sub-layer); while editing, the inactive layer is dimmed so it is
+        // obvious what a click will select.
+        const isDecorSc = (s) => !!(s.config && s.config.decor);
+        const drawOrder = [
+            ...shortcuts.map((_, i) => i).filter(i => isDecorSc(shortcuts[i])),
+            ...shortcuts.map((_, i) => i).filter(i => !isDecorSc(shortcuts[i])),
+        ];
+        drawOrder.forEach((idx) => {
+            const sc = shortcuts[idx];
+            const layerDimmed = isEditMode
+                && (isDecorSc(sc) !== ((state.activeLayer || 'objects') === 'decor'));
+            this.ctx.globalAlpha = layerDimmed ? 0.35 : 1;
             const activeMode = this.activeMode || 'horizontal';
             const pos = getPosition(sc, activeMode);
 
@@ -694,8 +706,9 @@ export class CanvasEngine {
                 this.ctx.shadowBlur = 0;
                 this.ctx.restore();
             }
+            this.ctx.globalAlpha = 1;
         });
-        
+
         this.ctx.restore();
     }
 }

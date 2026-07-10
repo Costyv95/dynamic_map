@@ -255,6 +255,10 @@ export class EditorInteractionManager {
         let overScIdx = -1;
         for (let i = this.state.shortcuts.length - 1; i >= 0; i--) {
             const sc = this.state.shortcuts[i];
+            // Only the active layer is clickable: decor never steals a click
+            // from a badge sitting on top of it, and vice versa.
+            const isDecor = !!(sc.config && sc.config.decor);
+            if (isDecor !== (this.state.activeLayer === 'decor')) continue;
             const pos = this.getShortcutPos(sc);
             const scX = (pos[0]/100)*bgW;
             const scY = (pos[1]/100)*bgH;
@@ -410,6 +414,8 @@ export class EditorInteractionManager {
             if (cursorStyle === 'default') {
                 for (let i = this.state.shortcuts.length - 1; i >= 0; i--) {
                     const sc = this.state.shortcuts[i];
+                    const isDecor = !!(sc.config && sc.config.decor);
+                    if (isDecor !== (this.state.activeLayer === 'decor')) continue;
                     const pos = this.getShortcutPos(sc);
                     const scX = (pos[0]/100)*bgW;
                     const scY = (pos[1]/100)*bgH;

@@ -17,6 +17,11 @@ export class EditorStateManager {
         this.shortcuts = [];
         this.selectedShortcutIdx = -1;
         this.isEditMode = false;
+        // Which layer is being edited: 'objects' (interactive shortcuts) or
+        // 'decor' (scenery, config.decor). Hit-testing only selects items on
+        // the active layer, so furniture never steals clicks from badges and
+        // vice versa.
+        this.activeLayer = 'objects';
         
         // Split/Edit states
         this.isSplitting = false;
@@ -68,6 +73,14 @@ export class EditorStateManager {
         }
         if(this.requestDrawCallback) this.requestDrawCallback();
         return this.previewStateIdx;
+    }
+
+    setActiveLayer(layer) {
+        if (this.activeLayer === layer) return;
+        this.activeLayer = layer;
+        this.selectedShortcutIdx = -1;
+        if (this.updateUICallback) this.updateUICallback();
+        if (this.requestDrawCallback) this.requestDrawCallback();
     }
 
     setEditMode(mode) {

@@ -471,10 +471,17 @@ class CustomSvgMap extends HTMLElement {
         this.updateRoomStyles();
 
         this.shortcutElements = {};
+        // Decor items (config.decor) live in their own sub-layer appended
+        // before any interactive shortcut, so furniture always renders
+        // beneath badges regardless of array order.
+        this.decorLayer = document.createElementNS(this.svgNS, 'g');
+        this.decorLayer.classList.add('dm-decor-layer');
+        this.mapRoot.appendChild(this.decorLayer);
         this.shortcuts.forEach(sc => {
             const shortcutObj = ShortcutFactory.create(sc, this.svgNS, this.imgW, this.imgH, this);
             this.shortcutElements[sc.id] = shortcutObj;
-            this.mapRoot.appendChild(shortcutObj.render());
+            const parent = (sc.config && sc.config.decor) ? this.decorLayer : this.mapRoot;
+            parent.appendChild(shortcutObj.render());
 
             if (this._hass) {
                 shortcutObj.updateState(this._hass);

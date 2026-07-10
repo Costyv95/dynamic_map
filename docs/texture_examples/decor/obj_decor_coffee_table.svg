@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="32 32 64 64">
+  <!-- small round coffee table, plan symbol -->
+  <circle cx="64" cy="64" r="30" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
+  <circle cx="64" cy="64" r="21" fill="none" stroke="#0f172a" stroke-width="1"/>
+</svg>

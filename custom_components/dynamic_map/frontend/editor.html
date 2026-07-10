@@ -64,6 +64,17 @@
             <button id="mergeBtn" class="primary">Merge Selected Rooms</button>
         </div>
 
+        <div class="active-room-box" id="decorListUI" style="display: none; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; color: var(--accent); font-size: 16px;">🪴 Decor</h3>
+                <button id="addDecorBtn" class="primary" style="width: auto; padding: 4px 10px; font-size: 12px; margin: 0;">+ Add Decor</button>
+            </div>
+            <div style="font-size: 11px; color: var(--muted, #64748b); margin: 6px 0;">
+                Scenery only — never clickable on the dashboard. Click a name to select it on the map.
+            </div>
+            <div id="decorItemsList" style="display: flex; flex-direction: column; gap: 3px; max-height: 220px; overflow-y: auto;"></div>
+        </div>
+
         <div class="active-room-box" id="shortcutUI" style="display: none; margin-top: 10px;">
             <h3 style="margin-top:0; color: var(--accent); font-size: 16px;">Shortcut Config</h3>
             <label>Name</label>
@@ -363,6 +374,11 @@
             <div id="floorList" style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                 <!-- Floor buttons are generated at runtime from discovered floors -->
                 <div id="addFloorBtn" class="floor-btn" title="Add a new floor (e.g. Terrace) — upload a plan image or start blank" style="cursor:pointer; border-top:1px solid var(--input-border);">➕ Add Floor</div>
+            </div>
+            <!-- Layer Switcher: interactive objects vs decor scenery -->
+            <div class="layer-switcher" style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
+                <div id="layerObjectsBtn" class="floor-btn active" style="cursor: pointer;" title="Edit interactive shortcuts (badges). Decor is dimmed and not clickable.">📍 Objects</div>
+                <div id="layerDecorBtn" class="floor-btn" style="cursor: pointer;" title="Edit decor scenery (furniture, plants). Shortcuts are dimmed and not clickable.">🪴 Decor</div>
             </div>
             <!-- Orientation Preview Switcher -->
             <div class="orientation-switcher" style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- planter box band, full-bleed left/right so it tiles seamlessly -->
+  <rect x="-4" y="30" width="136" height="68" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
+  <line x1="-4" y1="40" x2="132" y2="40" stroke="#0f172a" stroke-width="1"/>
+  <line x1="-4" y1="88" x2="132" y2="88" stroke="#0f172a" stroke-width="1"/>
+  <!-- foliage clusters; the x=0 and x=128 clusters are identical halves -->
+  <g stroke="#0f172a" stroke-width="1">
+    <circle cx="0" cy="64" r="17" fill="#d3e3d3"/>
+    <path d="M -10 60 Q 0 52 10 60" fill="none"/>
+    <path d="M -8 70 Q 0 64 8 70" fill="none"/>
+    <circle cx="43" cy="60" r="15" fill="#d3e3d3"/>
+    <path d="M 34 56 Q 43 49 52 56" fill="none"/>
+    <path d="M 36 66 Q 43 60 50 66" fill="none"/>
+    <circle cx="64" cy="70" r="12" fill="#d3e3d3"/>
+    <path d="M 56 67 Q 64 61 72 67" fill="none"/>
+    <circle cx="88" cy="61" r="16" fill="#d3e3d3"/>
+    <path d="M 78 57 Q 88 49 98 57" fill="none"/>
+    <path d="M 81 68 Q 88 62 95 68" fill="none"/>
+    <circle cx="128" cy="64" r="17" fill="#d3e3d3"/>
+    <path d="M 118 60 Q 128 52 138 60" fill="none"/>
+    <path d="M 120 70 Q 128 64 136 70" fill="none"/>
+  </g>
+</svg>

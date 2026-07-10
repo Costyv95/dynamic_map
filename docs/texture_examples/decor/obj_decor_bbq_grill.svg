@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="6 22 116 84">
+  <!-- kettle grill from above: bowl, grate, side handles, small shelf -->
+  <rect x="8" y="52" width="16" height="24" rx="4" fill="#f8fafc" stroke="#0f172a" stroke-width="1.5"/>
+  <rect x="104" y="52" width="16" height="24" rx="4" fill="#f8fafc" stroke="#0f172a" stroke-width="1.5"/>
+  <circle cx="64" cy="64" r="40" fill="#ffffff" stroke="#0f172a" stroke-width="1.5"/>
+  <circle cx="64" cy="64" r="31" fill="none" stroke="#0f172a" stroke-width="1"/>
+  <g stroke="#0f172a" stroke-width="1">
+    <line x1="38" y1="50" x2="90" y2="50"/>
+    <line x1="34" y1="64" x2="94" y2="64"/>
+    <line x1="38" y1="78" x2="90" y2="78"/>
+    <line x1="50" y1="38" x2="50" y2="90"/>
+    <line x1="78" y1="38" x2="78" y2="90"/>
+  </g>
+</svg>

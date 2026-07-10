@@ -26,6 +26,7 @@ export class EditorUIManager {
 
         // Add Shortcut Object
         document.getElementById('addShortcutBtn').addEventListener('click', () => {
+            this.state.setActiveLayer('objects');
             const defaultColor = localStorage.getItem('lastShortcutColor') || '#0ea5e9';
             this.state.shortcuts.push({
                 id: `sc_${Date.now()}`,
@@ -33,6 +34,38 @@ export class EditorUIManager {
                 type: 'generic',
                 position: [50, 50],
                 config: { shape: 'circle', color: defaultColor }
+            });
+            this.state.selectedShortcutIdx = this.state.shortcuts.length - 1;
+            this.state.selectedRooms = [];
+            this.state.saveState();
+            this.updateSidebar();
+            this.state.requestDrawCallback();
+        });
+
+        // Layer switcher: objects (interactive shortcuts) vs decor scenery
+        document.getElementById('layerObjectsBtn').addEventListener('click', () => {
+            this.state.setActiveLayer('objects');
+            this.updateSidebar();
+        });
+        document.getElementById('layerDecorBtn').addEventListener('click', () => {
+            this.state.setActiveLayer('decor');
+            this.updateSidebar();
+        });
+
+        // Add a decor item: scenery-only, rect + texture, rotates with the
+        // plan like real furniture, never interactive on the dashboard.
+        document.getElementById('addDecorBtn').addEventListener('click', () => {
+            this.state.setActiveLayer('decor');
+            this.state.shortcuts.push({
+                id: `sc_${Date.now()}`,
+                name: 'New Decor',
+                type: 'generic',
+                position: [50, 50],
+                scaleX: 3, scaleY: 3,
+                config: {
+                    shape: 'rect', color: '#94a3b8', transparent: true,
+                    decor: true, autoRotate: true, proportional: false
+                }
             });
             this.state.selectedShortcutIdx = this.state.shortcuts.length - 1;
             this.state.selectedRooms = [];
@@ -115,6 +148,9 @@ export class EditorUIManager {
                 const result = await ApiManager.generateTexture(description, {
                     stateDescription: previewState?.description || undefined,
                     tileable: !!(previewState?.image_tiling ?? sc.config?.image_tiling),
+                    // Decor renders in the architectural plan style so it
+                    // blends with the magicplan furniture on other floors.
+                    style: sc.config?.decor ? 'decor' : undefined,
                 });
                 if (!sc.config) sc.config = {};
                 if (previewState) {
@@ -775,6 +811,45 @@ export class EditorUIManager {
         }
     }
 
+    /** Layer buttons + the named decor list (shown while the decor layer is active). */
+    updateDecorUI() {
+        const decorActive = this.state.activeLayer === 'decor';
+        document.getElementById('layerObjectsBtn').classList.toggle('active', !decorActive);
+        document.getElementById('layerDecorBtn').classList.toggle('active', decorActive);
+
+        const panel = document.getElementById('decorListUI');
+        panel.style.display = decorActive ? 'block' : 'none';
+        if (!decorActive) return;
+
+        const list = document.getElementById('decorItemsList');
+        list.innerHTML = '';
+        let any = false;
+        this.state.shortcuts.forEach((sc, idx) => {
+            if (!sc.config || !sc.config.decor) return;
+            any = true;
+            const row = document.createElement('div');
+            const selected = idx === this.state.selectedShortcutIdx;
+            row.textContent = `🪴 ${sc.name || 'Decor'}`;
+            row.style.cssText = 'padding: 5px 8px; border-radius: 5px; cursor: pointer; font-size: 12px;'
+                + (selected
+                    ? 'background: var(--accent); color: white; font-weight: 600;'
+                    : 'background: var(--input-bg);');
+            row.addEventListener('click', () => {
+                this.state.selectedShortcutIdx = idx;
+                this.state.selectedRooms = [];
+                this.updateSidebar();
+                this.state.requestDrawCallback();
+            });
+            list.appendChild(row);
+        });
+        if (!any) {
+            const empty = document.createElement('div');
+            empty.textContent = 'No decor on this floor yet.';
+            empty.style.cssText = 'font-size: 11px; color: var(--muted, #64748b); padding: 4px;';
+            list.appendChild(empty);
+        }
+    }
+
     updateSidebar() {
         // Clear all existing override indicators first
         document.querySelectorAll('.override-indicator').forEach(el => el.remove());
@@ -788,9 +863,15 @@ export class EditorUIManager {
         document.getElementById('mergeUI').style.display = 'none';
         document.getElementById('shortcutUI').style.display = 'none';
 
+        this.updateDecorUI();
+
         if (this.state.selectedShortcutIdx !== -1 && this.state.shortcuts[this.state.selectedShortcutIdx]) {
             document.getElementById('shortcutUI').style.display = 'block';
             const sc = this.state.shortcuts[this.state.selectedShortcutIdx];
+            // Decor is scenery: entities, actions and states don't apply.
+            const decorSel = !!(sc.config && sc.config.decor);
+            document.getElementById('scActionsPanel').style.display = decorSel ? 'none' : 'block';
+            document.getElementById('scStatesPanel').style.display = decorSel ? 'none' : 'block';
             if (!sc.config.states || this.state.previewStateIdx >= sc.config.states.length) {
                 this.state.previewStateIdx = -1;
             }
