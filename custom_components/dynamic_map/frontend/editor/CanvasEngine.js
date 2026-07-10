@@ -361,7 +361,10 @@ export class CanvasEngine {
             
             let color = resolveProperty('color', '#0ea5e9');
             let isTrans = resolveProperty('transparent', false);
-            let icon = resolveProperty('icon', '💡');
+            // No default icon: an object with neither icon nor image renders
+            // as its bare shape, exactly like the dashboard card (a plain
+            // black rect can be a wall).
+            let icon = resolveProperty('icon', '');
             let image = resolveProperty('image', '');
             let autoRotate = resolveProperty('autoRotate', false);
 
@@ -473,7 +476,19 @@ export class CanvasEngine {
             this.ctx.fill();
             this.ctx.stroke();
             this.ctx.shadowBlur = 0;
-            
+
+            // A transparent object with no icon and no image is invisible on
+            // the dashboard by design - but in the editor it must stay
+            // findable, so hint its footprint with a faint dashed outline.
+            if (isEditMode && isTrans && !finalImage && !icon && !pill && sc.type !== 'vacuum') {
+                this.ctx.save();
+                this.ctx.setLineDash([6, 4]);
+                this.ctx.strokeStyle = 'rgba(100, 116, 139, 0.55)';
+                this.ctx.lineWidth = 1.5 / Math.hypot(this.viewTransform.a, this.viewTransform.b);
+                this.ctx.stroke();
+                this.ctx.restore();
+            }
+
             if (idx === selectedShortcutIdx) {
                 const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
                 const hSize = 4 / currentScale;
@@ -591,7 +606,8 @@ export class CanvasEngine {
                     this.ctx.fillText(pill.value, pill.textX * currentScale, 0);
                 } else {
                     const isUrlFn = (str) => str && (str.startsWith('http') || str.startsWith('/') || str.endsWith('.png') || str.endsWith('.svg') || str.endsWith('.jpg') || str.endsWith('.webp'));
-                    let fallbackIcon = '💡';
+                    // Empty means none - the card draws no default icon either.
+                    let fallbackIcon = '';
                     if (idx === selectedShortcutIdx && previewStateIdx !== -1 && sc.config?.states?.[previewStateIdx]) {
                         const st = sc.config.states[previewStateIdx];
                         if (st.icon && !isUrlFn(st.icon)) {
@@ -676,14 +692,14 @@ export class CanvasEngine {
                             } else {
                                 this.ctx.drawImage(cachedImg, -imgW/2, -imgH/2, imgW, imgH);
                             }
-                        } else if (cachedImg._failed) {
+                        } else if (cachedImg._failed && fallbackIcon) {
                             this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                             this.ctx.textBaseline = 'middle';
                             this.ctx.textAlign = 'center';
                             this.ctx.fillStyle = isTrans ? color : 'white';
                             this.ctx.fillText(fallbackIcon, 0, 0);
                         }
-                    } else {
+                    } else if (fallbackIcon) {
                         this.ctx.font = `${14 * Math.min(scaleX, scaleY) * currentScale}px sans-serif`;
                         this.ctx.textBaseline = 'middle';
                         this.ctx.textAlign = 'center';

@@ -908,7 +908,7 @@ export class EditorUIManager {
             document.getElementById('scColorText').placeholder = isPreview ? (sc.config?.color || '#0ea5e9') : '#0ea5e9';
             
             document.getElementById('scIcon').value = targetObj.icon || '';
-            document.getElementById('scIcon').placeholder = isPreview ? (sc.config?.icon || 'e.g. 💡 or url') : 'e.g. 💡 or url';
+            document.getElementById('scIcon').placeholder = isPreview ? (sc.config?.icon || '💡 or url — empty = no icon') : '💡 or url — empty = no icon';
             
             document.getElementById('scImage').value = targetObj.image || '';
             document.getElementById('scImage').placeholder = isPreview ? (sc.config?.image || 'e.g. /local/img.png') : 'e.g. /local/img.png';
