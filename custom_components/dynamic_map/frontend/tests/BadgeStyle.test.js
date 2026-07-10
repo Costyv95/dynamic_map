@@ -213,6 +213,54 @@ describe('light-pool glow', () => {
         expect(t).toBe(sc.group.getAttribute('transform'));
     });
 
+    it('glow_shape "area" keeps an elongated panel on the point-source pool', () => {
+        const hass = { states: { 'switch.panel': { state: 'on', attributes: {} } } };
+        const mapContext = { _hass: hass, imgW: 1000, imgH: 1000 };
+        const sc = new MapShortcut({
+            id: 'sc_panel', type: 'generic', position: [50, 50], scaleX: 10, scaleY: 1,
+            config: {
+                shape: 'rect', color: '#0ea5e9', transparent: true,
+                glow: true, state_entity: 'switch.panel', glow_shape: 'area',
+            }
+        }, svgNS, 1000, 1000, mapContext);
+        sc.render();
+        sc.updateState(hass);
+        expect(sc._glowLine).toBe(false);
+        expect(sc.glowBlobs.length).toBe(2);
+        expect(sc.glowBlobs[0].tagName.toLowerCase()).toBe('ellipse');
+    });
+
+    it('config.glow_color pins the pool hue when the entity has no rgb_color', () => {
+        const hass = { states: { 'switch.panel': { state: 'on', attributes: {} } } };
+        const mapContext = { _hass: hass, imgW: 1000, imgH: 1000 };
+        const sc = new MapShortcut({
+            id: 'sc_col', type: 'generic', position: [50, 50],
+            config: {
+                shape: 'circle', color: '#0ea5e9', glow: true,
+                state_entity: 'switch.panel', glow_color: '#7c3aed',
+            }
+        }, svgNS, 1000, 1000, mapContext);
+        sc.render();
+        sc.updateState(hass);
+        // without glow_color this would be the default amber #f59e0b
+        expect(sc.glowDefs.querySelector('#dm_glow_sc_col stop').getAttribute('stop-color')).toBe('#7c3aed');
+    });
+
+    it('a glow-opted-in shortcut tracks state_entity when it has no entity_id', () => {
+        const hass = { states: { 'switch.panel': { state: 'off', attributes: {} } } };
+        const mapContext = { _hass: hass, imgW: 1000, imgH: 1000 };
+        const mk = () => {
+            const sc = new MapShortcut({
+                id: 'sc_se', type: 'generic', position: [50, 50],
+                config: { shape: 'rect', color: '#0ea5e9', glow: true, state_entity: 'switch.panel' }
+            }, svgNS, 1000, 1000, mapContext);
+            sc.render(); sc.updateState(hass); return sc;
+        };
+        expect(mk()._glowVisible).toBeFalsy();
+        hass.states['switch.panel'] = { state: 'on', attributes: {} };
+        expect(mk()._glowVisible).toBe(true);
+    });
+
     it('hides the glow when the light turns off', () => {
         const hass = { states: { 'light.lamp': { state: 'on', attributes: { rgb_color: [1, 2, 3] } } } };
         const shortcut = makeShortcut(lightData(), hass);

@@ -656,7 +656,11 @@ export class MapShortcut {
             }
         }
 
-        let color = this.activeState && this.activeState.color ? this.activeState.color : 'entity';
+        // config.glow_color pins the pool's hue for lights whose entity exposes
+        // no rgb_color (a plain switch, say) and would otherwise fall back to
+        // the default amber.
+        let color = this.config.glow_color
+            || (this.activeState && this.activeState.color ? this.activeState.color : 'entity');
         color = this._resolveColor(color, hass) || '#f59e0b';
         const color2 = this._shiftHue(color, 28);
         this._glowGrad.querySelectorAll('stop').forEach(stop => stop.setAttribute('stop-color', color));
@@ -685,8 +689,13 @@ export class MapShortcut {
         // every brightness; only the PERPENDICULAR reach grows/shrinks with
         // brightness, and the ends stay flat (they barely extend). Everything
         // else emits from a POINT (two intertwining radial pools).
+        // config.glow_shape forces the choice: an 'area' emitter (a panel, a
+        // 2D-tiled light wall) must not be mistaken for a strip just because
+        // its footprint happens to be elongated in one layout.
+        const glowShape = this.config.glow_shape || 'auto';
         const isLine = this.shape && this.shape.tagName === 'rect'
-            && (longAxis - shortAxis) > shortAxis * 0.6;
+            && glowShape !== 'area'
+            && (glowShape === 'line' || (longAxis - shortAxis) > shortAxis * 0.6);
         this._glowLine = isLine;
 
         if (isLine) {
