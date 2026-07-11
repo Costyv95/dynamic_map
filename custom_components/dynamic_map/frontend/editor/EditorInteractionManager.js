@@ -829,6 +829,17 @@ export class EditorInteractionManager {
             return;
         }
 
+        // Delete/Backspace removes the current selection (object, room or
+        // wall) — but never while the user is typing in a form field.
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            const t = e.target;
+            const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA'
+                || t.tagName === 'SELECT' || t.isContentEditable);
+            if (typing || !this.state.isEditMode) return;
+            if (this.state.deleteSelection()) e.preventDefault();
+            return;
+        }
+
         if (e.key === 'Enter' && this.state.drawingPolygon && this.state.drawingPolygon.length > 2) {
             // Reject a degenerate (zero-area) polygon rather than creating an invalid room
             if (EditorInteractionManager.polygonArea(this.state.drawingPolygon) < 1e-6) {

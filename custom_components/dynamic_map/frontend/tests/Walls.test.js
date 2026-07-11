@@ -57,6 +57,61 @@ describe('wall editor state', () => {
     });
 });
 
+describe('deleteSelection (Delete/Backspace key)', () => {
+    const fresh = () => {
+        const s = new EditorStateManager(vi.fn(), vi.fn());
+        s.rooms = [{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }];
+        s.shortcuts = [{ id: 's1' }, { id: 's2' }];
+        s.walls = [{ id: 'w1', points: [[0, 0], [10, 0]] }];
+        return s;
+    };
+
+    it('deletes the selected shortcut on the objects layer', () => {
+        const s = fresh();
+        s.selectedShortcutIdx = 1;
+        expect(s.deleteSelection()).toBe(true);
+        expect(s.shortcuts.map(x => x.id)).toEqual(['s1']);
+        expect(s.selectedShortcutIdx).toBe(-1);
+    });
+
+    it('deletes selected rooms (multi-select, index-safe order)', () => {
+        const s = fresh();
+        s.selectedRooms = [0, 2];
+        expect(s.deleteSelection()).toBe(true);
+        expect(s.rooms.map(x => x.id)).toEqual(['r2']);
+        expect(s.selectedRooms).toEqual([]);
+    });
+
+    it('deletes the selected wall only on the walls layer', () => {
+        const s = fresh();
+        s.activeLayer = 'walls';
+        s.selectedWallIdx = 0;
+        expect(s.deleteSelection()).toBe(true);
+        expect(s.walls).toEqual([]);
+        // rooms/shortcuts untouched
+        expect(s.rooms.length).toBe(3);
+        expect(s.shortcuts.length).toBe(2);
+    });
+
+    it('returns false when nothing is selected', () => {
+        const s = fresh();
+        expect(s.deleteSelection()).toBe(false);
+        expect(s.rooms.length).toBe(3);
+        expect(s.shortcuts.length).toBe(2);
+        expect(s.walls.length).toBe(1);
+    });
+
+    it('deletion is undoable', () => {
+        const s = fresh();
+        s.saveState(); // baseline
+        s.selectedShortcutIdx = 0;
+        s.deleteSelection();
+        expect(s.shortcuts.length).toBe(1);
+        s.undo();
+        expect(s.shortcuts.length).toBe(2);
+    });
+});
+
 describe('wall card rendering', () => {
     it('buildWalls strokes one clean path per wall under a non-interactive layer', () => {
         const card = document.createElement('custom-svg-map');

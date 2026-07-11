@@ -115,6 +115,32 @@ export class EditorStateManager {
         return copy;
     }
 
+    /**
+     * Delete whatever is currently selected — wall, shortcut (object/decor)
+     * or room(s). Keyboard twin of the sidebar 🗑️ buttons.
+     * Returns true if something was removed.
+     */
+    deleteSelection() {
+        if (this.activeLayer === 'walls') {
+            if (this.selectedWallIdx === -1) return false;
+            this.walls.splice(this.selectedWallIdx, 1);
+            this.selectedWallIdx = -1;
+        } else if (this.selectedShortcutIdx !== -1) {
+            this.shortcuts.splice(this.selectedShortcutIdx, 1);
+            this.selectedShortcutIdx = -1;
+        } else if (this.selectedRooms.length) {
+            [...this.selectedRooms].sort((a, b) => b - a)
+                .forEach(i => this.rooms.splice(i, 1));
+            this.selectedRooms = [];
+        } else {
+            return false;
+        }
+        this.saveState();
+        if (this.updateUICallback) this.updateUICallback();
+        if (this.requestDrawCallback) this.requestDrawCallback();
+        return true;
+    }
+
     setActiveLayer(layer) {
         if (this.activeLayer === layer) return;
         this.activeLayer = layer;

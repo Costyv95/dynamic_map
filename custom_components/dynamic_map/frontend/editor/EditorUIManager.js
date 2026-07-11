@@ -53,7 +53,13 @@ export class EditorUIManager {
         });
         document.getElementById('layerWallsBtn').addEventListener('click', () => {
             this.state.setActiveLayer('walls');
+            // Floor has no walls yet: arm the draw tool right away so the
+            // first map click starts the first wall.
+            if (!this.state.walls.length && !this.state.drawingWall) {
+                this.state.drawingWall = [];
+            }
             this.updateSidebar();
+            this.state.requestDrawCallback();
         });
 
         // Wall tools
@@ -933,7 +939,9 @@ export class EditorUIManager {
         list.innerHTML = '';
         if (!this.state.walls.length) {
             const empty = document.createElement('div');
-            empty.textContent = 'No walls on this floor yet.';
+            empty.textContent = this.state.drawingWall
+                ? 'Drawing… click on the map to place corners, then press Enter.'
+                : 'No walls yet — click ✏️ Draw Wall, then click on the map to place corners.';
             empty.style.cssText = 'font-size: 11px; color: var(--muted, #64748b); padding: 4px;';
             list.appendChild(empty);
             return;
