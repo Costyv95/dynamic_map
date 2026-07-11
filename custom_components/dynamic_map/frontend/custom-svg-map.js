@@ -347,6 +347,7 @@ class CustomSvgMap extends HTMLElement {
             this.rotationMode = floorConfig.rotation_mode || 'auto';
             this.floorBgColor = floorConfig.background_color || null;
             this.floorBgMode = floorConfig.background_mode || 'image';
+            this.walls = floorConfig.walls || [];
             this.flips = floorConfig.flips || {
                 horizontal: { h: false, v: false },
                 vertical: { h: false, v: false }
@@ -469,6 +470,8 @@ class CustomSvgMap extends HTMLElement {
         });
 
         this.updateRoomStyles();
+
+        this.buildWalls();
 
         this.shortcutElements = {};
         // Decor items (config.decor) live in their own sub-layer appended
@@ -973,6 +976,35 @@ class CustomSvgMap extends HTMLElement {
             this.applyShortcutTransforms(this.isRotated ? this.mapScaleX : 1, this.isRotated ? this.mapScaleY : 1);
         }
         this._lastAppliedMode = this.activeMode;
+    }
+
+    /**
+     * Walls from config_floorN.json: polylines with thickness, drawn as one
+     * stroked path each so corners join cleanly. They sit above rooms and
+     * below decor/shortcuts, rotate with the map like the floorplan itself,
+     * and never intercept a tap.
+     */
+    buildWalls() {
+        if (!this.walls || !this.walls.length || !this.mapRoot) return;
+        const layer = document.createElementNS(this.svgNS, 'g');
+        layer.classList.add('dm-walls');
+        layer.style.pointerEvents = 'none';
+        this.walls.forEach(wall => {
+            const pts = wall.points || [];
+            if (pts.length < 2) return;
+            const path = document.createElementNS(this.svgNS, 'path');
+            const d = pts.map((pt, i) =>
+                `${i === 0 ? 'M' : 'L'} ${((pt[0] / 100) * this.imgW).toFixed(1)} ${((pt[1] / 100) * this.imgH).toFixed(1)}`
+            ).join(' ');
+            path.setAttribute('d', d);
+            path.setAttribute('fill', 'none');
+            path.setAttribute('stroke', wall.color || '#0f172a');
+            path.setAttribute('stroke-width', Number(wall.thickness) > 0 ? wall.thickness : 8);
+            path.setAttribute('stroke-linecap', 'square');
+            path.setAttribute('stroke-linejoin', 'miter');
+            layer.appendChild(path);
+        });
+        this.mapRoot.appendChild(layer);
     }
 
     /** Apply per-shortcut counter-transforms for the current rotation/flip state. */

@@ -42,7 +42,7 @@ export class EditorUIManager {
             this.state.requestDrawCallback();
         });
 
-        // Layer switcher: objects (interactive shortcuts) vs decor scenery
+        // Layer switcher: objects (interactive shortcuts) / decor scenery / walls
         document.getElementById('layerObjectsBtn').addEventListener('click', () => {
             this.state.setActiveLayer('objects');
             this.updateSidebar();
@@ -50,6 +50,58 @@ export class EditorUIManager {
         document.getElementById('layerDecorBtn').addEventListener('click', () => {
             this.state.setActiveLayer('decor');
             this.updateSidebar();
+        });
+        document.getElementById('layerWallsBtn').addEventListener('click', () => {
+            this.state.setActiveLayer('walls');
+            this.updateSidebar();
+        });
+
+        // Wall tools
+        document.getElementById('drawWallBtn').addEventListener('click', () => {
+            this.state.setActiveLayer('walls');
+            this.state.drawingWall = [];
+            this.state.selectedWallIdx = -1;
+            this.updateSidebar();
+            this.state.requestDrawCallback();
+        });
+        const wallSel = () => this.state.walls[this.state.selectedWallIdx];
+        const bumpThickness = (delta) => {
+            const w = wallSel();
+            if (!w) return;
+            w.thickness = Math.max(1, Math.min(60, (Number(w.thickness) || 8) + delta));
+            this.state.lastWallThickness = w.thickness;
+            document.getElementById('wallThickness').value = w.thickness;
+            this.state.saveState();
+            this.state.requestDrawCallback();
+        };
+        document.getElementById('wallThinnerBtn').addEventListener('click', () => bumpThickness(-1));
+        document.getElementById('wallThickerBtn').addEventListener('click', () => bumpThickness(1));
+        document.getElementById('wallThickness').addEventListener('change', (e) => {
+            const w = wallSel();
+            if (!w) return;
+            const v = parseFloat(e.target.value);
+            if (Number.isFinite(v) && v >= 1) {
+                w.thickness = Math.min(60, v);
+                this.state.lastWallThickness = w.thickness;
+                this.state.saveState();
+                this.state.requestDrawCallback();
+            }
+        });
+        document.getElementById('wallColor').addEventListener('change', (e) => {
+            const w = wallSel();
+            if (!w) return;
+            w.color = e.target.value;
+            this.state.lastWallColor = w.color;
+            this.state.saveState();
+            this.state.requestDrawCallback();
+        });
+        document.getElementById('deleteWallBtn').addEventListener('click', () => {
+            if (this.state.selectedWallIdx === -1) return;
+            this.state.walls.splice(this.state.selectedWallIdx, 1);
+            this.state.selectedWallIdx = -1;
+            this.state.saveState();
+            this.updateSidebar();
+            this.state.requestDrawCallback();
         });
 
         // Add a decor item: scenery-only, rect + texture, rotates with the
@@ -508,7 +560,8 @@ export class EditorUIManager {
                     await ApiManager.saveToHA(this.state.activeFloor, this.state.rooms, this.state.shortcuts, {
                         rotation_mode: this.engine.rotationMode, flips: this.engine.flips,
                         background_color: this.engine.backgroundColor || undefined,
-                        background_mode: this.engine.backgroundMode !== 'image' ? this.engine.backgroundMode : undefined
+                        background_mode: this.engine.backgroundMode !== 'image' ? this.engine.backgroundMode : undefined,
+                        walls: this.state.walls.length ? this.state.walls : undefined
                     });
                     e.target.textContent = "Saved to HA!";
                     e.target.style.background = '#10b981';
@@ -817,11 +870,16 @@ export class EditorUIManager {
         }
     }
 
-    /** Layer buttons + the named decor list (shown while the decor layer is active). */
+    /** Layer buttons + the decor list / wall panel for the active layer. */
     updateDecorUI() {
-        const decorActive = this.state.activeLayer === 'decor';
-        document.getElementById('layerObjectsBtn').classList.toggle('active', !decorActive);
+        const layer = this.state.activeLayer;
+        const decorActive = layer === 'decor';
+        const wallsActive = layer === 'walls';
+        document.getElementById('layerObjectsBtn').classList.toggle('active', layer === 'objects');
         document.getElementById('layerDecorBtn').classList.toggle('active', decorActive);
+        document.getElementById('layerWallsBtn').classList.toggle('active', wallsActive);
+
+        this.updateWallUI(wallsActive);
 
         const panel = document.getElementById('decorListUI');
         panel.style.display = decorActive ? 'block' : 'none';
@@ -854,6 +912,47 @@ export class EditorUIManager {
             empty.style.cssText = 'font-size: 11px; color: var(--muted, #64748b); padding: 4px;';
             list.appendChild(empty);
         }
+    }
+
+    /** Wall panel: props for the selected wall + the named wall list. */
+    updateWallUI(wallsActive) {
+        const panel = document.getElementById('wallUI');
+        panel.style.display = wallsActive ? 'block' : 'none';
+        if (!wallsActive) return;
+
+        const sel = this.state.walls[this.state.selectedWallIdx];
+        document.getElementById('wallProps').style.display = sel ? 'block' : 'none';
+        if (sel) {
+            document.getElementById('wallThickness').value = Number(sel.thickness) || 8;
+            document.getElementById('wallColor').value = sel.color || '#0f172a';
+        }
+        const drawBtn = document.getElementById('drawWallBtn');
+        drawBtn.textContent = this.state.drawingWall ? '⏎ Enter to finish…' : '✏️ Draw Wall';
+
+        const list = document.getElementById('wallsList');
+        list.innerHTML = '';
+        if (!this.state.walls.length) {
+            const empty = document.createElement('div');
+            empty.textContent = 'No walls on this floor yet.';
+            empty.style.cssText = 'font-size: 11px; color: var(--muted, #64748b); padding: 4px;';
+            list.appendChild(empty);
+            return;
+        }
+        this.state.walls.forEach((w, idx) => {
+            const row = document.createElement('div');
+            const selected = idx === this.state.selectedWallIdx;
+            row.textContent = `🧱 Wall ${idx + 1} — ${w.points.length} corners, ${Number(w.thickness) || 8}px`;
+            row.style.cssText = 'padding: 5px 8px; border-radius: 5px; cursor: pointer; font-size: 12px;'
+                + (selected
+                    ? 'background: var(--accent); color: white; font-weight: 600;'
+                    : 'background: var(--input-bg);');
+            row.addEventListener('click', () => {
+                this.state.selectedWallIdx = idx;
+                this.updateSidebar();
+                this.state.requestDrawCallback();
+            });
+            list.appendChild(row);
+        });
     }
 
     updateSidebar() {

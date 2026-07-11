@@ -1,6 +1,7 @@
 import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.0';
 import { resolveOriented, getPosition } from '../shared/OrientationProps.js?v=3.2.0';
 import { computeSensorPill } from '../shared/SensorPill.js?v=3.2.0';
+import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeometry.js?v=3.2.0';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {
@@ -173,6 +174,89 @@ export class CanvasEngine {
         }
     }
 
+    /**
+     * Walls: each is one stroked polyline so corners join cleanly. Drawn
+     * above rooms and below shortcuts, like the card. While editing another
+     * layer they dim; the selected wall shows its centerline and vertex
+     * handles; an in-progress wall previews its next segment to the cursor.
+     */
+    drawWalls(state, bgW, bgH) {
+        const walls = state.walls || [];
+        const wallsActive = (state.activeLayer || 'objects') === 'walls';
+        const currentScale = Math.hypot(this.viewTransform.a, this.viewTransform.b);
+        const toPx = (pt) => [(pt[0] / 100) * bgW, (pt[1] / 100) * bgH];
+
+        walls.forEach((wall, idx) => {
+            const pts = (wall.points || []).map(toPx);
+            if (pts.length < 2) return;
+            this.ctx.save();
+            this.ctx.globalAlpha = (state.isEditMode && !wallsActive) ? 0.35 : 1;
+            this.ctx.beginPath();
+            pts.forEach(([x, y], i) => i === 0 ? this.ctx.moveTo(x, y) : this.ctx.lineTo(x, y));
+            this.ctx.strokeStyle = wall.color || WALL_DEFAULT_COLOR;
+            this.ctx.lineWidth = Number(wall.thickness) > 0 ? Number(wall.thickness) : WALL_DEFAULT_THICKNESS;
+            this.ctx.lineCap = 'square';
+            this.ctx.lineJoin = 'miter';
+            this.ctx.stroke();
+
+            if (wallsActive && idx === state.selectedWallIdx) {
+                this.ctx.globalAlpha = 1;
+                this.ctx.beginPath();
+                pts.forEach(([x, y], i) => i === 0 ? this.ctx.moveTo(x, y) : this.ctx.lineTo(x, y));
+                this.ctx.strokeStyle = '#0ea5e9';
+                this.ctx.lineWidth = 1.5 / currentScale;
+                this.ctx.setLineDash([6 / currentScale, 4 / currentScale]);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+                const hs = 5 / currentScale;
+                pts.forEach(([x, y]) => {
+                    this.ctx.beginPath();
+                    this.ctx.arc(x, y, hs, 0, Math.PI * 2);
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#0ea5e9';
+                    this.ctx.lineWidth = 1.5 / currentScale;
+                    this.ctx.stroke();
+                });
+            }
+            this.ctx.restore();
+        });
+
+        // In-progress wall: solid placed run + dashed segment to the cursor.
+        if (wallsActive && state.drawingWall) {
+            const pts = state.drawingWall.map(toPx);
+            this.ctx.save();
+            if (pts.length >= 2) {
+                this.ctx.beginPath();
+                pts.forEach(([x, y], i) => i === 0 ? this.ctx.moveTo(x, y) : this.ctx.lineTo(x, y));
+                this.ctx.strokeStyle = WALL_DEFAULT_COLOR;
+                this.ctx.lineWidth = WALL_DEFAULT_THICKNESS;
+                this.ctx.lineCap = 'square';
+                this.ctx.lineJoin = 'miter';
+                this.ctx.stroke();
+            }
+            if (pts.length >= 1 && state.wallCursor) {
+                const last = pts[pts.length - 1];
+                this.ctx.beginPath();
+                this.ctx.moveTo(last[0], last[1]);
+                this.ctx.lineTo(state.wallCursor.x, state.wallCursor.y);
+                this.ctx.strokeStyle = '#0ea5e9';
+                this.ctx.lineWidth = 2 / currentScale;
+                this.ctx.setLineDash([6 / currentScale, 4 / currentScale]);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+            }
+            const hs = 4 / currentScale;
+            pts.forEach(([x, y]) => {
+                this.ctx.beginPath();
+                this.ctx.arc(x, y, hs, 0, Math.PI * 2);
+                this.ctx.fillStyle = '#0ea5e9';
+                this.ctx.fill();
+            });
+            this.ctx.restore();
+        }
+    }
+
     draw(state) {
         const {
             bgImage, rooms, selectedRooms, isSplitting, splitStart, splitEnd,
@@ -313,6 +397,8 @@ export class CanvasEngine {
             this.ctx.stroke();
         }
 
+        this.drawWalls(state, bgW, bgH);
+
         // Decor draws first (beneath badges, mirroring the card's decor
         // sub-layer); while editing, the inactive layer is dimmed so it is
         // obvious what a click will select.
@@ -323,8 +409,8 @@ export class CanvasEngine {
         ];
         drawOrder.forEach((idx) => {
             const sc = shortcuts[idx];
-            const layerDimmed = isEditMode
-                && (isDecorSc(sc) !== ((state.activeLayer || 'objects') === 'decor'));
+            const itemLayer = isDecorSc(sc) ? 'decor' : 'objects';
+            const layerDimmed = isEditMode && itemLayer !== (state.activeLayer || 'objects');
             this.ctx.globalAlpha = layerDimmed ? 0.35 : 1;
             const activeMode = this.activeMode || 'horizontal';
             const pos = getPosition(sc, activeMode);

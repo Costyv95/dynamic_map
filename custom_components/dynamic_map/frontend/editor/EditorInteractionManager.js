@@ -1,6 +1,7 @@
 import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.0';
 import { CanvasEngine } from './CanvasEngine.js?v=3.2.0';
 import { resolvePreviewTarget, getPosition, setPosition, getScale, setScale, getRotation, setRotation } from '../shared/OrientationProps.js?v=3.2.0';
+import { snapWallPoint, hitsWall } from '../shared/WallGeometry.js?v=3.2.0';
 
 /**
  * Screen-space resize cursor for a handle at local direction (lx, ly),
@@ -128,6 +129,64 @@ export class EditorInteractionManager {
             clientY = e.touches[0].clientY;
         }
         
+        // Walls layer: the pointer talks only to walls.
+        if (this.state.activeLayer === 'walls') {
+            const wp = this.getMousePos(e);
+            const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+
+            // Drawing mode: every click drops a vertex (axis-snapped).
+            if (this.state.drawingWall) {
+                const raw = [(wp.x / bgW) * 100, (wp.y / bgH) * 100];
+                const prev = this.state.drawingWall[this.state.drawingWall.length - 1];
+                this.state.drawingWall.push(e.shiftKey ? raw : snapWallPoint(prev, raw, bgW, bgH));
+                this.state.requestDrawCallback();
+                e.preventDefault();
+                return;
+            }
+
+            const vScale = Math.hypot(this.engine.viewTransform.a, this.engine.viewTransform.b);
+            // Selected wall first: grab a vertex handle...
+            const sel = this.state.walls[this.state.selectedWallIdx];
+            if (sel) {
+                const hr = 10 / vScale;
+                for (let i = 0; i < sel.points.length; i++) {
+                    const vx = (sel.points[i][0] / 100) * bgW;
+                    const vy = (sel.points[i][1] / 100) * bgH;
+                    if (Math.hypot(wp.x - vx, wp.y - vy) < hr) {
+                        this.interactionState = 'DRAG_WALL_VERTEX';
+                        this.wallVertexIdx = i;
+                        e.preventDefault();
+                        return;
+                    }
+                }
+            }
+            // ...then any wall body: select it and drag the whole run.
+            const slack = 6 / vScale;
+            for (let i = this.state.walls.length - 1; i >= 0; i--) {
+                if (hitsWall(this.state.walls[i], wp.x, wp.y, bgW, bgH, slack)) {
+                    this.state.selectedWallIdx = i;
+                    this.state.selectedShortcutIdx = -1;
+                    this.state.selectedRooms = [];
+                    this.interactionState = 'DRAG_WALL';
+                    this.wallDragLast = { x: wp.x, y: wp.y };
+                    this.state.updateUICallback();
+                    this.state.requestDrawCallback();
+                    e.preventDefault();
+                    return;
+                }
+            }
+            if (this.state.selectedWallIdx !== -1) {
+                this.state.selectedWallIdx = -1;
+                this.state.updateUICallback();
+                this.state.requestDrawCallback();
+            }
+            this.interactionState = 'MAYBE_PAN';
+            this.panStart = { x: clientX, y: clientY };
+            this.dragStart = wp;
+            this.isDragging = false;
+            return;
+        }
+
         // If Shift is pressed and in edit mode -> Draw Polygon
         if (e.shiftKey && this.state.isEditMode) {
             this.interactionState = 'DRAW_POLY';
@@ -257,8 +316,8 @@ export class EditorInteractionManager {
             const sc = this.state.shortcuts[i];
             // Only the active layer is clickable: decor never steals a click
             // from a badge sitting on top of it, and vice versa.
-            const isDecor = !!(sc.config && sc.config.decor);
-            if (isDecor !== (this.state.activeLayer === 'decor')) continue;
+            const itemLayer = (sc.config && sc.config.decor) ? 'decor' : 'objects';
+            if (itemLayer !== this.state.activeLayer) continue;
             const pos = this.getShortcutPos(sc);
             const scX = (pos[0]/100)*bgW;
             const scY = (pos[1]/100)*bgH;
@@ -306,6 +365,16 @@ export class EditorInteractionManager {
             this.state.selectedShortcutIdx = overScIdx;
             this.state.selectedRooms = [];
             this.interactionState = 'DRAG_SC';
+            // Keep the grab point: dragging moves the object by the pointer's
+            // delta instead of snapping its center to the cursor.
+            {
+                const sc = this.state.shortcuts[overScIdx];
+                const pos = this.getShortcutPos(sc);
+                this.dragGrabOffset = {
+                    dx: (pos[0] / 100) * bgW - this.dragStart.x,
+                    dy: (pos[1] / 100) * bgH - this.dragStart.y,
+                };
+            }
             this.state.updateUICallback();
             this.state.requestDrawCallback();
             return;
@@ -343,6 +412,54 @@ export class EditorInteractionManager {
                 this.state.requestDrawCallback();
             }
             return;
+        }
+
+        // Walls layer drags and drawing preview.
+        if (this.state.activeLayer === 'walls') {
+            const wp = this.getMousePos(e);
+            const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
+
+            if (this.state.drawingWall) {
+                // Live preview of the next segment (snapped, unless Shift).
+                const raw = [(wp.x / bgW) * 100, (wp.y / bgH) * 100];
+                const prev = this.state.drawingWall[this.state.drawingWall.length - 1];
+                const snapped = e.shiftKey ? raw : snapWallPoint(prev, raw, bgW, bgH);
+                this.state.wallCursor = { x: (snapped[0] / 100) * bgW, y: (snapped[1] / 100) * bgH };
+                this.canvas.style.cursor = 'crosshair';
+                this.state.requestDrawCallback();
+                return;
+            }
+            if (this.interactionState === 'DRAG_WALL_VERTEX') {
+                this.isDragging = true;
+                const sel = this.state.walls[this.state.selectedWallIdx];
+                if (sel && sel.points[this.wallVertexIdx]) {
+                    const raw = [(wp.x / bgW) * 100, (wp.y / bgH) * 100];
+                    // Snap against the neighbor so straight runs stay straight.
+                    const prev = sel.points[this.wallVertexIdx - 1] || sel.points[this.wallVertexIdx + 1];
+                    sel.points[this.wallVertexIdx] = e.shiftKey ? raw : snapWallPoint(prev, raw, bgW, bgH);
+                    this.state.requestDrawCallback();
+                }
+                return;
+            }
+            if (this.interactionState === 'DRAG_WALL') {
+                this.isDragging = true;
+                const sel = this.state.walls[this.state.selectedWallIdx];
+                if (sel) {
+                    const ddx = ((wp.x - this.wallDragLast.x) / bgW) * 100;
+                    const ddy = ((wp.y - this.wallDragLast.y) / bgH) * 100;
+                    sel.points = sel.points.map(([x, y]) => [x + ddx, y + ddy]);
+                    this.wallDragLast = { x: wp.x, y: wp.y };
+                    this.state.requestDrawCallback();
+                }
+                return;
+            }
+            if (this.interactionState === 'NONE') {
+                const vScale = Math.hypot(this.engine.viewTransform.a, this.engine.viewTransform.b);
+                const overWall = this.state.walls.some(w => hitsWall(w, wp.x, wp.y, bgW, bgH, 6 / vScale));
+                this.canvas.style.cursor = overWall ? 'pointer' : 'default';
+                return;
+            }
+            // MAYBE_PAN falls through to the generic pan handling below
         }
 
         if (this.interactionState === 'NONE' || this.interactionState === 'MAYBE_PAN') {
@@ -414,8 +531,8 @@ export class EditorInteractionManager {
             if (cursorStyle === 'default') {
                 for (let i = this.state.shortcuts.length - 1; i >= 0; i--) {
                     const sc = this.state.shortcuts[i];
-                    const isDecor = !!(sc.config && sc.config.decor);
-                    if (isDecor !== (this.state.activeLayer === 'decor')) continue;
+                    const itemLayer = (sc.config && sc.config.decor) ? 'decor' : 'objects';
+                    if (itemLayer !== this.state.activeLayer) continue;
                     const pos = this.getShortcutPos(sc);
                     const scX = (pos[0]/100)*bgW;
                     const scY = (pos[1]/100)*bgH;
@@ -476,7 +593,9 @@ export class EditorInteractionManager {
             this.isDragging = true;
             const worldPos = this.getMousePos(e);
             const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
-            this.setShortcutPos(this.state.shortcuts[this.state.selectedShortcutIdx], (worldPos.x / bgW)*100, (worldPos.y / bgH)*100);
+            const grab = this.dragGrabOffset || { dx: 0, dy: 0 };
+            this.setShortcutPos(this.state.shortcuts[this.state.selectedShortcutIdx],
+                ((worldPos.x + grab.dx) / bgW) * 100, ((worldPos.y + grab.dy) / bgH) * 100);
             this.state.requestDrawCallback();
             return;
         }
@@ -640,19 +759,21 @@ export class EditorInteractionManager {
             return;
         }
 
-        if (this.interactionState === 'DRAG_SC' || this.interactionState === 'RESIZE_SC' || this.interactionState === 'ROTATE_SC' || this.interactionState === 'DRAG_VERTEX') {
+        if (this.interactionState === 'DRAG_SC' || this.interactionState === 'RESIZE_SC' || this.interactionState === 'ROTATE_SC' || this.interactionState === 'DRAG_VERTEX'
+            || this.interactionState === 'DRAG_WALL' || this.interactionState === 'DRAG_WALL_VERTEX') {
             if (this.isDragging) {
                 this.state.saveState();
                 this.state.updateUICallback();
             }
             this.state.selectedVertex = null;
+            this.wallVertexIdx = null;
         }
 
-        if (this.interactionState === 'MAYBE_PAN' && !this.isDragging) {
+        if (this.interactionState === 'MAYBE_PAN' && !this.isDragging && this.state.activeLayer !== 'walls') {
             const worldPos = this.getMousePos(e);
             const { bgW, bgH } = CanvasEngine.safeDimensions(this.state.bgImage);
             const pctPos = [(worldPos.x / bgW)*100, (worldPos.y / bgH)*100];
-            
+
             let clickedIdx = -1;
             for(let i = 0; i < this.state.rooms.length; i++) {
                 if (MapGeometry.isPointInPolygon(pctPos, this.state.rooms[i].polygon)) {
@@ -682,6 +803,32 @@ export class EditorInteractionManager {
     }
 
     onKeyDown(e) {
+        // Wall drawing: Enter commits the run, Escape abandons it.
+        if (this.state.drawingWall) {
+            if (e.key === 'Enter') {
+                if (this.state.drawingWall.length >= 2) {
+                    this.state.walls.push({
+                        id: `wall_${Date.now()}`,
+                        points: this.state.drawingWall,
+                        thickness: this.state.lastWallThickness || 8,
+                        color: this.state.lastWallColor || '#0f172a',
+                    });
+                    this.state.selectedWallIdx = this.state.walls.length - 1;
+                    this.state.saveState();
+                }
+                this.state.drawingWall = null;
+                this.state.wallCursor = null;
+                if (this.state.updateUICallback) this.state.updateUICallback();
+                this.state.requestDrawCallback();
+            } else if (e.key === 'Escape') {
+                this.state.drawingWall = null;
+                this.state.wallCursor = null;
+                if (this.state.updateUICallback) this.state.updateUICallback();
+                this.state.requestDrawCallback();
+            }
+            return;
+        }
+
         if (e.key === 'Enter' && this.state.drawingPolygon && this.state.drawingPolygon.length > 2) {
             // Reject a degenerate (zero-area) polygon rather than creating an invalid room
             if (EditorInteractionManager.polygonArea(this.state.drawingPolygon) < 1e-6) {

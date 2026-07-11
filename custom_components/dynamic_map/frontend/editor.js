@@ -164,11 +164,13 @@ async function loadFloor(floorNum) {
             if (data.config.flips) engine.flips = data.config.flips;
             engine.backgroundColor = data.config.background_color || null;
             engine.backgroundMode = data.config.background_mode || 'image';
+            stateManager.walls = data.config.walls || [];
         } else {
             engine.rotationMode = 'auto';
             engine.flips = { horizontal: { h: false, v: false }, vertical: { h: false, v: false } };
             engine.backgroundColor = null;
             engine.backgroundMode = 'image';
+            stateManager.walls = [];
         }
         stateManager.saveState();
         uiManager.updateSidebar();
@@ -316,7 +318,8 @@ document.getElementById('exportJsonBtn').addEventListener('click', async () => {
         await ApiManager.saveToHA(stateManager.activeFloor, stateManager.rooms, stateManager.shortcuts, {
             rotation_mode: engine.rotationMode, flips: engine.flips,
             background_color: engine.backgroundColor || undefined,
-            background_mode: engine.backgroundMode !== 'image' ? engine.backgroundMode : undefined
+            background_mode: engine.backgroundMode !== 'image' ? engine.backgroundMode : undefined,
+            walls: stateManager.walls.length ? stateManager.walls : undefined
         });
         btn.textContent = "✅ Saved to HA Successfully!";
     } catch (err) {

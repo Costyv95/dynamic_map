@@ -75,6 +75,36 @@
             <div id="decorItemsList" style="display: flex; flex-direction: column; gap: 3px; max-height: 220px; overflow-y: auto;"></div>
         </div>
 
+        <div class="active-room-box" id="wallUI" style="display: none; margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <h3 style="margin: 0; color: var(--accent); font-size: 16px;">🧱 Walls</h3>
+                <button id="drawWallBtn" class="primary" style="width: auto; padding: 4px 10px; font-size: 12px; margin: 0;">✏️ Draw Wall</button>
+            </div>
+            <div style="font-size: 11px; color: var(--muted, #64748b); margin: 6px 0;" id="wallHint">
+                Click a wall to select it; drag its round handles to reshape, drag the body to move.
+                While drawing: click to place corners (they snap straight — hold Shift for free angles),
+                <b>Enter</b> to finish, <b>Esc</b> to cancel.
+            </div>
+            <div id="wallProps" style="display: none;">
+                <div style="display: flex; gap: 8px; align-items: end;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 11px;">Thickness</label>
+                        <div style="display: flex; gap: 4px; align-items: center;">
+                            <button id="wallThinnerBtn" style="width: 30px; height: 30px; padding: 0; margin: 0;">−</button>
+                            <input type="number" id="wallThickness" min="1" max="60" step="1" style="flex: 1; padding: 5px; text-align: center;">
+                            <button id="wallThickerBtn" style="width: 30px; height: 30px; padding: 0; margin: 0;">+</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size: 11px;">Color</label>
+                        <input type="color" id="wallColor" value="#0f172a" style="width: 44px; height: 30px; padding: 0; border: 1px solid var(--input-border); border-radius: 6px; cursor: pointer; display: block;">
+                    </div>
+                    <button id="deleteWallBtn" class="danger" style="width: auto; padding: 6px 10px; margin: 0; height: 30px;">🗑️</button>
+                </div>
+            </div>
+            <div id="wallsList" style="display: flex; flex-direction: column; gap: 3px; max-height: 160px; overflow-y: auto; margin-top: 8px;"></div>
+        </div>
+
         <div class="active-room-box" id="shortcutUI" style="display: none; margin-top: 10px;">
             <h3 style="margin-top:0; color: var(--accent); font-size: 16px;">Shortcut Config</h3>
             <label>Name</label>
@@ -383,6 +413,7 @@
             <div class="layer-switcher" style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">
                 <div id="layerObjectsBtn" class="floor-btn active" style="cursor: pointer;" title="Edit interactive shortcuts (badges). Decor is dimmed and not clickable.">📍 Objects</div>
                 <div id="layerDecorBtn" class="floor-btn" style="cursor: pointer;" title="Edit decor scenery (furniture, plants). Shortcuts are dimmed and not clickable.">🪴 Decor</div>
+                <div id="layerWallsBtn" class="floor-btn" style="cursor: pointer;" title="Draw and edit walls: polylines with thickness. Other layers are dimmed and not clickable.">🧱 Walls</div>
             </div>
             <!-- Orientation Preview Switcher -->
             <div class="orientation-switcher" style="border: 1px solid var(--input-border); border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);">

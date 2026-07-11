@@ -17,11 +17,16 @@ export class EditorStateManager {
         this.shortcuts = [];
         this.selectedShortcutIdx = -1;
         this.isEditMode = false;
-        // Which layer is being edited: 'objects' (interactive shortcuts) or
-        // 'decor' (scenery, config.decor). Hit-testing only selects items on
-        // the active layer, so furniture never steals clicks from badges and
-        // vice versa.
+        // Which layer is being edited: 'objects' (interactive shortcuts),
+        // 'decor' (scenery, config.decor) or 'walls'. Hit-testing only
+        // selects items on the active layer, so furniture never steals
+        // clicks from badges and vice versa.
         this.activeLayer = 'objects';
+        // Walls: polylines with thickness, persisted in config_floorN.json.
+        this.walls = [];
+        this.selectedWallIdx = -1;
+        this.drawingWall = null;   // in-progress points while the wall tool is armed
+        this.wallCursor = null;    // live map-px cursor for the drawing preview
         
         // Split/Edit states
         this.isSplitting = false;
@@ -40,7 +45,7 @@ export class EditorStateManager {
     }
 
     saveState() {
-        this.historyManager.saveState(this.rooms, this.shortcuts);
+        this.historyManager.saveState(this.rooms, this.shortcuts, this.walls);
     }
 
     undo() {
@@ -48,7 +53,9 @@ export class EditorStateManager {
         if (state) {
             this.rooms = state.rooms;
             this.shortcuts = state.shortcuts;
+            this.walls = state.walls || [];
             this.selectedRooms = [];
+            this.selectedWallIdx = -1;
             if(this.updateUICallback) this.updateUICallback();
             if(this.requestDrawCallback) this.requestDrawCallback();
         }
@@ -59,7 +66,9 @@ export class EditorStateManager {
         if (state) {
             this.rooms = state.rooms;
             this.shortcuts = state.shortcuts;
+            this.walls = state.walls || [];
             this.selectedRooms = [];
+            this.selectedWallIdx = -1;
             if(this.updateUICallback) this.updateUICallback();
             if(this.requestDrawCallback) this.requestDrawCallback();
         }
@@ -110,6 +119,8 @@ export class EditorStateManager {
         if (this.activeLayer === layer) return;
         this.activeLayer = layer;
         this.selectedShortcutIdx = -1;
+        this.selectedWallIdx = -1;
+        this.drawingWall = null;
         if (this.updateUICallback) this.updateUICallback();
         if (this.requestDrawCallback) this.requestDrawCallback();
     }
