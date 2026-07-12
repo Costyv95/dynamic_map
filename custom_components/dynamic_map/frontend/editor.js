@@ -31,19 +31,12 @@ window.togglePreviewState = function(idx) {
 
 // Expose state for UI/draw
 function draw() {
+    // Forward the whole state object so new fields (walls, activeLayer,
+    // drawingWall, wallCursor, …) reach the engine automatically — an
+    // earlier hand-picked list silently dropped the wall state and nothing
+    // rendered while drawing. Extra fields are ignored by the engine.
     engine.draw({
-        bgImage: stateManager.bgImage,
-        rooms: stateManager.rooms,
-        selectedRooms: stateManager.selectedRooms,
-        isSplitting: stateManager.isSplitting,
-        splitStart: stateManager.splitStart,
-        splitEnd: stateManager.splitEnd,
-        shortcuts: stateManager.shortcuts,
-        selectedShortcutIdx: stateManager.selectedShortcutIdx,
-        previewStateIdx: stateManager.previewStateIdx,
-        isTransitioning: stateManager.isTransitioning,
-        isEditMode: stateManager.isEditMode,
-        drawingPolygon: stateManager.drawingPolygon,
+        ...stateManager,
         requestDraw: () => draw()
     });
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
