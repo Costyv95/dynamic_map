@@ -175,3 +175,30 @@ This document sequentially records the major technical and architectural decisio
     - **Benefits:** Restores clean, intuitive control over inner child assets, ensuring they match parent bounds out-of-the-box. Empowers users with precise manual overrides. Simplifies state-specific visual creation.
     - **Trade-offs:** None. All 89 unit tests pass perfectly.
 
+
+---
+
+> **Note:** ADRs 001–011 were written in May 2026 and the log then lapsed for a
+> month of feature work (decor layer, room tap actions, floor auto-discovery,
+> dark mode, object duplication). Numbering resumes at 012 — the gap is a
+> documentation gap, not a numbering error.
+
+---
+
+## 012 Walls Layer, Whole-State Canvas Forwarding, and the Delete Key
+*   **Date:** 2026-07-12
+*   **Status:** Accepted
+*   **Context:**
+    - Floors built in Builder Mode (no DXF/SVG source) had no way to show architecture: rooms are filled polygons, and there was no primitive for a wall. Users wanted to draw walls by hand.
+    - The editor had no keyboard delete: removing a room, object or wall meant finding the right sidebar 🗑️ button, and each object type had its own removal path.
+    - After the walls layer shipped, **nothing rendered while drawing** — no corner dots, no rubber-band preview, no committed walls. The feature was verified against a headless harness that called `CanvasEngine.draw()` with a hand-built state object, which exercised the engine but bypassed the editor's real render loop entirely.
+*   **Decision:**
+    - **Walls as config, not a new file:** a wall is `{id, points: [[x%,y%],…], thickness (map px, default 8), color (default #0f172a)}`, stored in a `walls` array **inside `config_floorN.json`**. Zero backend changes — the save endpoint's filename whitelist and payload validation already cover it. The card (`custom-svg-map.js buildWalls()`) strokes one path per wall (square caps, mitred joins) in a non-interactive `.dm-walls` layer above rooms and below decor, so walls are scenery and never intercept a tap.
+    - **Shared geometry:** `shared/WallGeometry.js` holds `snapWallPoint` (10° axis snapping, aspect-aware so snapping matches what the eye sees on a non-square canvas; `Shift` overrides), `distToSegment`/`distToWall`/`hitsWall` (hit-testing includes half the thickness plus slack), and the thickness/color defaults — one source of truth for the card, the canvas and the tests.
+    - **Whole-state forwarding (the bug fix):** `editor.js draw()` hand-picked which state fields it passed to `engine.draw()`, and the list was never extended with `walls`, `activeLayer`, `drawingWall`, `wallCursor` or `selectedWallIdx`. `drawWalls()` therefore read `undefined` for every one of them and drew nothing. Fixed by spreading the whole state manager (`engine.draw({...stateManager, requestDraw})`) — the engine ignores fields it does not use, and a new state field can never again be silently dropped on its way to the canvas.
+    - **One delete path:** added `EditorStateManager.deleteSelection()` — layer-aware (wall → shortcut → room), index-safe for multi-room deletes (splices in descending order), undoable, returns whether anything was removed. `EditorInteractionManager.onKeyDown` binds `Delete`/`Backspace` to it, guarded so it never fires while the user is typing in an `input`/`textarea`/`select`/contenteditable. The sidebar 🗑️ buttons and the keyboard are now the same code path.
+    - **Discoverability:** switching to the Walls layer on a floor with no walls arms the draw tool immediately, so the first map click starts the first wall, and the empty-state text spells out the ✏️ → click → `Enter` sequence.
+*   **Consequences:**
+    - **Benefits:** Builder-Mode floors can carry real architecture without a DXF. Walls cost no backend surface and no new data file. Deleting works the way every other canvas app works.
+    - **Trade-offs:** None functionally. The lesson is a process one, and it is the reason this ADR exists: **a headless harness that constructs its own state object verifies the component, not the wiring.** The walls code was correct and fully unit-tested while the feature was 100% broken in the browser, because the one line that connects them was never exercised. Verify through the real entry point.
+    - 293 frontend tests (26 files) green; 52 backend tests green.
