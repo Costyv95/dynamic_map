@@ -383,6 +383,8 @@ class DynamicMapGenerateTextureView(DynamicMapView):
                 payload = {
                     "prompt": texture_gen.build_prompt(subject, tileable, style),
                     "timeout_s": 220,
+                    # self-label in the bodegai runs pane (display-only)
+                    "consumer": "dynamic_map",
                 }
                 if domain_data.get(CONF_TEXTURE_MODEL):
                     # CLI-style alias ('sonnet', 'opus') or a full model id
