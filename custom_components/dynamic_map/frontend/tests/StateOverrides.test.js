@@ -498,6 +498,56 @@ describe('MapShortcut JSDOM Integration', () => {
         expect(shortcut.bgGroup.style.filter).toBe('');
     });
 
+    it('marks a sensor shortcut (no entity_id; entities in config) inaccessible when a source entity is unavailable', () => {
+        // Terrace soil sensors etc. carry their entities in config.temperature_entity
+        // / humidity_entity and have NO top-level entity_id. They must still show as
+        // inaccessible when the physical (battery Zigbee) sensor drops off the mesh.
+        const scData = {
+            id: 'sensor_shortcut_no_entity_id',
+            type: 'sensor',
+            position: [50, 50],
+            config: {
+                icon: '🍅',
+                transparent: true,
+                temperature_entity: 'sensor.sensor_tomato_1_temperature',
+                humidity_entity: 'sensor.sensor_tomato_1_soil_moisture'
+            }
+        };
+
+        const svgNS = 'http://www.w3.org/2000/svg';
+        const mapContext = { _hass: {}, imgW: 1000, imgH: 1000 };
+        const shortcut = new MapShortcut(scData, svgNS, 1000, 1000, mapContext);
+
+        // Device offline -> both metrics unavailable -> struck through.
+        shortcut.updateState({
+            states: {
+                'sensor.sensor_tomato_1_temperature': { state: 'unavailable' },
+                'sensor.sensor_tomato_1_soil_moisture': { state: 'unavailable' }
+            }
+        });
+        expect(shortcut.bgGroup.style.filter).toBe('grayscale(100%) opacity(45%)');
+        expect(shortcut.unavailableLine.style.display).toBe('block');
+
+        // Even one metric dropping (shared radio) flags the device inaccessible.
+        shortcut.updateState({
+            states: {
+                'sensor.sensor_tomato_1_temperature': { state: '24.1' },
+                'sensor.sensor_tomato_1_soil_moisture': { state: 'unavailable' }
+            }
+        });
+        expect(shortcut.unavailableLine.style.display).toBe('block');
+
+        // Healthy device -> no strike-through.
+        shortcut.updateState({
+            states: {
+                'sensor.sensor_tomato_1_temperature': { state: '24.1' },
+                'sensor.sensor_tomato_1_soil_moisture': { state: '31.4' }
+            }
+        });
+        expect(shortcut.bgGroup.style.filter).toBe('');
+        expect(shortcut.unavailableLine.style.display).toBe('none');
+    });
+
     it('should respect custom content offset, scaling and rotation on contentGroup transform', () => {
         const scData = {
             id: 'lamp_shortcut_custom_content',
