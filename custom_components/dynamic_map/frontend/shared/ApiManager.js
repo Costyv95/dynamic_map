@@ -2,24 +2,83 @@ const DEBUG = false;
 const log = (...args) => { if (DEBUG) console.log('[ApiManager]', ...args); };
 
 /**
- * The editor runs in an iframe panel without a `hass` object, so it cannot use
- * hass.callApi. The HA frontend keeps its auth tokens in localStorage on the
- * same origin; we reuse them so the backend views can require authentication.
+ * The editor runs in an iframe panel without its own `hass` object, so it
+ * cannot use hass.callApi directly. It IS same-origin with the parent HA
+ * frontend, though, so the most reliable token source is the parent app's
+ * live `hass.auth` object — the frontend keeps that access token refreshed
+ * for us, and we can force a refresh if it has expired.
+ *
+ * We fall back to the persisted `hassTokens` blob, checking BOTH localStorage
+ * (written when the user ticks "Keep me logged in") and sessionStorage
+ * (used otherwise), so a save still authenticates in either login mode.
  */
-function authHeaders() {
+async function getAccessToken() {
+    // 1. Live, auto-refreshed token from the parent HA app (best source).
     try {
-        const tokens = JSON.parse(localStorage.getItem('hassTokens'));
-        if (tokens && tokens.access_token) {
-            return { 'Authorization': `Bearer ${tokens.access_token}` };
+        const ha = window.parent
+            && window.parent.document
+            && window.parent.document.querySelector('home-assistant');
+        const auth = ha && ha.hass && ha.hass.auth;
+        if (auth && auth.accessToken) {
+            if (auth.expired && typeof auth.refreshAccessToken === 'function') {
+                await auth.refreshAccessToken();
+            }
+            return auth.accessToken;
         }
-    } catch (e) { /* no stored tokens — request goes out unauthenticated */ }
-    return {};
+    } catch (e) { /* no parent hass (standalone/cross-origin) — use storage */ }
+
+    // 2. Persisted tokens — try both storages; refresh if expired via refresh_token.
+    for (const store of [localStorage, sessionStorage]) {
+        try {
+            const tokens = JSON.parse(store.getItem('hassTokens'));
+            if (!tokens || !tokens.access_token) continue;
+            const stillValid = !tokens.expires || tokens.expires - 30000 > Date.now();
+            if (stillValid) return tokens.access_token;
+            const refreshed = await refreshStoredToken(store, tokens);
+            if (refreshed) return refreshed;
+            return tokens.access_token; // last resort: send it and let the server decide
+        } catch (e) { /* malformed entry — try the next store */ }
+    }
+    return null;
+}
+
+/** Exchange a stored refresh_token for a fresh access_token and persist it. */
+async function refreshStoredToken(store, tokens) {
+    if (!tokens.refresh_token) return null;
+    try {
+        const res = await fetch('/auth/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: tokens.refresh_token,
+                client_id: `${location.protocol}//${location.host}/`,
+            }),
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (!data.access_token) return null;
+        const updated = {
+            ...tokens,
+            access_token: data.access_token,
+            expires: Date.now() + (data.expires_in || 1800) * 1000,
+        };
+        store.setItem('hassTokens', JSON.stringify(updated));
+        return data.access_token;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function authHeaders() {
+    const token = await getAccessToken();
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
 async function apiFetch(path, options = {}) {
     const res = await fetch(path, {
         ...options,
-        headers: { ...(options.headers || {}), ...authHeaders() },
+        headers: { ...(options.headers || {}), ...(await authHeaders()) },
     });
     if (res.status === 401) {
         throw new Error('Not authenticated. Log in to Home Assistant with "Keep me logged in", then reload the editor.');
