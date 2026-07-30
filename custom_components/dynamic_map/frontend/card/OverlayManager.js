@@ -342,6 +342,15 @@ export class OverlayManager {
                             if (x >= 1) slider.value = x - 1;
                             else slider.value = 1 - (1 / x);
                         }
+                    } else if (target.startsWith('climate.')) {
+                        // Climate target-temperature slider: read the entity's own bounds.
+                        const attrs = mapContext._hass.states[target].attributes;
+                        if (attrs.min_temp !== undefined) sMin = attrs.min_temp;
+                        if (attrs.max_temp !== undefined) sMax = attrs.max_temp;
+                        if (attrs.target_temp_step !== undefined) sStep = attrs.target_temp_step;
+                        if (attrs.temperature !== undefined && attrs.temperature !== null) {
+                            slider.value = parseFloat(attrs.temperature);
+                        }
                     } else if (mapContext._hass.states[target].attributes.brightness) {
                         slider.value = Math.round((mapContext._hass.states[target].attributes.brightness / 255) * 100);
                     } else {
@@ -377,6 +386,11 @@ export class OverlayManager {
                         mapContext._hass.callService(domain, 'set_value', {
                             entity_id: target,
                             value: finalVal
+                        });
+                    } else if (domain === 'climate') {
+                        mapContext._hass.callService('climate', 'set_temperature', {
+                            entity_id: target,
+                            temperature: parseFloat(e.target.value)
                         });
                     } else {
                         mapContext._hass.callService(domain, 'turn_on', {
