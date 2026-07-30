@@ -27,6 +27,8 @@ export function renderActionsAndStates(sc, onStateChange) {
         if (typeText === 'ROOM_SELECTOR') typeText = 'Select Rooms';
         if (typeText === 'SENSOR_OVERLAY') typeText = 'Sensor Dials Overlay';
         if (typeText === 'COLOR_PICKER') typeText = 'Color Honeycomb';
+        if (typeText === 'VALUE_SLIDER') typeText = 'Value Slider';
+        if (typeText === 'INFO_DISPLAY') typeText = 'Info Display';
 
         const triggerText = (act.trigger === 'long_press' || act.trigger === 'overlay') ? 'Long Press' : 'Tap';
         const title = act.name || `${triggerText} - ${typeText}`;
@@ -63,6 +65,8 @@ export function renderActionsAndStates(sc, onStateChange) {
                         <option value="TOGGLE_OFF" ${act.type === 'TOGGLE_OFF' ? 'selected' : ''}>Turn Off (Disable)</option>
                         <option value="CALL_SERVICE" ${act.type === 'CALL_SERVICE' ? 'selected' : ''}>Call Service</option>
                         <option value="SLIDER" ${act.type === 'SLIDER' ? 'selected' : ''}>Slider (Brightness)</option>
+                        <option value="VALUE_SLIDER" ${act.type === 'VALUE_SLIDER' ? 'selected' : ''}>Value Slider (live readout)</option>
+                        <option value="INFO_DISPLAY" ${act.type === 'INFO_DISPLAY' ? 'selected' : ''}>Info Display (read-only)</option>
                         <option value="ROOM_SELECTOR" ${act.type === 'ROOM_SELECTOR' ? 'selected' : ''}>Select Rooms on Map</option>
                         <option value="SENSOR_OVERLAY" ${act.type === 'SENSOR_OVERLAY' ? 'selected' : ''}>Sensor Dials Overlay</option>
                         <option value="COLOR_PICKER" ${act.type === 'COLOR_PICKER' ? 'selected' : ''}>Color Honeycomb (Light)</option>
@@ -83,6 +87,13 @@ export function renderActionsAndStates(sc, onStateChange) {
                     <div style="display: flex; gap: 5px; margin-top: 5px; align-items: center;">
                         <input type="checkbox" class="act-symmetric" ${act.symmetric_scale ? 'checked' : ''}>
                         <label style="font-size: 12px; color: #ccc;">Symmetric Scale (e.g. 1/5x to 5x)</label>
+                    </div>
+                ` : ''}
+                ${(act.type === 'INFO_DISPLAY' || act.type === 'VALUE_SLIDER') ? `
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        ${act.type === 'INFO_DISPLAY' ? `<input type="text" class="act-attribute" value="${act.attribute || ''}" placeholder="Attribute (blank = state)" style="flex: 2; padding: 4px;">` : ''}
+                        <input type="text" class="act-unit" value="${act.unit !== undefined ? act.unit : ''}" placeholder="Unit (e.g. °C)" style="flex: 1; padding: 4px; text-align: center;">
+                        <input type="number" class="act-decimals" value="${act.decimals !== undefined ? act.decimals : ''}" placeholder="Decimals" style="flex: 1; padding: 4px; text-align: center;">
                     </div>
                 ` : ''}
             </div>
@@ -127,6 +138,14 @@ export function renderActionsAndStates(sc, onStateChange) {
                 if (act.type === 'SLIDER') {
                     const symm = div.querySelector('.act-symmetric');
                     if (symm) act.symmetric_scale = symm.checked;
+                }
+                if (act.type === 'INFO_DISPLAY' || act.type === 'VALUE_SLIDER') {
+                    const attrEl = div.querySelector('.act-attribute');
+                    if (attrEl) act.attribute = attrEl.value || undefined;
+                    const unitEl = div.querySelector('.act-unit');
+                    if (unitEl) act.unit = unitEl.value !== '' ? unitEl.value : undefined;
+                    const decEl = div.querySelector('.act-decimals');
+                    if (decEl) act.decimals = decEl.value !== '' ? parseInt(decEl.value) : undefined;
                 }
             };
             el.addEventListener('input', () => {
@@ -658,10 +677,31 @@ export function openMenuEditor(sc, onStateChange) {
             `;
             el.style.background = 'transparent';
             el.style.border = 'none';
+        } else if (act.type === 'VALUE_SLIDER') {
+            el.innerHTML = `
+                <div style="pointer-events:none; display:flex; flex-direction:column; justify-content:center; width:100%; height:100%; padding:0 5px; gap:2px;">
+                    <div style="display:flex; justify-content:space-between; align-items:baseline;">
+                        <span style="white-space:nowrap; font-size:12px; font-weight:bold;">${iconHtml}${label}</span>
+                        <span style="font-size:13px; font-weight:700; color:#7dd3fc;">${act.unit ? '00 ' + act.unit : '00'}</span>
+                    </div>
+                    <input type="range" value="50" style="width:100%; margin:0;">
+                </div>
+            `;
+            el.style.background = 'transparent';
+            el.style.border = '1px dashed rgba(125,211,252,0.5)';
+        } else if (act.type === 'INFO_DISPLAY') {
+            el.innerHTML = `
+                <div style="pointer-events:none; display:flex; flex-direction:column; justify-content:center; width:100%; height:100%; padding:4px 8px; gap:2px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); border-radius:8px; box-sizing:border-box;">
+                    <span style="font-size:10px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; color:#94a3b8;">${label}</span>
+                    <span style="font-size:16px; font-weight:700; color:#fff;">${iconHtml}00${act.unit ? ' ' + act.unit : ''}</span>
+                </div>
+            `;
+            el.style.background = 'transparent';
+            el.style.border = 'none';
         } else {
             el.innerHTML = `<span style="pointer-events:none; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${act.icon || ''} ${label}</span>`;
         }
-        
+
         el.title = "Drag to move. Drag bottom-right corner to resize. Scroll wheel to rotate.";
         
         const resizer = document.createElement('div');

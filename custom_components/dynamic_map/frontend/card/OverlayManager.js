@@ -424,6 +424,178 @@ export class OverlayManager {
                         mapContext.activeOverlay.appendChild(slider);
                     }
                 }
+            } else if (act.type === 'VALUE_SLIDER') {
+                // Like SLIDER, but renders a live numeric readout that updates
+                // as the handle is dragged (the plain SLIDER gives no feedback
+                // on the value you are setting). Generic across input_number /
+                // number / climate / light-brightness targets.
+                const container = document.createElement('div');
+                container.style.display = 'flex';
+                container.style.flexDirection = 'column';
+                container.style.gap = '4px';
+                container.style.boxSizing = 'border-box';
+
+                const domain = target.split('.')[0];
+                const st = mapContext._hass ? mapContext._hass.states[target] : null;
+                const attrs = st ? st.attributes : {};
+
+                // Resolve bounds, initial value and unit per domain.
+                let sMin = 1, sMax = 100, sStep = 1, initVal = 50, unit = '';
+                if (domain === 'climate') {
+                    if (attrs.min_temp !== undefined) sMin = attrs.min_temp;
+                    if (attrs.max_temp !== undefined) sMax = attrs.max_temp;
+                    if (attrs.target_temp_step !== undefined) sStep = attrs.target_temp_step;
+                    if (attrs.temperature !== undefined && attrs.temperature !== null) initVal = parseFloat(attrs.temperature);
+                    unit = '°C';
+                } else if (domain === 'input_number' || domain === 'number') {
+                    if (attrs.min !== undefined) sMin = attrs.min;
+                    if (attrs.max !== undefined) sMax = attrs.max;
+                    if (attrs.step !== undefined) sStep = attrs.step;
+                    if (st) initVal = parseFloat(st.state);
+                    unit = attrs.unit_of_measurement || '';
+                } else if (attrs.brightness !== undefined) {
+                    initVal = Math.round((attrs.brightness / 255) * 100);
+                    unit = '%';
+                }
+                if (act.unit !== undefined) unit = act.unit;
+                const decimals = act.decimals !== undefined
+                    ? act.decimals
+                    : (parseFloat(sStep) < 1 ? 1 : 0);
+                const fmt = (v) => `${parseFloat(v).toFixed(decimals)}${unit ? ' ' + unit : ''}`;
+
+                // Header: name on the left, live value on the right.
+                const header = document.createElement('div');
+                header.style.display = 'flex';
+                header.style.justifyContent = 'space-between';
+                header.style.alignItems = 'baseline';
+                header.style.gap = '8px';
+
+                const displayName = act.name !== undefined ? act.name : 'Value';
+                const label = document.createElement('span');
+                label.textContent = displayName;
+                label.style.fontSize = '12px';
+                label.style.fontWeight = 'bold';
+
+                const valueOut = document.createElement('span');
+                valueOut.textContent = fmt(initVal);
+                valueOut.style.fontSize = '15px';
+                valueOut.style.fontWeight = '700';
+                valueOut.style.color = '#7dd3fc';
+                valueOut.style.fontVariantNumeric = 'tabular-nums';
+
+                header.appendChild(label);
+                header.appendChild(valueOut);
+                container.appendChild(header);
+
+                const slider = document.createElement('input');
+                slider.type = 'range';
+                slider.min = sMin;
+                slider.max = sMax;
+                slider.step = sStep;
+                slider.value = initVal;
+                slider.style.width = '100%';
+                slider.style.margin = '0';
+                slider.style.accentColor = '#38bdf8';
+                container.appendChild(slider);
+
+                // Live readout while dragging; commit on release.
+                slider.addEventListener('input', (e) => {
+                    valueOut.textContent = fmt(e.target.value);
+                });
+                slider.addEventListener('change', (e) => {
+                    if (!mapContext._hass) return;
+                    const val = parseFloat(e.target.value);
+                    if (domain === 'input_number' || domain === 'number') {
+                        mapContext._hass.callService(domain, 'set_value', { entity_id: target, value: val });
+                    } else if (domain === 'climate') {
+                        mapContext._hass.callService('climate', 'set_temperature', { entity_id: target, temperature: val });
+                    } else {
+                        mapContext._hass.callService(domain, 'turn_on', { entity_id: target, brightness_pct: parseInt(val) });
+                    }
+                });
+
+                if (isVisual && act.pos_x !== undefined) {
+                    container.style.position = 'absolute';
+                    container.style.left = act.pos_x + 'px';
+                    container.style.top = act.pos_y + 'px';
+                    container.style.width = act.width + 'px';
+                    if (act.height) container.style.height = act.height + 'px';
+                    container.style.justifyContent = 'center';
+                    if (act.rotation) container.style.transform = `rotate(${act.rotation}deg)`;
+                }
+
+                mapContext.activeOverlay.appendChild(container);
+
+            } else if (act.type === 'INFO_DISPLAY') {
+                // Read-only labeled value box. Shows an entity's state, or a
+                // named attribute of it (act.attribute), with an optional unit
+                // override (act.unit) and rounding (act.decimals).
+                const st = mapContext._hass ? mapContext._hass.states[target] : null;
+                let raw = null;
+                if (st) raw = act.attribute ? st.attributes[act.attribute] : st.state;
+
+                let unit = act.unit;
+                if (unit === undefined) {
+                    unit = (st && !act.attribute) ? (st.attributes.unit_of_measurement || '') : '';
+                }
+
+                const num = parseFloat(raw);
+                let valueStr;
+                if (raw !== null && raw !== undefined && raw !== '' && !isNaN(num) && String(raw).trim() !== '') {
+                    const dec = act.decimals !== undefined ? act.decimals : (Number.isInteger(num) ? 0 : 1);
+                    valueStr = `${num.toFixed(dec)}${unit ? ' ' + unit : ''}`;
+                } else if (raw === null || raw === undefined || raw === '' || raw === 'unknown' || raw === 'unavailable') {
+                    valueStr = '--';
+                } else {
+                    valueStr = `${raw}${unit ? ' ' + unit : ''}`;
+                }
+
+                const box = document.createElement('div');
+                box.style.display = 'flex';
+                box.style.flexDirection = 'column';
+                box.style.justifyContent = 'center';
+                box.style.gap = '2px';
+                box.style.padding = '6px 10px';
+                box.style.borderRadius = '8px';
+                box.style.background = 'rgba(255,255,255,0.06)';
+                box.style.border = '1px solid rgba(255,255,255,0.12)';
+                box.style.boxSizing = 'border-box';
+
+                const displayName = act.name !== undefined ? act.name : 'Value';
+                if (displayName) {
+                    const cap = document.createElement('span');
+                    cap.textContent = displayName;
+                    cap.style.fontSize = '10px';
+                    cap.style.fontWeight = '600';
+                    cap.style.letterSpacing = '0.05em';
+                    cap.style.textTransform = 'uppercase';
+                    cap.style.color = '#94a3b8';
+                    box.appendChild(cap);
+                }
+
+                const iconHtml = act.icon
+                    ? (act.icon.includes(':')
+                        ? `<ha-icon icon="${act.icon}" style="--mdc-icon-size:18px;"></ha-icon>`
+                        : `<span style="font-size:16px;">${act.icon}</span>`)
+                    : '';
+                const val = document.createElement('div');
+                val.style.display = 'flex';
+                val.style.alignItems = 'center';
+                val.style.gap = '6px';
+                val.innerHTML = `${iconHtml}<span style="font-size:18px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;">${valueStr}</span>`;
+                box.appendChild(val);
+
+                if (isVisual && act.pos_x !== undefined) {
+                    box.style.position = 'absolute';
+                    box.style.left = act.pos_x + 'px';
+                    box.style.top = act.pos_y + 'px';
+                    box.style.width = act.width + 'px';
+                    if (act.height) box.style.height = act.height + 'px';
+                    if (act.rotation) box.style.transform = `rotate(${act.rotation}deg)`;
+                }
+
+                mapContext.activeOverlay.appendChild(box);
+
             } else if (act.type === 'COLOR_PICKER') {
                 mapContext.activeOverlay.appendChild(
                     OverlayManager.buildColorHoneycomb(mapContext, target, act)
