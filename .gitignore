@@ -16,8 +16,13 @@ __pycache__/
 env/
 
 # JavaScript / Node
-node_modules/
-custom_components/dynamic_map/frontend/node_modules/
+# NOTE: no trailing slash — a `foo/` rule matches a DIRECTORY only, so it
+# SILENTLY STOPS applying if the path becomes a symlink (the standard
+# ~/.agent-worktrees recipe symlinks node_modules), letting `git add -A` sweep
+# a mode-120000 blob into the tree and damage the shared checkout at MERGE time.
+# Bare `node_modules` matches a dir, file, OR symlink. (cortex, disc #300)
+node_modules
+custom_components/dynamic_map/frontend/node_modules
 .vitest/
 .coverage/
 
