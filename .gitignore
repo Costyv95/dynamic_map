@@ -1,8 +1,12 @@
 # Home Assistant
-.storage/
+# NOTE (#300): no trailing slash — a `foo/` rule matches a DIRECTORY only and
+# silently stops applying once the path is a symlink (worktree recipe). `.storage`
+# holds HA auth tokens/integration secrets — vault_dev's .state/pg.url analog —
+# so a symlinked `.storage` (e.g. to a live HA store) must not escape this rule.
+.storage
 *.log
 *.log.*
-ha_test/
+ha_test
 
 # Windows / OS Files
 *Zone.Identifier
@@ -10,10 +14,10 @@ Thumbs.db
 .DS_Store
 
 # Python
-__pycache__/
+__pycache__
 *.pyc
-.venv/
-env/
+.venv
+env
 
 # JavaScript / Node
 # NOTE: no trailing slash — a `foo/` rule matches a DIRECTORY only, so it
@@ -23,8 +27,8 @@ env/
 # Bare `node_modules` matches a dir, file, OR symlink. (cortex, disc #300)
 node_modules
 custom_components/dynamic_map/frontend/node_modules
-.vitest/
-.coverage/
+.vitest
+.coverage
 
 # Map Generation Debug Outputs
 debug_*.png
