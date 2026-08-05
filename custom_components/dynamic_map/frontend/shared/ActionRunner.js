@@ -6,8 +6,8 @@
  *  - shortcuts/MapShortcut.js onClick (tap-triggered actions)
  *
  * Handled action types:
- *  - TOGGLE      -> <domain>.toggle (vacuum.toggle is valid in modern HA; no
- *                   domain-specific remap needed)
+ *  - TOGGLE      -> <domain>.toggle (except media_player, which uses a
+ *                   state-aware turn_on/turn_off because it has no toggle)
  *  - TOGGLE_ON   -> <domain>.turn_on  (vacuum remapped to vacuum.start)
  *  - TOGGLE_OFF  -> <domain>.turn_off (vacuum remapped to vacuum.return_to_base)
  *  - CALL_SERVICE-> arbitrary "domain.service" with optional JSON payload
@@ -137,6 +137,16 @@ export function executeAction(hass, action, target, options = {}) {
     } else if (action.type && action.type.startsWith('TOGGLE')) {
         const domain = target.split('.')[0];
         let service = action.type === 'TOGGLE_ON' ? 'turn_on' : (action.type === 'TOGGLE_OFF' ? 'turn_off' : 'toggle');
+
+        // media_player exposes turn_on/turn_off, but not a generic toggle
+        // service. Treat an unavailable/unknown state as off so a tap still
+        // attempts to wake the device rather than issuing an invalid service.
+        if (domain === 'media_player' && service === 'toggle') {
+            const state = hass.states && hass.states[target] && hass.states[target].state;
+            service = state && state !== 'off' && state !== 'unavailable' && state !== 'unknown'
+                ? 'turn_off'
+                : 'turn_on';
+        }
 
         if (domain === 'vacuum') {
             if (service === 'turn_on') service = 'start';

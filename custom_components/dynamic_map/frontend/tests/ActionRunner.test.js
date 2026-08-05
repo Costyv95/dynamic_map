@@ -40,6 +40,30 @@ describe('ActionRunner.executeAction', () => {
         }]);
     });
 
+    it('maps media_player TOGGLE to turn_on when the player is off', () => {
+        const hass = makeHass();
+        hass.states = { 'media_player.projector': { state: 'off' } };
+        executeAction(hass, { type: 'TOGGLE' }, 'media_player.projector');
+
+        expect(hass.calls).toEqual([{
+            domain: 'media_player',
+            service: 'turn_on',
+            payload: { entity_id: 'media_player.projector' }
+        }]);
+    });
+
+    it('maps media_player TOGGLE to turn_off when the player is active', () => {
+        const hass = makeHass();
+        hass.states = { 'media_player.projector': { state: 'idle' } };
+        executeAction(hass, { type: 'TOGGLE' }, 'media_player.projector');
+
+        expect(hass.calls).toEqual([{
+            domain: 'media_player',
+            service: 'turn_off',
+            payload: { entity_id: 'media_player.projector' }
+        }]);
+    });
+
     it('executes TOGGLE_ON / TOGGLE_OFF as turn_on / turn_off', () => {
         const hass = makeHass();
         executeAction(hass, { type: 'TOGGLE_ON' }, 'light.desk_lamp');
