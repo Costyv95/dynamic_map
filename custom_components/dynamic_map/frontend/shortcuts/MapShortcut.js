@@ -1122,6 +1122,22 @@ export class MapShortcut {
                 
                 if (comp.type === 'icon') {
                     this.haIcon = el.querySelector('ha-icon');
+                    // <ha-icon> accepts MDI identifiers, not literal Unicode
+                    // artwork. Keep the legacy foreignObject/haIcon reference
+                    // for styling, but add real SVG text for values such as
+                    // "📺" and "📽️" so the card can render them.
+                    if (typeof comp.value === 'string' && !comp.value.includes(':')) {
+                        const unicodeText = document.createElementNS(this.svgNS, 'text');
+                        unicodeText.setAttribute('x', comp.x || 0);
+                        unicodeText.setAttribute('y', comp.y || 0);
+                        unicodeText.setAttribute('text-anchor', 'middle');
+                        unicodeText.setAttribute('dominant-baseline', 'central');
+                        unicodeText.setAttribute('font-size', comp.size || 18);
+                        unicodeText.style.pointerEvents = 'none';
+                        unicodeText.textContent = comp.value;
+                        this.unicodeIconText = unicodeText;
+                        this.contentGroup.appendChild(unicodeText);
+                    }
                     // Setup JSDOM compatible attributes
                     let fillColor = comp.color || 'white';
                     if (fillColor === '#ffffff') fillColor = 'white';
@@ -1215,7 +1231,7 @@ export class MapShortcut {
             this.iconText.textContent = fallbackIcon;
             this.contentGroup.appendChild(this.iconText);
         } else {
-            if (this.iconText && this.iconText.id !== 'sensor_value') {
+            if (this.iconText && this.iconText.id !== 'sensor_value' && !this.haIcon) {
                 this.iconText.textContent = '';
             }
         }
@@ -1361,4 +1377,3 @@ export class MapShortcut {
         return this.group;
     }
 }
-
