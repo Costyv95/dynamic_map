@@ -1,18 +1,18 @@
-import { renderCircle } from './components/renderCircle.js?v=3.2.0';
-import { renderRect } from './components/renderRect.js?v=3.2.0';
-import { renderPill } from './components/renderPill.js?v=3.2.0';
-import { renderIcon } from './components/renderIcon.js?v=3.2.0';
-import { renderImage } from './components/renderImage.js?v=3.2.0';
-import { renderText } from './components/renderText.js?v=3.2.0';
-import { renderGauge } from './components/renderGauge.js?v=3.2.0';
-import { renderLinearBar } from './components/renderLinearBar.js?v=3.2.0';
-import { renderBadge } from './components/renderBadge.js?v=3.2.0';
-import { renderCurvedGauge } from './components/renderCurvedGauge.js?v=3.2.0';
-import { renderLinePath } from './components/renderLinePath.js?v=3.2.0';
-import { renderSelector } from './components/renderSelector.js?v=3.2.0';
-import { renderAlarmClock } from './components/renderAlarmClock.js?v=3.2.0';
-import { renderCalendarCard } from './components/renderCalendarCard.js?v=3.2.0';
-import { renderTimeline } from './components/renderTimeline.js?v=3.2.0';
+import { renderCircle } from './components/renderCircle.js?v=3.2.1';
+import { renderRect } from './components/renderRect.js?v=3.2.1';
+import { renderPill } from './components/renderPill.js?v=3.2.1';
+import { renderIcon } from './components/renderIcon.js?v=3.2.1';
+import { renderImage } from './components/renderImage.js?v=3.2.1';
+import { renderText } from './components/renderText.js?v=3.2.1';
+import { renderGauge } from './components/renderGauge.js?v=3.2.1';
+import { renderLinearBar } from './components/renderLinearBar.js?v=3.2.1';
+import { renderBadge } from './components/renderBadge.js?v=3.2.1';
+import { renderCurvedGauge } from './components/renderCurvedGauge.js?v=3.2.1';
+import { renderLinePath } from './components/renderLinePath.js?v=3.2.1';
+import { renderSelector } from './components/renderSelector.js?v=3.2.1';
+import { renderAlarmClock } from './components/renderAlarmClock.js?v=3.2.1';
+import { renderCalendarCard } from './components/renderCalendarCard.js?v=3.2.1';
+import { renderTimeline } from './components/renderTimeline.js?v=3.2.1';
 
 export const ComponentRegistry = {
     circle: renderCircle,

@@ -88,3 +88,73 @@ describe('ApiManager', () => {
         });
     });
 });
+
+/**
+ * Token sourcing. The Companion apps (iOS/Android) authenticate the frontend
+ * through the external-auth bridge, so they never write a `hassTokens` blob —
+ * `window.parent.hassConnection` is the only source that can work there.
+ */
+describe('ApiManager auth token sourcing', () => {
+    let authHeaderSeen;
+
+    beforeEach(() => {
+        authHeaderSeen = undefined;
+        global.fetch = vi.fn((url, opts) => {
+            authHeaderSeen = (opts && opts.headers && opts.headers.Authorization) || null;
+            return Promise.resolve({
+                ok: true,
+                status: 200,
+                json: () => Promise.resolve({ success: true, attributes: {} }),
+            });
+        });
+        localStorage.clear();
+        sessionStorage.clear();
+    });
+
+    afterEach(() => {
+        delete window.parent.hassConnection;
+        vi.restoreAllMocks();
+    });
+
+    it('uses the parent hass auth object when present', async () => {
+        window.parent.hassConnection = Promise.resolve({
+            auth: { accessToken: 'tok-connection', expired: false },
+        });
+
+        await ApiManager.fetchState('light.x');
+
+        expect(authHeaderSeen).toBe('Bearer tok-connection');
+    });
+
+    it('refreshes an expired token before sending it', async () => {
+        const refreshAccessToken = vi.fn(function () {
+            this.accessToken = 'tok-fresh';
+            this.expired = false;
+        });
+        window.parent.hassConnection = Promise.resolve({
+            auth: { accessToken: 'tok-stale', expired: true, refreshAccessToken },
+        });
+
+        await ApiManager.fetchState('light.x');
+
+        expect(refreshAccessToken).toHaveBeenCalled();
+        expect(authHeaderSeen).toBe('Bearer tok-fresh');
+    });
+
+    it('falls back to stored tokens when no parent auth exists', async () => {
+        localStorage.setItem('hassTokens', JSON.stringify({
+            access_token: 'tok-stored',
+            expires: Date.now() + 600000,
+        }));
+
+        await ApiManager.fetchState('light.x');
+
+        expect(authHeaderSeen).toBe('Bearer tok-stored');
+    });
+
+    it('sends no Authorization header when no source has a token', async () => {
+        await ApiManager.fetchState('light.x');
+
+        expect(authHeaderSeen).toBeFalsy();
+    });
+});

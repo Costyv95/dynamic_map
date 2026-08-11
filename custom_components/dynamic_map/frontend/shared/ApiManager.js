@@ -11,27 +11,53 @@ const log = (...args) => { if (DEBUG) console.log('[ApiManager]', ...args); };
  * We fall back to the persisted `hassTokens` blob, checking BOTH localStorage
  * (written when the user ticks "Keep me logged in") and sessionStorage
  * (used otherwise), so a save still authenticates in either login mode.
+ *
+ * On the iOS/Android Companion apps none of the storage fallbacks can work:
+ * those apps authenticate the frontend through the *external auth* bridge, so
+ * no `hassTokens` blob is ever written. The only usable source there is the
+ * parent app's live auth object, which we reach via `window.parent.
+ * hassConnection` — a promise the HA frontend always publishes on its window,
+ * independent of the DOM. That is why it is tried before the storage paths.
  */
+
+/** Which source produced the last token — surfaced in the 401 message. */
+let lastTokenSource = 'none';
+
+/** Read a token out of an HA `auth` object, refreshing it if it has expired. */
+async function tokenFromAuth(auth) {
+    if (!auth || !auth.accessToken) return null;
+    if (auth.expired && typeof auth.refreshAccessToken === 'function') {
+        await auth.refreshAccessToken();
+    }
+    return auth.accessToken || null;
+}
+
 async function getAccessToken() {
     // 1. Live, auto-refreshed token from the parent HA app (best source).
     try {
         const ha = window.parent
             && window.parent.document
             && window.parent.document.querySelector('home-assistant');
-        const auth = ha && ha.hass && ha.hass.auth;
-        if (auth && auth.accessToken) {
-            if (auth.expired && typeof auth.refreshAccessToken === 'function') {
-                await auth.refreshAccessToken();
-            }
-            return auth.accessToken;
-        }
-    } catch (e) { /* no parent hass (standalone/cross-origin) — use storage */ }
+        const token = await tokenFromAuth(ha && ha.hass && ha.hass.auth);
+        if (token) { lastTokenSource = 'parent-hass'; return token; }
+    } catch (e) { /* no parent hass (standalone/cross-origin) — try the next source */ }
 
-    // 2. Persisted tokens — try both storages; refresh if expired via refresh_token.
+    // 2. The parent frontend's connection promise. DOM-independent, and the ONLY
+    //    source that works in the Companion apps (external auth writes no tokens).
+    try {
+        if (window.parent && window.parent.hassConnection) {
+            const { auth } = await window.parent.hassConnection;
+            const token = await tokenFromAuth(auth);
+            if (token) { lastTokenSource = 'parent-hassConnection'; return token; }
+        }
+    } catch (e) { /* not exposed / cross-origin — fall through to storage */ }
+
+    // 3. Persisted tokens — try both storages; refresh if expired via refresh_token.
     for (const store of [localStorage, sessionStorage]) {
         try {
             const tokens = JSON.parse(store.getItem('hassTokens'));
             if (!tokens || !tokens.access_token) continue;
+            lastTokenSource = 'stored-tokens';
             const stillValid = !tokens.expires || tokens.expires - 30000 > Date.now();
             if (stillValid) return tokens.access_token;
             const refreshed = await refreshStoredToken(store, tokens);
@@ -39,6 +65,7 @@ async function getAccessToken() {
             return tokens.access_token; // last resort: send it and let the server decide
         } catch (e) { /* malformed entry — try the next store */ }
     }
+    lastTokenSource = 'none';
     return null;
 }
 
@@ -81,7 +108,18 @@ async function apiFetch(path, options = {}) {
         headers: { ...(options.headers || {}), ...(await authHeaders()) },
     });
     if (res.status === 401) {
-        throw new Error('Not authenticated. Log in to Home Assistant with "Keep me logged in", then reload the editor.');
+        throw new Error(
+            lastTokenSource === 'none'
+                // No source produced a token at all — the editor never saw the
+                // parent app's auth. Naming this separately matters: in the
+                // Companion apps it is the ONLY possible shape of failure.
+                ? 'Not authenticated: no Home Assistant token available to the editor '
+                  + '(token source: none). Reopen the Map Editor from the HA sidebar; '
+                  + 'in a browser, log in with "Keep me logged in".'
+                // A token WAS sent and the server still rejected it.
+                : `Not authenticated: Home Assistant rejected the token (source: ${lastTokenSource}). `
+                  + 'Reload the editor; if it persists, log out and back in.'
+        );
     }
     return res;
 }

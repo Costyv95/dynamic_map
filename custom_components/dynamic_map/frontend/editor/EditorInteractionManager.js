@@ -1,7 +1,7 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.0';
-import { CanvasEngine } from './CanvasEngine.js?v=3.2.0';
-import { resolvePreviewTarget, getPosition, setPosition, getScale, setScale, getRotation, setRotation } from '../shared/OrientationProps.js?v=3.2.0';
-import { snapWallPoint, hitsWall } from '../shared/WallGeometry.js?v=3.2.0';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
+import { CanvasEngine } from './CanvasEngine.js?v=3.2.1';
+import { resolvePreviewTarget, getPosition, setPosition, getScale, setScale, getRotation, setRotation } from '../shared/OrientationProps.js?v=3.2.1';
+import { snapWallPoint, hitsWall } from '../shared/WallGeometry.js?v=3.2.1';
 
 /**
  * Screen-space resize cursor for a handle at local direction (lx, ly),

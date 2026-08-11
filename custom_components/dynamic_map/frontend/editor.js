@@ -1,8 +1,8 @@
-import { ApiManager } from './shared/ApiManager.js?v=3.2.0';
-import { CanvasEngine } from './editor/CanvasEngine.js?v=3.2.0';
-import { EditorStateManager } from './editor/EditorStateManager.js?v=3.2.0';
-import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.2.0';
-import { EditorUIManager } from './editor/EditorUIManager.js?v=3.2.0';
+import { ApiManager } from './shared/ApiManager.js?v=3.2.1';
+import { CanvasEngine } from './editor/CanvasEngine.js?v=3.2.1';
+import { EditorStateManager } from './editor/EditorStateManager.js?v=3.2.1';
+import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.2.1';
+import { EditorUIManager } from './editor/EditorUIManager.js?v=3.2.1';
 
 console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.1.0)');
 
