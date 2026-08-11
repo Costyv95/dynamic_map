@@ -345,10 +345,33 @@ export class MapShortcut {
         
         this.renderComponents(activeLayout, hass);
         
-        // Availability formatting
-        const availEntity = this.config.availability_entity || this.sc.entity_id;
-        const isUnavailable = hass && hass.states && hass.states[availEntity] && 
-            (hass.states[availEntity].state === 'unavailable' || hass.states[availEntity].state === 'unknown');
+        // Availability formatting.
+        // An explicit availability_entity (or a top-level entity_id) always wins.
+        // Otherwise fall back to whatever source entities the shortcut actually
+        // reads from - sensor / component shortcuts keep them in `config`
+        // (temperature_entity, humidity_entity, state_entity, ...), so without
+        // this fallback those devices could never render as inaccessible.
+        let availEntities;
+        if (this.config.availability_entity) {
+            availEntities = [this.config.availability_entity];
+        } else if (this.sc.entity_id) {
+            availEntities = [this.sc.entity_id];
+        } else {
+            availEntities = [
+                this.config.entity,
+                this.config.state_entity,
+                this.config.display_entity,
+                this.config.temperature_entity,
+                this.config.humidity_entity,
+            ].filter(Boolean);
+        }
+        // Device is "inaccessible" if any of its source entities reports
+        // unavailable/unknown (a multi-metric sensor shares one radio, so any
+        // metric dropping means the physical device is gone).
+        const isUnavailable = !!(hass && hass.states) && availEntities.some((e) => {
+            const s = hass.states[e];
+            return !!s && (s.state === 'unavailable' || s.state === 'unknown');
+        });
             
         if (isUnavailable) {
             const expectedFilter = 'grayscale(100%) opacity(45%)';
