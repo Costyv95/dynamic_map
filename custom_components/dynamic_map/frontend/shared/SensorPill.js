@@ -1,4 +1,4 @@
-import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.2.0';
+import { evaluateTemplate } from '../shortcuts/TemplateEvaluator.js?v=3.2.1';
 
 /**
  * Rough per-character width factors (in em) for bold Roboto-ish text.

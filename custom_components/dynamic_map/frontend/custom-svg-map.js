@@ -1,8 +1,8 @@
-import { ShortcutFactory } from './shortcuts/ShortcutFactory.js?v=3.2.0';
-import { CameraManager } from './card/CameraManager.js?v=3.2.0';
-import { MapGeometry } from './shared/MapGeometry.js?v=3.2.0';
-import { OverlayManager } from './card/OverlayManager.js?v=3.2.0';
-import { MapBuilder } from './card/MapBuilder.js?v=3.2.0';
+import { ShortcutFactory } from './shortcuts/ShortcutFactory.js?v=3.2.1';
+import { CameraManager } from './card/CameraManager.js?v=3.2.1';
+import { MapGeometry } from './shared/MapGeometry.js?v=3.2.1';
+import { OverlayManager } from './card/OverlayManager.js?v=3.2.1';
+import { MapBuilder } from './card/MapBuilder.js?v=3.2.1';
 
 const ZOOM_ANIMATION_MS = 320;
 

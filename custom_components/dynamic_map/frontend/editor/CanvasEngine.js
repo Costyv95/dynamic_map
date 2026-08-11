@@ -1,7 +1,7 @@
-import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.0';
-import { resolveOriented, getPosition } from '../shared/OrientationProps.js?v=3.2.0';
-import { computeSensorPill } from '../shared/SensorPill.js?v=3.2.0';
-import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeometry.js?v=3.2.0';
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
+import { resolveOriented, getPosition } from '../shared/OrientationProps.js?v=3.2.1';
+import { computeSensorPill } from '../shared/SensorPill.js?v=3.2.1';
+import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeometry.js?v=3.2.1';
 
 export class CanvasEngine {
     constructor(canvas, ctx) {

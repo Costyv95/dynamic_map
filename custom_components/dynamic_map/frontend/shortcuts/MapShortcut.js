@@ -1,9 +1,9 @@
-import { ComponentRegistry } from './ComponentRegistry.js?v=3.2.0';
-import { evaluateCondition } from './ConditionEvaluator.js?v=3.2.0';
-import { evaluateTemplate } from './TemplateEvaluator.js?v=3.2.0';
-import { isOrientationObject, resolveOriented, resolveOrientedLoose, resolveOrientedStrict } from '../shared/OrientationProps.js?v=3.2.0';
-import { executeAction } from '../shared/ActionRunner.js?v=3.2.0';
-import { computeSensorPill } from '../shared/SensorPill.js?v=3.2.0';
+import { ComponentRegistry } from './ComponentRegistry.js?v=3.2.1';
+import { evaluateCondition } from './ConditionEvaluator.js?v=3.2.1';
+import { evaluateTemplate } from './TemplateEvaluator.js?v=3.2.1';
+import { isOrientationObject, resolveOriented, resolveOrientedLoose, resolveOrientedStrict } from '../shared/OrientationProps.js?v=3.2.1';
+import { executeAction } from '../shared/ActionRunner.js?v=3.2.1';
+import { computeSensorPill } from '../shared/SensorPill.js?v=3.2.1';
 
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {
