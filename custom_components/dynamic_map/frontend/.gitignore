@@ -1,1 +1,7 @@
-node_modules/
+# NOTE: no trailing slash — a `foo/` rule matches a DIRECTORY only, so it
+# SILENTLY STOPS applying if the path becomes a symlink (the standard
+# ~/.agent-worktrees recipe symlinks node_modules), letting `git add -A` sweep
+# a mode-120000 blob into the tree. Bare `node_modules` matches dir/file/symlink.
+# This nested rule is NOT redundant with the root: a root pattern narrowed for
+# any reason would re-arm this subtree with no event. (cortex audit, disc #300)
+node_modules
