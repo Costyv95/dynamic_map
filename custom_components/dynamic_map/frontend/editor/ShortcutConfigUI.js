@@ -29,6 +29,7 @@ export function renderActionsAndStates(sc, onStateChange) {
         if (typeText === 'COLOR_PICKER') typeText = 'Color Honeycomb';
         if (typeText === 'VALUE_SLIDER') typeText = 'Value Slider';
         if (typeText === 'INFO_DISPLAY') typeText = 'Info Display';
+        if (typeText === 'PROGRESS_BAR') typeText = 'Progress Bar';
 
         const triggerText = (act.trigger === 'long_press' || act.trigger === 'overlay') ? 'Long Press' : 'Tap';
         const title = act.name || `${triggerText} - ${typeText}`;
@@ -67,6 +68,7 @@ export function renderActionsAndStates(sc, onStateChange) {
                         <option value="SLIDER" ${act.type === 'SLIDER' ? 'selected' : ''}>Slider (Brightness)</option>
                         <option value="VALUE_SLIDER" ${act.type === 'VALUE_SLIDER' ? 'selected' : ''}>Value Slider (live readout)</option>
                         <option value="INFO_DISPLAY" ${act.type === 'INFO_DISPLAY' ? 'selected' : ''}>Info Display (read-only)</option>
+                        <option value="PROGRESS_BAR" ${act.type === 'PROGRESS_BAR' ? 'selected' : ''}>Progress Bar</option>
                         <option value="ROOM_SELECTOR" ${act.type === 'ROOM_SELECTOR' ? 'selected' : ''}>Select Rooms on Map</option>
                         <option value="SENSOR_OVERLAY" ${act.type === 'SENSOR_OVERLAY' ? 'selected' : ''}>Sensor Dials Overlay</option>
                         <option value="COLOR_PICKER" ${act.type === 'COLOR_PICKER' ? 'selected' : ''}>Color Honeycomb (Light)</option>
@@ -77,9 +79,9 @@ export function renderActionsAndStates(sc, onStateChange) {
                     <input type="text" class="act-icon" list="iconList" value="${act.icon || ''}" placeholder="Menu Icon" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
                     <input type="text" class="act-width" value="${act.width || ''}" placeholder="Width (e.g. 150px)" style="flex: 1; margin: 0; padding: 4px; text-align: center;">
                 </div>
-                ${act.type === 'CALL_SERVICE' ? `
+                ${(act.type === 'CALL_SERVICE' || act.type === 'PROGRESS_BAR') ? `
                     <div style="display: flex; gap: 5px; margin-top: 5px;">
-                        <input type="text" class="act-service" list="serviceList" value="${act.service || ''}" placeholder="Service (e.g. light.turn_on)" style="flex: 1; padding: 4px;">
+                        <input type="text" class="act-service" list="serviceList" value="${act.service || ''}" placeholder="${act.type === 'PROGRESS_BAR' ? 'Tap service (optional)' : 'Service (e.g. light.turn_on)'}" style="flex: 1; padding: 4px;">
                         <input type="text" class="act-payload" value='${act.payload || ''}' placeholder='Payload JSON e.g. {"repeat": 2}' style="flex: 1; padding: 4px;">
                     </div>
                 ` : ''}
@@ -89,9 +91,18 @@ export function renderActionsAndStates(sc, onStateChange) {
                         <label style="font-size: 12px; color: #ccc;">Symmetric Scale (e.g. 1/5x to 5x)</label>
                     </div>
                 ` : ''}
-                ${(act.type === 'INFO_DISPLAY' || act.type === 'VALUE_SLIDER') ? `
+                ${act.type === 'PROGRESS_BAR' ? `
                     <div style="display: flex; gap: 5px; margin-top: 5px;">
-                        ${act.type === 'INFO_DISPLAY' ? `<input type="text" class="act-attribute" value="${act.attribute || ''}" placeholder="Attribute (blank = state)" style="flex: 2; padding: 4px;">` : ''}
+                        <input type="number" class="act-min" value="${act.min !== undefined ? act.min : ''}" placeholder="Min (0)" style="flex: 1; padding: 4px; text-align: center;">
+                        <input type="text" class="act-max" value="${act.max !== undefined ? act.max : ''}" placeholder="Max (100 / entity)" style="flex: 1; padding: 4px; text-align: center;">
+                        <label style="font-size: 12px; color: #ccc; display: flex; align-items: center; gap: 4px;">
+                            <input type="checkbox" class="act-invert" ${act.invert ? 'checked' : ''}> Full = bad
+                        </label>
+                    </div>
+                ` : ''}
+                ${(act.type === 'INFO_DISPLAY' || act.type === 'VALUE_SLIDER' || act.type === 'PROGRESS_BAR') ? `
+                    <div style="display: flex; gap: 5px; margin-top: 5px;">
+                        ${(act.type === 'INFO_DISPLAY' || act.type === 'PROGRESS_BAR') ? `<input type="text" class="act-attribute" value="${act.attribute || ''}" placeholder="Attribute (blank = state)" style="flex: 2; padding: 4px;">` : ''}
                         <input type="text" class="act-unit" value="${act.unit !== undefined ? act.unit : ''}" placeholder="Unit (e.g. °C)" style="flex: 1; padding: 4px; text-align: center;">
                         <input type="number" class="act-decimals" value="${act.decimals !== undefined ? act.decimals : ''}" placeholder="Decimals" style="flex: 1; padding: 4px; text-align: center;">
                     </div>
@@ -129,7 +140,7 @@ export function renderActionsAndStates(sc, onStateChange) {
                 act.action_entity = div.querySelector('.act-target').value;
                 act.icon = div.querySelector('.act-icon').value;
                 act.width = div.querySelector('.act-width').value;
-                if (act.type === 'CALL_SERVICE') {
+                if (act.type === 'CALL_SERVICE' || act.type === 'PROGRESS_BAR') {
                     const srv = div.querySelector('.act-service');
                     if (srv) act.service = srv.value;
                     const pld = div.querySelector('.act-payload');
@@ -139,7 +150,16 @@ export function renderActionsAndStates(sc, onStateChange) {
                     const symm = div.querySelector('.act-symmetric');
                     if (symm) act.symmetric_scale = symm.checked;
                 }
-                if (act.type === 'INFO_DISPLAY' || act.type === 'VALUE_SLIDER') {
+                if (act.type === 'PROGRESS_BAR') {
+                    const minEl = div.querySelector('.act-min');
+                    if (minEl) act.min = minEl.value !== '' ? parseFloat(minEl.value) : undefined;
+                    // max may be a number, an entity id, or "attribute:<name>"
+                    const maxEl = div.querySelector('.act-max');
+                    if (maxEl) act.max = maxEl.value !== '' ? (isNaN(parseFloat(maxEl.value)) ? maxEl.value : parseFloat(maxEl.value)) : undefined;
+                    const invEl = div.querySelector('.act-invert');
+                    if (invEl) act.invert = invEl.checked || undefined;
+                }
+                if (act.type === 'INFO_DISPLAY' || act.type === 'VALUE_SLIDER' || act.type === 'PROGRESS_BAR') {
                     const attrEl = div.querySelector('.act-attribute');
                     if (attrEl) act.attribute = attrEl.value || undefined;
                     const unitEl = div.querySelector('.act-unit');
@@ -698,6 +718,20 @@ export function openMenuEditor(sc, onStateChange) {
             `;
             el.style.background = 'transparent';
             el.style.border = 'none';
+        } else if (act.type === 'PROGRESS_BAR') {
+            el.innerHTML = `
+                <div style="pointer-events:none; display:flex; flex-direction:column; justify-content:center; width:100%; height:100%; gap:3px; box-sizing:border-box;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#cbd5e1;">
+                        <span style="overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${iconHtml}${label}</span>
+                        <span style="font-weight:700; color:#fff;">00${act.unit ? ' ' + act.unit : ''}</span>
+                    </div>
+                    <div style="width:100%; height:${act.bar_height || 8}px; border-radius:999px; background:rgba(255,255,255,0.12); overflow:hidden;">
+                        <div style="width:60%; height:100%; border-radius:999px; background:#10b981;"></div>
+                    </div>
+                </div>
+            `;
+            el.style.background = 'transparent';
+            el.style.border = '1px dashed rgba(16,185,129,0.4)';
         } else {
             el.innerHTML = `<span style="pointer-events:none; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${act.icon || ''} ${label}</span>`;
         }

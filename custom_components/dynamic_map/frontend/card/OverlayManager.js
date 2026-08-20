@@ -1,4 +1,5 @@
 import { executeAction, buildRoomNameToSegmentMap } from '../shared/ActionRunner.js?v=3.2.1';
+import { computeProgressBar } from '../shared/ProgressBar.js?v=3.2.1';
 
 /**
  * Clamp the active overlay near the pointer while keeping it inside the
@@ -595,6 +596,132 @@ export class OverlayManager {
                 }
 
                 mapContext.activeOverlay.appendChild(box);
+
+            } else if (act.type === 'PROGRESS_BAR') {
+                // Generic horizontal bar for any numeric entity/attribute.
+                // Optional tap action (act.service): confirm-then-run, because a
+                // bar is a readout and a stray tap must not fire a service that
+                // resets a counter. See shared/ProgressBar.js for the config.
+                const bar = computeProgressBar({ act, hass: mapContext._hass, target });
+
+                const wrap = document.createElement('div');
+                wrap.style.display = 'flex';
+                wrap.style.flexDirection = 'column';
+                wrap.style.justifyContent = 'center';
+                wrap.style.gap = '3px';
+                wrap.style.boxSizing = 'border-box';
+                wrap.style.padding = '2px 0';
+
+                const showValue = act.show_value !== false;
+                let capText = null; // the caption's text node, reused by the confirm prompt
+                if (bar.label || showValue) {
+                    const head = document.createElement('div');
+                    head.style.display = 'flex';
+                    head.style.alignItems = 'center';
+                    head.style.justifyContent = 'space-between';
+                    head.style.gap = '6px';
+                    head.style.fontSize = '11px';
+                    head.style.lineHeight = '1.1';
+
+                    const iconHtml = act.icon
+                        ? (act.icon.includes(':')
+                            ? `<ha-icon icon="${act.icon}" style="--mdc-icon-size:14px;"></ha-icon>`
+                            : `<span style="font-size:12px;">${act.icon}</span>`)
+                        : '';
+                    const cap = document.createElement('span');
+                    cap.style.display = 'flex';
+                    cap.style.alignItems = 'center';
+                    cap.style.gap = '4px';
+                    cap.style.overflow = 'hidden';
+                    cap.style.whiteSpace = 'nowrap';
+                    cap.style.textOverflow = 'ellipsis';
+                    cap.style.color = '#cbd5e1';
+                    cap.innerHTML = iconHtml;
+                    capText = document.createElement('span');
+                    capText.textContent = bar.label || '';
+                    cap.appendChild(capText);
+                    head.appendChild(cap);
+
+                    if (showValue) {
+                        const valEl = document.createElement('span');
+                        valEl.textContent = bar.valueStr;
+                        valEl.style.fontWeight = '700';
+                        valEl.style.color = '#fff';
+                        valEl.style.fontVariantNumeric = 'tabular-nums';
+                        valEl.style.whiteSpace = 'nowrap';
+                        head.appendChild(valEl);
+                    }
+                    wrap.appendChild(head);
+                }
+
+                const track = document.createElement('div');
+                track.style.width = '100%';
+                track.style.height = (act.bar_height || 8) + 'px';
+                track.style.borderRadius = '999px';
+                track.style.background = 'rgba(255,255,255,0.12)';
+                track.style.overflow = 'hidden';
+
+                const fill = document.createElement('div');
+                fill.style.height = '100%';
+                fill.style.width = '0%';
+                fill.style.borderRadius = '999px';
+                fill.style.background = bar.color;
+                fill.style.transition = 'width 0.4s ease, background 0.3s';
+                track.appendChild(fill);
+                wrap.appendChild(track);
+
+                // Animate the fill in once mounted (same trick as the sensor rings)
+                setTimeout(() => { fill.style.width = bar.pct + '%'; }, 50);
+
+                if (act.service) {
+                    const needsConfirm = act.confirm !== false;
+                    let armed = false;
+                    let armedTimer = null;
+                    const originalLabel = capText ? capText.textContent : '';
+
+                    wrap.style.cursor = 'pointer';
+                    wrap.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (!mapContext._hass) return;
+
+                        if (needsConfirm && !armed) {
+                            armed = true;
+                            if (capText) capText.textContent = act.confirm_text || 'Tap again to confirm';
+                            wrap.style.outline = '1px solid rgba(239,68,68,0.6)';
+                            wrap.style.borderRadius = '6px';
+                            armedTimer = setTimeout(() => {
+                                armed = false;
+                                if (capText) capText.textContent = originalLabel;
+                                wrap.style.outline = 'none';
+                            }, 4000);
+                            return;
+                        }
+
+                        if (armedTimer) clearTimeout(armedTimer);
+                        armed = false;
+                        wrap.style.outline = 'none';
+                        if (capText) capText.textContent = originalLabel;
+
+                        executeAction(mapContext._hass, { ...act, type: 'CALL_SERVICE' }, target, {
+                            nameToSegmentId: buildRoomNameToSegmentMap(target, mapContext.shortcutElements, mapContext.rooms),
+                            onServiceError: (err) => {
+                                console.error("[DynamicMap] callService Error:", err);
+                                alert("HA Error: " + (err.message || JSON.stringify(err)));
+                            }
+                        });
+                    });
+                }
+
+                if (isVisual && act.pos_x !== undefined) {
+                    wrap.style.position = 'absolute';
+                    wrap.style.left = act.pos_x + 'px';
+                    wrap.style.top = act.pos_y + 'px';
+                    wrap.style.width = act.width + 'px';
+                    if (act.height) wrap.style.height = act.height + 'px';
+                    if (act.rotation) wrap.style.transform = `rotate(${act.rotation}deg)`;
+                }
+
+                mapContext.activeOverlay.appendChild(wrap);
 
             } else if (act.type === 'COLOR_PICKER') {
                 mapContext.activeOverlay.appendChild(
