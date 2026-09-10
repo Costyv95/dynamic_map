@@ -55,9 +55,10 @@ export class MapShortcut {
 
         this.updateCoordinates();
 
+        const interactive = this.mapContext.interactive !== false;
         if (this.config.decor) {
             // Decor is scenery: never intercepts a tap, binds no handlers.
-            this.group.style.pointerEvents = 'none';
+            this.group.style.pointerEvents = interactive ? 'none' : '';
         } else {
             // Invisible hitbox to expand the tap area of small elements.
             this.hitbox = document.createElementNS(svgNS, 'circle');
@@ -65,7 +66,8 @@ export class MapShortcut {
             this.hitbox.setAttribute('fill', 'rgba(0,0,0,0)');
             this.hitbox.style.pointerEvents = 'all';
             this.group.appendChild(this.hitbox);
-            setupInteractions(this);
+            // The editor mounts the same badges but must never fire actions.
+            if (interactive) setupInteractions(this);
         }
     }
 
@@ -107,6 +109,8 @@ export class MapShortcut {
     _matchState(hass) {
         const states = this.config.states;
         if (!states || !states.length) return null;
+        // Editor preview: a forced state wins over the live evaluation.
+        if (this.forcedState && states.includes(this.forcedState)) return this.forcedState;
         for (const st of states) {
             if (st.is_default) continue;
             const cond = st.conditions || (st.state_entity || st.entity ? st : null);
