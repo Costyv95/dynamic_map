@@ -78,6 +78,7 @@ class CustomSvgMap extends HTMLElement {
         try {
             const data = await hass.callApi('GET', 'dynamic_map/floors');
             if (data && data.floors && data.floors.length) floors = data.floors;
+            if (data && data.names) this._floorNames = data.names;
         } catch (e) {
             console.warn('[custom-svg-map] Floor discovery failed, defaulting to floor 1', e);
         }
@@ -89,8 +90,11 @@ class CustomSvgMap extends HTMLElement {
 
     floorLabel(floorNum) {
         const names = this.config.floor_names || {};
-        return names[floorNum] || `Floor ${floorNum}`;
+        const stored = this._floorNames || {};
+        return names[floorNum] || stored[String(floorNum)] || `Floor ${floorNum}`;
     }
+
+    loadFloorNames(hass) { return MapBuilder.loadFloorNames(this, hass); }
 
     async loadData() {
         const floor = this.activeFloor;
@@ -250,6 +254,7 @@ class CustomSvgMap extends HTMLElement {
         const prev = this._hass;
         this._hass = hass;
         if (this._needsFloorDiscovery) { this.discoverFloors(hass); return; }
+        if (!this._floorNamesRequested && hass.callApi) { this._floorNamesRequested = true; this.loadFloorNames(hass); }
         let anyChanged = false;
         for (const id in this.shortcutElements) {
             if (this.shortcutElements[id].updateState(hass)) anyChanged = true;

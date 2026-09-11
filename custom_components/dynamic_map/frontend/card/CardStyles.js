@@ -245,4 +245,5 @@ export const CARD_STYLES = `
     .dm-rp-stepper { display: flex; gap: 4px; }
     .dm-rp-stepper button { width: 28px; height: 28px; border: 1px solid var(--dm-glass-border); border-radius: 50%; background: rgba(127,127,127,0.12); color: inherit; cursor: pointer; font-size: 14px; }
     .dm-render-root.dm-has-outside .dm-room-panel { bottom: 64px; }
+    .dm-render-root.dm-room-panel-open .dm-focus-pill { opacity: 0; pointer-events: none; }
 `;

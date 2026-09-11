@@ -66,11 +66,11 @@ export class Toolbar {
         }
     }
 
-    setFloors(floors, active) {
+    setFloors(floors, active, names = {}) {
         clear(this.floorRow);
         floors.forEach(f => this.floorRow.appendChild(el('button.dm-chip', {
-            type: 'button', dataset: { floor: String(f) }, onClick: () => this.app.switchFloor(f)
-        }, `Floor ${f}`)));
+            type: 'button', dataset: { floor: String(f) }, title: `Floor ${f}`, onClick: () => this.app.switchFloor(f)
+        }, names[String(f)] || `Floor ${f}`)));
         this.floorRow.appendChild(el('button.dm-chip.dm-add-floor', { type: 'button', title: 'Add a floor from a plan image or a blank canvas', onClick: () => this.app.addFloor() }, '＋'));
         this.setActiveFloor(active);
     }

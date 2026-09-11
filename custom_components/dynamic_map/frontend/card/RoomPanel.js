@@ -26,6 +26,7 @@ export function hideRoomPanel(host) {
     if (!host.roomPanel) return;
     host._roomPanelRoom = null;
     host.roomPanel.classList.remove('dm-visible');
+    host.renderRoot.classList.remove('dm-room-panel-open');
 }
 
 /** Re-render rows from the current hass (cheap: a dozen small nodes). */
@@ -42,6 +43,7 @@ export function updateRoomPanel(host, hass) {
         shown.length ? rows(host, hass, shown) : empty(room)
     );
     panel.classList.add('dm-visible');
+    host.renderRoot.classList.add('dm-room-panel-open');
 }
 
 function header(host, room, count) {

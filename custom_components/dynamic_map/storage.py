@@ -3,6 +3,7 @@
 This module is deliberately free of Home Assistant imports so it can be
 unit-tested outside a HA environment.
 """
+import json
 import os
 import re
 
@@ -77,3 +78,18 @@ def validate_save_content(filename, content):
     if filename.startswith("config_"):
         return isinstance(content, dict)
     return False
+
+
+def floor_names(data_dir):
+    """Map floor number -> name from each config_floorN.json that has one."""
+    names = {}
+    for floor in discover_floors(data_dir):
+        path = os.path.join(data_dir, f"config_floor{floor}.json")
+        try:
+            with open(path, encoding="utf-8") as fh:
+                name = json.load(fh).get("name")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if isinstance(name, str) and name.strip():
+            names[floor] = name.strip()
+    return names

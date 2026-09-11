@@ -1,5 +1,5 @@
 import { el, clear } from './dom.js?v=3.2.1';
-import { openDialog, getUiRoot } from './Dialog.js?v=3.2.1';
+import { openDialog, getUiRoot, promptDialog, toast } from './Dialog.js?v=3.2.1';
 import { openBackgroundDialog } from './FloorDialogs.js?v=3.2.1';
 import { openOutsideDialog } from './OutsideDialog.js?v=3.2.1';
 import { openRecomputeDialog } from './RecomputeDialog.js?v=3.2.1';
@@ -30,6 +30,11 @@ export function openOverflowMenu(app, anchor) {
             if (!flipsOn) return;
             canvas.flips[canvas.activeMode].v = !canvas.flips[canvas.activeMode].v;
             canvas.layout();
+        }),
+        item('✏️ Rename floor…', `Shown on the chips and the card: "${app.floorLabel(state.activeFloor)}"`, async () => {
+            const name = await promptDialog('Rename floor', 'Leave empty to use the number.', { value: app.floorNames?.[String(state.activeFloor)] || '', placeholder: `Floor ${state.activeFloor}` });
+            if (name === null) return;
+            try { await app.renameFloor(name); toast('Floor renamed.', 'ok'); } catch (e) { toast(`Rename failed: ${e.message}`, 'error'); }
         }),
         item('🎨 Floor background…', 'Colour and canvas mode of this floor', () => openBackgroundDialog(app)),
         item('🌤️ Outside dashboard…', 'The fixed bar at the top of the card', () => openOutsideDialog(app)),

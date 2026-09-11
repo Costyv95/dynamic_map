@@ -167,10 +167,12 @@ class DynamicMapFloorsView(DynamicMapView):
         floors = await self.hass.async_add_executor_job(
             storage.discover_floors, self.data_dir
         )
+        names = await self.hass.async_add_executor_job(storage.floor_names, self.data_dir)
         return self.json(
             {
                 "success": True,
                 "floors": floors,
+                "names": {str(k): v for k, v in names.items()},
                 "version": self.hass.data.get(DOMAIN, {}).get("version"),
             }
         )

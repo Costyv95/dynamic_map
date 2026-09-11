@@ -50,6 +50,7 @@ export class EditorApp {
         const c = this.canvas;
         return {
             rotation_mode: c.rotationMode, flips: c.flips,
+            name: this.state.floorName || undefined,
             background_color: c.backgroundColor || undefined,
             background_mode: c.backgroundMode !== 'image' ? c.backgroundMode : undefined,
             walls: this.state.walls.length ? this.state.walls : undefined,
@@ -70,9 +71,26 @@ export class EditorApp {
         }
     }
 
-    setFloors(floors) {
+    setFloors(floors, names) {
         this.floors = floors;
-        this.ui.toolbar.setFloors(floors, this.state.activeFloor);
+        if (names) this.floorNames = names;
+        this.ui.toolbar.setFloors(floors, this.state.activeFloor, this.floorNames || {});
+    }
+
+    floorLabel(n) {
+        const names = this.floorNames || {};
+        return names[String(n)] || `Floor ${n}`;
+    }
+
+    /** Rename the active floor (stored as `name` in its config file). */
+    async renameFloor(name) {
+        const n = String(this.state.activeFloor);
+        const clean = (name || '').trim();
+        this.floorNames = { ...(this.floorNames || {}) };
+        if (clean) this.floorNames[n] = clean; else delete this.floorNames[n];
+        this.state.floorName = clean || undefined;
+        await this.save();
+        this.setFloors(this.floors);
     }
 
     switchFloor(n) {
@@ -91,6 +109,7 @@ export class EditorApp {
         state.rooms = data.rooms || [];
         state.shortcuts = data.shortcuts || [];
         state.walls = (data.config && data.config.walls) || [];
+        state.floorName = (data.config && data.config.name) || undefined;
         state.selectedRooms = [];
         state.selectedShortcutIdx = -1;
         state.selectedWallIdx = -1;
@@ -174,6 +193,7 @@ export class EditorApp {
         try {
             const data = await ApiManager.fetchFloors();
             if (data.success && Array.isArray(data.floors)) floors = data.floors;
+            if (data.names) this.floorNames = data.names;
             const brand = this.root.querySelector('.dm-brand');
             if (data.version && brand) brand.title = `Dynamic Map v${data.version}`;
         } catch (err) {
