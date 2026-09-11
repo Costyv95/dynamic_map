@@ -1,5 +1,6 @@
 import { areaEntities } from './RoomEntities.js?v=3.2.1';
 import { roomBox } from '../core/RoomLabels.js?v=3.2.1';
+import { buildAlertLegend, updateAlertLegend } from './AlertLegend.js?v=3.2.1';
 
 /**
  * Attention badges on rooms: a counter in the room's corner while a
@@ -58,6 +59,7 @@ export function buildRoomAlerts(host) {
     host.mapRoot.appendChild(layer);
     host.alertsLayer = layer;
     host._alertEls = {};
+    buildAlertLegend(host);
 }
 
 /** Counter-transform so the badge reads upright under the map's rotation/flip. */
@@ -100,10 +102,14 @@ export function updateRoomAlerts(host, hass) {
     const kinds = alertKinds(host.config);
     const r = host.imgW * 0.014;
     const upright = uprightTransform(host);
+    const counts = { open: 0, danger: 0, unavailable: 0 };
+    let firstRoom = null;
     host.rooms.forEach(room => {
         const alerts = roomAlerts(hass, room, kinds);
         let g = host._alertEls[room.id];
         if (!alerts.length) { if (g) g.style.display = 'none'; return; }
+        alerts.forEach(a => { counts[a.kind]++; });
+        firstRoom = firstRoom || room;
         if (!g) g = host._alertEls[room.id] = makeBadge(host, room, r);
         const box = roomBox(room, host.imgW, host.imgH);
         const x = box.cx + box.w / 2 - r * 1.6, y = box.cy - box.h / 2 + r * 1.6;
@@ -114,4 +120,5 @@ export function updateRoomAlerts(host, hass) {
         g.style.display = 'block';
         g.querySelector('title').textContent = alerts.map(a => `${KIND_LABEL[a.kind]}: ${a.name}`).join('\n');
     });
+    updateAlertLegend(host, counts, firstRoom);
 }

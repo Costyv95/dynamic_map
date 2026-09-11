@@ -41,10 +41,10 @@
 
 ## 6. After the 2026-09-11 polish pass
 
-- [ ] **Room panel on the editor side:** show the same area device list when a room is selected, with the import button per device.
+- [x] **Room panel on the editor side** (2026-09-11): a selected room lists every device of its area with live state; ＋ places one badge and jumps to it, placed rows select their badge, plus 'Add all missing'.
 - [x] **Quick actions in the editor:** ⋯ → Quick actions edits the global `quick_actions.json`.
 - [x] **Temperature legend:** shown while `room_temperature` is on.
 - [x] **Multi-select:** shift-click, group move, align/distribute/match size, delete all.
 - [x] **Keys typed in panel fields** (2026-09-11): inside the HA panel the editor lives in a shadow root, so document-level key handlers saw the panel host as the target and moved/deleted badges while typing. `editor/Keys.js` resolves the real target through `composedPath()`.
 - [x] **Room alert badges made explicit** (2026-09-11): count open/danger only by default (`room_alerts: {unavailable: true}` opts in), stay upright under mirrored layouts, and tapping one opens the room panel with a *Needs attention* list whose rows open more-info.
-- [ ] **Alert legend / explanation in the card:** a first-time hint or legend chip for the corner badges (users read them as room numbers).
+- [x] **Alert legend in the card** (2026-09-11): a glass chip ("● 1 open door/window · ● 2 alarms") shows while any badge is visible; tapping it opens the first alerting room.

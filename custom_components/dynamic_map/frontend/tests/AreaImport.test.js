@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { unplacedAreaEntities, gridInRoom, badgeFor, importArea, placedEntities } from '../editor/ui/AreaImport.js';
+import { unplacedAreaEntities, gridInRoom, badgeFor, importArea, importOne, selectBadge, renderAreaImport, placedEntities } from '../editor/ui/AreaImport.js';
 
 const room = { id: 'r1', name: 'Office', area_id: 'office', polygon: [[10, 10], [50, 10], [50, 40], [10, 40]] };
 function makeHass() {
@@ -51,5 +51,25 @@ describe('area import', () => {
         expect(state.shortcuts.map(s => s.entity_id)).toEqual(['light.desk', 'switch.fan', 'sensor.temp']);
         expect(state.saveState).toHaveBeenCalled();
         expect(importArea(ctx, room)).toBe(0);
+    });
+
+    it('lists every device of the area; ＋ places one badge and jumps to it, placed rows select their badge', () => {
+        const state = { shortcuts: [{ id: 'sc1', entity_id: 'light.desk', position: [20, 20], config: {} }], activeLayer: 'rooms', selectedShortcutIdx: -1, selectedExtra: [],
+            saveState: vi.fn(), requestDrawCallback: vi.fn(), setActiveLayer(l) { this.activeLayer = l; } };
+        const ctx = { state, canvas: { _hass: makeHass(), imgW: 1000, imgH: 1000 }, refresh: vi.fn(), select: vi.fn() };
+        const sec = renderAreaImport(ctx, room);
+        const rows = [...sec.querySelectorAll('.dm-device-list .dm-list-item')];
+        expect(rows.map(r => r.title)).toEqual(['light.desk', 'switch.fan', 'sensor.power', 'sensor.temp']);
+        expect(rows[0].textContent).toContain('on map');
+        expect(rows[2].querySelector('button')).toBeNull();          // plain sensors stay in the card's room panel
+        rows[1].querySelector('button').click();                     // add the fan
+        expect(state.shortcuts.map(s => s.entity_id)).toEqual(['light.desk', 'switch.fan']);
+        expect(state.activeLayer).toBe('objects');
+        expect(state.selectedShortcutIdx).toBe(1);
+        expect(ctx.select).toHaveBeenCalled();
+        rows[0].click();                                             // jump to the lamp badge
+        expect(state.selectedShortcutIdx).toBe(0);
+        expect(selectBadge(ctx, 'nope')).toBe(false);
+        expect(sec.querySelector('button.primary').textContent).toContain('Add all 2');
     });
 });

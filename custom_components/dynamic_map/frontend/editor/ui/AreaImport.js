@@ -1,7 +1,7 @@
 import { el, section } from './dom.js?v=3.2.1';
 import { toast } from './Dialog.js?v=3.2.1';
 import { applyTypePreset } from './Presets.js?v=3.2.1';
-import { areaEntities } from '../../card/RoomEntities.js?v=3.2.1';
+import { areaEntities, describeEntity } from '../../card/RoomEntities.js?v=3.2.1';
 import { MapGeometry } from '../../shared/MapGeometry.js?v=3.2.1';
 import { roomBox } from '../../core/RoomLabels.js?v=3.2.1';
 
@@ -100,19 +100,56 @@ export function importArea(ctx, room) {
     return ids.length;
 }
 
-/** Section for the room panel. */
+/** Place one badge for `id` in the room, then jump to it on the objects layer. */
+export function importOne(ctx, room, id) {
+    const { state, canvas } = ctx;
+    const [pos] = gridInRoom(room, 1, canvas.imgW, canvas.imgH);
+    const sc = badgeFor(canvas._hass, id, pos, room.id, typicalScale(state.shortcuts));
+    state.shortcuts.push(sc);
+    state.saveState();
+    selectBadge(ctx, sc.id);
+    toast(`Added ${sc.name}. Drag it into place.`, 'ok');
+    return sc;
+}
+
+/** Switch to the objects layer with the badge that holds `entityId` selected. */
+export function selectBadge(ctx, idOrEntity) {
+    const { state } = ctx;
+    const idx = state.shortcuts.findIndex(sc => sc.id === idOrEntity || sc.entity_id === idOrEntity);
+    if (idx === -1) return false;
+    state.setActiveLayer('objects');
+    state.selectedShortcutIdx = idx;
+    state.selectedExtra = [];
+    ctx.select();
+    return true;
+}
+
+/** Section for the room panel: every device of the area, one row each. */
 export function renderAreaImport(ctx, room) {
     const hass = ctx.canvas._hass;
     if (!room.area_id) return null;
     if (!hass || !hass.entities) {
-        return section('Devices in this area', el('div.dm-hint', {}, 'Open the editor from the Home Assistant sidebar to import this area\'s devices.'), { key: 'area-import' });
+        return section('Devices in this area', el('div.dm-hint', {}, 'Open the editor from the Home Assistant sidebar to see and import this area\'s devices.'), { key: 'area-import' });
     }
-    const ids = unplacedAreaEntities(hass, room, ctx.state.shortcuts);
-    const names = ids.map(id => (hass.states[id]?.attributes?.friendly_name) || id);
+    const placed = placedEntities(ctx.state.shortcuts);
+    const unplaced = unplacedAreaEntities(hass, room, ctx.state.shortcuts);
+    const all = areaEntities(hass, room.area_id);
+    const rows = all.slice(0, 40).map(id => deviceRow(ctx, room, describeEntity(hass, id), placed.has(id), unplaced.includes(id)));
     return section('Devices in this area', [
-        ids.length
-            ? el('div.dm-hint', {}, `${ids.length} not on the map yet: ${names.slice(0, 6).join(', ')}${names.length > 6 ? '…' : ''}`)
-            : el('div.dm-hint', {}, 'Every device of this area is already on the map.'),
-        ids.length ? el('button.primary', { type: 'button', onClick: () => importArea(ctx, room) }, `＋ Add ${ids.length} device${ids.length === 1 ? '' : 's'} as objects`) : null
+        rows.length ? el('div.dm-list.dm-device-list', {}, rows) : el('div.dm-hint', {}, 'No devices in this area.'),
+        all.length > 40 ? el('div.dm-hint', {}, `…and ${all.length - 40} more`) : null,
+        unplaced.length ? el('button.primary', { type: 'button', onClick: () => importArea(ctx, room) }, `＋ Add all ${unplaced.length} missing as objects`) : null
     ], { key: 'area-import' });
+}
+
+function deviceRow(ctx, room, d, isPlaced, canAdd) {
+    const tail = isPlaced
+        ? el('span.dm-hint', { title: 'Already on the map: click to select it' }, '✓ on map')
+        : canAdd
+            ? el('button', { type: 'button', title: 'Add as an object in this room', onClick: (e) => { e.stopPropagation(); importOne(ctx, room, d.id); } }, '＋')
+            : el('span.dm-hint', { title: 'Sensors and diagnostics are shown in the card\'s room panel, not as objects' }, d.value);
+    const row = el('div.dm-list-item', { title: d.id, onClick: () => { if (isPlaced) selectBadge(ctx, d.id); } },
+        el('span', {}, d.icon), el('span', { style: { flex: '1' } }, d.name), tail);
+    row.classList.toggle('dm-placed', isPlaced);
+    return row;
 }
