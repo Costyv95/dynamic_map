@@ -4,7 +4,8 @@ import { EditorStateManager } from './editor/EditorStateManager.js?v=3.2.1';
 import { ToolRouter } from './editor/ToolRouter.js?v=3.2.1';
 import { EditorUI } from './editor/EditorUI.js?v=3.2.1';
 import { HassBridge } from './editor/HassBridge.js?v=3.2.1';
-import { setupAutocomplete, fillEntityDatalist } from './editor/ui/EntityAutocomplete.js?v=3.2.1';
+import { setupAutocomplete } from './editor/ui/EntityAutocomplete.js?v=3.2.1';
+import { discoverFloors, loadRegistry, loadEntities } from './editor/Discovery.js?v=3.2.1';
 import { openAddFloorDialog } from './editor/ui/FloorDialogs.js?v=3.2.1';
 import { loadIconList } from './editor/ui/RecomputeDialog.js?v=3.2.1';
 import { newObject, newDecor } from './editor/ui/Presets.js?v=3.2.1';
@@ -234,53 +235,9 @@ export class EditorApp {
         window.removeEventListener('beforeunload', this._onUnload);
     }
 
-    async discoverFloors() {
-        let floors = [];
-        try {
-            const data = await ApiManager.fetchFloors();
-            if (data.success && Array.isArray(data.floors)) floors = data.floors;
-            if (data.names) this.floorNames = data.names;
-            const brand = this.root.querySelector('.dm-brand');
-            if (data.version && brand) brand.title = `Dynamic Map v${data.version}`;
-        } catch (err) {
-            console.warn('[editor] Floor discovery failed:', err.message);
-        }
-        if (!floors.length) {
-            // Authenticated API unavailable (companion-app webview without a
-            // web session): probe the public data files instead.
-            const t = Date.now();
-            const probes = await Promise.all([...Array(12)].map((_, i) =>
-                fetch(`/dynamic_map_data/rooms_floor${i + 1}.json?t=${t}`, { method: 'HEAD' })
-                    .then(r => (r.ok ? i + 1 : null)).catch(() => null)));
-            floors = probes.filter(Boolean);
-        }
-        if (!floors.length) floors = [1];
-        this.setFloors(floors);
-        const remembered = parseInt(localStorage.getItem('dm_editor_last_floor'));
-        return this.switchFloor(floors.includes(remembered) ? remembered : floors[floors.length - 1]);
-    }
-
-    async loadRegistry() {
-        try {
-            const data = await ApiManager.fetchRegistry();
-            if (!data.success) return;
-            this.state.haAreas = data.areas;
-            this.state.haFloors = data.floors;
-        } catch (err) {
-            console.warn('[editor] Failed to load HA registry:', err.message);
-        }
-    }
-
-    async loadEntities() {
-        try {
-            const data = await ApiManager.fetchEntities();
-            if (!(data.success && data.entities)) return;
-            this.state.allEntities = data.entities;
-            fillEntityDatalist(data.entities, this.root);
-        } catch (err) {
-            console.warn('[editor] Failed to load entities for autocomplete:', err.message);
-        }
-    }
+    discoverFloors() { return discoverFloors(this); }
+    loadRegistry() { return loadRegistry(this); }
+    loadEntities() { return loadEntities(this); }
 
     /** pollHass: read the parent app's hass (iframe mode); the panel hands hass in itself. */
     start({ pollHass = true } = {}) {
