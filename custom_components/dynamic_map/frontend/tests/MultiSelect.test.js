@@ -40,8 +40,15 @@ describe('multi-selection state', () => {
         expect(st.selectionIndices()).toEqual([2]);
         st.toggleExtraSelection(1);
         st.saveState();
+        expect(st.duplicateSelection()).toBe(2);                 // Ctrl+D: copies become the selection
+        expect(st.shortcuts.length).toBe(5);
+        expect(st.selectionIndices()).toEqual([3, 4]);
+        expect(st.shortcuts[3].name).toBe('Shortcut copy');
+        expect(st.shortcuts[3].position).toEqual([5, 5]);   // c (the primary) is copied first
+        st.selectedShortcutIdx = 2; st.selectedExtra = [1];
         expect(st.deleteSelection()).toBe(true);
-        expect(st.shortcuts.map(s => s.id)).toEqual(['a']);
+        expect(st.shortcuts.length).toBe(3);
+        expect(st.shortcuts[0].id).toBe('a');
         expect(st.selectionIndices()).toEqual([]);
     });
 });

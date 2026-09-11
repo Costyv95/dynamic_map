@@ -222,6 +222,7 @@ export class EditorApp {
             if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); this.state.undo(); }
             if (e.key === 'Z' || (e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); this.state.redo(); }
             if (e.key === 's') { e.preventDefault(); this.saveWithFeedback(); }
+            if (e.key === 'd') { e.preventDefault(); this.state.duplicateSelection(); }
         };
         document.addEventListener('keydown', this._onKey);
     }

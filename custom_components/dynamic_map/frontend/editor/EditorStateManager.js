@@ -95,26 +95,28 @@ export class EditorStateManager {
     duplicateSelectedShortcut() {
         const src = this.shortcuts[this.selectedShortcutIdx];
         if (!src) return null;
-        const copy = JSON.parse(JSON.stringify(src, (key, value) =>
-            key === '_imgCache' || key === '_sensorHalfW' ? undefined : value));
-        copy.id = `sc_${Date.now()}`;
-        copy.name = `${src.name || 'Shortcut'} copy`;
-        const nudge = (pos) => [Math.min(pos[0] + 2, 100), Math.min(pos[1] + 2, 100)];
-        if (Array.isArray(copy.position)) {
-            copy.position = nudge(copy.position);
-        } else if (copy.position && typeof copy.position === 'object') {
-            for (const k of Object.keys(copy.position)) {
-                if (Array.isArray(copy.position[k])) copy.position[k] = nudge(copy.position[k]);
-            }
-        } else {
-            copy.position = [52, 52];
-        }
+        const copy = cloneNudged(src, 0);
         this.shortcuts.push(copy);
         this.selectedShortcutIdx = this.shortcuts.length - 1;
         this.saveState();
         if (this.updateUICallback) this.updateUICallback();
         if (this.requestDrawCallback) this.requestDrawCallback();
         return copy;
+    }
+
+    /** Ctrl+D: duplicate every selected badge; the copies become the selection. */
+    duplicateSelection() {
+        const idxs = this.selectionIndices();
+        if (idxs.length <= 1) return this.duplicateSelectedShortcut() ? 1 : 0;
+        const copies = idxs.map((i, n) => cloneNudged(this.shortcuts[i], n));
+        const first = this.shortcuts.length;
+        this.shortcuts.push(...copies);
+        this.selectedShortcutIdx = first;
+        this.selectedExtra = copies.slice(1).map((_, n) => first + 1 + n);
+        this.saveState();
+        if (this.updateUICallback) this.updateUICallback();
+        if (this.requestDrawCallback) this.requestDrawCallback();
+        return copies.length;
     }
 
     /**
@@ -192,4 +194,16 @@ export class EditorStateManager {
     setEditMode(mode) {
         this.setActiveLayer(mode ? 'rooms' : 'objects');
     }
+}
+
+/** Deep copy of a shortcut, moved 2% right/down, with a fresh id and a "copy" name. */
+function cloneNudged(src, n = 0) {
+    const copy = JSON.parse(JSON.stringify(src, (key, value) => (key === '_imgCache' || key === '_sensorHalfW' ? undefined : value)));
+    copy.id = `sc_${Date.now()}_${n}`;
+    copy.name = `${src.name || 'Shortcut'} copy`;
+    const nudge = (pos) => [Math.min(pos[0] + 2, 100), Math.min(pos[1] + 2, 100)];
+    if (Array.isArray(copy.position)) copy.position = nudge(copy.position);
+    else if (copy.position && typeof copy.position === 'object') { for (const k of Object.keys(copy.position)) if (Array.isArray(copy.position[k])) copy.position[k] = nudge(copy.position[k]); }
+    else copy.position = [52, 52];
+    return copy;
 }

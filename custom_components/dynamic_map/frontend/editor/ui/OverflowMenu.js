@@ -1,4 +1,5 @@
 import { el, clear } from './dom.js?v=3.2.1';
+import { openShortcutsHelp } from './HelpDialog.js?v=3.2.1';
 import { openDialog, getUiRoot, promptDialog, toast } from './Dialog.js?v=3.2.1';
 import { openBackgroundDialog } from './FloorDialogs.js?v=3.2.1';
 import { openOutsideDialog } from './OutsideDialog.js?v=3.2.1';
@@ -41,7 +42,8 @@ export function openOverflowMenu(app, anchor) {
         item('🌤️ Outside dashboard…', 'The fixed bar at the top of the card', () => openOutsideDialog(app)),
         item('⚡ Quick actions…', 'Chips at the bottom of the card: scenes, scripts, toggles', () => openQuickActionsDialog(app)),
         item('⚙️ Recompute / delete floor…', 'Rebuild rooms from DXF/SVG, or remove a floor', () => openRecomputeDialog(app)),
-        item('📄 Card YAML…', 'Copy the dashboard card configuration', () => openYamlDialog(app, state))
+        item('📄 Card YAML…', 'Copy the dashboard card configuration', () => openYamlDialog(app, state)),
+        item('⌨️ Keyboard & mouse…', 'Every shortcut, also with ?', () => openShortcutsHelp())
     );
     const r = anchor.getBoundingClientRect();
     menu.style.cssText = `position: fixed; top: ${r.bottom + 6}px; right: ${Math.max(8, window.innerWidth - r.right)}px; z-index: 900;`;

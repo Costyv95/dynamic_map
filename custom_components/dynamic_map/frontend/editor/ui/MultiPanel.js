@@ -27,6 +27,7 @@ export function renderMultiPanel(ctx) {
             btn('Same size and rotation as reference', 'Copy the reference badge\'s width, height and rotation', () => applySizes(matchSizeTargets(framesOf(shortcuts, opts())), writeOpts()))
         ], { key: 'multi-size' }),
         el('div.dm-row', {},
+            el('button', { type: 'button', title: 'Ctrl+D', onClick: () => { state.duplicateSelection(); ctx.select(); } }, '⧉ Duplicate all'),
             el('button', { type: 'button', onClick: () => { state.clearExtraSelection(); ctx.select(); } }, 'Select only the reference'),
             el('button.danger', { type: 'button', onClick: async () => {
                 if (!(await confirmDialog('Delete objects', `Delete ${shortcuts.length} objects? Undo is available afterwards.`, { okLabel: 'Delete', danger: true }))) return;

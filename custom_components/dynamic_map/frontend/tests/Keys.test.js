@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { isTyping, realTarget, deepActiveElement } from '../editor/Keys.js';
 import { ToolRouter } from '../editor/ToolRouter.js';
+import { openShortcutsHelp } from '../editor/ui/HelpDialog.js';
 
 function makeState() {
     return {
@@ -54,5 +55,17 @@ describe('typing detection through shadow roots', () => {
         // The same keys on the map do act.
         document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
         expect(state.deleteSelection).toHaveBeenCalled();
+    });
+
+    it('? opens the shortcut reference (not while typing)', () => {
+        const state = makeState();
+        makeRouter(state);
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '?', bubbles: true }));
+        const dlg = document.querySelector('.dm-dialog');
+        expect(dlg.textContent).toContain('Keyboard & mouse');
+        expect(dlg.querySelectorAll('kbd').length).toBeGreaterThan(10);
+        dlg.querySelector('button.primary').click();
+        expect(document.querySelector('.dm-dialog')).toBeNull();
+        expect(typeof openShortcutsHelp).toBe('function');
     });
 });

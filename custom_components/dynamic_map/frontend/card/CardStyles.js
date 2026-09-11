@@ -238,6 +238,10 @@ export const CARD_STYLES = `
     .dm-rp-value { color: var(--dm-muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12px; }
     .dm-rp-row.dm-on .dm-rp-value { color: var(--dm-accent); font-weight: 600; }
     .dm-rp-row.dm-rp-unavailable { opacity: 0.55; }
+    .dm-rp-row.dm-rp-dim { flex-wrap: wrap; }
+    .dm-rp-slider { flex: 1 0 100%; order: 10; margin: 0 4px 4px 30px; height: 22px; accent-color: var(--dm-accent); cursor: pointer; }
+    .dm-rp-alloff { min-height: 26px; padding: 2px 10px; border: 1px solid var(--dm-glass-border); border-radius: 999px; background: rgba(127,127,127,0.12); color: inherit; cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .dm-rp-alloff:hover { background: rgba(127,127,127,0.22); }
     .dm-rp-row.dm-rp-unavailable .dm-rp-value { font-style: italic; }
     .dm-rp-switch { width: 34px; height: 20px; border-radius: 10px; background: rgba(127,127,127,0.35); position: relative; flex: none; transition: background 0.2s; }
     .dm-rp-row.dm-on .dm-rp-switch { background: var(--dm-accent); }

@@ -57,7 +57,15 @@ function describeLive(hass, id) {
     const name = a.friendly_name || id;
     const icon = ICONS[cls] || ICONS[domain] || '•';
     const s = st.state;
-    if (['light', 'switch', 'fan', 'input_boolean'].includes(domain)) return { id, name, icon, kind: 'toggle', on: s === 'on', value: s === 'on' ? 'On' : 'Off' };
+    if (['light', 'switch', 'fan', 'input_boolean'].includes(domain)) {
+        const d = { id, name, icon, kind: 'toggle', on: s === 'on', value: s === 'on' ? 'On' : 'Off' };
+        if (domain === 'light' && (a.supported_color_modes || []).some(m => m !== 'onoff')) {
+            d.dimmable = true;
+            d.brightness = d.on && a.brightness ? Math.max(1, Math.round(a.brightness / 2.55)) : 0;
+            if (d.brightness) d.value = `${d.brightness}%`;
+        }
+        return d;
+    }
     if (domain === 'cover') return { id, name, icon, kind: 'cover', value: s, on: s === 'open' || s === 'opening' };
     if (domain === 'lock') return { id, name, icon, kind: 'lock', value: s, on: s === 'unlocked' };
     if (domain === 'climate') return { id, name, icon, kind: 'climate', value: a.temperature !== undefined ? `${a.temperature}°` : s, current: a.current_temperature, on: s !== 'off', target: a.temperature, step: a.target_temp_step || 0.5 };
@@ -73,9 +81,10 @@ const BINARY_ON = { motion: 'Motion', occupancy: 'Occupied', presence: 'Home', d
 const BINARY_OFF = { motion: 'Clear', occupancy: 'Empty', presence: 'Away', door: 'Closed', window: 'Closed', opening: 'Closed', garage_door: 'Closed', moisture: 'Dry', smoke: 'Clear' };
 
 /** Service call for a control gesture: { domain, service, data } or null. */
-export function controlCall(desc, action = 'primary') {
+export function controlCall(desc, action = 'primary', value) {
     const domain = desc.id.split('.')[0];
     const data = { entity_id: desc.id };
+    if (action === 'brightness') return { domain: 'light', service: 'turn_on', data: { ...data, brightness_pct: Math.max(1, Math.min(100, Math.round(value))) } };
     switch (desc.kind) {
         case 'toggle': return { domain, service: 'toggle', data };
         case 'cover': return { domain: 'cover', service: action === 'secondary' ? 'close_cover' : (desc.on ? 'close_cover' : 'open_cover'), data };
