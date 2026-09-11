@@ -34,11 +34,11 @@ body { margin: 0; background: var(--dm-bg); color: var(--dm-text); font-family: 
 .dm-toolbar .dm-chip-row { flex-wrap: nowrap; }
 .dm-toolbar > * { flex: none; }
 .dm-map { grid-area: map; position: relative; overflow: hidden; background: var(--dm-map-bg); display: flex; justify-content: center; align-items: center; touch-action: none; }
-.dm-inspector { grid-area: inspector; position: relative; min-width: 0; background: var(--dm-panel); border-left: 1px solid var(--dm-border); overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; display: flex; flex-direction: column; }
-.dm-inspector-resizer { position: sticky; top: 0; left: 0; float: left; width: 6px; height: 100%; margin-right: -6px; cursor: col-resize; z-index: 3; touch-action: none; }
+.dm-inspector { grid-area: inspector; position: relative; min-width: 0; background: var(--dm-panel); border-left: 1px solid var(--dm-border); overflow: hidden; display: flex; flex-direction: column; }
+.dm-inspector-resizer { position: absolute; left: 0; top: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 3; touch-action: none; }
 .dm-inspector-resizer:hover { background: var(--dm-accent-soft); }
 .dm-inspector-handle { display: none; }
-.dm-inspector-body { padding: 12px 14px 24px; display: flex; flex-direction: column; gap: 10px; }
+.dm-inspector-body { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 12px 14px 24px; display: flex; flex-direction: column; gap: 10px; }
 
 /* Controls */
 button, input, select, textarea { font-family: inherit; font-size: 13px; color: var(--dm-text); }

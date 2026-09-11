@@ -93,7 +93,7 @@ export class Inspector {
         const ctx = app.ctx();
         // Keep the scroll position across re-renders of the same selection.
         const key = `${state.activeLayer}:${state.selectedShortcutIdx}:${state.selectedRooms.join(',')}:${state.selectedWallIdx}`;
-        const scroll = this.lastKey === key ? this.root.scrollTop : 0;
+        const scroll = this.lastKey === key ? this.body.scrollTop : 0;
         this.lastKey = key;
         clear(this.body);
         this.handle.querySelector('.dm-inspector-title').textContent = this.titleFor();
@@ -109,6 +109,6 @@ export class Inspector {
             content = renderLayerList(ctx, state.activeLayer);
         }
         append(this.body, content);
-        this.root.scrollTop = scroll;
+        this.body.scrollTop = scroll;
     }
 }

@@ -82,6 +82,10 @@ export function roomLabelCenter(host, room) {
 /** Room polygons (with data-room-id) and their upright labels. */
 export function buildRooms(host, onRoomTap) {
     const svgNS = host.svgNS;
+    // Labels live in their own layer so decor (furniture) never covers them.
+    host.labelsLayer = document.createElementNS(svgNS, 'g');
+    host.labelsLayer.classList.add('dm-room-labels');
+    host.labelsLayer.style.pointerEvents = 'none';
     host.rooms.forEach(room => {
         const polygon = document.createElementNS(svgNS, 'polygon');
         polygon.setAttribute('points', polygonPoints(host, room.polygon));
@@ -108,9 +112,10 @@ export function buildRooms(host, onRoomTap) {
             text.dataset.roomId = room.id;
             text.rawCx = cx;   // kept for counter-rotation under a viewport
             text.rawCy = cy;
-            host.mapRoot.appendChild(text);
+            host.labelsLayer.appendChild(text);
         }
     });
+    host.mapRoot.appendChild(host.labelsLayer);
 }
 
 /**
@@ -138,7 +143,8 @@ export function buildWalls(host) {
         path.dataset.wallIdx = String(idx);
         layer.appendChild(path);
     });
-    host.mapRoot.appendChild(layer);
+    if (host.labelsLayer && host.labelsLayer.parentNode === host.mapRoot) host.mapRoot.insertBefore(layer, host.labelsLayer);
+    else host.mapRoot.appendChild(layer);
     host.wallsLayer = layer;
 }
 
@@ -150,7 +156,9 @@ export function buildShortcuts(host) {
     host.shortcutElements = {};
     host.decorLayer = document.createElementNS(host.svgNS, 'g');
     host.decorLayer.classList.add('dm-decor-layer');
-    host.mapRoot.appendChild(host.decorLayer);
+    // Below the room labels (which sit right after the walls), above walls.
+    if (host.labelsLayer && host.labelsLayer.parentNode === host.mapRoot) host.mapRoot.insertBefore(host.decorLayer, host.labelsLayer);
+    else host.mapRoot.appendChild(host.decorLayer);
     host.shortcuts.forEach(sc => {
         const obj = ShortcutFactory.create(sc, host.svgNS, host.imgW, host.imgH, host);
         host.shortcutElements[sc.id] = obj;
