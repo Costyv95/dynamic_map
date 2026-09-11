@@ -1,4 +1,7 @@
 import { shortcutFrame, writeFrame, toLocal } from '../../shared/ShortcutGeometry.js?v=3.2.1';
+import { snapTargets, snapPoint } from '../Snap.js?v=3.2.1';
+
+const SNAP_PX = 8;   // screen pixels
 
 const HANDLES = ['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW', 'ROT'];
 
@@ -59,6 +62,9 @@ export class ShortcutTool {
             const f = this.frame();
             // Keep the grab point: dragging moves by the pointer's delta.
             this.grab = { dx: f.x - pt.x, dy: f.y - pt.y };
+            const c = this.canvas;
+            this.targets = snapTargets({ shortcuts: this.state.shortcuts, rooms: this.state.rooms, imgW: c.imgW, imgH: c.imgH,
+                mode: c.activeMode, excludeId: sc.id, hass: c._hass });
             this.mode = 'drag';
             this.moved = false;
             return true;
@@ -71,7 +77,15 @@ export class ShortcutTool {
         this.moved = true;
         const opts = { ...this.geomOpts(), mode: this.writeMode() };
         if (this.mode === 'drag') {
-            writeFrame(this.sc, { x: pt.x + this.grab.dx, y: pt.y + this.grab.dy }, opts);
+            let x = pt.x + this.grab.dx, y = pt.y + this.grab.dy;
+            this.state.snapGuides = null;
+            if (!e.altKey && this.targets) {
+                const px = typeof this.canvas.pxPerUnit === 'function' ? this.canvas.pxPerUnit() : 1;
+                const snapped = snapPoint(x, y, this.targets, SNAP_PX / Math.max(px, 1e-6));
+                x = snapped.x; y = snapped.y;
+                this.state.snapGuides = snapped.guides.length ? snapped.guides : null;
+            }
+            writeFrame(this.sc, { x, y }, opts);
         } else if (this.mode === 'rotate') {
             this.applyRotate(pt, opts);
         } else {
@@ -108,9 +122,21 @@ export class ShortcutTool {
         writeFrame(this.sc, patch, opts);
     }
 
+    /** Arrow keys: move the selection by 1 map unit (Shift: 10). */
+    nudge(dx, dy) {
+        if (!this.sc) return false;
+        const f = this.frame();
+        writeFrame(this.sc, { x: f.x + dx, y: f.y + dy }, { ...this.geomOpts(), mode: this.writeMode() });
+        this.state.saveState();
+        this.state.requestDrawCallback();
+        return true;
+    }
+
     onUp() {
         const was = this.mode;
         this.mode = null;
+        this.state.snapGuides = null;
+        this.targets = null;
         if (!was) return false;
         if (this.moved) {
             this.state.saveState();

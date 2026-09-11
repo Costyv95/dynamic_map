@@ -40,6 +40,7 @@ export class EditOverlay {
         const { state } = ctx;
         const k = 1 / Math.max(ctx.pxPerUnit, 1e-6);
         this.renderRooms(ctx, k);
+        this.renderGuides(ctx, k);
         this.renderDrawingPolygon(ctx, k);
         this.renderSplitLine(ctx, k);
         if (state.activeLayer === 'walls') this.renderWalls(ctx, k);
@@ -75,6 +76,19 @@ export class EditOverlay {
                     'data-handle': 'vertex', 'data-room-idx': idx, 'data-vertex-idx': i, style: 'cursor: move;'
                 });
             });
+        });
+    }
+
+    /** Dashed alignment lines while a drag snaps to a badge or room. */
+    renderGuides(ctx, k) {
+        const guides = ctx.state.snapGuides;
+        if (!guides || !guides.length) return;
+        guides.forEach(g => {
+            const color = g.kind === 'badge' ? '#f472b6' : ACCENT;
+            const attrs = g.axis === 'x'
+                ? { x1: g.value, y1: 0, x2: g.value, y2: ctx.imgH }
+                : { x1: 0, y1: g.value, x2: ctx.imgW, y2: g.value };
+            this.el('line', { ...attrs, stroke: color, 'stroke-width': 1 * k, 'stroke-dasharray': `${5 * k} ${4 * k}`, 'pointer-events': 'none', opacity: 0.9 });
         });
     }
 
