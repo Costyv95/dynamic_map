@@ -39,7 +39,8 @@ export function updateRoomPanel(host, hass) {
     const ids = room.area_id ? areaEntities(hass, room.area_id) : [];
     if (room.entity_id && hass.states[room.entity_id] && !ids.includes(room.entity_id)) ids.unshift(room.entity_id);
     const max = Number(host.config.room_panel_max) > 0 ? Number(host.config.room_panel_max) : 12;
-    const shown = ids.slice(0, max);
+    const dead = (id) => { const s = hass.states[id] && hass.states[id].state; return s === 'unavailable' || s === 'unknown'; };
+    const shown = [...ids.filter(id => !dead(id)), ...ids.filter(dead)].slice(0, max);   // live controls first
     const kinds = alertKinds(host.config);
     const alerts = kinds ? roomAlerts(hass, room, kinds) : [];
     panel.replaceChildren(
