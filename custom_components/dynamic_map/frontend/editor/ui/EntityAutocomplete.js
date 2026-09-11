@@ -4,12 +4,14 @@
  * action/condition rows.
  */
 export function setupAutocomplete(inputElement, getEntities) {
-    if (!inputElement) return;
+    if (!inputElement) return null;
     const dropdown = document.createElement('div');
     dropdown.className = 'autocomplete-dropdown';
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'position:relative;width:100%;';
-    inputElement.parentNode.insertBefore(wrapper, inputElement);
+    // Works for an input already in the DOM and for one still being built
+    // (the panels wrap first, then place the wrapper).
+    if (inputElement.parentNode) inputElement.parentNode.insertBefore(wrapper, inputElement);
     wrapper.appendChild(inputElement);
     wrapper.appendChild(dropdown);
 
@@ -35,6 +37,7 @@ export function setupAutocomplete(inputElement, getEntities) {
     });
     document.addEventListener('click', (e) => { if (!wrapper.contains(e.target)) dropdown.style.display = 'none'; });
     inputElement.addEventListener('focus', () => inputElement.dispatchEvent(new Event('input', { bubbles: false })));
+    return wrapper;
 }
 
 /** Fill the shared entity datalist. */

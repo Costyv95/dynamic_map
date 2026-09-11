@@ -26,7 +26,7 @@ export function renderRoomPanel(ctx) {
 
     const entityInput = textInput({ value: room.entity_id || '', placeholder: 'e.g. light.living_room', list: 'entityList',
         onInput: (v) => { room.entity_id = v; }, onChange: commit });
-    app.attachAutocomplete(entityInput);
+    const entityField = app.attachAutocomplete(entityInput);
 
     return [
         section('Room', [
@@ -38,7 +38,7 @@ export function renderRoomPanel(ctx) {
                 if (area && area.default_light && !room.entity_id) { room.entity_id = area.default_light; entityInput.value = area.default_light; }
                 commit();
             }), { hint: 'Links the room to an HA area so "toggle area lights" and presence work.' }),
-            field('Light entity (optional)', entityInput, { hint: 'The room fills with its colour while this entity is on.' }),
+            field('Light entity (optional)', entityField, { hint: 'The room fills with its colour while this entity is on.' }),
             field('Colour', colorInput(room.color || '#333333',
                 (v) => { room.color = v; localStorage.setItem('lastRoomColor', v); state.requestDrawCallback(); },
                 (v) => { if (v) room.color = v; commit(); }))

@@ -1,4 +1,4 @@
-import { el, clear } from './dom.js?v=3.2.1';
+import { el, clear, append } from './dom.js?v=3.2.1';
 import { renderRoomPanel, renderRoomsOverview } from './RoomPanel.js?v=3.2.1';
 import { renderShortcutPanel } from './ShortcutPanel.js?v=3.2.1';
 import { renderWallPanel } from './WallPanel.js?v=3.2.1';
@@ -81,7 +81,7 @@ export class Inspector {
         } else {
             content = renderLayerList(ctx, state.activeLayer);
         }
-        this.body.append(content);
+        append(this.body, content);
         this.root.scrollTop = scroll;
     }
 }

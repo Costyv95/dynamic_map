@@ -35,12 +35,12 @@ function renderIdentity(ctx, sc, decor) {
     const commit = () => { state.saveState(); state.requestDrawCallback(); };
     const entity = textInput({ value: sc.entity_id || '', placeholder: 'e.g. light.desk_lamp', list: 'entityList',
         onInput: (v) => { retargetEntity(sc, v); state.requestDrawCallback(); }, onChange: () => { commit(); ctx.refresh(); } });
-    app.attachAutocomplete(entity);
+    const entityField = app.attachAutocomplete(entity);
     const parents = [{ value: 'home', label: 'Home (global)' }, { value: `floor_${state.activeFloor}`, label: `This floor (Floor ${state.activeFloor})` },
         ...state.rooms.map(r => ({ value: r.id, label: `Room: ${r.name || 'Unnamed'}` }))];
     return section(decor ? 'Decor item' : 'Object', [
         field('Name', textInput({ value: sc.name || '', placeholder: 'e.g. Desk lamp', onInput: (v) => { sc.name = v; state.requestDrawCallback(); }, onChange: () => { commit(); ctx.syncLists(); } })),
-        decor ? null : field('Entity', entity, { hint: 'The Home Assistant entity this badge shows and controls.' }),
+        decor ? null : field('Entity', entityField, { hint: 'The Home Assistant entity this badge shows and controls.' }),
         decor ? null : field('Type', select(SHORTCUT_TYPES, sc.type || 'generic', (v) => { applyTypePreset(sc, v); commit(); ctx.refresh(); }),
             { hint: 'Picking a type fills in sensible states and actions once; you can change them below.' }),
         decor ? null : field('Belongs to', select(parents, sc.parent || 'home', (v) => { sc.parent = v; commit(); })),

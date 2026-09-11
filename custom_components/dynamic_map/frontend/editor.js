@@ -142,8 +142,9 @@ export class EditorApp {
     addObject() { this.addShortcut(newObject(localStorage.getItem('lastShortcutColor')), 'objects'); }
     addDecor() { this.addShortcut(newDecor(), 'decor'); }
 
+    /** Wraps `input` with an entity dropdown; returns the element to place. */
     attachAutocomplete(input) {
-        setupAutocomplete(input, () => this.state.allEntities);
+        return setupAutocomplete(input, () => this.state.allEntities) || input;
     }
 
     bindGlobals() {
