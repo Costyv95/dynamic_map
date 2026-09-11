@@ -32,6 +32,9 @@ export class HistoryManager {
         return null;
     }
 
+    canUndo() { return this.historyIndex > 0; }
+    canRedo() { return this.historyIndex < this.history.length - 1; }
+
     reset() {
         this.history = [];
         this.historyIndex = -1;

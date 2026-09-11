@@ -141,23 +141,26 @@ export class EditorStateManager {
         return true;
     }
 
+    /**
+     * Layers: 'rooms' | 'objects' | 'decor' | 'walls'. Rooms are editable
+     * (corner handles, drawing, split, delete) only on the rooms layer;
+     * `isEditMode` mirrors that for the tools.
+     */
     setActiveLayer(layer) {
         if (this.activeLayer === layer) return;
         this.activeLayer = layer;
+        this.isEditMode = layer === 'rooms';
         this.selectedShortcutIdx = -1;
         this.selectedWallIdx = -1;
         this.drawingWall = null;
+        this.drawingPolygon = null;
+        if (layer !== 'rooms') this.selectedRooms = [];
         if (this.updateUICallback) this.updateUICallback();
         if (this.requestDrawCallback) this.requestDrawCallback();
     }
 
+    /** Kept for callers that still think in edit-mode terms. */
     setEditMode(mode) {
-        this.isEditMode = mode;
-        if (!this.isEditMode) {
-            this.selectedRooms = [];
-            this.selectedShortcutIdx = -1;
-        }
-        if(this.updateUICallback) this.updateUICallback();
-        if(this.requestDrawCallback) this.requestDrawCallback();
+        this.setActiveLayer(mode ? 'rooms' : 'objects');
     }
 }

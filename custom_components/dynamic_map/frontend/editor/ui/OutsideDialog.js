@@ -1,36 +1,36 @@
+import { el, textInput } from './dom.js?v=3.2.1';
+import { openDialog, toast } from './Dialog.js?v=3.2.1';
 import { ApiManager } from '../../shared/ApiManager.js?v=3.2.1';
 
 /**
- * Outside Dashboard editor: manages the global outside.json, a fixed
- * info bar (temperature, pollen, weather...) at the top of the card.
+ * Outside dashboard: the global outside.json, a fixed info bar
+ * (temperature, pollen, weather…) at the top of the card.
  */
-function addRow(item = {}) {
-    const row = document.createElement('div');
-    row.className = 'outside-row';
-    row.style.cssText = 'display:flex; gap:5px; align-items:center;';
-    row.innerHTML = `
-        <input class="o-entity" list="entityList" placeholder="entity_id (e.g. sensor.outdoor_temp)" value="${item.entity_id || ''}" style="flex:3; margin:0; min-width:0;">
-        <input class="o-icon" placeholder="🌡️" title="Icon (emoji, optional)" value="${item.icon || ''}" style="flex:0 0 44px; margin:0; text-align:center;">
-        <input class="o-name" placeholder="Label" title="Small label under the value (optional)" value="${item.name || ''}" style="flex:2; margin:0; min-width:0;">
-        <input class="o-unit" placeholder="Unit" title="Unit override (optional, blank = entity unit)" value="${item.unit !== undefined ? item.unit : ''}" style="flex:0 0 52px; margin:0;">
-        <input class="o-attr" placeholder="Attr" title="Entity attribute to display instead of state (optional)" value="${item.attribute || ''}" style="flex:0 0 64px; margin:0;">
-        <button class="o-del danger" title="Remove item" style="width:28px; height:28px; padding:0; margin:0; flex:none;">×</button>
-    `;
-    row.querySelector('.o-del').addEventListener('click', () => row.remove());
-    document.getElementById('outsideRows').appendChild(row);
+function row(item = {}) {
+    const r = el('div.outside-row', { style: { display: 'flex', gap: '5px', alignItems: 'center' } },
+        textInput({ value: item.entity_id || '', placeholder: 'entity_id, e.g. sensor.outdoor_temp', list: 'entityList' }),
+        textInput({ value: item.icon || '', placeholder: '🌡️' }),
+        textInput({ value: item.name || '', placeholder: 'Label' }),
+        textInput({ value: item.unit !== undefined ? item.unit : '', placeholder: 'Unit' }),
+        textInput({ value: item.attribute || '', placeholder: 'Attr' }),
+        el('button.danger', { type: 'button', title: 'Remove', onClick: () => r.remove() }, '×'));
+    const [entity, icon, name, unit, attr] = r.querySelectorAll('input');
+    entity.classList.add('o-entity'); icon.classList.add('o-icon'); name.classList.add('o-name'); unit.classList.add('o-unit'); attr.classList.add('o-attr');
+    entity.style.flex = '3'; icon.style.flex = '0 0 52px'; name.style.flex = '2'; unit.style.flex = '0 0 60px'; attr.style.flex = '0 0 72px';
+    return r;
 }
 
 /** Read the rows back into outside.json items (empty entity rows dropped). */
-export function collectRows(root = document) {
+export function collectRows(root) {
     const items = [];
-    root.querySelectorAll('#outsideRows .outside-row').forEach(row => {
-        const entity = row.querySelector('.o-entity').value.trim();
+    root.querySelectorAll('.outside-row').forEach(r => {
+        const entity = r.querySelector('.o-entity').value.trim();
         if (!entity) return;
         const item = { entity_id: entity };
-        const icon = row.querySelector('.o-icon').value.trim();
-        const name = row.querySelector('.o-name').value.trim();
-        const unit = row.querySelector('.o-unit').value.trim();
-        const attr = row.querySelector('.o-attr').value.trim();
+        const icon = r.querySelector('.o-icon').value.trim();
+        const name = r.querySelector('.o-name').value.trim();
+        const unit = r.querySelector('.o-unit').value.trim();
+        const attr = r.querySelector('.o-attr').value.trim();
         if (icon) item.icon = icon;
         if (name) item.name = name;
         if (unit) item.unit = unit;
@@ -40,33 +40,23 @@ export function collectRows(root = document) {
     return items;
 }
 
-async function open() {
-    const rows = document.getElementById('outsideRows');
-    rows.innerHTML = '';
-    document.getElementById('outsideStatus').textContent = '';
-    const items = await ApiManager.fetchOutside();
-    (items || []).forEach(addRow);
-    if (!items || !items.length) addRow();
-    document.getElementById('outsideModal').style.display = 'flex';
-}
-
-async function save() {
-    const status = document.getElementById('outsideStatus');
-    const items = collectRows();
+export async function openOutsideDialog() {
+    const rows = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '6px' } });
+    let items = [];
+    try { items = (await ApiManager.fetchOutside()) || []; } catch (e) { /* empty is fine */ }
+    items.forEach(it => rows.appendChild(row(it)));
+    if (!items.length) rows.appendChild(row());
+    const v = await openDialog({ title: 'Outside dashboard', width: 720, body: [
+        el('p.dm-hint', {}, 'Shown as a fixed bar at the top of the card. Weather entities show a condition icon and the temperature; leave the label empty to show just the value; "Attr" reads an attribute instead of the state.'),
+        rows,
+        el('button', { type: 'button', onClick: () => rows.appendChild(row()) }, '＋ Add item')
+    ], buttons: [{ label: 'Cancel', value: 'cancel' }, { label: 'Save', value: 'ok', primary: true }] });
+    if (v !== 'ok') return;
+    const out = collectRows(rows);
     try {
-        status.textContent = 'Saving…';
-        await ApiManager.saveOutside(items);
-        status.textContent = `✅ Saved ${items.length} item${items.length === 1 ? '' : 's'}. Reload the dashboard to see the bar.`;
+        await ApiManager.saveOutside(out);
+        toast(`Saved ${out.length} outside item${out.length === 1 ? '' : 's'}.`, 'ok');
     } catch (err) {
-        status.textContent = `❌ ${err.message}`;
+        toast(`Save failed: ${err.message}`, 'error', 5000);
     }
-}
-
-export function bindOutsideDialog() {
-    document.getElementById('outsideBtn').addEventListener('click', open);
-    document.getElementById('closeOutsideBtn').addEventListener('click', () => {
-        document.getElementById('outsideModal').style.display = 'none';
-    });
-    document.getElementById('addOutsideRowBtn').addEventListener('click', () => addRow());
-    document.getElementById('saveOutsideBtn').addEventListener('click', save);
 }

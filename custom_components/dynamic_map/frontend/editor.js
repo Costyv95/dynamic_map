@@ -2,33 +2,41 @@ import { ApiManager } from './shared/ApiManager.js?v=3.2.1';
 import { EditorCanvas } from './editor/EditorCanvas.js?v=3.2.1';
 import { EditorStateManager } from './editor/EditorStateManager.js?v=3.2.1';
 import { ToolRouter } from './editor/ToolRouter.js?v=3.2.1';
-import { EditorUIManager } from './editor/EditorUIManager.js?v=3.2.1';
+import { EditorUI } from './editor/EditorUI.js?v=3.2.1';
 import { HassBridge } from './editor/HassBridge.js?v=3.2.1';
-import { bindFloorControls, initFloors, listedFloors } from './editor/ui/FloorControls.js?v=3.2.1';
-import { bindOutsideDialog } from './editor/ui/OutsideDialog.js?v=3.2.1';
-import { bindRecomputePanel, loadAvailableFiles } from './editor/ui/RecomputePanel.js?v=3.2.1';
 import { setupAutocomplete, fillEntityDatalist } from './editor/ui/EntityAutocomplete.js?v=3.2.1';
+import { openAddFloorDialog } from './editor/ui/FloorDialogs.js?v=3.2.1';
+import { loadIconList } from './editor/ui/RecomputeDialog.js?v=3.2.1';
+import { newObject, newDecor } from './editor/ui/Presets.js?v=3.2.1';
 
 console.log('[DynamicMapDebug] Map Editor loaded (Version: 3.3.0)');
 
 /**
  * Editor entry: wires the state manager, the SVG canvas (the card's own
- * scene + edit overlay), the tools and the sidebar. Exported as a class
- * so the custom panel and the smoke tests can boot it against any root.
+ * scene + edit overlay), the tools and the UI. Exported as a class so the
+ * custom panel and the smoke tests can boot it against any document.
  */
 export class EditorApp {
     constructor() {
         this.container = document.getElementById('canvas-container');
-        this.state = new EditorStateManager(() => this.ui.updateSidebar(), () => this.canvas.refresh());
+        this.state = new EditorStateManager(() => this.ui.refresh(), () => this.canvas.refresh());
         this.canvas = new EditorCanvas(this.container, this.state);
+        this.canvas.linkOrientations = localStorage.getItem('dm_editor_link_orientations') !== 'false';
         this.router = new ToolRouter(this.canvas, this.state);
-        this.ui = new EditorUIManager(this.state, this.canvas);
+        this.ui = new EditorUI(this);
         this.hassBridge = new HassBridge((hass) => this.canvas.setHass(hass));
+        this.floors = [];
         this.bindGlobals();
-        this.bindToolbar();
-        bindFloorControls(this);
-        bindOutsideDialog();
-        bindRecomputePanel();
+    }
+
+    /** What the inspector panels get. */
+    ctx() {
+        return {
+            app: this, state: this.state, canvas: this.canvas,
+            refresh: () => this.ui.refresh(),
+            select: () => { this.ui.refresh(); this.state.requestDrawCallback(); },
+            syncLists: () => this.ui.refresh()
+        };
     }
 
     /** The per-floor config block as saved next to rooms/shortcuts. */
@@ -47,6 +55,27 @@ export class EditorApp {
         return ApiManager.saveToHA(this.state.activeFloor, this.state.rooms, this.state.shortcuts, this.floorConfig(extra));
     }
 
+    async saveWithFeedback() {
+        try {
+            await this.save();
+            this.ui.toast('Saved to Home Assistant.', 'ok');
+        } catch (err) {
+            this.ui.toast(`Save failed: ${err.message}`, 'error');
+        }
+    }
+
+    setFloors(floors) {
+        this.floors = floors;
+        this.ui.toolbar.setFloors(floors, this.state.activeFloor);
+    }
+
+    switchFloor(n) {
+        this.ui.toolbar.setActiveFloor(n);
+        return this.loadFloor(n);
+    }
+
+    addFloor() { return openAddFloorDialog(this); }
+
     async loadFloor(floorNum) {
         const state = this.state;
         state.activeFloor = floorNum;
@@ -59,10 +88,12 @@ export class EditorApp {
         state.selectedRooms = [];
         state.selectedShortcutIdx = -1;
         state.selectedWallIdx = -1;
+        state.previewStateIdx = -1;
+        state.historyManager.reset();
         state.saveState();
         this.canvas.loadFloor({ bgUrl, imgW: dims.w, imgH: dims.h, config: data.config });
-        this.ui.updateRotationUI();
-        this.ui.updateSidebar();
+        this.ui.toolbar.setActiveFloor(floorNum);
+        this.ui.refresh();
     }
 
     loadImageSize(url) {
@@ -83,6 +114,38 @@ export class EditorApp {
         }
     }
 
+    /** Simulated layout being edited: 'horizontal' | 'vertical'. */
+    setLayout(mode) {
+        this.canvas.activeMode = mode;
+        this.canvas.layout();
+        this.canvas.refreshAll();
+        this.ui.refresh();
+    }
+
+    /** Linked = edits write to both layouts. */
+    setLinked(on) {
+        this.canvas.linkOrientations = on;
+        localStorage.setItem('dm_editor_link_orientations', String(on));
+        this.ui.refresh();
+    }
+
+    addShortcut(sc, layer) {
+        this.state.setActiveLayer(layer);
+        this.state.shortcuts.push(sc);
+        this.state.selectedShortcutIdx = this.state.shortcuts.length - 1;
+        this.state.selectedRooms = [];
+        this.state.saveState();
+        this.ui.refresh();
+        this.state.requestDrawCallback();
+    }
+
+    addObject() { this.addShortcut(newObject(localStorage.getItem('lastShortcutColor')), 'objects'); }
+    addDecor() { this.addShortcut(newDecor(), 'decor'); }
+
+    attachAutocomplete(input) {
+        setupAutocomplete(input, () => this.state.allEntities);
+    }
+
     bindGlobals() {
         window.togglePreviewState = (idx) => {
             const res = this.state.togglePreviewState(idx);
@@ -91,94 +154,36 @@ export class EditorApp {
         };
         document.addEventListener('keydown', (e) => {
             if (!(e.ctrlKey || e.metaKey)) return;
+            const t = e.target;
+            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
             if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); this.state.undo(); }
             if (e.key === 'Z' || (e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); this.state.redo(); }
-        });
-        this.bindResizer();
-    }
-
-    bindResizer() {
-        const resizer = document.getElementById('resizer');
-        const sidebar = document.getElementById('sidebar');
-        if (!resizer) return;
-        let startX, startY, startW, startH;
-        const narrow = () => window.innerWidth <= 768;
-        resizer.addEventListener('pointerdown', (e) => {
-            const rect = sidebar.getBoundingClientRect();
-            startW = rect.width; startH = rect.height;
-            startX = e.clientX; startY = e.clientY;
-            resizer.setPointerCapture(e.pointerId);
-            resizer.classList.add('resizing');
-            e.preventDefault();
-        });
-        resizer.addEventListener('pointermove', (e) => {
-            if (!resizer.hasPointerCapture(e.pointerId)) return;
-            if (narrow()) {
-                sidebar.style.height = `${Math.max(100, Math.min(window.innerHeight - 100, startH + (e.clientY - startY)))}px`;
-                sidebar.style.maxHeight = 'none';
-            } else {
-                sidebar.style.width = `${Math.max(200, Math.min(window.innerWidth - 200, startW + (e.clientX - startX)))}px`;
-            }
-        });
-        resizer.addEventListener('pointerup', (e) => {
-            resizer.releasePointerCapture(e.pointerId);
-            resizer.classList.remove('resizing');
-            this.canvas.layout();
+            if (e.key === 's') { e.preventDefault(); this.saveWithFeedback(); }
         });
     }
 
-    bindToolbar() {
-        const canvas = this.canvas;
-        document.getElementById('undoBtn').addEventListener('click', () => this.state.undo());
-        document.getElementById('redoBtn').addEventListener('click', () => this.state.redo());
-        document.getElementById('exportJsonBtn').addEventListener('click', async () => {
-            if (this.state.selectedRooms.length === 1) this.ui.saveRoomName();
-            const btn = document.getElementById('exportJsonBtn');
-            btn.textContent = 'Saving to HA...';
-            try {
-                await this.save();
-                btn.textContent = '✅ Saved to HA Successfully!';
-            } catch (err) {
-                btn.textContent = '❌ Save Failed';
-            }
-            setTimeout(() => { btn.textContent = '💾 Save JSON'; }, 3000);
-        });
-        document.getElementById('exportYamlBtn').addEventListener('click', () => {
-            const floors = listedFloors();
-            const vacuum = (this.state.shortcuts || []).find(sc => sc.type === 'vacuum' && sc.entity_id);
-            let yaml = `type: custom:custom-svg-map\ndefault_floor: ${this.state.activeFloor}\n`;
-            if (floors.length) yaml += `floors: [${floors.join(', ')}]\n`;
-            if (vacuum) yaml += `vacuum_entity: ${vacuum.entity_id}\n`;
-            document.getElementById('yamlOutput').value = yaml;
-        });
-
-        // Orientation linking: ON = edits write to BOTH layouts.
-        const linkBtn = document.getElementById('linkOrientationsBtn');
-        canvas.linkOrientations = localStorage.getItem('dm_editor_link_orientations') !== 'false';
-        const renderLinkBtn = () => {
-            linkBtn.classList.toggle('active', canvas.linkOrientations);
-            linkBtn.textContent = canvas.linkOrientations ? '🔗' : '⛓️';
-            linkBtn.title = canvas.linkOrientations
-                ? 'Linked: moves/resizes apply to BOTH orientations. Click to unlink and edit only the active one.'
-                : 'Unlinked: edits only affect the active orientation. Click to link both again.';
-        };
-        renderLinkBtn();
-        linkBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            canvas.linkOrientations = !canvas.linkOrientations;
-            localStorage.setItem('dm_editor_link_orientations', String(canvas.linkOrientations));
-            renderLinkBtn();
-        });
-        const setLayout = (mode) => {
-            document.getElementById('toggleHorizontalBtn').classList.toggle('active', mode === 'horizontal');
-            document.getElementById('toggleVerticalBtn').classList.toggle('active', mode === 'vertical');
-            canvas.activeMode = mode;
-            canvas.layout();
-            canvas.refreshAll();
-            this.ui.updateSidebar();
-        };
-        document.getElementById('toggleHorizontalBtn').addEventListener('click', () => setLayout('horizontal'));
-        document.getElementById('toggleVerticalBtn').addEventListener('click', () => setLayout('vertical'));
+    async discoverFloors() {
+        let floors = [];
+        try {
+            const data = await ApiManager.fetchFloors();
+            if (data.success && Array.isArray(data.floors)) floors = data.floors;
+            if (data.version) document.querySelector('.dm-brand').title = `Dynamic Map v${data.version}`;
+        } catch (err) {
+            console.warn('[editor] Floor discovery failed:', err.message);
+        }
+        if (!floors.length) {
+            // Authenticated API unavailable (companion-app webview without a
+            // web session): probe the public data files instead.
+            const t = Date.now();
+            const probes = await Promise.all([...Array(12)].map((_, i) =>
+                fetch(`/dynamic_map_data/rooms_floor${i + 1}.json?t=${t}`, { method: 'HEAD' })
+                    .then(r => (r.ok ? i + 1 : null)).catch(() => null)));
+            floors = probes.filter(Boolean);
+        }
+        if (!floors.length) floors = [1];
+        this.setFloors(floors);
+        const remembered = parseInt(localStorage.getItem('dm_editor_last_floor'));
+        return this.switchFloor(floors.includes(remembered) ? remembered : floors[floors.length - 1]);
     }
 
     async loadRegistry() {
@@ -187,9 +192,6 @@ export class EditorApp {
             if (!data.success) return;
             this.state.haAreas = data.areas;
             this.state.haFloors = data.floors;
-            const select = document.getElementById('roomArea');
-            select.innerHTML = '<option value="">-- Unmapped --</option>';
-            this.state.haAreas.forEach(a => { select.innerHTML += `<option value="${a.id}">${a.name}</option>`; });
         } catch (err) {
             console.warn('[editor] Failed to load HA registry:', err.message);
         }
@@ -200,9 +202,6 @@ export class EditorApp {
             const data = await ApiManager.fetchEntities();
             if (!(data.success && data.entities)) return;
             this.state.allEntities = data.entities;
-            const get = () => this.state.allEntities;
-            setupAutocomplete(document.getElementById('roomEntity'), get);
-            setupAutocomplete(document.getElementById('scEntity'), get);
             fillEntityDatalist(data.entities);
         } catch (err) {
             console.warn('[editor] Failed to load entities for autocomplete:', err.message);
@@ -210,14 +209,9 @@ export class EditorApp {
     }
 
     start() {
-        document.getElementById('roomArea').addEventListener('change', (e) => {
-            const area = this.state.haAreas.find(a => a.id === e.target.value);
-            const entInput = document.getElementById('roomEntity');
-            if (area && area.default_light && !entInput.value) entInput.value = area.default_light;
-        });
         this.loadRegistry();
-        loadAvailableFiles();
-        initFloors(this);
+        loadIconList();
+        this.discoverFloors();
         this.loadEntities();
         this.hassBridge.startPolling();
         return this;

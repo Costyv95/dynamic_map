@@ -153,6 +153,11 @@ function collectSegments(rawAttr, segmentMap, originalNames) {
     }
 }
 
+/** Deep-copy `value` without any key that starts with '_'. */
+export function stripRuntimeKeys(value) {
+    return JSON.parse(JSON.stringify(value, (key, v) => (typeof key === 'string' && key.startsWith('_') ? undefined : v)));
+}
+
 export class ApiManager {
     static async fetchState(entityId) {
         try {
@@ -294,11 +299,10 @@ export class ApiManager {
     }
 
     static async saveToHA(activeFloor, rooms, shortcuts, config) {
-        // Strip the runtime _imgCache object from shortcuts to prevent serializing DOM Image objects
-        const cleanShortcuts = JSON.parse(JSON.stringify(shortcuts, (key, value) => {
-            if (key === '_imgCache') return undefined;
-            return value;
-        }));
+        // Underscore keys are editor-only runtime state (_expanded, caches):
+        // never persist them.
+        const cleanShortcuts = stripRuntimeKeys(shortcuts);
+        rooms = stripRuntimeKeys(rooms);
 
         const save = async (filename, content, label) => {
             const res = await apiFetch('/api/dynamic_map/save', {
