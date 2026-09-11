@@ -110,7 +110,7 @@ describe('temperature legend and merged quick actions', () => {
     });
 
     it('merges YAML quick actions with the quick_actions.json items', () => {
-        const host = { renderRoot: document.createElement('div'), config: { quick_actions: [{ entity: 'switch.a' }] }, quickActionItems: [{ name: 'Movie', service: 'scene.turn_on', data: { entity_id: 'scene.movie' } }], _hass: null };
+        const host = { renderRoot: document.createElement('div'), config: { lights_off_button: false, quick_actions: [{ entity: 'switch.a' }] }, quickActionItems: [{ name: 'Movie', service: 'scene.turn_on', data: { entity_id: 'scene.movie' } }], _hass: null };
         buildQuickActions(host);
         expect(host.renderRoot.querySelectorAll('.dm-quick-chip').length).toBe(2);
     });
