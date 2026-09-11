@@ -205,23 +205,33 @@ export class EditorApp {
     }
 
     bindGlobals() {
-        window.addEventListener('beforeunload', (e) => {
+        this._onUnload = (e) => {
             if (!this.dirty.dirty) return;
             e.preventDefault();
             e.returnValue = '';
-        });
+        };
+        window.addEventListener('beforeunload', this._onUnload);
         window.togglePreviewState = (idx) => {
             const res = this.state.togglePreviewState(idx);
             window.previewStateIdx = res;
             return res;
         };
-        document.addEventListener('keydown', (e) => {
-            if (!(e.ctrlKey || e.metaKey)) return;
-            if (isTyping(e)) return;
+        this._onKey = (e) => {
+            if (!(e.ctrlKey || e.metaKey) || isTyping(e)) return;
             if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); this.state.undo(); }
             if (e.key === 'Z' || (e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); this.state.redo(); }
             if (e.key === 's') { e.preventDefault(); this.saveWithFeedback(); }
-        });
+        };
+        document.addEventListener('keydown', this._onKey);
+    }
+
+    /** Unmount: stop polling and remove every document/window listener. */
+    destroy() {
+        this.hassBridge.stop();
+        this.router.destroy();
+        this.canvas.destroy();
+        document.removeEventListener('keydown', this._onKey);
+        window.removeEventListener('beforeunload', this._onUnload);
     }
 
     async discoverFloors() {

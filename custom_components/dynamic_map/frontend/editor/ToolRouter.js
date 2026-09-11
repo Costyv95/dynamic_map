@@ -31,7 +31,13 @@ export class ToolRouter {
         svg.addEventListener('pointermove', e => this.onPointerMove(e));
         svg.addEventListener('pointerup', e => this.onPointerUp(e));
         svg.addEventListener('pointercancel', e => this.onPointerUp(e));
-        document.addEventListener('keydown', e => this.onKeyDown(e));
+        this._onKey = e => this.onKeyDown(e);
+        document.addEventListener('keydown', this._onKey);
+    }
+
+    /** Drop the document-level listener (panel unmount); stale routers must not act on keys. */
+    destroy() {
+        document.removeEventListener('keydown', this._onKey);
     }
 
     tools() {
