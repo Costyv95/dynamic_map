@@ -63,4 +63,27 @@ describe('dynamic-map-panel', () => {
         el.remove();
         expect(ApiManager.usesPanelHass).toBe(false);
     });
+
+    it('a removed panel stops listening to keys, and a newer install marks the running class stale', async () => {
+        const el = document.createElement('dynamic-map-panel');
+        document.body.appendChild(el);
+        el.hass = hass;
+        await new Promise(r => setTimeout(r, 50));
+        const app = el.app;
+        app.state.selectedShortcutIdx = 0;
+        el.remove();
+        document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Delete', bubbles: true }));
+        expect(app.state.shortcuts.length).toBe(1);   // stale router is detached
+        // Re-importing the panel under a new version cannot redefine the element: it patches the old class instead.
+        globalThis.__DM_PANEL_VERSION = '9.9.9';
+        await import('../dynamic-map-panel.js?v=9.9.9');
+        delete globalThis.__DM_PANEL_VERSION;
+        const again = document.createElement('dynamic-map-panel');
+        document.body.appendChild(again);
+        again.hass = hass;
+        await new Promise(r => setTimeout(r, 50));
+        const bar = again.shadowRoot.querySelector('.dm-reload-bar');
+        expect(bar.textContent).toContain('9.9.9');
+        again.remove();
+    });
 });

@@ -7,7 +7,8 @@ import { ApiManager } from './shared/ApiManager.js?v=3.2.1';
  * shadow root and feed the live hass into the preview and the API.
  */
 const BASE = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
-const VERSION = (new URL(import.meta.url).searchParams.get('v')) || '';
+// Tests import without a query (vitest strips it) and set the version on the global instead.
+const VERSION = (new URL(import.meta.url).searchParams.get('v')) || globalThis.__DM_PANEL_VERSION || '';
 const q = VERSION ? `?v=${VERSION}` : '';
 
 const SHELL = `
@@ -60,11 +61,7 @@ class DynamicMapPanel extends HTMLElement {
     }
 
     disconnectedCallback() {
-        if (this.app) {
-            this.app.hassBridge.stop();
-            this.app.canvas.destroy();
-            this.app = null;
-        }
+        if (this.app) { this.app.destroy(); this.app = null; }
         ApiManager.setHass(null);
     }
 
@@ -81,6 +78,33 @@ class DynamicMapPanel extends HTMLElement {
     set route(v) { this._route = v; }
 }
 
-if (!customElements.get('dynamic-map-panel')) {
-    customElements.define('dynamic-map-panel', DynamicMapPanel);
+DynamicMapPanel.VERSION = VERSION;
+
+/**
+ * A tab that already loaded an older panel keeps running its class (custom
+ * elements cannot be redefined, and lifecycle callbacks are captured at
+ * define time). HA assigns `hass` on every update, and that setter IS looked
+ * up dynamically: wrap it so the old panel shows a reload bar instead of
+ * silently running stale code.
+ */
+function markStale(Old) {
+    if (Old.VERSION === VERSION || Old._dmStaleHook) return;
+    Old._dmStaleHook = true;
+    const desc = Object.getOwnPropertyDescriptor(Old.prototype, 'hass');
+    Object.defineProperty(Old.prototype, 'hass', { get: desc.get, set(h) { desc.set.call(this, h); reloadBar(this); }, configurable: true });
 }
+
+function reloadBar(panel) {
+    if (!panel.shadowRoot || panel.shadowRoot.querySelector('.dm-reload-bar')) return;
+    const bar = document.createElement('div');
+    bar.className = 'dm-reload-bar';
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;display:flex;gap:12px;align-items:center;justify-content:center;padding:8px 12px;background:#f59e0b;color:#111;font:600 14px/1.3 system-ui,sans-serif;';
+    bar.innerHTML = '<span></span><button style="font:inherit;padding:4px 12px;border-radius:999px;border:0;background:#111;color:#fff;cursor:pointer">Reload</button>';
+    bar.querySelector('span').textContent = `Map Editor ${VERSION} is installed but this page still runs an older version.`;
+    bar.querySelector('button').addEventListener('click', () => location.reload());
+    panel.shadowRoot.appendChild(bar);
+}
+
+const existing = customElements.get('dynamic-map-panel');
+if (existing) markStale(existing);
+else customElements.define('dynamic-map-panel', DynamicMapPanel);
