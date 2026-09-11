@@ -1,655 +1,230 @@
 import { ApiManager } from './shared/ApiManager.js?v=3.2.1';
-import { CanvasEngine } from './editor/CanvasEngine.js?v=3.2.1';
+import { EditorCanvas } from './editor/EditorCanvas.js?v=3.2.1';
 import { EditorStateManager } from './editor/EditorStateManager.js?v=3.2.1';
-import { EditorInteractionManager } from './editor/EditorInteractionManager.js?v=3.2.1';
+import { ToolRouter } from './editor/ToolRouter.js?v=3.2.1';
 import { EditorUIManager } from './editor/EditorUIManager.js?v=3.2.1';
+import { HassBridge } from './editor/HassBridge.js?v=3.2.1';
+import { bindFloorControls, initFloors, listedFloors } from './editor/ui/FloorControls.js?v=3.2.1';
+import { bindOutsideDialog } from './editor/ui/OutsideDialog.js?v=3.2.1';
+import { bindRecomputePanel, loadAvailableFiles } from './editor/ui/RecomputePanel.js?v=3.2.1';
+import { setupAutocomplete, fillEntityDatalist } from './editor/ui/EntityAutocomplete.js?v=3.2.1';
 
-console.log('[DynamicMapDebug] Active Map Editor Loaded (Version: 3.1.0)');
+console.log('[DynamicMapDebug] Map Editor loaded (Version: 3.3.0)');
 
-const DEBUG = false;
-const dlog = (...args) => { if (DEBUG) console.log('[DynamicMapDebug]', ...args); };
-
-const canvas = document.getElementById('mapCanvas');
-const ctx = canvas.getContext('2d');
-const engine = new CanvasEngine(canvas, ctx);
-
-let animationFrameId = null;
-
-const stateManager = new EditorStateManager(
-    () => uiManager.updateSidebar(),
-    () => draw()
-);
-
-const uiManager = new EditorUIManager(stateManager, engine);
-const interactionManager = new EditorInteractionManager(canvas, engine, stateManager);
-
-window.togglePreviewState = function(idx) {
-    const res = stateManager.togglePreviewState(idx);
-    window.previewStateIdx = res;
-    return res;
-};
-
-// Expose state for UI/draw
-function draw() {
-    // Forward the whole state object so new fields (walls, activeLayer,
-    // drawingWall, wallCursor, …) reach the engine automatically — an
-    // earlier hand-picked list silently dropped the wall state and nothing
-    // rendered while drawing. Extra fields are ignored by the engine.
-    engine.draw({
-        ...stateManager,
-        requestDraw: () => draw()
-    });
-    if (animationFrameId) cancelAnimationFrame(animationFrameId);
-    animationFrameId = requestAnimationFrame(draw);
-}
-
-// Global hotkeys
-document.addEventListener('keydown', (e) => {
-    if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); stateManager.undo(); }
-        if (e.key === 'Z' || (e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); stateManager.redo(); }
+/**
+ * Editor entry: wires the state manager, the SVG canvas (the card's own
+ * scene + edit overlay), the tools and the sidebar. Exported as a class
+ * so the custom panel and the smoke tests can boot it against any root.
+ */
+export class EditorApp {
+    constructor() {
+        this.container = document.getElementById('canvas-container');
+        this.state = new EditorStateManager(() => this.ui.updateSidebar(), () => this.canvas.refresh());
+        this.canvas = new EditorCanvas(this.container, this.state);
+        this.router = new ToolRouter(this.canvas, this.state);
+        this.ui = new EditorUIManager(this.state, this.canvas);
+        this.hassBridge = new HassBridge((hass) => this.canvas.setHass(hass));
+        this.bindGlobals();
+        this.bindToolbar();
+        bindFloorControls(this);
+        bindOutsideDialog();
+        bindRecomputePanel();
     }
-});
 
-// Setup Resizer
-const resizer = document.getElementById('resizer');
-const sidebar = document.getElementById('sidebar');
-if (resizer) {
-    let startX, startY, startW, startH;
-    resizer.addEventListener('pointerdown', (e) => {
-        const rect = sidebar.getBoundingClientRect();
-        startW = rect.width; startH = rect.height;
-        startX = e.clientX; startY = e.clientY;
-        resizer.setPointerCapture(e.pointerId);
-        resizer.classList.add('resizing');
-        document.body.style.cursor = window.innerWidth <= 768 ? 'row-resize' : 'col-resize';
-        e.preventDefault();
-    });
-    resizer.addEventListener('pointermove', (e) => {
-        if (!resizer.hasPointerCapture(e.pointerId)) return;
-        if (window.innerWidth <= 768) {
-            const dy = e.clientY - startY;
-            sidebar.style.height = `${Math.max(100, Math.min(window.innerHeight - 100, startH + dy))}px`;
-            sidebar.style.maxHeight = 'none';
-        } else {
-            const dx = e.clientX - startX;
-            sidebar.style.width = `${Math.max(200, Math.min(window.innerWidth - 200, startW + dx))}px`;
-        }
-        engine.resizeCanvas(stateManager);
-        draw();
-    });
-    resizer.addEventListener('pointerup', (e) => {
-        resizer.releasePointerCapture(e.pointerId);
-        resizer.classList.remove('resizing');
-        document.body.style.cursor = '';
-        engine.resizeCanvas(stateManager);
-        draw();
-    });
-}
-
-// Floor and Data loading
-async function loadFloor(floorNum) {
-    dlog(`loadFloor starting for Floor ${floorNum}...`);
-    stateManager.activeFloor = floorNum;
-    localStorage.setItem('dm_editor_last_floor', String(floorNum));
-    stateManager.isTransitioning = true;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    let imgLoaded = false;
-    let dataLoaded = false;
-    
-    const checkAutoCrop = () => {
-        dlog(`checkAutoCrop checking: imgLoaded=${imgLoaded}, dataLoaded=${dataLoaded}`);
-        if (imgLoaded && dataLoaded) {
-            try {
-                dlog(`Calculating auto crop...`);
-                engine.calculateAutoCrop(stateManager.bgImage, stateManager.rooms, true);
-                uiManager.updateRotationUI();
-                stateManager.isTransitioning = false;
-                dlog(`Transition complete! Initializing map draw loop.`);
-                draw();
-            } catch (err) {
-                console.error(`[DynamicMapDebug] Error during calculateAutoCrop:`, err);
-                stateManager.isTransitioning = false;
-                draw();
-            }
-        }
-    };
-    
-    const bgUrl = `/dynamic_map_data/bg_floor${floorNum}.png?t=${Date.now()}`;
-    dlog(`Setting up image handlers for: "${bgUrl}"`);
-    
-    stateManager.bgImage.onload = () => {
-        // Synchronize .width/.height from intrinsic dimensions.
-        // In iframe-sandboxed or shadow-DOM contexts, unattached Image elements
-        // may report .width/.height as 0 even after load completes.
-        // .naturalWidth/.naturalHeight always reflect the true pixel dimensions.
-        const nw = stateManager.bgImage.naturalWidth;
-        const nh = stateManager.bgImage.naturalHeight;
-        if (nw > 0) stateManager.bgImage.width = nw;
-        if (nh > 0) stateManager.bgImage.height = nh;
-        dlog(`bgImage loaded successfully. Dimensions: ${nw}x${nh} (synced w=${stateManager.bgImage.width}, h=${stateManager.bgImage.height})`);
-        imgLoaded = true;
-        checkAutoCrop();
-    };
-    
-    stateManager.bgImage.onerror = (err) => {
-        console.error(`[DynamicMapDebug] bgImage FAILED to load. URL: "${bgUrl}"`, err);
-        // Assign safe recovery dimensions so the editor canvas remains usable
-        stateManager.bgImage.width = 1280;
-        stateManager.bgImage.height = 1920;
-        imgLoaded = true;
-        checkAutoCrop();
-    };
-    
-    // Set src after handlers are fully registered to avoid synchronous cache bugs
-    stateManager.bgImage.src = bgUrl;
-    
-    try {
-        dlog(`Fetching floor data for floor ${floorNum}...`);
-        const data = await ApiManager.fetchFloorData(floorNum);
-        dlog(`Floor data loaded. Rooms: ${data.rooms?.length || 0}, Shortcuts: ${data.shortcuts?.length || 0}`);
-        stateManager.rooms = data.rooms || [];
-        stateManager.shortcuts = data.shortcuts || [];
-        
-        if (data.config) {
-            if (data.config.rotation_mode) engine.rotationMode = data.config.rotation_mode;
-            if (data.config.flips) engine.flips = data.config.flips;
-            engine.backgroundColor = data.config.background_color || null;
-            engine.backgroundMode = data.config.background_mode || 'image';
-            stateManager.walls = data.config.walls || [];
-        } else {
-            engine.rotationMode = 'auto';
-            engine.flips = { horizontal: { h: false, v: false }, vertical: { h: false, v: false } };
-            engine.backgroundColor = null;
-            engine.backgroundMode = 'image';
-            stateManager.walls = [];
-        }
-        stateManager.saveState();
-        uiManager.updateSidebar();
-        dataLoaded = true;
-        checkAutoCrop();
-    } catch (err) {
-        console.error("[DynamicMapDebug] Failed to load floor JSON", err);
-        // Force recovery on JSON failure
-        stateManager.rooms = [];
-        stateManager.shortcuts = [];
-        dataLoaded = true;
-        checkAutoCrop();
-    }
-}
-
-// Floor switching + Add Floor (delegated so dynamically-added floors work)
-document.getElementById('floorList').addEventListener('click', (e) => {
-    const btn = e.target.closest('.floor-btn[data-floor]');
-    if (btn) {
-        setActiveFloorButton(btn.dataset.floor);
-        loadFloor(parseInt(btn.dataset.floor));
-        return;
-    }
-    if (e.target.closest('#addFloorBtn')) addFloor();
-});
-
-function setActiveFloorButton(floorNum) {
-    document.querySelectorAll('.floor-btn[data-floor]').forEach(b => {
-        b.classList.toggle('active', b.dataset.floor == floorNum);
-    });
-}
-
-// Discover existing floors from the backend and build the switcher buttons.
-async function initFloors() {
-    let floors = [];
-    try {
-        const data = await ApiManager.fetchFloors();
-        if (data.success && Array.isArray(data.floors)) floors = data.floors;
-        if (data.version) {
-            const title = document.querySelector('#sidebar h1');
-            if (title) title.title = `Dynamic Map v${data.version}`;
-        }
-    } catch (err) {
-        console.warn('[editor] Floor discovery failed:', err.message);
-    }
-    if (!floors.length) {
-        // Authenticated API unavailable (e.g. companion-app webview without a
-        // web session): probe the public static data files instead so the
-        // floor list still populates. Saving still requires a browser login.
-        const t = Date.now();
-        const probes = await Promise.all([...Array(12)].map((_, i) =>
-            fetch(`/dynamic_map_data/rooms_floor${i + 1}.json?t=${t}`, { method: 'HEAD' })
-                .then(r => (r.ok ? i + 1 : null))
-                .catch(() => null)
-        ));
-        floors = probes.filter(Boolean);
-    }
-    if (!floors.length) floors = [1];
-
-    document.querySelectorAll('.floor-btn[data-floor]').forEach(b => b.remove());
-    floors.forEach(addFloorButton);
-
-    const remembered = parseInt(localStorage.getItem('dm_editor_last_floor'));
-    const startFloor = floors.includes(remembered) ? remembered : floors[floors.length - 1];
-    setActiveFloorButton(startFloor);
-    loadFloor(startFloor);
-}
-
-// --- Builder Mode: create a new floor without the DXF pipeline (e.g. a Terrace) ---
-function pickImageFile() {
-    return new Promise((resolve) => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = () => {
-            const file = input.files && input.files[0];
-            if (!file) return resolve(null);
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = () => resolve(null);
-            reader.readAsDataURL(file);
+    /** The per-floor config block as saved next to rooms/shortcuts. */
+    floorConfig(extra = {}) {
+        const c = this.canvas;
+        return {
+            rotation_mode: c.rotationMode, flips: c.flips,
+            background_color: c.backgroundColor || undefined,
+            background_mode: c.backgroundMode !== 'image' ? c.backgroundMode : undefined,
+            walls: this.state.walls.length ? this.state.walls : undefined,
+            ...extra
         };
-        input.click();
-    });
-}
-function makeBlankCanvas(w, h, color) {
-    const c = document.createElement('canvas');
-    c.width = w; c.height = h;
-    if (color) {
-        const cx = c.getContext('2d');
-        cx.fillStyle = color; cx.fillRect(0, 0, w, h);
     }
-    return c.toDataURL('image/png');
-}
-function addFloorButton(n) {
-    const list = document.getElementById('floorList');
-    const el = document.createElement('div');
-    el.className = 'floor-btn';
-    el.dataset.floor = String(n);
-    el.textContent = `Floor ${n}`;
-    list.insertBefore(el, document.getElementById('addFloorBtn'));
-}
-async function addFloor() {
-    const existing = [...document.querySelectorAll('.floor-btn[data-floor]')]
-        .map(b => parseInt(b.dataset.floor)).filter(x => !isNaN(x));
-    const suggested = (existing.length ? Math.max(...existing) : 0) + 1;
-    const numStr = prompt('New floor number (used in filenames — e.g. 3 for a Terrace):', suggested);
-    if (numStr === null) return;
-    const n = parseInt(numStr);
-    if (isNaN(n)) { alert('Please enter a number.'); return; }
-    if (existing.includes(n)) { alert(`Floor ${n} already exists.`); return; }
-    const useImage = confirm('OK = upload a floor-plan / background image.\nCancel = start with a blank canvas to draw rooms on.');
-    let dataUrl;
-    if (useImage) {
-        dataUrl = await pickImageFile();
-        if (!dataUrl) return;
-    } else {
-        dataUrl = makeBlankCanvas(1600, 1000, '#1e293b');
+
+    save(extra = {}) {
+        return ApiManager.saveToHA(this.state.activeFloor, this.state.rooms, this.state.shortcuts, this.floorConfig(extra));
     }
-    try {
-        await ApiManager.saveImage(`bg_floor${n}.png`, dataUrl);
-        await ApiManager.saveToHA(n, [], [], {
-            rotation_mode: 'auto',
-            flips: { horizontal: { h: false, v: false }, vertical: { h: false, v: false } }
+
+    async loadFloor(floorNum) {
+        const state = this.state;
+        state.activeFloor = floorNum;
+        localStorage.setItem('dm_editor_last_floor', String(floorNum));
+        const bgUrl = `/dynamic_map_data/bg_floor${floorNum}.png?t=${Date.now()}`;
+        const [dims, data] = await Promise.all([this.loadImageSize(bgUrl), this.loadFloorJson(floorNum)]);
+        state.rooms = data.rooms || [];
+        state.shortcuts = data.shortcuts || [];
+        state.walls = (data.config && data.config.walls) || [];
+        state.selectedRooms = [];
+        state.selectedShortcutIdx = -1;
+        state.selectedWallIdx = -1;
+        state.saveState();
+        this.canvas.loadFloor({ bgUrl, imgW: dims.w, imgH: dims.h, config: data.config });
+        this.ui.updateRotationUI();
+        this.ui.updateSidebar();
+    }
+
+    loadImageSize(url) {
+        return new Promise((resolve) => {
+            const img = this.state.bgImage;
+            img.onload = () => resolve({ w: img.naturalWidth || 1280, h: img.naturalHeight || 1920 });
+            img.onerror = () => resolve({ w: 1280, h: 1920 });   // keep the editor usable
+            img.src = url;
         });
-        addFloorButton(n);
-        document.querySelectorAll('.floor-btn[data-floor]').forEach(b => b.classList.remove('active'));
-        document.querySelector(`.floor-btn[data-floor="${n}"]`).classList.add('active');
-        loadFloor(String(n));
-    } catch (err) {
-        console.error('Add floor failed', err);
-        alert('Failed to add floor: ' + err.message);
     }
-}
 
-// Toolbar buttons
-document.getElementById('undoBtn').addEventListener('click', () => stateManager.undo());
-document.getElementById('redoBtn').addEventListener('click', () => stateManager.redo());
-
-document.getElementById('exportJsonBtn').addEventListener('click', async () => {
-    if (stateManager.selectedRooms.length === 1) uiManager.saveRoomName();
-    const btn = document.getElementById('exportJsonBtn');
-    btn.textContent = "Saving to HA...";
-    try {
-        await ApiManager.saveToHA(stateManager.activeFloor, stateManager.rooms, stateManager.shortcuts, {
-            rotation_mode: engine.rotationMode, flips: engine.flips,
-            background_color: engine.backgroundColor || undefined,
-            background_mode: engine.backgroundMode !== 'image' ? engine.backgroundMode : undefined,
-            walls: stateManager.walls.length ? stateManager.walls : undefined
-        });
-        btn.textContent = "✅ Saved to HA Successfully!";
-    } catch (err) {
-        btn.textContent = "❌ Save Failed";
-    }
-    setTimeout(() => { btn.textContent = "💾 Save JSON"; }, 3000);
-});
-
-document.getElementById('exportYamlBtn').addEventListener('click', () => {
-    const floors = [...document.querySelectorAll('.floor-btn[data-floor]')]
-        .map(b => parseInt(b.dataset.floor)).filter(n => !isNaN(n)).sort((a, b) => a - b);
-    const vacuum = (stateManager.shortcuts || []).find(sc => sc.type === 'vacuum' && sc.entity_id);
-    let yaml = `type: custom:custom-svg-map\ndefault_floor: ${stateManager.activeFloor}\n`;
-    if (floors.length) yaml += `floors: [${floors.join(', ')}]\n`;
-    if (vacuum) yaml += `vacuum_entity: ${vacuum.entity_id}\n`;
-    document.getElementById('yamlOutput').value = yaml;
-});
-
-// Recompute Logic
-async function loadAvailableFiles() {
-    try {
-        const data = await ApiManager.fetchAvailableFiles();
-        if (data.success && data.files) {
-            const svgSelect = document.getElementById('reconSvg');
-            const dxfSelect = document.getElementById('reconDxf');
-            svgSelect.innerHTML = '<option value="">-- Optional (Select SVG) --</option>';
-            dxfSelect.innerHTML = '<option value="">-- Optional (Select DXF) --</option>';
-            data.files.forEach(f => {
-                if (f.endsWith('.svg')) svgSelect.innerHTML += `<option value="${f}">${f}</option>`;
-                if (f.endsWith('.dxf')) dxfSelect.innerHTML += `<option value="${f}">${f}</option>`;
-            });
+    async loadFloorJson(floorNum) {
+        try {
+            return await ApiManager.fetchFloorData(floorNum);
+        } catch (err) {
+            console.error('[DynamicMapDebug] Failed to load floor JSON', err);
+            return { rooms: [], shortcuts: [], config: null };
         }
-        if (data.success && data.icons) {
-            const iconList = document.getElementById('iconList');
-            if (iconList) {
-                iconList.innerHTML = '';
-                data.icons.forEach(iconPath => { iconList.innerHTML += `<option value="${iconPath}"></option>`; });
+    }
+
+    bindGlobals() {
+        window.togglePreviewState = (idx) => {
+            const res = this.state.togglePreviewState(idx);
+            window.previewStateIdx = res;
+            return res;
+        };
+        document.addEventListener('keydown', (e) => {
+            if (!(e.ctrlKey || e.metaKey)) return;
+            if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); this.state.undo(); }
+            if (e.key === 'Z' || (e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); this.state.redo(); }
+        });
+        this.bindResizer();
+    }
+
+    bindResizer() {
+        const resizer = document.getElementById('resizer');
+        const sidebar = document.getElementById('sidebar');
+        if (!resizer) return;
+        let startX, startY, startW, startH;
+        const narrow = () => window.innerWidth <= 768;
+        resizer.addEventListener('pointerdown', (e) => {
+            const rect = sidebar.getBoundingClientRect();
+            startW = rect.width; startH = rect.height;
+            startX = e.clientX; startY = e.clientY;
+            resizer.setPointerCapture(e.pointerId);
+            resizer.classList.add('resizing');
+            e.preventDefault();
+        });
+        resizer.addEventListener('pointermove', (e) => {
+            if (!resizer.hasPointerCapture(e.pointerId)) return;
+            if (narrow()) {
+                sidebar.style.height = `${Math.max(100, Math.min(window.innerHeight - 100, startH + (e.clientY - startY)))}px`;
+                sidebar.style.maxHeight = 'none';
+            } else {
+                sidebar.style.width = `${Math.max(200, Math.min(window.innerWidth - 200, startW + (e.clientX - startX)))}px`;
             }
-        }
-    } catch (err) {
-        console.warn('[editor] Failed to load available files:', err.message);
-    }
-}
-
-// Floor background: color + mode stored in config_floorN.json.
-// 'fit' renders a rounded plate hugging the rooms (no canvas image);
-// 'image' keeps the canvas, with the color painted around/behind it.
-document.getElementById('bgColorBtn').addEventListener('click', () => {
-    document.getElementById('bgModalColor').value = engine.backgroundColor || '#1e293b';
-    const mode = engine.backgroundMode === 'fit' ? 'fit' : 'around';
-    document.querySelectorAll('input[name="bgMode"]').forEach(r => { r.checked = (r.value === mode); });
-    document.getElementById('bgModalStatus').textContent = '';
-    document.getElementById('bgModal').style.display = 'flex';
-});
-document.getElementById('closeBgModalBtn').addEventListener('click', () => {
-    document.getElementById('bgModal').style.display = 'none';
-});
-document.getElementById('bgModalSaveBtn').addEventListener('click', async () => {
-    const status = document.getElementById('bgModalStatus');
-    const color = document.getElementById('bgModalColor').value;
-    const choice = document.querySelector('input[name="bgMode"]:checked')?.value || 'around';
-    engine.backgroundColor = color;
-    engine.backgroundMode = (choice === 'fit') ? 'fit' : 'image';
-    try {
-        status.textContent = 'Saving…';
-        const w = stateManager.bgImage?.naturalWidth || 1600;
-        const h = stateManager.bgImage?.naturalHeight || 1000;
-        if (choice === 'repaint') {
-            await ApiManager.saveImage(`bg_floor${stateManager.activeFloor}.png`, makeBlankCanvas(w, h, color));
-        } else if (choice === 'fit') {
-            // Transparent canvas so the editor doesn't show a stale rectangle.
-            await ApiManager.saveImage(`bg_floor${stateManager.activeFloor}.png`, makeBlankCanvas(w, h, null));
-        }
-        await ApiManager.saveToHA(stateManager.activeFloor, stateManager.rooms, stateManager.shortcuts, {
-            rotation_mode: engine.rotationMode, flips: engine.flips,
-            background_color: color, background_mode: engine.backgroundMode
         });
-        document.getElementById('bgModal').style.display = 'none';
-        if (choice !== 'around') loadFloor(String(stateManager.activeFloor));
-    } catch (err) {
-        status.textContent = `❌ ${err.message}`;
+        resizer.addEventListener('pointerup', (e) => {
+            resizer.releasePointerCapture(e.pointerId);
+            resizer.classList.remove('resizing');
+            this.canvas.layout();
+        });
     }
-});
 
-// ----- Outside Dashboard editor -----
-// Manages the global outside.json: a fixed info bar (temperature, pollen,
-// weather...) rendered at the top of the floorplan card.
+    bindToolbar() {
+        const canvas = this.canvas;
+        document.getElementById('undoBtn').addEventListener('click', () => this.state.undo());
+        document.getElementById('redoBtn').addEventListener('click', () => this.state.redo());
+        document.getElementById('exportJsonBtn').addEventListener('click', async () => {
+            if (this.state.selectedRooms.length === 1) this.ui.saveRoomName();
+            const btn = document.getElementById('exportJsonBtn');
+            btn.textContent = 'Saving to HA...';
+            try {
+                await this.save();
+                btn.textContent = '✅ Saved to HA Successfully!';
+            } catch (err) {
+                btn.textContent = '❌ Save Failed';
+            }
+            setTimeout(() => { btn.textContent = '💾 Save JSON'; }, 3000);
+        });
+        document.getElementById('exportYamlBtn').addEventListener('click', () => {
+            const floors = listedFloors();
+            const vacuum = (this.state.shortcuts || []).find(sc => sc.type === 'vacuum' && sc.entity_id);
+            let yaml = `type: custom:custom-svg-map\ndefault_floor: ${this.state.activeFloor}\n`;
+            if (floors.length) yaml += `floors: [${floors.join(', ')}]\n`;
+            if (vacuum) yaml += `vacuum_entity: ${vacuum.entity_id}\n`;
+            document.getElementById('yamlOutput').value = yaml;
+        });
 
-function addOutsideRow(item = {}) {
-    const row = document.createElement('div');
-    row.className = 'outside-row';
-    row.style.cssText = 'display:flex; gap:5px; align-items:center;';
-    row.innerHTML = `
-        <input class="o-entity" list="entityList" placeholder="entity_id (e.g. sensor.outdoor_temp)" value="${item.entity_id || ''}" style="flex:3; margin:0; min-width:0;">
-        <input class="o-icon" placeholder="🌡️" title="Icon (emoji, optional)" value="${item.icon || ''}" style="flex:0 0 44px; margin:0; text-align:center;">
-        <input class="o-name" placeholder="Label" title="Small label under the value (optional)" value="${item.name || ''}" style="flex:2; margin:0; min-width:0;">
-        <input class="o-unit" placeholder="Unit" title="Unit override (optional, blank = entity unit)" value="${item.unit !== undefined ? item.unit : ''}" style="flex:0 0 52px; margin:0;">
-        <input class="o-attr" placeholder="Attr" title="Entity attribute to display instead of state (optional)" value="${item.attribute || ''}" style="flex:0 0 64px; margin:0;">
-        <button class="o-del danger" title="Remove item" style="width:28px; height:28px; padding:0; margin:0; flex:none;">×</button>
-    `;
-    row.querySelector('.o-del').addEventListener('click', () => row.remove());
-    document.getElementById('outsideRows').appendChild(row);
-}
-
-async function openOutsideModal() {
-    const rows = document.getElementById('outsideRows');
-    rows.innerHTML = '';
-    document.getElementById('outsideStatus').textContent = '';
-    const items = await ApiManager.fetchOutside();
-    (items || []).forEach(addOutsideRow);
-    if (!items || !items.length) addOutsideRow();
-    document.getElementById('outsideModal').style.display = 'flex';
-}
-
-document.getElementById('outsideBtn').addEventListener('click', openOutsideModal);
-document.getElementById('closeOutsideBtn').addEventListener('click', () => {
-    document.getElementById('outsideModal').style.display = 'none';
-});
-document.getElementById('addOutsideRowBtn').addEventListener('click', () => addOutsideRow());
-document.getElementById('saveOutsideBtn').addEventListener('click', async () => {
-    const status = document.getElementById('outsideStatus');
-    const items = [];
-    document.querySelectorAll('#outsideRows .outside-row').forEach(row => {
-        const entity = row.querySelector('.o-entity').value.trim();
-        if (!entity) return;
-        const item = { entity_id: entity };
-        const icon = row.querySelector('.o-icon').value.trim();
-        const name = row.querySelector('.o-name').value.trim();
-        const unit = row.querySelector('.o-unit').value.trim();
-        const attr = row.querySelector('.o-attr').value.trim();
-        if (icon) item.icon = icon;
-        if (name) item.name = name;
-        if (unit) item.unit = unit;
-        if (attr) item.attribute = attr;
-        items.push(item);
-    });
-    try {
-        status.textContent = 'Saving…';
-        await ApiManager.saveOutside(items);
-        status.textContent = `✅ Saved ${items.length} item${items.length === 1 ? '' : 's'}. Reload the dashboard to see the bar.`;
-    } catch (err) {
-        status.textContent = `❌ ${err.message}`;
+        // Orientation linking: ON = edits write to BOTH layouts.
+        const linkBtn = document.getElementById('linkOrientationsBtn');
+        canvas.linkOrientations = localStorage.getItem('dm_editor_link_orientations') !== 'false';
+        const renderLinkBtn = () => {
+            linkBtn.classList.toggle('active', canvas.linkOrientations);
+            linkBtn.textContent = canvas.linkOrientations ? '🔗' : '⛓️';
+            linkBtn.title = canvas.linkOrientations
+                ? 'Linked: moves/resizes apply to BOTH orientations. Click to unlink and edit only the active one.'
+                : 'Unlinked: edits only affect the active orientation. Click to link both again.';
+        };
+        renderLinkBtn();
+        linkBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            canvas.linkOrientations = !canvas.linkOrientations;
+            localStorage.setItem('dm_editor_link_orientations', String(canvas.linkOrientations));
+            renderLinkBtn();
+        });
+        const setLayout = (mode) => {
+            this.container.classList.toggle('dm-portrait-sim', mode === 'vertical');
+            document.getElementById('toggleHorizontalBtn').classList.toggle('active', mode === 'horizontal');
+            document.getElementById('toggleVerticalBtn').classList.toggle('active', mode === 'vertical');
+            canvas.activeMode = mode;
+            canvas.layout();
+            canvas.refreshAll();
+            this.ui.updateSidebar();
+        };
+        document.getElementById('toggleHorizontalBtn').addEventListener('click', () => setLayout('horizontal'));
+        document.getElementById('toggleVerticalBtn').addEventListener('click', () => setLayout('vertical'));
     }
-});
 
-document.getElementById('toggleRecomputeBtn').addEventListener('click', () => {
-    const p = document.getElementById('recomputePanel');
-    const isHidden = p.style.display === 'none';
-    p.style.display = isHidden ? 'block' : 'none';
-    sessionStorage.setItem('recomputeOpen', isHidden ? 'true' : 'false');
-});
-document.getElementById('closeRecomputeBtn').addEventListener('click', () => {
-    document.getElementById('recomputePanel').style.display = 'none';
-    sessionStorage.setItem('recomputeOpen', 'false');
-});
-
-document.getElementById('deleteFloorBtn').addEventListener('click', async () => {
-    const floorNum = document.getElementById('reconFloor').value;
-    if (!confirm(`Are you sure you want to permanently delete Floor ${floorNum}?`)) return;
-    const status = document.getElementById('recomputeStatus');
-    status.textContent = "Deleting floor files...";
-    try {
-        const data = await ApiManager.deleteFloor(floorNum);
-        if (data.success) {
-            status.textContent = "✅ Floor deleted! Refreshing...";
-            sessionStorage.setItem('recomputeOpen', 'true');
-            setTimeout(() => window.location.reload(), 1500);
-        } else { status.textContent = "❌ Error: " + data.error; }
-    } catch (e) { status.textContent = "❌ Failed to connect to HA API."; }
-});
-
-document.getElementById('recomputeBtn').addEventListener('click', async () => {
-    const btn = document.getElementById('recomputeBtn');
-    const status = document.getElementById('recomputeStatus');
-    btn.disabled = true;
-    status.textContent = "Processing... (This takes a few seconds)";
-    try {
-        const data = await ApiManager.recomputeFloor(
-            document.getElementById('reconFloor').value,
-            document.getElementById('reconSvg').value,
-            document.getElementById('reconDxf').value
-        );
-        if (data.success) {
-            status.textContent = "✅ Success! Refreshing Map...";
-            sessionStorage.setItem('recomputeOpen', 'true');
-            setTimeout(() => window.location.reload(), 1500);
-        } else {
-            status.textContent = "❌ Error: " + data.error;
-            btn.disabled = false;
-        }
-    } catch (err) {
-        status.textContent = "❌ Failed to connect to HA API.";
-        btn.disabled = false;
-    }
-});
-
-// Registry logic
-async function loadRegistry() {
-    try {
-        const data = await ApiManager.fetchRegistry();
-        if (data.success) {
-            stateManager.haAreas = data.areas;
-            stateManager.haFloors = data.floors;
+    async loadRegistry() {
+        try {
+            const data = await ApiManager.fetchRegistry();
+            if (!data.success) return;
+            this.state.haAreas = data.areas;
+            this.state.haFloors = data.floors;
             const select = document.getElementById('roomArea');
             select.innerHTML = '<option value="">-- Unmapped --</option>';
-            stateManager.haAreas.forEach(a => { select.innerHTML += `<option value="${a.id}">${a.name}</option>`; });
+            this.state.haAreas.forEach(a => { select.innerHTML += `<option value="${a.id}">${a.name}</option>`; });
+        } catch (err) {
+            console.warn('[editor] Failed to load HA registry:', err.message);
         }
-    } catch (err) {
-        console.warn('[editor] Failed to load HA registry:', err.message);
     }
-}
 
-document.getElementById('roomArea').addEventListener('change', (e) => {
-    const area = stateManager.haAreas.find(a => a.id === e.target.value);
-    if (area && area.default_light) {
-        const entInput = document.getElementById('roomEntity');
-        if (!entInput.value) entInput.value = area.default_light;
+    async loadEntities() {
+        try {
+            const data = await ApiManager.fetchEntities();
+            if (!(data.success && data.entities)) return;
+            this.state.allEntities = data.entities;
+            const get = () => this.state.allEntities;
+            setupAutocomplete(document.getElementById('roomEntity'), get);
+            setupAutocomplete(document.getElementById('scEntity'), get);
+            fillEntityDatalist(data.entities);
+        } catch (err) {
+            console.warn('[editor] Failed to load entities for autocomplete:', err.message);
+        }
     }
-});
 
-if (sessionStorage.getItem('recomputeOpen') === 'true') {
-    document.getElementById('recomputePanel').style.display = 'block';
-}
-
-function setupAutocomplete(inputId) {
-    const inputElement = document.getElementById(inputId);
-    if (!inputElement) return;
-    const dropdown = document.createElement('div');
-    dropdown.className = 'autocomplete-dropdown';
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'position:relative;width:100%;';
-    inputElement.parentNode.insertBefore(wrapper, inputElement);
-    wrapper.appendChild(inputElement); wrapper.appendChild(dropdown);
-
-    inputElement.addEventListener('input', (e) => {
-        const val = e.target.value.toLowerCase();
-        dropdown.innerHTML = '';
-        let filtered = stateManager.allEntities || [];
-        if (val) filtered = filtered.filter(ent => ent.id.toLowerCase().includes(val) || ent.name.toLowerCase().includes(val));
-        filtered = filtered.slice(0, 100);
-        
-        if (filtered.length === 0) { dropdown.style.display = 'none'; return; }
-        
-        filtered.forEach(ent => {
-            const item = document.createElement('div');
-            item.className = 'autocomplete-item';
-            item.textContent = ent.name !== ent.id ? `${ent.name} (${ent.id})` : ent.id;
-            item.onclick = () => {
-                inputElement.value = ent.id;
-                dropdown.style.display = 'none';
-                inputElement.dispatchEvent(new Event('input', { bubbles: true }));
-            };
-            dropdown.appendChild(item);
+    start() {
+        document.getElementById('roomArea').addEventListener('change', (e) => {
+            const area = this.state.haAreas.find(a => a.id === e.target.value);
+            const entInput = document.getElementById('roomEntity');
+            if (area && area.default_light && !entInput.value) entInput.value = area.default_light;
         });
-        dropdown.style.display = 'block';
-    });
-    document.addEventListener('click', (e) => { if (!wrapper.contains(e.target)) dropdown.style.display = 'none'; });
-    inputElement.addEventListener('focus', () => inputElement.dispatchEvent(new Event('input', { bubbles: false })));
-}
-
-async function fetchAllEntities() {
-    try {
-        const data = await ApiManager.fetchEntities();
-        if (data.success && data.entities) {
-            stateManager.allEntities = data.entities;
-            setupAutocomplete('roomEntity');
-            setupAutocomplete('scEntity');
-            // Native datalist used by action/condition entity inputs (list="entityList")
-            const entityList = document.getElementById('entityList');
-            if (entityList) {
-                entityList.innerHTML = data.entities.map(ent => `<option value="${ent.id}"></option>`).join('');
-            }
-        }
-    } catch (err) {
-        console.warn('[editor] Failed to load entities for autocomplete:', err.message);
+        this.loadRegistry();
+        loadAvailableFiles();
+        initFloors(this);
+        this.loadEntities();
+        this.hassBridge.startPolling();
+        return this;
     }
 }
 
-loadRegistry();
-loadAvailableFiles();
-initFloors();
-fetchAllEntities();
-
-// Orientation Switcher Event Listeners
-const canvasContainer = document.getElementById('canvas-container');
-
-// Orientation linking: ON (default) = moving/resizing/rotating a shortcut
-// writes to BOTH orientations; OFF = only the active one, for intentionally
-// divergent Land/Port layouts. Persisted per browser.
-const linkBtn = document.getElementById('linkOrientationsBtn');
-engine.linkOrientations = localStorage.getItem('dm_editor_link_orientations') !== 'false';
-
-function renderLinkBtn() {
-    linkBtn.classList.toggle('active', engine.linkOrientations);
-    linkBtn.textContent = engine.linkOrientations ? '🔗' : '⛓️';
-    linkBtn.title = engine.linkOrientations
-        ? 'Linked: moves/resizes apply to BOTH orientations. Click to unlink and edit only the active one.'
-        : 'Unlinked: edits only affect the active orientation. Click to link both again.';
+if (typeof window !== 'undefined' && !window.__DM_EDITOR_NO_AUTOSTART) {
+    window.dmEditor = new EditorApp().start();
 }
-renderLinkBtn();
-
-linkBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    engine.linkOrientations = !engine.linkOrientations;
-    localStorage.setItem('dm_editor_link_orientations', String(engine.linkOrientations));
-    renderLinkBtn();
-});
-
-document.getElementById('toggleHorizontalBtn').addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    canvasContainer.style.width = '100%';
-    canvasContainer.style.height = '100%';
-    canvasContainer.style.margin = '0';
-    
-    document.getElementById('toggleHorizontalBtn').classList.add('active');
-    document.getElementById('toggleVerticalBtn').classList.remove('active');
-    
-    engine.activeMode = 'horizontal';
-    engine.resizeCanvas(stateManager);
-    draw();
-});
-
-document.getElementById('toggleVerticalBtn').addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    canvasContainer.style.width = '375px';
-    canvasContainer.style.height = '667px';
-    canvasContainer.style.margin = '0 auto';
-    
-    document.getElementById('toggleVerticalBtn').classList.add('active');
-    document.getElementById('toggleHorizontalBtn').classList.remove('active');
-    
-    engine.activeMode = 'vertical';
-    engine.resizeCanvas(stateManager);
-    draw();
-});
