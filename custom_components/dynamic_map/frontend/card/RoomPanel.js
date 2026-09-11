@@ -30,7 +30,7 @@ export function showRoomPanel(host, room, force = false) {
 export function hideRoomPanel(host) {
     if (!host.roomPanel) return;
     host._roomPanelRoom = null;
-    host.roomPanel.classList.remove('dm-visible');
+    host.roomPanel.classList.remove('dm-visible', 'dm-expanded');
     host.renderRoot.classList.remove('dm-room-panel-open');
 }
 
@@ -52,6 +52,7 @@ export function updateRoomPanel(host, hass) {
     trend.className = 'dm-rp-trend';
     trend.hidden = true;
     panel.replaceChildren(
+        handle(host),
         header(host, room, ids.length, onIds),
         trend,
         ...(alerts.length ? [attention(host, alerts)] : []),
@@ -61,6 +62,25 @@ export function updateRoomPanel(host, hass) {
     if (tempId) attachTrend(host, trend, tempId);
     panel.classList.add('dm-visible');
     host.renderRoot.classList.add('dm-room-panel-open');
+}
+
+/** Phone bottom sheet grip: tap or swipe up expands, swipe down collapses, then closes. */
+function handle(host) {
+    const h = document.createElement('div');
+    h.className = 'dm-rp-handle';
+    h.title = 'Expand or collapse';
+    const panel = host.roomPanel;
+    const setExpanded = (on) => panel.classList.toggle('dm-expanded', on);
+    let startY = null;
+    h.addEventListener('pointerdown', (e) => { startY = e.clientY; e.stopPropagation(); });
+    h.addEventListener('pointerup', (e) => {
+        const dy = startY === null ? 0 : e.clientY - startY;
+        startY = null;
+        if (dy < -20) setExpanded(true);
+        else if (dy > 20) { if (panel.classList.contains('dm-expanded')) setExpanded(false); else host.zoomOutToDefault(); }
+        else setExpanded(!panel.classList.contains('dm-expanded'));
+    });
+    return h;
 }
 
 function header(host, room, count, onIds = []) {
