@@ -1,6 +1,7 @@
 import { areaEntities } from './RoomEntities.js?v=3.2.1';
 import { roomBox } from '../core/RoomLabels.js?v=3.2.1';
 import { buildAlertLegend, updateAlertLegend } from './AlertLegend.js?v=3.2.1';
+import { roomVacuumAlerts } from './VacuumAlerts.js?v=3.2.1';
 
 /**
  * Attention badges on rooms: a counter in the room's corner while a
@@ -8,14 +9,16 @@ import { buildAlertLegend, updateAlertLegend } from './AlertLegend.js?v=3.2.1';
  * Unavailable devices are counted only when asked for (grey). Tapping a
  * badge focuses the room; hovering lists the reasons.
  *
- * Config: `room_alerts: false` (off), `true` (open + danger, the default),
- * a list like `[open, danger, unavailable]`, or `{unavailable: true}`.
+ * Robot vacuum to-dos (water, consumables, errors) show in the room that
+ * hosts the vacuum badge (indigo). Config: `room_alerts: false` (off),
+ * `true` (open + danger + vacuum, the default), a list like
+ * `[open, danger, vacuum, unavailable]`, or `{unavailable: true}`.
  */
 const OPEN_CLASSES = ['door', 'window', 'opening', 'garage_door'];
 const DANGER_CLASSES = ['moisture', 'smoke', 'gas', 'carbon_monoxide', 'safety', 'problem'];
-const ALL_KINDS = ['open', 'danger', 'unavailable'];
-const KIND_LABEL = { open: 'Open', danger: 'Alert', unavailable: 'Unavailable' };
-const KIND_FILL = { danger: '#ef4444', open: '#f59e0b', unavailable: '#94a3b8' };
+const ALL_KINDS = ['open', 'danger', 'vacuum', 'unavailable'];
+const KIND_LABEL = { open: 'Open', danger: 'Alert', vacuum: 'Robot', unavailable: 'Unavailable' };
+const KIND_FILL = { danger: '#ef4444', open: '#f59e0b', vacuum: '#6366f1', unavailable: '#94a3b8' };
 
 /** The alert kinds the card shows, or null when the feature is off. */
 export function alertKinds(config) {
@@ -23,14 +26,16 @@ export function alertKinds(config) {
     if (v === false) return null;
     if (Array.isArray(v)) return ALL_KINDS.filter(k => v.includes(k));
     if (v && typeof v === 'object') return ALL_KINDS.filter(k => k === 'unavailable' ? v.unavailable === true : v[k] !== false);
-    return ['open', 'danger'];
+    return ['open', 'danger', 'vacuum'];
 }
 
-/** Alerts for one room: [{ id, kind: 'open'|'danger'|'unavailable', name }]. */
-export function roomAlerts(hass, room, kinds = ALL_KINDS) {
-    if (!hass || !hass.states || !room.area_id) return [];
-    const out = [];
+/** Alerts for one room: [{ id, kind: 'open'|'danger'|'vacuum'|'unavailable', name, icon?, action? }]. `host` adds the vacuum to-dos. */
+export function roomAlerts(hass, room, kinds = ALL_KINDS, host = null) {
+    if (!hass || !hass.states) return [];
+    const out = host ? roomVacuumAlerts(host, hass, room, kinds) : [];
+    if (!room.area_id) return out;
     areaEntities(hass, room.area_id).forEach(id => {
+        if (out.some(a => a.id === id)) return;
         const st = hass.states[id];
         const a = st.attributes || {};
         const name = a.friendly_name || id;
@@ -47,7 +52,7 @@ export function alertsSignature(host, hass) {
     const kinds = alertKinds(host.config);
     if (!kinds) return '';
     const view = `${host.isRotated ? 'r' : ''}${host.mapScaleX || 1},${host.mapScaleY || 1}@${badgeRadius(host).toFixed(0)}`;
-    return view + '#' + (host.rooms || []).map(r => roomAlerts(hass, r, kinds).map(a => a.kind[0] + a.id).join(',')).join('|');
+    return view + '#' + (host.rooms || []).map(r => roomAlerts(hass, r, kinds, host).map(a => a.kind[0] + a.id).join(',')).join('|');
 }
 
 /** Build (once) the layer that holds one badge group per room. */
@@ -117,10 +122,10 @@ export function updateRoomAlerts(host, hass) {
     const kinds = alertKinds(host.config);
     const r = badgeRadius(host);
     const upright = uprightTransform(host);
-    const counts = { open: 0, danger: 0, unavailable: 0 };
+    const counts = { open: 0, danger: 0, vacuum: 0, unavailable: 0 };
     let firstRoom = null;
     host.rooms.forEach(room => {
-        const alerts = roomAlerts(hass, room, kinds);
+        const alerts = roomAlerts(hass, room, kinds, host);
         let g = host._alertEls[room.id];
         if (!alerts.length) { if (g) g.style.display = 'none'; return; }
         alerts.forEach(a => { counts[a.kind]++; });
@@ -129,7 +134,7 @@ export function updateRoomAlerts(host, hass) {
         sizeBadge(g, r);
         const box = roomBox(room, host.imgW, host.imgH);
         const x = box.cx + box.w / 2 - r * 1.6, y = box.cy - box.h / 2 + r * 1.6;
-        const worst = alerts.some(a => a.kind === 'danger') ? 'danger' : alerts.some(a => a.kind === 'open') ? 'open' : 'unavailable';
+        const worst = ['danger', 'open', 'vacuum', 'unavailable'].find(k => alerts.some(a => a.kind === k)) || 'unavailable';
         g.querySelector('circle').setAttribute('fill', KIND_FILL[worst]);
         g.querySelector('text').textContent = alerts.length > 9 ? '9+' : String(alerts.length);
         g.setAttribute('transform', `translate(${x.toFixed(1)}, ${y.toFixed(1)})${upright}`);

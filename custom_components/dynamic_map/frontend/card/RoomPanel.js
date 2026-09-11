@@ -45,7 +45,7 @@ export function updateRoomPanel(host, hass) {
     const dead = (id) => { const s = hass.states[id] && hass.states[id].state; return s === 'unavailable' || s === 'unknown'; };
     const shown = [...ids.filter(id => !dead(id)), ...ids.filter(dead)].slice(0, max);   // live controls first
     const kinds = alertKinds(host.config);
-    const alerts = kinds ? roomAlerts(hass, room, kinds) : [];
+    const alerts = kinds ? roomAlerts(hass, room, kinds, host) : [];
     const onIds = shown.filter(id => describeEntity(hass, id).kind === 'toggle' && hass.states[id].state === 'on');
     const tempId = roomTemperatureEntity(host, hass, room);
     const trend = document.createElement('div');
@@ -96,8 +96,8 @@ function header(host, room, count, onIds = []) {
     return h;
 }
 
-const ALERT_ICON = { open: '🚪', danger: '⚠️', unavailable: '⛔' };
-const ALERT_TEXT = { open: 'Open', danger: 'Alert', unavailable: 'Unavailable' };
+const ALERT_ICON = { open: '🚪', danger: '⚠️', vacuum: '🤖', unavailable: '⛔' };
+const ALERT_TEXT = { open: 'Open', danger: 'Alert', vacuum: 'To do', unavailable: 'Unavailable' };
 
 /** "Needs attention" rows: one per alert, tap for the entity's more-info dialog. */
 function attention(host, alerts) {
@@ -111,11 +111,19 @@ function attention(host, alerts) {
         const r = document.createElement('div');
         r.className = `dm-rp-row dm-rp-alert dm-rp-alert-${a.kind}`;
         r.innerHTML = `<span class="dm-rp-icon"></span><span class="dm-rp-name"></span><span class="dm-rp-value"></span>`;
-        r.querySelector('.dm-rp-icon').textContent = ALERT_ICON[a.kind] || '!';
+        r.querySelector('.dm-rp-icon').textContent = a.icon || ALERT_ICON[a.kind] || '!';
         r.querySelector('.dm-rp-name').textContent = a.name;
         r.querySelector('.dm-rp-value').textContent = ALERT_TEXT[a.kind] || a.kind;
-        r.title = `${a.name}: open details`;
+        r.title = `${a.robot ? a.robot + ' — ' : ''}${a.name}: open details`;
         r.addEventListener('click', () => host.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: a.id }, bubbles: true, composed: true })));
+        if (a.action) {
+            const btn = document.createElement('button');
+            btn.className = 'dm-rp-btn';
+            btn.textContent = a.action.label || 'Done';
+            btn.title = 'Mark as done (resets the counter on the robot)';
+            btn.addEventListener('click', (e) => { e.stopPropagation(); if (host._hass) host._hass.callService(a.action.domain, a.action.service, a.action.data); });
+            r.appendChild(btn);
+        }
         box.appendChild(r);
     });
     return box;

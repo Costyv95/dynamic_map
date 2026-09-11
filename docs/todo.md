@@ -54,3 +54,4 @@
 - [x] **Room panel extras** (2026-09-11): area scenes/scripts as chips (`card/RoomScenes.js`), 24 h temperature sparkline from the history API with a 5-minute cache (`card/RoomHistory.js`).
 - [x] **Card search** (2026-09-11): `card/SearchIndex.js` + `card/Search.js`; other floors' data comes from the public JSON files, `whenBuilt()` waits for the floor switch. Room panel CSS moved to `card/RoomPanelStyles.js`.
 - [x] **Room panel on phones** (2026-09-11): bottom sheet capped at 38% of the card (grip: tap/swipe up → 74%, swipe down → collapse, then close); `zoomToRoom` fits the room into the strip above the sheet. Rule: every UI change gets a phone screenshot on prod.
+- [x] **Vacuum to-dos in the alerts** (2026-09-11): `card/VacuumAlerts.js` reads the Roborock companion entities (problem binary sensors, `*_time_left` ≤ 0, `*_error` enums); kind `vacuum` (indigo) on by default; *Done* presses the reset button.
