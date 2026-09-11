@@ -9,7 +9,17 @@ const svgNS = 'http://www.w3.org/2000/svg';
 /** Numeric [timestamp, value] points from a history/period response. */
 export function parseHistory(res) {
     const list = Array.isArray(res) && Array.isArray(res[0]) ? res[0] : [];
-    return list.map(s => [Date.parse(s.last_changed || s.lu * 1000 || 0), Number(s.state)]).filter(([t, v]) => Number.isFinite(t) && Number.isFinite(v));
+    const pts = list.map(s => [Date.parse(s.last_changed || s.lu * 1000 || 0), Number(s.state)]).filter(([t, v]) => Number.isFinite(t) && Number.isFinite(v));
+    return thin(pts, 240);
+}
+
+/** Keep at most `max` points (every n-th, always the last) so a chatty sensor stays a light polyline. */
+export function thin(pts, max) {
+    if (pts.length <= max) return pts;
+    const step = Math.ceil(pts.length / max);
+    const out = pts.filter((_, i) => i % step === 0);
+    if (out[out.length - 1] !== pts[pts.length - 1]) out.push(pts[pts.length - 1]);
+    return out;
 }
 
 /** Polyline points string for `pts` inside a w x h box (2px padding). */
