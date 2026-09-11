@@ -170,7 +170,6 @@ export class EditorApp {
             renderLinkBtn();
         });
         const setLayout = (mode) => {
-            this.container.classList.toggle('dm-portrait-sim', mode === 'vertical');
             document.getElementById('toggleHorizontalBtn').classList.toggle('active', mode === 'horizontal');
             document.getElementById('toggleVerticalBtn').classList.toggle('active', mode === 'vertical');
             canvas.activeMode = mode;

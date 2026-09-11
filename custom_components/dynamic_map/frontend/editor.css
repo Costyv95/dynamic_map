@@ -42,7 +42,7 @@ button.primary { background: rgba(14, 165, 233, 0.1); color: var(--accent); bord
 button.primary:hover { background: rgba(14, 165, 233, 0.2); box-shadow: 0 0 10px rgba(14,165,233,0.2); }
 button.danger { border-color: var(--danger); color: var(--danger); background: rgba(239, 68, 68, 0.1); }
 #canvas-container { flex-grow: 1; position: relative; overflow: hidden; background: var(--canvas-bg); display: flex; justify-content: center; align-items: center;}
-#canvas-container.dm-portrait-sim { padding: 0 calc((100% - min(100%, 62vh)) / 2); box-sizing: border-box; }
+.dm-editor-svg.dm-phone-sim { border-radius: 22px; box-shadow: 0 0 0 6px #0f172a, 0 12px 40px rgba(0,0,0,0.35); background: var(--canvas-bg); }
 .dm-editor-svg { user-select: none; -webkit-user-select: none; }
 .dm-editor-svg .room-polygon { cursor: pointer; stroke-linejoin: round; }
 .dm-editor-svg .room-label { pointer-events: none; user-select: none; text-transform: uppercase; letter-spacing: 0.09em; paint-order: stroke; stroke: rgba(10, 16, 30, 0.6); stroke-width: 3px; stroke-linejoin: round; }

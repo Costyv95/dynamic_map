@@ -160,10 +160,14 @@ export class EditOverlay {
             }
             this.el('rect', { ...box, fill: 'none', stroke: ACCENT, 'stroke-width': 2 * k, 'pointer-events': 'none' }, g);
             this.renderHandles(g, frame, k, screenRotation(frame, isRotated), flipX, flipY);
+            // Inside the badge group the axes already include the badge's
+            // own rotation and, for upright badges, the map counter-turn;
+            // undo what is left so the name reads horizontally.
+            const textRot = -(frame.rotation || 0) - ((isRotated && !frame.upright) ? 90 : 0);
             const label = this.el('text', {
                 x: 0, y: frame.h / 2 + 12 * k, 'text-anchor': 'middle', 'font-size': 11 * k,
                 fill: '#1e293b', 'paint-order': 'stroke', stroke: '#ffffff', 'stroke-width': 3 * k,
-                'pointer-events': 'none', transform: `rotate(${-screenRotation(frame, isRotated)} 0 ${frame.h / 2 + 12 * k})`
+                'pointer-events': 'none', transform: `rotate(${textRot} 0 ${frame.h / 2 + 12 * k})`
             }, g);
             label.textContent = sc.name || 'Shortcut';
         });

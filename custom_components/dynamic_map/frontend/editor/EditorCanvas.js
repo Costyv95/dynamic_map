@@ -87,9 +87,29 @@ export class EditorCanvas {
         this.layout();
     }
 
+    /**
+     * Size the SVG like the screen being simulated (a phone-shaped frame
+     * for the vertical layout, the full pane otherwise).
+     */
+    sizeForLayout() {
+        const rect = this.container.getBoundingClientRect();
+        const portrait = this.activeMode === 'vertical';
+        this.svg.classList.toggle('dm-phone-sim', portrait);
+        if (portrait && rect.width > 0 && rect.height > 0) {
+            const w = Math.min(rect.width, rect.height * 0.5625);
+            this.svg.style.width = `${Math.floor(w)}px`;
+            this.svg.style.height = `${Math.floor(Math.min(rect.height, w / 0.5625))}px`;
+        } else {
+            this.svg.style.width = '100%';
+            this.svg.style.height = '100%';
+        }
+        const r = this.svg.getBoundingClientRect();
+        return { width: r.width || rect.width, height: r.height || rect.height };
+    }
+
     /** Viewport for the simulated layout, then refresh. */
     layout() {
-        const rect = this.container.getBoundingClientRect();
+        const rect = this.sizeForLayout();
         const vp = computeViewport({
             rooms: this.state.rooms, imgW: this.imgW, imgH: this.imgH,
             screenW: rect.width, screenH: rect.height,
