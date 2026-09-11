@@ -9,7 +9,7 @@ import { showRoomPanel, hideRoomPanel } from './RoomPanel.js?v=3.2.1';
  * `host` is the card.
  */
 
-export const ZOOM_ANIMATION_MS = 320;
+export const ZOOM_ANIMATION_MS = 420;   // a touch longer reads as smooth now that frames are free
 
 export function buildFocusPill(host) {
     host.focusPill = document.createElement('button');
