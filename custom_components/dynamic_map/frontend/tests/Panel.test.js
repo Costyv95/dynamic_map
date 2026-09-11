@@ -24,6 +24,7 @@ describe('dynamic-map-panel', () => {
     let hass, fetchWithAuth;
     beforeEach(async () => {
         document.body.innerHTML = '';
+        localStorage.clear();
         window.__DM_EDITOR_NO_AUTOSTART = true;
         global.fetch = vi.fn((url) => respond(String(url)));
         fetchWithAuth = vi.fn((url) => respond(String(url)));

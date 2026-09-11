@@ -19,7 +19,8 @@ function sensorLayout(host, matchedState, hass, scaleX, scaleY) {
     const target = host.sc.entity_id || host.config.state_entity;
     const p = computeSensorPill({
         sc: host.sc, state: matchedState, hass, scaleX, scaleY,
-        displayOverride: host.displayOverride || null
+        displayOverride: host.displayOverride || null,
+        measure: typeof host.measureText === 'function' ? (t, fs) => host.measureText(t, fs, 'bold') : undefined
     });
     if (p.color === 'entity') {
         p.color = resolveEntityColor('entity', hass, target);

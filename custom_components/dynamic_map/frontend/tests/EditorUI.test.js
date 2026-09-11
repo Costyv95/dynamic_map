@@ -24,6 +24,7 @@ function mockFetch(url) {
 
 async function boot() {
     document.body.innerHTML = body;
+    localStorage.clear();   // no stale drafts between tests
     window.__DM_EDITOR_NO_AUTOSTART = true;
     global.fetch = vi.fn((url) => mockFetch(String(url)));
     vi.spyOn(global, 'Image').mockImplementation(function () {

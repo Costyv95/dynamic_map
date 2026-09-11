@@ -1,5 +1,6 @@
 import { el, field, section, textInput, select, colorInput } from './dom.js?v=3.2.1';
 import { confirmDialog } from './Dialog.js?v=3.2.1';
+import { renderAreaImport } from './AreaImport.js?v=3.2.1';
 
 /** Help shown on the rooms layer when nothing is selected. */
 export function renderRoomsOverview(ctx) {
@@ -43,6 +44,7 @@ export function renderRoomPanel(ctx) {
                 (v) => { room.color = v; localStorage.setItem('lastRoomColor', v); state.requestDrawCallback(); },
                 (v) => { if (v) room.color = v; commit(); }))
         ], { key: 'room' }),
+        renderAreaImport(ctx, room),
         el('div.dm-row', {},
             el('button.danger', { type: 'button', onClick: async () => {
                 if (!(await confirmDialog('Delete room', `Delete "${room.name || 'this room'}"? Undo is available afterwards.`, { okLabel: 'Delete', danger: true }))) return;

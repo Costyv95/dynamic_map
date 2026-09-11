@@ -10,7 +10,7 @@ export function buildToggle(mapContext, target, act, isVisual) {
     if (act.width) container.style.width = act.width;
     const label = document.createElement('span');
     label.innerHTML = `${iconHtml(act.icon, 18, 'margin-right:8px;')}${act.name !== undefined ? act.name : 'Toggle'}`;
-    label.style.fontSize = '13px';
+    label.style.cssText = 'font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;';
     let isOn = !!(mapContext._hass && mapContext._hass.states[target] && mapContext._hass.states[target].state === 'on');
 
     const switchWrap = document.createElement('div');
@@ -50,7 +50,8 @@ export function buildButton(mapContext, target, act, isVisual) {
         + `color: ${look.color}; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 8px;`;
     if (act.width) btn.style.width = act.width;
     const displayName = act.name !== undefined ? act.name : look.name;
-    btn.innerHTML = `${iconHtml(act.icon, 18)}${displayName ? `<span>${displayName}</span>` : ''}`;
+    btn.innerHTML = `${iconHtml(act.icon, 18)}${displayName ? `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</span>` : ''}`;
+    btn.title = displayName || '';
     btn.onmouseenter = () => { btn.style.background = 'rgba(255,255,255,0.2)'; };
     btn.onmouseleave = () => { btn.style.background = 'rgba(255,255,255,0.1)'; };
     btn.addEventListener('click', (e) => {

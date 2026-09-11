@@ -46,6 +46,7 @@ export class EditorStateManager {
 
     saveState() {
         this.historyManager.saveState(this.rooms, this.shortcuts, this.walls);
+        if (this.onRevision) this.onRevision();
     }
 
     undo() {

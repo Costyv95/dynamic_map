@@ -43,6 +43,8 @@ export function placeVisual(el, act, isVisual, { height = true } = {}) {
     el.style.width = act.width + 'px';
     if (height && act.height) el.style.height = act.height + 'px';
     el.style.margin = '0';
+    el.style.boxSizing = 'border-box';
+    el.style.overflow = 'hidden';
     if (act.rotation) el.style.transform = `rotate(${act.rotation}deg)`;
     return true;
 }

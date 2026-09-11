@@ -8,7 +8,8 @@ import { setupAutocomplete, fillEntityDatalist } from './editor/ui/EntityAutocom
 import { openAddFloorDialog } from './editor/ui/FloorDialogs.js?v=3.2.1';
 import { loadIconList } from './editor/ui/RecomputeDialog.js?v=3.2.1';
 import { newObject, newDecor } from './editor/ui/Presets.js?v=3.2.1';
-import { setUiRoot } from './editor/ui/Dialog.js?v=3.2.1';
+import { setUiRoot, confirmDialog } from './editor/ui/Dialog.js?v=3.2.1';
+import { DirtyTracker, writeDraft, readDraft, clearDraft, draftDiffers, formatAge } from './editor/Drafts.js?v=3.2.1';
 
 console.log('[DynamicMapDebug] Map Editor loaded (Version: 4.0.0)');
 
@@ -32,7 +33,19 @@ export class EditorApp {
         this.ui = new EditorUI(this);
         this.hassBridge = new HassBridge((hass) => this.canvas.setHass(hass));
         this.floors = [];
+        this.dirty = new DirtyTracker();
+        this.dirty.onChange(() => this.ui.toolbar.sync());
+        this.state.onRevision = () => { this.dirty.bump(); this.scheduleDraft(); };
         this.bindGlobals();
+    }
+
+    /** Write the floor draft shortly after the last change. */
+    scheduleDraft() {
+        clearTimeout(this._draftTimer);
+        this._draftTimer = setTimeout(() => {
+            if (!this.dirty.dirty) return;
+            writeDraft(this.state.activeFloor, { rooms: this.state.rooms, shortcuts: this.state.shortcuts, walls: this.state.walls, config: this.floorConfig() });
+        }, 400);
     }
 
     /** What the inspector panels get. */
@@ -50,6 +63,7 @@ export class EditorApp {
         const c = this.canvas;
         return {
             rotation_mode: c.rotationMode, flips: c.flips,
+            name: this.state.floorName || undefined,
             background_color: c.backgroundColor || undefined,
             background_mode: c.backgroundMode !== 'image' ? c.backgroundMode : undefined,
             walls: this.state.walls.length ? this.state.walls : undefined,
@@ -57,8 +71,10 @@ export class EditorApp {
         };
     }
 
-    save(extra = {}) {
-        return ApiManager.saveToHA(this.state.activeFloor, this.state.rooms, this.state.shortcuts, this.floorConfig(extra));
+    async save(extra = {}) {
+        await ApiManager.saveToHA(this.state.activeFloor, this.state.rooms, this.state.shortcuts, this.floorConfig(extra));
+        this.dirty.markSaved();
+        clearDraft(this.state.activeFloor);
     }
 
     async saveWithFeedback() {
@@ -70,12 +86,35 @@ export class EditorApp {
         }
     }
 
-    setFloors(floors) {
+    setFloors(floors, names) {
         this.floors = floors;
-        this.ui.toolbar.setFloors(floors, this.state.activeFloor);
+        if (names) this.floorNames = names;
+        this.ui.toolbar.setFloors(floors, this.state.activeFloor, this.floorNames || {});
     }
 
-    switchFloor(n) {
+    floorLabel(n) {
+        const names = this.floorNames || {};
+        return names[String(n)] || `Floor ${n}`;
+    }
+
+    /** Rename the active floor (stored as `name` in its config file). */
+    async renameFloor(name) {
+        const n = String(this.state.activeFloor);
+        const clean = (name || '').trim();
+        this.floorNames = { ...(this.floorNames || {}) };
+        if (clean) this.floorNames[n] = clean; else delete this.floorNames[n];
+        this.state.floorName = clean || undefined;
+        await this.save();
+        this.setFloors(this.floors);
+    }
+
+    async switchFloor(n) {
+        if (this.loadedFloor !== undefined && String(n) === String(this.loadedFloor)) return;
+        if (this.dirty.dirty) {
+            const ok = await confirmDialog('Unsaved changes', `Save floor ${this.state.activeFloor} before switching?`, { okLabel: 'Save and switch' });
+            if (ok) { try { await this.save(); } catch (e) { this.ui.toast(`Save failed: ${e.message}`, 'error'); return; } }
+            // Not saving keeps the local draft, so nothing is lost either way.
+        }
         this.ui.toolbar.setActiveFloor(n);
         return this.loadFloor(n);
     }
@@ -88,16 +127,27 @@ export class EditorApp {
         localStorage.setItem('dm_editor_last_floor', String(floorNum));
         const bgUrl = `/dynamic_map_data/bg_floor${floorNum}.png?t=${Date.now()}`;
         const [dims, data] = await Promise.all([this.loadImageSize(bgUrl), this.loadFloorJson(floorNum)]);
-        state.rooms = data.rooms || [];
-        state.shortcuts = data.shortcuts || [];
-        state.walls = (data.config && data.config.walls) || [];
+        const draft = readDraft(floorNum);
+        let restored = false;
+        if (draftDiffers(draft, data)) {
+            restored = await confirmDialog('Unsaved changes found', `This floor has unsaved edits from ${formatAge(draft.ts)}. Restore them?`, { okLabel: 'Restore' });
+            if (!restored) clearDraft(floorNum);
+        }
+        const src = restored ? draft : data;
+        state.rooms = src.rooms || [];
+        state.shortcuts = src.shortcuts || [];
+        state.walls = (src.config && src.config.walls) || (restored ? src.walls : []) || [];
+        state.floorName = (data.config && data.config.name) || undefined;
         state.selectedRooms = [];
         state.selectedShortcutIdx = -1;
         state.selectedWallIdx = -1;
         state.previewStateIdx = -1;
         state.historyManager.reset();
+        this.dirty.reset();
         state.saveState();
-        this.canvas.loadFloor({ bgUrl, imgW: dims.w, imgH: dims.h, config: data.config });
+        if (restored) this.dirty.bump(); else this.dirty.markSaved();
+        this.canvas.loadFloor({ bgUrl, imgW: dims.w, imgH: dims.h, config: restored ? { ...(data.config || {}), ...(draft.config || {}) } : data.config });
+        this.loadedFloor = floorNum;
         this.ui.toolbar.setActiveFloor(floorNum);
         this.ui.refresh();
     }
@@ -154,6 +204,11 @@ export class EditorApp {
     }
 
     bindGlobals() {
+        window.addEventListener('beforeunload', (e) => {
+            if (!this.dirty.dirty) return;
+            e.preventDefault();
+            e.returnValue = '';
+        });
         window.togglePreviewState = (idx) => {
             const res = this.state.togglePreviewState(idx);
             window.previewStateIdx = res;
@@ -174,6 +229,7 @@ export class EditorApp {
         try {
             const data = await ApiManager.fetchFloors();
             if (data.success && Array.isArray(data.floors)) floors = data.floors;
+            if (data.names) this.floorNames = data.names;
             const brand = this.root.querySelector('.dm-brand');
             if (data.version && brand) brand.title = `Dynamic Map v${data.version}`;
         } catch (err) {

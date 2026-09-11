@@ -6,6 +6,8 @@ import { buildAmbientTint, updateAmbientTint } from './AmbientTint.js?v=3.2.1';
 import { buildPresenceLayer, updatePresence } from './PresenceLayer.js?v=3.2.1';
 import { buildOutsideBar, updateOutsideBar } from './OutsideBar.js?v=3.2.1';
 import { syncFocusPill, onRoomTap, zoomToRoom, zoomOutToDefault, animateViewBox } from './RoomFocus.js?v=3.2.1';
+import { roomTint } from './RoomTemperature.js?v=3.2.1';
+import { MapBuilder } from './MapBuilder.js?v=3.2.1';
 
 /**
  * Card methods that simply forward to the scene/feature modules with the
@@ -33,5 +35,13 @@ export const cardDelegates = {
     getRandomPointInPolygon(polygon) { return MapGeometry.getRandomPointInPolygon(polygon); },
     showOverlay(shortcut, actions, event) { OverlayManager.showActionMenu(this, shortcut, actions, event); },
     showRoomSelectionUI() { OverlayManager.showRoomSelectionUI(this); },
-    getCardSize() { return 3; }
+    getCardSize() { return 3; },
+    /** Temperature tint for a room (null unless room_temperature is on). */
+    roomTint(room) { return roomTint(this, this._hass, room); },
+    loadFloorNames(hass) { return MapBuilder.loadFloorNames(this, hass); },
+    /** Paint the letterbox around the map in the floor colour ('fit' keeps the card surface). */
+    applyFloorBackground() {
+        const paint = this.floorBgMode === 'fit' ? null : this.floorBgColor;
+        if (this.renderRoot) this.renderRoot.style.background = paint || '';
+    }
 };

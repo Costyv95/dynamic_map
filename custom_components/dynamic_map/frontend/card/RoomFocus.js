@@ -1,4 +1,5 @@
 import { roomViewBox } from '../core/Viewport.js?v=3.2.1';
+import { showRoomPanel, hideRoomPanel } from './RoomPanel.js?v=3.2.1';
 
 /**
  * Room tap behaviour and the zoom camera: `room_tap_action` / per-room
@@ -78,6 +79,7 @@ export function onRoomTap(host, room) {
                 host.zoomToRoom(room);
                 host.updateRoomStyles();
                 host.syncFocusPill();
+                showRoomPanel(host, room);
             }
     }
 }
@@ -97,6 +99,7 @@ export function zoomToRoom(host, room) {
 export function zoomOutToDefault(host) {
     host.focusedRoomId = null;
     host._zoomTargetVb = null;
+    hideRoomPanel(host);
     if (host.defaultVb) host.animateViewBox({ ...host.defaultVb });
     host.updateRoomStyles();
     host.syncFocusPill();

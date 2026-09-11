@@ -93,10 +93,24 @@ export class ToolRouter {
 
     onKeyDown(e) {
         if (this.wallTool.onKey(e)) return;
+        const t = e.target;
+        const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+        const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+        if (ARROWS[e.key] && !typing && this.state.selectedShortcutIdx !== -1) {
+            const step = e.shiftKey ? 10 : 1;
+            if (this.shortcutTool.nudge(ARROWS[e.key][0] * step, ARROWS[e.key][1] * step)) e.preventDefault();
+            return;
+        }
+        if (e.key === 'Escape' && !typing && !this.state.drawingPolygon && !this.state.drawingWall) {
+            this.state.selectedShortcutIdx = -1;
+            this.state.selectedRooms = [];
+            this.state.selectedWallIdx = -1;
+            this.state.updateUICallback();
+            this.state.requestDrawCallback();
+            return;
+        }
         if (e.key === 'Delete' || e.key === 'Backspace') {
-            const t = e.target;
-            const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
-            if (typing || !this.state.isEditMode) return;
+            if (typing) return;
             if (this.state.deleteSelection()) e.preventDefault();
             return;
         }

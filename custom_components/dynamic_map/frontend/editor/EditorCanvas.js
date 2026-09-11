@@ -1,9 +1,10 @@
-import { SVG_NS, buildScene, buildWalls, applyViewport, roomLabelCenter } from '../core/MapScene.js?v=3.2.1';
+import { SVG_NS, buildScene, buildWalls, applyViewport } from '../core/MapScene.js?v=3.2.1';
 import { computeViewport, viewPointToMap, labelTransform, DEFAULT_FLIPS } from '../core/Viewport.js?v=3.2.1';
 import { updateRoomStyles } from '../core/RoomStyles.js?v=3.2.1';
 import { Camera } from '../core/Camera.js?v=3.2.1';
 import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
 import { EditOverlay } from './EditOverlay.js?v=3.2.1';
+import { applyRoomLabel, roomBox } from '../core/RoomLabels.js?v=3.2.1';
 
 /**
  * The editor's map: the card's own SVG scene (core/MapScene) inside an
@@ -178,10 +179,9 @@ export class EditorCanvas {
         this.mapRoot.querySelectorAll('.room-label').forEach(label => {
             const room = this.rooms.find(r => String(r.id) === label.dataset.roomId);
             if (!room) return;
-            const { cx, cy } = roomLabelCenter(this, room);
+            const { cx, cy, w, h } = roomBox(room, this.imgW, this.imgH);
             label.setAttribute('x', cx);
-            label.setAttribute('y', cy);
-            label.textContent = room.name || '';
+            applyRoomLabel(label, room.name || '', w, h, this.imgW * 0.017, cx, cy, this.svgNS);
             label.rawCx = cx; label.rawCy = cy;
             const t = labelTransform(this.viewport, cx, cy);
             if (t) label.setAttribute('transform', t); else label.removeAttribute('transform');

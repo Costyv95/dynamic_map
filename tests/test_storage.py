@@ -119,3 +119,11 @@ class TestValidateSaveContent:
         assert storage.validate_save_content("outside.json", [])
         assert not storage.validate_save_content("outside.json", {"entity_id": "sensor.x"})
         assert not storage.validate_save_content("outside.json", ["sensor.x"])
+
+
+def test_floor_names_reads_config_names(tmp_path):
+    (tmp_path / "rooms_floor1.json").write_text("[]")
+    (tmp_path / "rooms_floor2.json").write_text("[]")
+    (tmp_path / "config_floor2.json").write_text('{"name": " Upstairs "}')
+    (tmp_path / "config_floor1.json").write_text("not json")
+    assert storage.floor_names(str(tmp_path)) == {2: "Upstairs"}

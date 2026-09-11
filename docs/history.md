@@ -226,3 +226,17 @@ This document sequentially records the major technical and architectural decisio
 *   **Consequences:**
     - **Benefits:** what the editor shows is what the dashboard renders, by construction. Every source file is under 300 lines. The editor works on phones (bottom sheet, touch handles, portrait default) and in the Companion app (no iframe auth). 355 frontend tests.
     - **Trade-offs:** the size panel presents width/height while the files still store scales (24 units = scale 1); the conversion lives in `ShortcutGeometry.writeFrame`. The iframe entry keeps the legacy token path for standalone use only.
+
+---
+
+## 014 Text That Fits, Resizable Containers, Room Panel and Editor Safety
+*   **Date:** 2026-09-11
+*   **Status:** Accepted
+*   **Context:** After the 4.0 unification Costi reported texts leaving their boxes and containers that could not be resized, and asked for more useful map features.
+*   **Decision:**
+    - Room labels shrink to their room and split on a space into two lines when the room is narrow (`core/RoomLabels.js`); labels render in their own layer above decor. Sensor pills measure their text with `getComputedTextLength` once mounted (`MapShortcut.measureText`), so the estimate only seeds the first paint. Images are probed with an `Image()` so a missing file falls back to the icon instead of a broken-image glyph.
+    - The inspector has a drag-resizable width (remembered), list rows ellipsize, the long-press menu grows to hold its designed items and its labels ellipsize, and the menu layout dialog resizes the menu by its corner. The toolbar wraps instead of scrolling off-screen.
+    - Card: `card/RoomPanel.js` + `card/RoomEntities.js` (area devices with controls, opened by the room zoom), `card/QuickActions.js` (config chips), `card/RoomTemperature.js` (opt-in tint through a `roomTint` hook in `core/RoomStyles.js`), floor names from `config_floorN.json` via the floors endpoint.
+    - Editor: `editor/Snap.js` alignment snapping with guide lines, arrow-key nudging, `editor/ui/AreaImport.js` (badges for a room's unplaced area devices, sized like the floor's existing badges), `editor/Drafts.js` (dirty tracking, local draft with restore, confirm before switching floors, `beforeunload` prompt), floor rename.
+    - Verification used the real floor data pulled from the live box into the harness, and the live panel through a temporary admin user created with `hass --script auth` (removed afterwards).
+*   **Consequences:** every file still under 300 lines; 391 frontend tests. The first floor load regressed once during this work (a floor-switch guard compared against the state default) and is now covered by a boot test.

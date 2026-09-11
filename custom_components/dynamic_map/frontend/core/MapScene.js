@@ -2,6 +2,7 @@ import { ShortcutFactory } from '../shortcuts/ShortcutFactory.js?v=3.2.1';
 import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
 import { labelTransform } from './Viewport.js?v=3.2.1';
 import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeometry.js?v=3.2.1';
+import { applyRoomLabel, roomBox } from './RoomLabels.js?v=3.2.1';
 
 /**
  * The one SVG scene for a floor, built into a "scene host": an object (the
@@ -81,6 +82,10 @@ export function roomLabelCenter(host, room) {
 /** Room polygons (with data-room-id) and their upright labels. */
 export function buildRooms(host, onRoomTap) {
     const svgNS = host.svgNS;
+    // Labels live in their own layer so decor (furniture) never covers them.
+    host.labelsLayer = document.createElementNS(svgNS, 'g');
+    host.labelsLayer.classList.add('dm-room-labels');
+    host.labelsLayer.style.pointerEvents = 'none';
     host.rooms.forEach(room => {
         const polygon = document.createElementNS(svgNS, 'polygon');
         polygon.setAttribute('points', polygonPoints(host, room.polygon));
@@ -95,23 +100,22 @@ export function buildRooms(host, onRoomTap) {
         }
         host.mapRoot.appendChild(polygon);
         if (room.name) {
-            const { cx, cy } = roomLabelCenter(host, room);
+            const { cx, cy, w, h } = roomBox(room, host.imgW, host.imgH);
             const text = document.createElementNS(svgNS, 'text');
             text.setAttribute('x', cx);
-            text.setAttribute('y', cy);
             text.setAttribute('text-anchor', 'middle');
             text.setAttribute('dominant-baseline', 'central');
-            text.setAttribute('font-size', (host.imgW * 0.017).toString());
             text.setAttribute('fill', 'rgba(255, 255, 255, 0.96)');
             text.setAttribute('font-weight', '600');
-            text.textContent = room.name;
+            applyRoomLabel(text, room.name, w, h, host.imgW * 0.017, cx, cy, svgNS);
             text.classList.add('room-label');
             text.dataset.roomId = room.id;
             text.rawCx = cx;   // kept for counter-rotation under a viewport
             text.rawCy = cy;
-            host.mapRoot.appendChild(text);
+            host.labelsLayer.appendChild(text);
         }
     });
+    host.mapRoot.appendChild(host.labelsLayer);
 }
 
 /**
@@ -139,7 +143,8 @@ export function buildWalls(host) {
         path.dataset.wallIdx = String(idx);
         layer.appendChild(path);
     });
-    host.mapRoot.appendChild(layer);
+    if (host.labelsLayer && host.labelsLayer.parentNode === host.mapRoot) host.mapRoot.insertBefore(layer, host.labelsLayer);
+    else host.mapRoot.appendChild(layer);
     host.wallsLayer = layer;
 }
 
@@ -151,7 +156,9 @@ export function buildShortcuts(host) {
     host.shortcutElements = {};
     host.decorLayer = document.createElementNS(host.svgNS, 'g');
     host.decorLayer.classList.add('dm-decor-layer');
-    host.mapRoot.appendChild(host.decorLayer);
+    // Below the room labels (which sit right after the walls), above walls.
+    if (host.labelsLayer && host.labelsLayer.parentNode === host.mapRoot) host.mapRoot.insertBefore(host.decorLayer, host.labelsLayer);
+    else host.mapRoot.appendChild(host.decorLayer);
     host.shortcuts.forEach(sc => {
         const obj = ShortcutFactory.create(sc, host.svgNS, host.imgW, host.imgH, host);
         host.shortcutElements[sc.id] = obj;

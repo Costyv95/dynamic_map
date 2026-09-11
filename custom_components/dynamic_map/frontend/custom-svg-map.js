@@ -9,6 +9,9 @@ import { buildPresenceLayer, animatePresence } from './card/PresenceLayer.js?v=3
 import { buildOutsideBar } from './card/OutsideBar.js?v=3.2.1';
 import { buildFocusPill } from './card/RoomFocus.js?v=3.2.1';
 import { cardDelegates } from './card/CardDelegates.js?v=3.2.1';
+import { buildRoomPanelEl, updateRoomPanel, hideRoomPanel } from './card/RoomPanel.js?v=3.2.1';
+import { buildQuickActions, updateQuickActions } from './card/QuickActions.js?v=3.2.1';
+import { tintSignature } from './card/RoomTemperature.js?v=3.2.1';
 
 /**
  * The Lovelace card. It is the scene host for core/MapScene and the
@@ -77,6 +80,7 @@ class CustomSvgMap extends HTMLElement {
         try {
             const data = await hass.callApi('GET', 'dynamic_map/floors');
             if (data && data.floors && data.floors.length) floors = data.floors;
+            if (data && data.names) this._floorNames = data.names;
         } catch (e) {
             console.warn('[custom-svg-map] Floor discovery failed, defaulting to floor 1', e);
         }
@@ -88,8 +92,10 @@ class CustomSvgMap extends HTMLElement {
 
     floorLabel(floorNum) {
         const names = this.config.floor_names || {};
-        return names[floorNum] || `Floor ${floorNum}`;
+        const stored = this._floorNames || {};
+        return names[floorNum] || stored[String(floorNum)] || `Floor ${floorNum}`;
     }
+
 
     async loadData() {
         const floor = this.activeFloor;
@@ -171,18 +177,14 @@ class CustomSvgMap extends HTMLElement {
         this.topLeftUI.appendChild(MapBuilder.buildRotationSwitcher(this));
         buildFocusPill(this);
         buildOutsideBar(this);
+        buildRoomPanelEl(this);
+        buildQuickActions(this);
 
         if (this.cameraManager) this.cameraManager.destroy();
         this.cameraManager = new CameraManager(this.svg, this);
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.lastTime = performance.now();
         this.animate(this.lastTime);
-    }
-
-    /** Paint the letterbox around the map in the floor colour ('fit' keeps the card surface). */
-    applyFloorBackground() {
-        const paint = this.floorBgMode === 'fit' ? null : this.floorBgColor;
-        if (this.renderRoot) this.renderRoot.style.background = paint || '';
     }
 
     /** Map a point from image coordinates into viewBox space (flips, then rotation). */
@@ -212,6 +214,7 @@ class CustomSvgMap extends HTMLElement {
     calculateAutoCrop() {
         this.focusedRoomId = null;
         this.syncFocusPill();
+        hideRoomPanel(this);
         const rect = this.getBoundingClientRect();
         const vp = computeViewport({
             rooms: this.rooms, imgW: this.imgW, imgH: this.imgH,
@@ -247,6 +250,7 @@ class CustomSvgMap extends HTMLElement {
         const prev = this._hass;
         this._hass = hass;
         if (this._needsFloorDiscovery) { this.discoverFloors(hass); return; }
+        if (!this._floorNamesRequested && hass.callApi) { this._floorNamesRequested = true; this.loadFloorNames(hass); }
         let anyChanged = false;
         for (const id in this.shortcutElements) {
             if (this.shortcutElements[id].updateState(hass)) anyChanged = true;
@@ -256,8 +260,10 @@ class CustomSvgMap extends HTMLElement {
             const sY = this.mapScaleY !== undefined ? this.mapScaleY : 1;
             this.applyShortcutTransforms(this.isRotated ? sX : 1, this.isRotated ? sY : 1);
         }
-        // Room fills track their light entity: restyle when any flipped.
-        const roomsChanged = this.rooms.some(r => r.entity_id && roomIsOn(r, prev) !== roomIsOn(r, hass));
+        // Room fills track their light entity and temperature: restyle when either changed.
+        const tints = tintSignature(this, hass);
+        const roomsChanged = tints !== this._tintSig || this.rooms.some(r => r.entity_id && roomIsOn(r, prev) !== roomIsOn(r, hass));
+        this._tintSig = tints;
         if (roomsChanged || !this._initialStylesRendered) {
             this.updateRoomStyles();
             this._initialStylesRendered = true;
@@ -265,7 +271,11 @@ class CustomSvgMap extends HTMLElement {
         this.updateOutsideBar(hass);
         this.updateAmbientTint(hass);
         this.updatePresence(hass);
+        updateRoomPanel(this, hass);
+        updateQuickActions(this, hass);
     }
+
+
 
     animate(currentTime) {
         const deltaTime = (currentTime - this.lastTime) / 1000;

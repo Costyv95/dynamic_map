@@ -24,6 +24,17 @@ const BUILDERS = {
     ROOM_SELECTOR: buildButton
 };
 
+/** Menu size for a designed layout: the saved size, or larger if items stick out. */
+export function visualMenuBox(cfg, actions) {
+    let w = Number(cfg.menuWidth) || 200, h = Number(cfg.menuHeight) || 250;
+    (actions || []).forEach(a => {
+        if (a.pos_x === undefined) return;
+        w = Math.max(w, (a.pos_x || 0) + (parseFloat(a.width) || 180) + 8);
+        h = Math.max(h, (a.pos_y || 0) + (parseFloat(a.height) || 35) + 8);
+    });
+    return { w, h };
+}
+
 function closeOnOutsideTap(mapContext) {
     const listener = (e) => {
         if (mapContext.activeOverlay && !mapContext.activeOverlay.contains(e.composedPath()[0])) {
@@ -62,11 +73,13 @@ export class OverlayManager {
             + 'box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); z-index: 1000; color: #fff;';
         const isVisual = !!(shortcut.sc && shortcut.sc.config && shortcut.sc.config.menuWidth);
         if (isVisual) {
-            overlay.style.width = shortcut.sc.config.menuWidth + 'px';
-            overlay.style.height = shortcut.sc.config.menuHeight + 'px';
+            // Grow to hold every placed item so nothing gets clipped.
+            const box = visualMenuBox(shortcut.sc.config, actions);
+            overlay.style.width = box.w + 'px';
+            overlay.style.height = box.h + 'px';
             overlay.style.cssText += 'display: block; padding: 0; overflow: hidden;';
         } else {
-            overlay.style.cssText += 'padding: 10px; display: flex; flex-direction: column; gap: 10px;';
+            overlay.style.cssText += 'padding: 10px; display: flex; flex-direction: column; gap: 10px; max-width: min(340px, 92vw);';
         }
         actions.forEach(act => {
             const build = BUILDERS[act.type];

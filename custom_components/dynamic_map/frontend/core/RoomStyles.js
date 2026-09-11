@@ -18,6 +18,13 @@ export function roomPalette(room, idx) {
     };
 }
 
+/** Palette for an rgb(r, g, b) tint (temperature colouring). */
+export function tintPalette(rgb) {
+    const m = /rgb\((\d+),\s*(\d+),\s*(\d+)\)/.exec(rgb);
+    const base = m ? `${m[1]}, ${m[2]}, ${m[3]}` : '100, 116, 139';
+    return { solid: `rgb(${base})`, fillAt: (a) => `rgba(${base}, ${Math.min(1, a * 1.8)})` };
+}
+
 export function roomIsOn(room, hass) {
     if (!room.entity_id || !hass || !hass.states) return false;
     const st = hass.states[room.entity_id];
@@ -32,7 +39,8 @@ export function updateRoomStyles(host) {
         const room = host.rooms[idx];
         if (!room) return;
         const isFocused = (host.focusedRoomId === room.id);
-        const { solid, fillAt } = roomPalette(room, idx);
+        const tint = typeof host.roomTint === 'function' ? host.roomTint(room) : null;
+        const { solid, fillAt } = tint ? tintPalette(tint) : roomPalette(room, idx);
         const isOn = roomIsOn(room, host._hass);
 
         poly.classList.remove('dm-selected', 'dm-on');

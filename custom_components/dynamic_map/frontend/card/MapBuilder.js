@@ -7,6 +7,17 @@ const ROTATION_ICONS = {
 const NEXT_ROTATION_MODE = { auto: 'horizontal', horizontal: 'vertical', vertical: 'auto' };
 
 export class MapBuilder {
+    /** Names stored per floor by the editor; refreshes the switcher when they arrive. */
+    static async loadFloorNames(mapContext, hass) {
+        try {
+            const data = await hass.callApi('GET', 'dynamic_map/floors');
+            if (!(data && data.names)) return;
+            mapContext._floorNames = data.names;
+            const chips = mapContext.topLeftUI ? mapContext.topLeftUI.querySelectorAll('.dm-chip[data-floor]') : [];
+            chips.forEach(chip => { chip.textContent = mapContext.floorLabel(chip.dataset.floor); });
+        } catch (e) { /* names are optional */ }
+    }
+
     static buildFloorSwitcher(mapContext) {
         if (!mapContext.config.floors || mapContext.config.floors.length <= 1) return null;
 
@@ -16,6 +27,7 @@ export class MapBuilder {
         mapContext.config.floors.forEach(f => {
             const btn = document.createElement('div');
             btn.className = 'dm-chip' + (f == mapContext.activeFloor ? ' active' : '');
+            btn.dataset.floor = String(f);
             btn.textContent = mapContext.floorLabel ? mapContext.floorLabel(f) : `Floor ${f}`;
 
             btn.addEventListener('click', (e) => {

@@ -66,11 +66,11 @@ export class Toolbar {
         }
     }
 
-    setFloors(floors, active) {
+    setFloors(floors, active, names = {}) {
         clear(this.floorRow);
         floors.forEach(f => this.floorRow.appendChild(el('button.dm-chip', {
-            type: 'button', dataset: { floor: String(f) }, onClick: () => this.app.switchFloor(f)
-        }, `Floor ${f}`)));
+            type: 'button', dataset: { floor: String(f) }, title: `Floor ${f}`, onClick: () => this.app.switchFloor(f)
+        }, names[String(f)] || `Floor ${f}`)));
         this.floorRow.appendChild(el('button.dm-chip.dm-add-floor', { type: 'button', title: 'Add a floor from a plan image or a blank canvas', onClick: () => this.app.addFloor() }, '＋'));
         this.setActiveFloor(active);
     }
@@ -91,6 +91,10 @@ export class Toolbar {
             : 'Unlinked: edits apply to the selected layout only. Click to link both layouts again.';
         this.undoBtn.disabled = !state.historyManager.canUndo();
         this.redoBtn.disabled = !state.historyManager.canRedo();
+        const dirty = !!(this.app.dirty && this.app.dirty.dirty);
+        this.saveBtn.classList.toggle('dm-dirty', dirty);
+        this.saveBtn.textContent = dirty ? '💾 Save •' : '💾 Save';
+        this.saveBtn.title = dirty ? 'Unsaved changes (Ctrl+S). A local draft is kept until you save.' : 'Save this floor to Home Assistant';
         const addLabel = { rooms: '＋ Room', objects: '＋ Object', decor: '＋ Decor', walls: '＋ Wall' };
         this.addBtn.textContent = addLabel[state.activeLayer] || '＋ Add';
     }

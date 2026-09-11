@@ -50,6 +50,26 @@ function bindIcon(host, el, comp) {
     host.contentGroup.appendChild(host.iconText);
 }
 
+/**
+ * SVG <image> elements do not reliably fire 'error', so a plain Image()
+ * probes each href once (shared across badges); a failed probe makes the
+ * badge re-render with its fallback icon instead of a broken-image glyph.
+ */
+const probes = new Map();
+function probeImage(href) {
+    if (probes.has(href)) return probes.get(href);
+    const p = new Promise((resolve) => {
+        if (typeof Image !== 'function') { resolve(true); return; }
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = href;
+    });
+    probes.set(href, p);
+    return p;
+}
+export function resetImageProbes() { probes.clear(); }
+
 /** Returns true when the image is known to have failed (fallback needed). */
 function bindImage(host, el, comp, hass) {
     host.iconImage = el;
@@ -60,25 +80,24 @@ function bindImage(host, el, comp, hass) {
     const state = host._imageLoadStates[href];
     if (state.status === 'failed' && Date.now() - state.failedTime > IMAGE_RETRY_MS) {
         state.status = 'loading';
+        probes.delete(href);
     }
     if (state.status === 'loading') {
         el.style.opacity = '0';
-        // Remove href before binding listeners so a cached load is not missed.
-        el.removeAttribute('href');
-        el.removeAttributeNS('http://www.w3.org/1999/xlink', 'href');
-        el.addEventListener('load', () => {
-            state.status = 'loaded';
-            el.style.opacity = '1';
-        });
-        el.addEventListener('error', () => {
+        const fail = () => {
+            if (state.status === 'failed') return;
             state.status = 'failed';
             state.failedTime = Date.now();
             el.style.opacity = '0';
             host.updateState(hass);
-        });
+        };
+        el.addEventListener('load', () => { if (state.status !== 'failed') { state.status = 'loaded'; el.style.opacity = '1'; } });
+        el.addEventListener('error', fail);   // browsers that do fire it on <image>
         if (href) {
-            el.setAttribute('href', href);
-            el.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', href);
+            probeImage(href).then((ok) => {
+                if (state.status === 'failed') return;
+                if (ok) { state.status = 'loaded'; el.style.opacity = '1'; } else fail();
+            });
         }
         return false;
     }

@@ -28,8 +28,22 @@ export function openMenuLayoutEditor(ctx, sc) {
     if (!cfg.menuHeight) cfg.menuHeight = 250;
     const commit = () => ctx.state.saveState();
     const area = el('div.dm-menu-area');
-    const apply = () => { area.style.width = cfg.menuWidth + 'px'; area.style.height = cfg.menuHeight + 'px'; };
+    const wIn = numberInput({ value: cfg.menuWidth, width: '80px', onChange: (v) => { cfg.menuWidth = v || 200; apply(); commit(); } });
+    const hIn = numberInput({ value: cfg.menuHeight, width: '80px', onChange: (v) => { cfg.menuHeight = v || 250; apply(); commit(); } });
+    const apply = () => { area.style.width = cfg.menuWidth + 'px'; area.style.height = cfg.menuHeight + 'px'; wIn.value = cfg.menuWidth; hIn.value = cfg.menuHeight; };
     apply();
+    // Drag the menu's bottom-right corner to resize the whole menu.
+    const corner = el('div.dm-menu-corner', { title: 'Drag to resize the menu' });
+    let drag = null;
+    corner.addEventListener('pointerdown', (e) => { e.stopPropagation(); drag = { x: e.clientX, y: e.clientY, w: cfg.menuWidth, h: cfg.menuHeight }; corner.setPointerCapture(e.pointerId); });
+    corner.addEventListener('pointermove', (e) => {
+        if (!drag) return;
+        cfg.menuWidth = Math.max(80, Math.round(drag.w + e.clientX - drag.x));
+        cfg.menuHeight = Math.max(60, Math.round(drag.h + e.clientY - drag.y));
+        apply();
+    });
+    corner.addEventListener('pointerup', (e) => { if (drag) { drag = null; corner.releasePointerCapture(e.pointerId); commit(); } });
+    area.appendChild(corner);
     cfg.actions.filter(isMenu).forEach((act, idx) => {
         if (act.pos_x === undefined) act.pos_x = 10;
         if (act.pos_y === undefined) act.pos_y = 10 + idx * 45;
@@ -73,9 +87,9 @@ export function openMenuLayoutEditor(ctx, sc) {
     });
     const body = [
         el('div.dm-row', {},
-            el('label', {}, 'Menu width ', numberInput({ value: cfg.menuWidth, width: '80px', onChange: (v) => { cfg.menuWidth = v || 200; apply(); commit(); } })),
-            el('label', {}, 'Menu height ', numberInput({ value: cfg.menuHeight, width: '80px', onChange: (v) => { cfg.menuHeight = v || 250; apply(); commit(); } })),
-            el('span.dm-hint', {}, 'Drag items to move, drag the corner to resize, scroll to rotate.')),
+            el('label', {}, 'Menu width ', wIn),
+            el('label', {}, 'Menu height ', hIn),
+            el('span.dm-hint', {}, 'Drag items to move, drag their corner to resize, scroll to rotate. Drag the menu\'s corner to resize the menu.')),
         el('div.dm-menu-stage', {}, area)
     ];
     return openDialog({ title: 'Long-press menu layout', body, width: 900, buttons: [{ label: 'Done', value: 'ok', primary: true }] })
