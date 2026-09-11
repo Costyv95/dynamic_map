@@ -7,6 +7,7 @@
  */
 
 import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
+import { badgePercent } from './BadgeRoom.js?v=3.2.1';
 
 const COOL = [59, 130, 246];   // blue
 const MID = [16, 185, 129];    // green
@@ -38,14 +39,6 @@ function isTempSensor(hass, id) {
 /** A sensor with a numeric reading right now (unavailable/unknown never wins over a live one). */
 function live(hass, id) {
     return !!id && !!hass.states[id] && Number.isFinite(Number(hass.states[id].state));
-}
-
-/** Badge position as [x%, y%] whichever way it is stored. */
-function badgePercent(sc) {
-    const p = sc.position;
-    if (Array.isArray(p)) return p;
-    if (p && typeof p === 'object') return p.horizontal || p.vertical || null;
-    return null;
 }
 
 /** The entity id that gives this room its temperature, or null. */

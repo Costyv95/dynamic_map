@@ -31,11 +31,11 @@ describe('room alerts', () => {
     });
 
     it('counts open and danger by default; unavailable only when asked for', () => {
-        expect(alertKinds({})).toEqual(['open', 'danger']);
-        expect(alertKinds({ room_alerts: true })).toEqual(['open', 'danger']);
+        expect(alertKinds({})).toEqual(['open', 'danger', 'vacuum']);
+        expect(alertKinds({ room_alerts: true })).toEqual(['open', 'danger', 'vacuum']);
         expect(alertKinds({ room_alerts: false })).toBe(null);
         expect(alertKinds({ room_alerts: ['unavailable'] })).toEqual(['unavailable']);
-        expect(alertKinds({ room_alerts: { unavailable: true, open: false } })).toEqual(['danger', 'unavailable']);
+        expect(alertKinds({ room_alerts: { unavailable: true, open: false } })).toEqual(['danger', 'vacuum', 'unavailable']);
         expect(roomAlerts(makeHass(), room, alertKinds({})).map(a => a.kind)).toEqual(['open']);
     });
 

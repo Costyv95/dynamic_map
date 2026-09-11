@@ -7,9 +7,10 @@
 const LABELS = {
     open: (n) => `${n} open door${n === 1 ? '' : 's'}/window${n === 1 ? '' : 's'}`,
     danger: (n) => `${n} alarm${n === 1 ? '' : 's'}`,
+    vacuum: (n) => `${n} robot task${n === 1 ? '' : 's'}`,
     unavailable: (n) => `${n} unavailable`
 };
-const DOT = { open: '#f59e0b', danger: '#ef4444', unavailable: '#94a3b8' };
+const DOT = { open: '#f59e0b', danger: '#ef4444', vacuum: '#6366f1', unavailable: '#94a3b8' };
 
 export function buildAlertLegend(host) {
     host.alertLegend = null;
@@ -28,7 +29,7 @@ export function updateAlertLegend(host, counts, firstRoom) {
     const el = host.alertLegend;
     if (!el) return;
     host._firstAlertRoom = firstRoom || null;
-    const kinds = ['danger', 'open', 'unavailable'].filter(k => counts[k] > 0);
+    const kinds = ['danger', 'open', 'vacuum', 'unavailable'].filter(k => counts[k] > 0);
     el.hidden = kinds.length === 0;
     if (el.hidden) return;
     el.replaceChildren(...kinds.map(k => {
