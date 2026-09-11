@@ -237,6 +237,8 @@ export const CARD_STYLES = `
     .dm-rp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .dm-rp-value { color: var(--dm-muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12px; }
     .dm-rp-row.dm-on .dm-rp-value { color: var(--dm-accent); font-weight: 600; }
+    .dm-rp-row.dm-rp-unavailable { opacity: 0.55; }
+    .dm-rp-row.dm-rp-unavailable .dm-rp-value { font-style: italic; }
     .dm-rp-switch { width: 34px; height: 20px; border-radius: 10px; background: rgba(127,127,127,0.35); position: relative; flex: none; transition: background 0.2s; }
     .dm-rp-row.dm-on .dm-rp-switch { background: var(--dm-accent); }
     .dm-rp-thumb { position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left 0.2s; }

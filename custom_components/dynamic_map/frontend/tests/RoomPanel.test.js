@@ -87,6 +87,21 @@ describe('RoomPanel', () => {
         expect(h.roomPanel.classList.contains('dm-visible')).toBe(false);
     });
 
+    it('renders unavailable devices without controls; the row opens more-info', () => {
+        const hass = makeHass();
+        hass.states['light.desk'].state = 'unavailable';
+        const h = host(hass);
+        buildRoomPanelEl(h);
+        showRoomPanel(h, { id: 'r', name: 'Office', area_id: 'office' });
+        const row = h.roomPanel.querySelector('.dm-rp-list .dm-rp-row');
+        expect(row.classList.contains('dm-rp-unavailable')).toBe(true);
+        expect(row.querySelector('.dm-rp-switch')).toBeNull();
+        expect(row.querySelector('.dm-rp-value').textContent).toBe('Unavailable');
+        row.click();
+        expect(hass.callService).not.toHaveBeenCalled();
+        expect(h.dispatchEvent.mock.calls.at(-1)[0].detail).toEqual({ entityId: 'light.desk' });
+    });
+
     it('explains how to link an area when the room has none, and honours room_panel: false', () => {
         const h = host(makeHass());
         buildRoomPanelEl(h);

@@ -109,7 +109,11 @@ function row(host, d) {
     r.querySelector('.dm-rp-value').textContent = d.value;
     r.title = d.name;
     const call = (c) => { if (c && host._hass) host._hass.callService(c.domain, c.service, c.data); };
-    if (d.kind === 'toggle') {
+    if (d.unavailable) {
+        // No controls for a dead device: the row only opens more-info (where HA explains why).
+        r.classList.add('dm-rp-unavailable');
+        r.addEventListener('click', () => host.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: d.id }, bubbles: true, composed: true })));
+    } else if (d.kind === 'toggle') {
         const sw = document.createElement('span');
         sw.className = 'dm-rp-switch';
         sw.innerHTML = '<span class="dm-rp-thumb"></span>';
