@@ -161,13 +161,18 @@ export class EditOverlay {
             const layer = (sc.config && sc.config.decor) ? 'decor' : 'objects';
             if (layer !== state.activeLayer) return;
             const selected = idx === state.selectedShortcutIdx;
+            const extra = !selected && (state.selectedExtra || []).includes(idx);
             const previewState = selected && state.previewStateIdx !== -1 ? sc.config?.states?.[state.previewStateIdx] : null;
             const frame = shortcutFrame(sc, { mode, state: previewState || null, imgW: ctx.imgW, imgH: ctx.imgH, hass: ctx.hass });
             const cfg = sc.config || {};
             const invisible = cfg.transparent && !cfg.icon && !cfg.image && sc.type !== 'sensor';
-            if (!selected && !(state.isEditMode && invisible)) return;
+            if (!selected && !extra && !(state.isEditMode && invisible)) return;
             const g = this.el('g', { transform: badgeTransform(frame, { isRotated, flipX, flipY }) });
             const box = { x: -frame.w / 2, y: -frame.h / 2, width: frame.w, height: frame.h };
+            if (extra) {
+                this.el('rect', { ...box, fill: 'none', stroke: ACCENT, 'stroke-width': 1.5 * k, 'stroke-dasharray': `${4 * k} ${3 * k}`, 'pointer-events': 'none' }, g);
+                return;
+            }
             if (!selected) {
                 // Invisible on the dashboard by design; hint its footprint.
                 this.el('rect', { ...box, fill: 'none', stroke: 'rgba(100, 116, 139, 0.55)', 'stroke-width': 1.5 * k,

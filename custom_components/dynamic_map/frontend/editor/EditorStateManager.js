@@ -16,6 +16,7 @@ export class EditorStateManager {
         this.drawingPolygon = null; // in-progress polygon points (%) while drawing a new room
         this.shortcuts = [];
         this.selectedShortcutIdx = -1;
+        this.selectedExtra = [];   // more selected badge indices (multi-select), primary excluded
         this.isEditMode = false;
         // Which layer is being edited: 'objects' (interactive shortcuts),
         // 'decor' (scenery, config.decor) or 'walls'. Hit-testing only
@@ -121,14 +122,40 @@ export class EditorStateManager {
      * or room(s). Keyboard twin of the sidebar 🗑️ buttons.
      * Returns true if something was removed.
      */
+    /** Primary first, then the extra selection, all valid. */
+    selectionIndices() {
+        const out = [];
+        if (this.selectedShortcutIdx !== -1 && this.shortcuts[this.selectedShortcutIdx]) out.push(this.selectedShortcutIdx);
+        (this.selectedExtra || []).forEach(i => { if (i !== this.selectedShortcutIdx && this.shortcuts[i] && !out.includes(i)) out.push(i); });
+        return out;
+    }
+
+    clearExtraSelection() { this.selectedExtra = []; }
+
+    /** Shift-click: add, or remove when already selected (promoting an extra if the primary goes). */
+    toggleExtraSelection(idx) {
+        if (idx === this.selectedShortcutIdx) {
+            if (this.selectedExtra.length) { this.selectedShortcutIdx = this.selectedExtra.shift(); } else { this.selectedShortcutIdx = -1; }
+        } else if (this.selectedShortcutIdx === -1) {
+            this.selectedShortcutIdx = idx;
+        } else if (this.selectedExtra.includes(idx)) {
+            this.selectedExtra = this.selectedExtra.filter(i => i !== idx);
+        } else {
+            this.selectedExtra.push(idx);
+        }
+        if (this.updateUICallback) this.updateUICallback();
+        if (this.requestDrawCallback) this.requestDrawCallback();
+    }
+
     deleteSelection() {
         if (this.activeLayer === 'walls') {
             if (this.selectedWallIdx === -1) return false;
             this.walls.splice(this.selectedWallIdx, 1);
             this.selectedWallIdx = -1;
         } else if (this.selectedShortcutIdx !== -1) {
-            this.shortcuts.splice(this.selectedShortcutIdx, 1);
+            this.selectionIndices().sort((a, b) => b - a).forEach(i => this.shortcuts.splice(i, 1));
             this.selectedShortcutIdx = -1;
+            this.selectedExtra = [];
         } else if (this.selectedRooms.length) {
             [...this.selectedRooms].sort((a, b) => b - a)
                 .forEach(i => this.rooms.splice(i, 1));
@@ -152,6 +179,7 @@ export class EditorStateManager {
         this.activeLayer = layer;
         this.isEditMode = layer === 'rooms';
         this.selectedShortcutIdx = -1;
+        this.selectedExtra = [];
         this.selectedWallIdx = -1;
         this.drawingWall = null;
         this.drawingPolygon = null;

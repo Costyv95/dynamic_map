@@ -3,6 +3,7 @@ import { renderRoomPanel, renderRoomsOverview } from './RoomPanel.js?v=3.2.1';
 import { renderShortcutPanel } from './ShortcutPanel.js?v=3.2.1';
 import { renderWallPanel } from './WallPanel.js?v=3.2.1';
 import { renderLayerList } from './LayerList.js?v=3.2.1';
+import { renderMultiPanel } from './MultiPanel.js?v=3.2.1';
 
 /**
  * Contextual side panel: shows what is selected on the active layer. On
@@ -81,6 +82,7 @@ export class Inspector {
 
     titleFor() {
         const { state } = this;
+        if (state.selectedShortcutIdx !== -1 && state.selectionIndices().length > 1) return `${state.selectionIndices().length} objects`;
         if (state.selectedShortcutIdx !== -1 && state.shortcuts[state.selectedShortcutIdx]) return state.shortcuts[state.selectedShortcutIdx].name || 'Object';
         if (state.activeLayer === 'walls') return state.selectedWallIdx !== -1 ? `Wall ${state.selectedWallIdx + 1}` : 'Walls';
         if (state.selectedRooms.length === 1) return state.rooms[state.selectedRooms[0]]?.name || 'Room';
@@ -99,7 +101,9 @@ export class Inspector {
         this.handle.querySelector('.dm-inspector-title').textContent = this.titleFor();
 
         let content;
-        if (state.selectedShortcutIdx !== -1 && state.shortcuts[state.selectedShortcutIdx]) {
+        if (state.selectedShortcutIdx !== -1 && state.shortcuts[state.selectedShortcutIdx] && state.selectionIndices().length > 1) {
+            content = renderMultiPanel(ctx);
+        } else if (state.selectedShortcutIdx !== -1 && state.shortcuts[state.selectedShortcutIdx]) {
             content = renderShortcutPanel(ctx, state.shortcuts[state.selectedShortcutIdx]);
         } else if (state.activeLayer === 'walls') {
             content = renderWallPanel(ctx);

@@ -161,6 +161,7 @@ export class EditorCanvas {
         this.refreshRooms();
         this.refreshWalls();
         this.refreshShortcut(this.state.selectedShortcutIdx);
+        (this.state.selectedExtra || []).forEach(i => this.refreshShortcut(i));
         this.applyLayerState();
         this.overlay.setTransform(this.viewport.transform);
         this.overlay.render({
