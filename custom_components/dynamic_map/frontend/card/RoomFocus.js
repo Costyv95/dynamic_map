@@ -85,14 +85,24 @@ export function onRoomTap(host, room) {
 }
 
 /** Animate the camera into a room's bounding box. */
+/** Share of the card the room sheet covers on a phone (0 on wide cards or with the panel off). */
+export function sheetFraction(host) {
+    return host.isNarrow && !(host.config && host.config.room_panel === false) ? SHEET_FRACTION : 0;
+}
+const SHEET_FRACTION = 0.38;
+
 export function zoomToRoom(host, room) {
     const rect = host.getBoundingClientRect();
-    const ratio = (rect.width > 0 ? rect.width : 1) / (rect.height > 0 ? rect.height : 1);
+    const sheet = sheetFraction(host);
+    // On a phone the room must fit the part of the card above the bottom sheet.
+    const ratio = (rect.width > 0 ? rect.width : 1) / ((rect.height > 0 ? rect.height : 1) * (1 - sheet));
     // Respect the same minimum zoom window as manual pinch/wheel zoom.
-    host._zoomTargetVb = roomViewBox({
+    const vb = roomViewBox({
         mapPoint: (x, y) => host.mapPointToView(x, y), room,
         imgW: host.imgW, imgH: host.imgH, screenRatio: ratio, minW: host.imgW * 0.05
     });
+    vb.h = vb.h / (1 - sheet);   // extend downwards: the sheet covers the extra strip
+    host._zoomTargetVb = vb;
     host.animateViewBox(host._zoomTargetVb);
 }
 

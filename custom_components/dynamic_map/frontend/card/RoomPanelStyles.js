@@ -42,5 +42,15 @@ export const ROOM_PANEL_STYLES = `
     .dm-rp-stepper { display: flex; gap: 4px; }
     .dm-rp-stepper button { width: 28px; height: 28px; border: 1px solid var(--dm-glass-border); border-radius: 50%; background: rgba(127,127,127,0.12); color: inherit; cursor: pointer; font-size: 14px; }
     .dm-render-root.dm-has-outside .dm-room-panel { bottom: 64px; }
+    /* Phone: a bottom sheet that leaves the room visible above it (38% of the card, 74% expanded). */
+    .dm-rp-handle { display: none; }
+    .dm-render-root.dm-narrow .dm-room-panel { left: 8px; right: 8px; bottom: 8px; width: auto; max-height: 38%; border-radius: 16px; transform: translateY(24px); }
+    .dm-render-root.dm-narrow .dm-room-panel.dm-visible { transform: translateY(0); }
+    .dm-render-root.dm-narrow .dm-room-panel.dm-expanded { max-height: 74%; }
+    .dm-render-root.dm-narrow .dm-rp-handle { display: block; flex: none; width: 40px; height: 5px; border-radius: 3px; background: rgba(127,127,127,0.5); margin: 8px auto 0; cursor: pointer; touch-action: none; }
+    .dm-render-root.dm-narrow .dm-rp-head { padding-top: 4px; }
+    .dm-render-root.dm-narrow .dm-rp-scenes { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .dm-render-root.dm-narrow .dm-rp-scene { flex: none; }
+    .dm-render-root.dm-narrow.dm-room-panel-open .dm-quick-actions { opacity: 0; pointer-events: none; }
     .dm-render-root.dm-room-panel-open .dm-focus-pill { opacity: 0; pointer-events: none; }
 `;

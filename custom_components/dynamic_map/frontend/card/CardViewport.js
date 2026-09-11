@@ -9,6 +9,9 @@ export function applyAutoCrop(host) {
     host.syncFocusPill();
     hideRoomPanel(host);
     const rect = host.getBoundingClientRect();
+    // Phone-sized cards get bottom sheets instead of side panels.
+    host.isNarrow = rect.width > 0 && rect.width < 600;
+    if (host.renderRoot) host.renderRoot.classList.toggle('dm-narrow', host.isNarrow);
     const vp = computeViewport({
         rooms: host.rooms, imgW: host.imgW, imgH: host.imgH,
         screenW: rect.width, screenH: rect.height,
