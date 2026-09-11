@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { roomAlerts, alertsSignature, buildRoomAlerts, updateRoomAlerts } from '../card/RoomAlerts.js';
+import { roomAlerts, alertKinds, alertsSignature, buildRoomAlerts, updateRoomAlerts } from '../card/RoomAlerts.js';
 import { buildTempLegend } from '../card/TempLegend.js';
 import { buildQuickActions } from '../card/QuickActions.js';
 import { collectQuickActions } from '../editor/ui/QuickActionsDialog.js';
@@ -30,10 +30,31 @@ describe('room alerts', () => {
         expect(roomAlerts(h, { id: 'x' })).toEqual([]);
     });
 
+    it('counts open and danger by default; unavailable only when asked for', () => {
+        expect(alertKinds({})).toEqual(['open', 'danger']);
+        expect(alertKinds({ room_alerts: true })).toEqual(['open', 'danger']);
+        expect(alertKinds({ room_alerts: false })).toBe(null);
+        expect(alertKinds({ room_alerts: ['unavailable'] })).toEqual(['unavailable']);
+        expect(alertKinds({ room_alerts: { unavailable: true, open: false } })).toEqual(['danger', 'unavailable']);
+        expect(roomAlerts(makeHass(), room, alertKinds({})).map(a => a.kind)).toEqual(['open']);
+    });
+
+    it('keeps the digits upright under a rotated and mirrored map', () => {
+        const hass = makeHass();
+        const host = { svgNS, mapRoot: document.createElementNS(svgNS, 'g'), rooms: [room], imgW: 1000, imgH: 1000, config: {}, isRotated: true, mapScaleX: -1, mapScaleY: -1 };
+        buildRoomAlerts(host);
+        updateRoomAlerts(host, hass);
+        const g = host.mapRoot.querySelector('.dm-room-alert');
+        expect(g.getAttribute('transform')).toMatch(/scale\(-1, -1\) rotate\(-90\)$/);
+        host.isRotated = false; host.mapScaleX = 1; host.mapScaleY = 1;   // phone layout: signature changes, transform follows
+        updateRoomAlerts(host, hass);
+        expect(g.getAttribute('transform')).toMatch(/^translate\([\d.]+, [\d.]+\)$/);
+    });
+
     it('renders a badge per room with alerts, coloured by severity, and hides it when clear', () => {
         const hass = makeHass();
         const mapRoot = document.createElementNS(svgNS, 'g');
-        const host = { svgNS, mapRoot, rooms: [room], imgW: 1000, imgH: 1000, config: {}, isRotated: true, onRoomTap: vi.fn() };
+        const host = { svgNS, mapRoot, rooms: [room], imgW: 1000, imgH: 1000, config: { room_alerts: ['open', 'danger', 'unavailable'] }, isRotated: true, onRoomTap: vi.fn() };
         buildRoomAlerts(host);
         updateRoomAlerts(host, hass);
         const g = mapRoot.querySelector('.dm-room-alert');

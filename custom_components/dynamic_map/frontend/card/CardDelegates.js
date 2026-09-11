@@ -8,7 +8,7 @@ import { buildOutsideBar, updateOutsideBar } from './OutsideBar.js?v=3.2.1';
 import { syncFocusPill, onRoomTap, zoomToRoom, zoomOutToDefault, animateViewBox } from './RoomFocus.js?v=3.2.1';
 import { roomTint } from './RoomTemperature.js?v=3.2.1';
 import { MapBuilder } from './MapBuilder.js?v=3.2.1';
-import { updateRoomPanel } from './RoomPanel.js?v=3.2.1';
+import { updateRoomPanel, showRoomPanel } from './RoomPanel.js?v=3.2.1';
 import { updateQuickActions } from './QuickActions.js?v=3.2.1';
 import { updateRoomAlerts } from './RoomAlerts.js?v=3.2.1';
 
@@ -27,6 +27,12 @@ export const cardDelegates = {
     buildOutsideBar() { buildOutsideBar(this); },
     updateOutsideBar(hass) { updateOutsideBar(this, hass); },
     onRoomTap(room) { onRoomTap(this, room); },
+    /** Alert badge tap: zoom to the room and list what needs attention, whatever the room's tap action. */
+    onAlertTap(room) {
+        if (this.isSelectingRooms) { onRoomTap(this, room); return; }
+        if (this.focusedRoomId !== room.id) zoomToRoom(this, room);
+        showRoomPanel(this, room, true);
+    },
     zoomToRoom(room) { zoomToRoom(this, room); },
     zoomOutToDefault() { zoomOutToDefault(this); },
     animateViewBox(target, duration) { animateViewBox(this, target, duration); },
