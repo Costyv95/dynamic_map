@@ -10,6 +10,8 @@ import { buildOutsideBar } from './card/OutsideBar.js?v=3.2.1';
 import { buildFocusPill } from './card/RoomFocus.js?v=3.2.1';
 import { cardDelegates } from './card/CardDelegates.js?v=3.2.1';
 import { buildRoomPanelEl, updateRoomPanel, hideRoomPanel } from './card/RoomPanel.js?v=3.2.1';
+import { buildQuickActions, updateQuickActions } from './card/QuickActions.js?v=3.2.1';
+import { tintSignature } from './card/RoomTemperature.js?v=3.2.1';
 
 /**
  * The Lovelace card. It is the scene host for core/MapScene and the
@@ -94,7 +96,6 @@ class CustomSvgMap extends HTMLElement {
         return names[floorNum] || stored[String(floorNum)] || `Floor ${floorNum}`;
     }
 
-    loadFloorNames(hass) { return MapBuilder.loadFloorNames(this, hass); }
 
     async loadData() {
         const floor = this.activeFloor;
@@ -177,18 +178,13 @@ class CustomSvgMap extends HTMLElement {
         buildFocusPill(this);
         buildOutsideBar(this);
         buildRoomPanelEl(this);
+        buildQuickActions(this);
 
         if (this.cameraManager) this.cameraManager.destroy();
         this.cameraManager = new CameraManager(this.svg, this);
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.lastTime = performance.now();
         this.animate(this.lastTime);
-    }
-
-    /** Paint the letterbox around the map in the floor colour ('fit' keeps the card surface). */
-    applyFloorBackground() {
-        const paint = this.floorBgMode === 'fit' ? null : this.floorBgColor;
-        if (this.renderRoot) this.renderRoot.style.background = paint || '';
     }
 
     /** Map a point from image coordinates into viewBox space (flips, then rotation). */
@@ -264,8 +260,10 @@ class CustomSvgMap extends HTMLElement {
             const sY = this.mapScaleY !== undefined ? this.mapScaleY : 1;
             this.applyShortcutTransforms(this.isRotated ? sX : 1, this.isRotated ? sY : 1);
         }
-        // Room fills track their light entity: restyle when any flipped.
-        const roomsChanged = this.rooms.some(r => r.entity_id && roomIsOn(r, prev) !== roomIsOn(r, hass));
+        // Room fills track their light entity and temperature: restyle when either changed.
+        const tints = tintSignature(this, hass);
+        const roomsChanged = tints !== this._tintSig || this.rooms.some(r => r.entity_id && roomIsOn(r, prev) !== roomIsOn(r, hass));
+        this._tintSig = tints;
         if (roomsChanged || !this._initialStylesRendered) {
             this.updateRoomStyles();
             this._initialStylesRendered = true;
@@ -274,7 +272,10 @@ class CustomSvgMap extends HTMLElement {
         this.updateAmbientTint(hass);
         this.updatePresence(hass);
         updateRoomPanel(this, hass);
+        updateQuickActions(this, hass);
     }
+
+
 
     animate(currentTime) {
         const deltaTime = (currentTime - this.lastTime) / 1000;

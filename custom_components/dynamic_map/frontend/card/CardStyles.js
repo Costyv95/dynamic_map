@@ -246,4 +246,18 @@ export const CARD_STYLES = `
     .dm-rp-stepper button { width: 28px; height: 28px; border: 1px solid var(--dm-glass-border); border-radius: 50%; background: rgba(127,127,127,0.12); color: inherit; cursor: pointer; font-size: 14px; }
     .dm-render-root.dm-has-outside .dm-room-panel { bottom: 64px; }
     .dm-render-root.dm-room-panel-open .dm-focus-pill { opacity: 0; pointer-events: none; }
+    /* Quick-action chips */
+    .dm-quick-actions { position: absolute; left: 14px; bottom: 14px; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 28px); z-index: 11; }
+    .dm-quick-chip {
+        display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+        background: var(--dm-glass); border: 1px solid var(--dm-glass-border); box-shadow: var(--dm-shadow); color: var(--dm-text);
+        font: inherit; font-size: 13px; font-weight: 600; backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
+        transition: background 0.2s ease, transform 0.15s ease, color 0.2s ease;
+    }
+    .dm-quick-chip:hover { background: rgba(127, 127, 127, 0.14); }
+    .dm-quick-chip:active, .dm-quick-chip.dm-fired { transform: scale(0.95); }
+    .dm-quick-chip.dm-on { background: var(--dm-accent); border-color: var(--dm-accent); color: #fff; }
+    .dm-quick-chip.dm-armed { background: var(--error-color, #ef4444); border-color: var(--error-color, #ef4444); color: #fff; }
+    .dm-quick-chip.dm-unavailable { opacity: 0.45; }
+    .dm-render-root.dm-room-panel-open .dm-quick-actions { max-width: calc(100% - 340px); }
 `;
