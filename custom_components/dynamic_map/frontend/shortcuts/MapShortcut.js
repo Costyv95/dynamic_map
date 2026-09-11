@@ -2,6 +2,7 @@ import { evaluateCondition } from './ConditionEvaluator.js?v=3.2.1';
 import { resolveOriented, resolveOrientedStrict } from '../shared/OrientationProps.js?v=3.2.1';
 import { resolveEntityColor, contrastText } from '../shared/Color.js?v=3.2.1';
 import { shortcutFrame } from '../shared/ShortcutGeometry.js?v=3.2.1';
+import { estimateTextWidth } from '../shared/SensorPill.js?v=3.2.1';
 import { buildLayout } from './ShortcutLayout.js?v=3.2.1';
 import { renderComponents } from './ShortcutRender.js?v=3.2.1';
 import { updateGlow, animateGlow } from './ShortcutGlow.js?v=3.2.1';
@@ -72,6 +73,28 @@ export class MapShortcut {
     }
 
     get activeMode() { return this.mapContext.activeMode || 'horizontal'; }
+
+    /**
+     * Width of `text` at `fontSize` as the browser will actually draw it
+     * (a hidden <text> in this badge), falling back to the estimate when
+     * the badge is not mounted yet or the platform cannot measure.
+     */
+    measureText(text, fontSize, weight = 'bold') {
+        if (!this.group.isConnected) return estimateTextWidth(text, fontSize);
+        if (!this._measureEl) {
+            this._measureEl = document.createElementNS(this.svgNS, 'text');
+            this._measureEl.setAttribute('visibility', 'hidden');
+            this._measureEl.style.pointerEvents = 'none';
+            this.group.appendChild(this._measureEl);
+        }
+        const el = this._measureEl;
+        if (typeof el.getComputedTextLength !== 'function') return estimateTextWidth(text, fontSize);
+        el.setAttribute('font-size', fontSize);
+        el.setAttribute('font-weight', weight);
+        el.textContent = String(text);
+        const w = el.getComputedTextLength();
+        return Number.isFinite(w) && w > 0 ? w : estimateTextWidth(text, fontSize);
+    }
 
     /** Current frame (map px) for the active mode and matched state. */
     frame() {

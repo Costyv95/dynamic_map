@@ -2,6 +2,7 @@ import { ShortcutFactory } from '../shortcuts/ShortcutFactory.js?v=3.2.1';
 import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
 import { labelTransform } from './Viewport.js?v=3.2.1';
 import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeometry.js?v=3.2.1';
+import { applyRoomLabel, roomBox } from './RoomLabels.js?v=3.2.1';
 
 /**
  * The one SVG scene for a floor, built into a "scene host": an object (the
@@ -95,16 +96,14 @@ export function buildRooms(host, onRoomTap) {
         }
         host.mapRoot.appendChild(polygon);
         if (room.name) {
-            const { cx, cy } = roomLabelCenter(host, room);
+            const { cx, cy, w, h } = roomBox(room, host.imgW, host.imgH);
             const text = document.createElementNS(svgNS, 'text');
             text.setAttribute('x', cx);
-            text.setAttribute('y', cy);
             text.setAttribute('text-anchor', 'middle');
             text.setAttribute('dominant-baseline', 'central');
-            text.setAttribute('font-size', (host.imgW * 0.017).toString());
             text.setAttribute('fill', 'rgba(255, 255, 255, 0.96)');
             text.setAttribute('font-weight', '600');
-            text.textContent = room.name;
+            applyRoomLabel(text, room.name, w, h, host.imgW * 0.017, cx, cy, svgNS);
             text.classList.add('room-label');
             text.dataset.roomId = room.id;
             text.rawCx = cx;   // kept for counter-rotation under a viewport

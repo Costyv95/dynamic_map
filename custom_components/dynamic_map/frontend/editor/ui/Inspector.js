@@ -16,8 +16,35 @@ export class Inspector {
         this.state = app.state;
         this.handle = el('div.dm-inspector-handle', { onClick: () => this.cycle() }, el('span.dm-inspector-title', {}, 'Inspector'));
         this.body = el('div.dm-inspector-body');
-        root.append(this.handle, this.body);
+        this.resizer = el('div.dm-inspector-resizer', { title: 'Drag to resize the panel' });
+        root.append(this.resizer, this.handle, this.body);
         this.bindSheetDrag();
+        this.bindWidthDrag();
+    }
+
+    /** Desktop: drag the panel's left edge to change its width (remembered). */
+    bindWidthDrag() {
+        const appRoot = this.root.closest('.dm-app') || this.root.parentElement;
+        const saved = parseInt(localStorage.getItem('dm_inspector_w'));
+        if (saved >= 260 && appRoot) appRoot.style.setProperty('--dm-inspector-w', `${saved}px`);
+        let start = null;
+        this.resizer.addEventListener('pointerdown', (e) => {
+            start = { x: e.clientX, w: this.root.getBoundingClientRect().width };
+            this.resizer.setPointerCapture(e.pointerId);
+            e.preventDefault();
+        });
+        this.resizer.addEventListener('pointermove', (e) => {
+            if (!start || !appRoot) return;
+            const w = Math.max(260, Math.min(window.innerWidth * 0.6, start.w - (e.clientX - start.x)));
+            appRoot.style.setProperty('--dm-inspector-w', `${Math.round(w)}px`);
+        });
+        this.resizer.addEventListener('pointerup', (e) => {
+            if (!start) return;
+            start = null;
+            this.resizer.releasePointerCapture(e.pointerId);
+            localStorage.setItem('dm_inspector_w', String(Math.round(this.root.getBoundingClientRect().width)));
+            this.app.canvas.layout();
+        });
     }
 
     cycle() {
