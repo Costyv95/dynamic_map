@@ -2,6 +2,7 @@ import { el, clear } from './dom.js?v=3.2.1';
 import { openDialog, getUiRoot, promptDialog, toast } from './Dialog.js?v=3.2.1';
 import { openBackgroundDialog } from './FloorDialogs.js?v=3.2.1';
 import { openOutsideDialog } from './OutsideDialog.js?v=3.2.1';
+import { openQuickActionsDialog } from './QuickActionsDialog.js?v=3.2.1';
 import { openRecomputeDialog } from './RecomputeDialog.js?v=3.2.1';
 
 const ROTATION = { auto: ['Auto (fits each screen)', 'horizontal'], horizontal: ['Always landscape', 'vertical'], vertical: ['Always portrait', 'auto'] };
@@ -38,6 +39,7 @@ export function openOverflowMenu(app, anchor) {
         }),
         item('🎨 Floor background…', 'Colour and canvas mode of this floor', () => openBackgroundDialog(app)),
         item('🌤️ Outside dashboard…', 'The fixed bar at the top of the card', () => openOutsideDialog(app)),
+        item('⚡ Quick actions…', 'Chips at the bottom of the card: scenes, scripts, toggles', () => openQuickActionsDialog(app)),
         item('⚙️ Recompute / delete floor…', 'Rebuild rooms from DXF/SVG, or remove a floor', () => openRecomputeDialog(app)),
         item('📄 Card YAML…', 'Copy the dashboard card configuration', () => openYamlDialog(app, state))
     );

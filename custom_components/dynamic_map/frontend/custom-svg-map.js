@@ -9,9 +9,11 @@ import { buildPresenceLayer, animatePresence } from './card/PresenceLayer.js?v=3
 import { buildOutsideBar } from './card/OutsideBar.js?v=3.2.1';
 import { buildFocusPill } from './card/RoomFocus.js?v=3.2.1';
 import { cardDelegates } from './card/CardDelegates.js?v=3.2.1';
-import { buildRoomPanelEl, updateRoomPanel, hideRoomPanel } from './card/RoomPanel.js?v=3.2.1';
-import { buildQuickActions, updateQuickActions } from './card/QuickActions.js?v=3.2.1';
+import { buildRoomPanelEl, hideRoomPanel } from './card/RoomPanel.js?v=3.2.1';
+import { buildQuickActions } from './card/QuickActions.js?v=3.2.1';
 import { tintSignature } from './card/RoomTemperature.js?v=3.2.1';
+import { buildRoomAlerts } from './card/RoomAlerts.js?v=3.2.1';
+import { buildTempLegend } from './card/TempLegend.js?v=3.2.1';
 
 /**
  * The Lovelace card. It is the scene host for core/MapScene and the
@@ -109,12 +111,14 @@ class CustomSvgMap extends HTMLElement {
             } catch (e) { return null; }
         };
         try {
-            const [rooms, shortcuts, config, outside] = await Promise.all([
+            const [rooms, shortcuts, config, outside, quick] = await Promise.all([
                 fetchJson(`/dynamic_map_data/rooms_floor${floor}.json?t=${t}`),
                 fetchJson(`/dynamic_map_data/shortcuts_floor${floor}.json?t=${t}`),
                 fetchJson(`/dynamic_map_data/config_floor${floor}.json?t=${t}`),
-                fetchJson(`/dynamic_map_data/outside.json?t=${t}`)
+                fetchJson(`/dynamic_map_data/outside.json?t=${t}`),
+                fetchJson(`/dynamic_map_data/quick_actions.json?t=${t}`)
             ]);
+            this.quickActionItems = Array.isArray(quick) ? quick : [];
             if (requestId !== this._loadSeq) return; // superseded by a newer floor switch
             this.rooms = rooms || [];
             this.shortcuts = shortcuts || [];
@@ -156,6 +160,7 @@ class CustomSvgMap extends HTMLElement {
         this.updateRoomStyles();
         buildAmbientTint(this);
         buildPresenceLayer(this);
+        buildRoomAlerts(this);
 
         this.svg.appendChild(this.mapRoot);
         this.mapWrapper.appendChild(this.svg);
@@ -179,6 +184,7 @@ class CustomSvgMap extends HTMLElement {
         buildOutsideBar(this);
         buildRoomPanelEl(this);
         buildQuickActions(this);
+        buildTempLegend(this);
 
         if (this.cameraManager) this.cameraManager.destroy();
         this.cameraManager = new CameraManager(this.svg, this);
@@ -268,11 +274,7 @@ class CustomSvgMap extends HTMLElement {
             this.updateRoomStyles();
             this._initialStylesRendered = true;
         }
-        this.updateOutsideBar(hass);
-        this.updateAmbientTint(hass);
-        this.updatePresence(hass);
-        updateRoomPanel(this, hass);
-        updateQuickActions(this, hass);
+        this.updateLiveFeatures(hass);
     }
 
 

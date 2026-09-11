@@ -30,7 +30,9 @@ export function normalizeAction(a) {
 
 export function buildQuickActions(host) {
     host.quickActions = null;
-    const items = (Array.isArray(host.config.quick_actions) ? host.config.quick_actions : []).map(normalizeAction).filter(Boolean);
+    // Card YAML first, then the global quick_actions.json managed in the editor.
+    const raw = [...(Array.isArray(host.config.quick_actions) ? host.config.quick_actions : []), ...(Array.isArray(host.quickActionItems) ? host.quickActionItems : [])];
+    const items = raw.map(normalizeAction).filter(Boolean);
     if (!items.length) return;
     const bar = document.createElement('div');
     bar.className = 'dm-quick-actions';

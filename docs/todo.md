@@ -34,7 +34,7 @@
 
 ## 5. Open after the 4.0 unification (2026-09-11)
 
-- [ ] **Compact phone toolbar:** on narrow screens the toolbar wraps to four rows; icon-only chips with labels in tooltips would save space.
+- [x] **Compact phone toolbar:** segmented controls show icons only under 768px.
 - [ ] **Store width/height instead of scales:** the size panel already speaks in map units; a one-time migration of `scale*` keys to `size` would remove the 24-unit convention from the files (needs the card to read both during the transition).
 - [ ] **Card camera on Pointer Events:** `card/CameraManager.js` still binds mouse and touch separately; `core/Camera.js` (used by the editor) could replace it.
 - [ ] **Backend tests locally:** pytest is not installed on the dev machine; `tests/test_storage.py` runs only on the box.
@@ -42,6 +42,6 @@
 ## 6. After the 2026-09-11 polish pass
 
 - [ ] **Room panel on the editor side:** show the same area device list when a room is selected, with the import button per device.
-- [ ] **Quick actions in the editor:** edit `quick_actions` from the ⋯ menu instead of YAML.
-- [ ] **Temperature legend:** a small scale for `room_temperature` on the card.
+- [x] **Quick actions in the editor:** ⋯ → Quick actions edits the global `quick_actions.json`.
+- [x] **Temperature legend:** shown while `room_temperature` is on.
 - [ ] **Multi-select:** shift-click several badges and move them together.

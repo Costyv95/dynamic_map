@@ -7,10 +7,10 @@ import json
 import os
 import re
 
-# Managed data files: per-floor sets plus the global outside-dashboard config.
+# Managed data files: per-floor sets plus the global outside-dashboard and quick-actions configs.
 # The save endpoint only accepts these names so the HTTP API can never be
 # used to write arbitrary files into the config dir.
-ALLOWED_SAVE_RE = re.compile(r"^(?:(?:rooms|shortcuts|config)_floor\d+\.json|bg_floor\d+\.png|outside\.json)$")
+ALLOWED_SAVE_RE = re.compile(r"^(?:(?:rooms|shortcuts|config)_floor\d+\.json|bg_floor\d+\.png|outside\.json|quick_actions\.json)$")
 FLOOR_NUM_RE = re.compile(r"^(?:rooms|shortcuts|config|bg)_floor(\d+)\.(?:json|png)$")
 
 ICON_EXTENSIONS = (".png", ".jpg", ".jpeg", ".svg", ".webp")
@@ -73,7 +73,7 @@ def validate_save_content(filename, content):
     config is an object. Kept intentionally lenient so schema evolution
     doesn't require a lockstep backend change.
     """
-    if filename.startswith(("rooms_", "shortcuts_")) or filename == "outside.json":
+    if filename.startswith(("rooms_", "shortcuts_")) or filename in ("outside.json", "quick_actions.json"):
         return isinstance(content, list) and all(isinstance(item, dict) for item in content)
     if filename.startswith("config_"):
         return isinstance(content, dict)

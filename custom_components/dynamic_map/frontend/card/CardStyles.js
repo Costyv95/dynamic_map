@@ -260,4 +260,8 @@ export const CARD_STYLES = `
     .dm-quick-chip.dm-armed { background: var(--error-color, #ef4444); border-color: var(--error-color, #ef4444); color: #fff; }
     .dm-quick-chip.dm-unavailable { opacity: 0.45; }
     .dm-render-root.dm-room-panel-open .dm-quick-actions { max-width: calc(100% - 340px); }
+    .dm-temp-legend { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--dm-glass); border: 1px solid var(--dm-glass-border); box-shadow: var(--dm-shadow); font-size: 11px; font-weight: 600; color: var(--dm-muted); z-index: 10; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    .dm-tl-bar { width: 70px; height: 8px; border-radius: 4px; }
+    .dm-render-root.dm-room-panel-open .dm-temp-legend { opacity: 0; pointer-events: none; }
+    .dm-room-alert circle { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
 `;

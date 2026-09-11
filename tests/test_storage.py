@@ -127,3 +127,9 @@ def test_floor_names_reads_config_names(tmp_path):
     (tmp_path / "config_floor2.json").write_text('{"name": " Upstairs "}')
     (tmp_path / "config_floor1.json").write_text("not json")
     assert storage.floor_names(str(tmp_path)) == {2: "Upstairs"}
+
+
+def test_quick_actions_file_is_managed():
+    assert storage.is_allowed_data_filename("quick_actions.json")
+    assert storage.validate_save_content("quick_actions.json", [{"name": "x"}])
+    assert not storage.validate_save_content("quick_actions.json", {"name": "x"})
