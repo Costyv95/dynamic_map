@@ -1,6 +1,13 @@
 # Plan: one renderer, one editor, one panel
 
-Status: in progress. Branch `sess/ha_dev-unify-editor`. Started 2026-09-10.
+Status: in progress. Branch `sess/ha_dev-unify-editor-2` (the first branch was
+auto-landed on main on 2026-09-11). Started 2026-09-10.
+
+Progress: all five phases done. Phase 1 deployed 2026-09-10; Phases 2-4
+deployed 2026-09-11 as 4.0.0 after verification in headless Chrome against a
+mock backend and inside a throwaway Home Assistant container (see
+`scratch/browser_check/README.md`). ADR 013 in `docs/history.md` records the
+decisions; `docs/todo.md` section 5 lists what is still open.
 Owner of decisions: Costi. Executor: Claude (autonomous loop).
 
 ## Why

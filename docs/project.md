@@ -1,36 +1,82 @@
 # Dynamic Map Project
 
 ## Overview
-Dynamic Map is a Home Assistant Custom Integration designed to provide a highly interactive, dynamic, and automated SVG-based floorplan editor and dashboard. 
-
-The primary goal of this project is to eliminate the need for manual SVG editing or static image maps in Home Assistant. By providing a native, in-browser editor, users can interactively draw rooms, map shortcuts, and configure their smart home devices (especially Roborock vacuums) on top of their real floorplan geometry.
+Dynamic Map is a Home Assistant custom integration that turns a floor plan
+into a live, interactive SVG map with a built-in visual editor. Users draw
+rooms, place device badges ("shortcuts"), decor and walls, and control the
+home spatially from any dashboard, wall tablet or the Companion app.
 
 ## Architecture
-The system is divided into two primary components:
+Three parts share one rendering implementation.
 
-### 1. The Home Assistant Integration (Python Backend)
-A native `custom_component` that runs inside the Home Assistant Core, organized as `__init__.py` (setup), `views.py` (HTTP API), `storage.py` (HA-free filesystem rules, unit-tested in `tests/`), and `const.py`.
-- **API**: All REST endpoints require HA authentication; mutating endpoints additionally require an admin user:
-  - `POST /api/dynamic_map/save` — saves per-floor map data. Only the managed filenames (`rooms/shortcuts/config_floorN.json`, `bg_floorN.png`) are accepted, with structural validation of JSON payloads.
-  - `POST /api/dynamic_map/delete_floor` — deletes one floor's data files.
-  - `POST /api/dynamic_map/recompute` — proxies to the DXF/SVG sidecar (`sidecar_url` from configuration.yaml).
-  - `GET /api/dynamic_map/state` — one entity's state and attributes.
-  - `GET /api/dynamic_map/entities` — all entities for the editor autocomplete.
-  - `GET /api/dynamic_map/files` — DXF/SVG sources and custom icons in the data dir.
-  - `GET /api/dynamic_map/floors` — floors discovered from data files, plus the integration version.
-  - `GET /api/dynamic_map/registry` — HA floors and areas (with a default light per area).
-  - `GET /api/dynamic_map/roborock_rooms` — Roborock segments via `roborock.get_maps`.
-- **File System Access**: It writes configuration files (`rooms_floorX.json`, `shortcuts_floorX.json`) directly to the isolated `dynamic_map_data` directory to prevent HACS updates from overwriting user configuration data.
-- **Standalone Processing**: Heavy geometric math (DXF to SVG conversions) is performed by the sidecar (`server/`) outside the HA process to prevent blocking the event loop.
+### 1. Home Assistant integration (Python)
+`custom_components/dynamic_map/`: `__init__.py` registers the HTTP views, the
+static paths (`/dynamic_map_ui` for the frontend, `/dynamic_map_data` for the
+data dir) and the editor as a **native custom panel** (`dynamic-map-panel`,
+admin only). `views.py` holds the authenticated REST API (`/api/dynamic_map/*`;
+writes need an admin), `storage.py` the HA-free filename rules and payload
+validation (unit-tested in `tests/`), `texture_gen.py` the Claude texture
+generation. Heavy DXF/SVG geometry runs in the optional sidecar (`server/`).
 
-### 2. The Frontend Editor (HTML5/Canvas)
-A standalone vanilla JavaScript single-page application (`editor.html`).
-- **Unified State**: Operates in either `View Mode` or `Edit Mode`.
-- **Canvas Interaction**: Features a dynamic panning, zooming, and automated orientation engine.
-- **Object Manipulation**: Supports interactive dragging, point-and-click room definitions, Polygon merging/splitting, and shape manipulation. Includes robust entity search via a custom autocomplete dropdown (replacing standard datalists).
-- **Smart Device Integration**: Dynamically fetches and maps Roborock vacuum room configurations directly from Home Assistant entities. Utilizes `binary_sensor.<vac>_charging` for precise dock-snapping, and features advanced `requestAnimationFrame` SVG boundary-wandering for live tracking. Handles both numerical IDs and string-based room naming natively.
+### 2. The map card (`custom:custom-svg-map`)
+`frontend/custom-svg-map.js` is a thin web component. It composes:
+- `core/Viewport.js` - pure auto-crop, rotation, flips and viewBox math.
+- `core/MapScene.js` - builds the SVG scene (background or room plate, rooms,
+  labels, walls, decor, badges) into a "scene host".
+- `core/RoomStyles.js` - room fills, "on" glow, focus and selection.
+- `shortcuts/` - the badge compositor: `MapShortcut.js` evaluates states and
+  renders the layout built by `ShortcutLayout.js` through `ShortcutRender.js`
+  and the `components/` renderers; `ShortcutGlow.js`, `ShortcutFx.js`,
+  `ShortcutDefs.js`, `ShortcutInteractions.js` and `ShortcutDeps.js` carry
+  the effects, defs, tap handling and the entity-dependency skip.
+- `card/` - card-only features: `AmbientTint.js`, `PresenceLayer.js`,
+  `OutsideBar.js`, `RoomFocus.js` (tap actions and zoom camera),
+  `CameraManager.js`, `OverlayManager.js` + `overlay/*` (long-press menus).
 
-## Core Dependencies
-- **Home Assistant**: Tested with HA Core. Requires `http` and `frontend` integrations.
-- **PolyBool.js**: Used for the mathematical boolean operations (merging/splitting) of polygon regions in the frontend.
-- **HACS**: The project is structured to be deployed seamlessly as a Custom Repository via the Home Assistant Community Store.
+### 3. The editor
+Entry points: `dynamic-map-panel.js` (the HA panel; receives `hass`, mounts
+the shell in a shadow root, API calls go through `hass.fetchWithAuth`) and
+`editor.html` + `editor.js` (standalone/dev page in an HA iframe, legacy
+token path). Both boot `EditorApp` from `editor.js`.
+- `editor/EditorCanvas.js` mounts the **same** `core/MapScene` in an `<svg>`
+  and adds `editor/EditOverlay.js` (selection box, resize/rotate handles,
+  corner handles, drawing previews) in map coordinates with handle sizes
+  scaled by 1/zoom. Badges are real `MapShortcut`s (`interactive = false`,
+  `forcedState` for the state preview); `editor/HassBridge.js` feeds live
+  state into the preview.
+- `editor/ToolRouter.js` turns Pointer Events into calls on
+  `tools/ShortcutTool.js`, `tools/RoomTool.js`, `tools/WallTool.js`; unclaimed
+  drags pan the `core/Camera.js`.
+- `editor/EditorStateManager.js` holds the floor data, selection, layers
+  (rooms / objects / decor / walls) and undo (`HistoryManager.js`).
+- `editor/EditorUI.js` owns `ui/Toolbar.js` and `ui/Inspector.js`; the
+  inspector shows `ui/RoomPanel.js`, `ui/ShortcutPanel.js` (with
+  `SizePanel`, `ActionsPanel`, `StatesPanel`, `ConditionsBuilder`,
+  `VacuumPanel`), `ui/WallPanel.js` or `ui/LayerList.js`. Dialogs and toasts
+  come from `ui/Dialog.js`; floor, outside-dashboard, recompute, raw-JSON and
+  menu-layout dialogs live next to them. On narrow screens the inspector is a
+  bottom sheet.
+
+### Shared
+`shared/ShortcutGeometry.js` is the one resolver/writer for a badge's frame
+per orientation; `OrientationProps.js` the low-level oriented read/write;
+`SensorPill.js`, `WallGeometry.js`, `ProgressBar.js`, `Color.js`,
+`MapGeometry.js`, `ActionRunner.js`, `ApiManager.js`.
+
+## Data
+Everything lives in `<config>/dynamic_map_data/`: `rooms_floorN.json`,
+`shortcuts_floorN.json`, `config_floorN.json` (rotation mode, flips,
+background, walls), `bg_floorN.png`, `outside.json`, `icons/`. The schema is
+unchanged by the 4.0 unification; keys starting with `_` are editor runtime
+state and are never saved.
+
+## Rules
+- Every source and test file stays at or under 300 lines.
+- The card and the editor never render the same thing twice: new visuals go
+  into `core/` or `shortcuts/` and both pick them up.
+- Verify through the real entry points (`tests/EditorBoot.test.js`,
+  `tests/Panel.test.js`) and in a real browser (`scratch/browser_check/`).
+
+## Dependencies
+Home Assistant (`http`, `frontend`), PolyBool.js (room split/merge), HACS
+layout. Tests: vitest + jsdom (frontend), pytest (backend).

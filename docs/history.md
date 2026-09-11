@@ -202,3 +202,27 @@ This document sequentially records the major technical and architectural decisio
     - **Benefits:** Builder-Mode floors can carry real architecture without a DXF. Walls cost no backend surface and no new data file. Deleting works the way every other canvas app works.
     - **Trade-offs:** None functionally. The lesson is a process one, and it is the reason this ADR exists: **a headless harness that constructs its own state object verifies the component, not the wiring.** The walls code was correct and fully unit-tested while the feature was 100% broken in the browser, because the one line that connects them was never exercised. Verify through the real entry point.
     - 293 frontend tests (26 files) green; 52 backend tests green.
+
+---
+
+## 013 One SVG Renderer for Card and Editor, and a Native Custom Panel
+*   **Date:** 2026-09-11
+*   **Status:** Accepted
+*   **Context:**
+    - The card rendered the floor as SVG DOM while the editor drew a Canvas 2D preview in `CanvasEngine.js`. Every shortcut feature needed a second, hand-drawn implementation; ADRs 002, 003, 006, 007 and 011 are all "preview drifted from the card" fixes.
+    - The editor ran in an iframe panel and read an auth token out of the parent window, which needed its own chain of fixes for the Companion apps.
+    - Files had grown past 1,000 lines (`MapShortcut.js`, `custom-svg-map.js`, `EditorUIManager.js`, `ShortcutConfigUI.js`, `OverlayManager.js`); Costi set a 300-line limit per file.
+    - The size/orientation controls (Scale X/Y, three resolve flavours, a link button far from the fields) were confusing.
+*   **Decision:**
+    - **One scene.** `core/MapScene.js` builds the floor (background, rooms, labels, walls, decor, badges) into any "scene host"; `core/Viewport.js` holds the pure auto-crop / rotation / flip / viewBox math; `core/RoomStyles.js` the room styling. The card composes them; the editor mounts the same scene in an `<svg>` (`editor/EditorCanvas.js`) and adds `editor/EditOverlay.js` for handles and previews. `CanvasEngine.js` and `EditorInteractionManager.js` are deleted. Badges in the editor are real `MapShortcut` instances with `mapContext.interactive = false` (no tap actions) and `forcedState` for the state preview; live `hass` reaches the preview through `editor/HassBridge.js`.
+    - **One geometry.** `shared/ShortcutGeometry.js` resolves a badge's frame `{x, y, w, h, rotation, upright}` per orientation and writes it back; the card, the overlay, the tools and the size panel all use it. Position lives on the shortcut only; size and rotation may be per state. The stored keys (`position`, `scale`, `scaleX`, `scaleY`, `rotation`, `config.autoRotate`) are unchanged: existing floors load as they are.
+    - **Tools on Pointer Events.** `editor/ToolRouter.js` dispatches to `tools/ShortcutTool.js`, `tools/RoomTool.js`, `tools/WallTool.js`; the camera (`core/Camera.js`) pans, pinches and wheel-zooms a viewBox. Handles are DOM elements with `data-handle` attributes, so hit-testing is the browser's job.
+    - **Rooms are a layer.** Layers are Rooms / Objects / Decor / Walls; room editing (corner handles, drawing, split, delete) is on when the rooms layer is active. The "Build Mode" toggle is gone.
+    - **UI as modules.** `editor/ui/*.js` build the toolbar, the contextual inspector (a bottom sheet on narrow screens) and dialogs from plain DOM helpers (`ui/dom.js`); no markup in `editor.html`, which lets the same shell mount in a shadow root. `window.prompt/confirm/alert` are replaced by `ui/Dialog.js`. Runtime `_` keys (`_expanded`) are stripped on save.
+    - **Size & position panel.** Width / Height / Rotation in map units with an aspect lock, an "Edits apply to: Both / Landscape / Portrait" switch next to the fields, a copy-to-other-layout action, and "Stays upright when the map turns" instead of an `autoRotate` checkbox.
+    - **Native custom panel.** `dynamic-map-panel.js` is registered with `component_name="custom"`; it receives `hass`, mounts the editor in its shadow root and routes API calls through `hass.fetchWithAuth` (`ApiManager.setHass`). No iframe, no token hand-off. `editor.html` remains as a standalone/dev entry.
+    - **Card performance.** `shortcuts/ShortcutDeps.js` snapshots the entities each badge reads; with `mapContext.skipUnchanged` the card skips badges whose entities did not change on a hass tick. Room fills now follow their light entity on every tick (they only refreshed once before: `updateState` never returned a value).
+    - **Verification.** Tests boot the real `editor.js` entry and the panel element in jsdom (ADR 012's lesson). Real-browser checks run headless Chrome on the .202 box against a mock backend and against a throwaway Home Assistant container with the integration installed (onboarded through the REST API); see `scratch/browser_check/`.
+*   **Consequences:**
+    - **Benefits:** what the editor shows is what the dashboard renders, by construction. Every source file is under 300 lines. The editor works on phones (bottom sheet, touch handles, portrait default) and in the Companion app (no iframe auth). 355 frontend tests.
+    - **Trade-offs:** the size panel presents width/height while the files still store scales (24 units = scale 1); the conversion lives in `ShortcutGeometry.writeFrame`. The iframe entry keeps the legacy token path for standalone use only.

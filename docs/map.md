@@ -1,55 +1,40 @@
-> Auto-generated 2026-06-01 10:01. Regenerate with /map.
+> Updated 2026-09-11 with the 4.0 unification (ADR 013).
 
 # Dynamic Map Project Map
 
 ## Overview
-The **Dynamic Map** project is a custom Home Assistant integration that renders an interactive, vector-based SVG floorplan map within a Lovelace card. It provides a visual interface for managing rooms and triggering hardware actions (like Vacuum paths, Lights, and Twinkly LED matrices) via configured shortcuts.
+A Home Assistant custom integration: an interactive SVG floorplan card plus a
+visual editor. Since 4.0 the card and the editor render through the same
+scene code; the editor is a native HA custom panel.
 
-## Module Topology
+## Module topology
 
-- **`/custom_components/dynamic_map/`**: The core Home Assistant integration package.
-  - `__init__.py`: Setup entry point — registers views, static paths, and the sidebar panel.
-  - `views.py`: All authenticated REST API views (`/api/dynamic_map/*`).
-  - `storage.py`: HA-free filename rules, floor discovery, and payload validation (unit-tested in `/tests/`).
-  - `const.py`: Domain constants and configuration keys.
-  - `manifest.json`: HACS/Home Assistant component metadata.
+- **`custom_components/dynamic_map/`** - the integration package
+  - `__init__.py` - views, static paths, custom panel registration.
+  - `views.py` - authenticated REST API (`/api/dynamic_map/*`, writes need admin).
+  - `storage.py` - filename rules, floor discovery, payload validation (tested in `tests/`).
+  - `texture_gen.py` - Claude-drawn object artwork.
+- **`frontend/`**
+  - `custom-svg-map.js` - the Lovelace card element (composition only).
+  - `dynamic-map-panel.js` - the HA custom panel element (shadow root, `hass` in).
+  - `editor.html` / `editor.js` - standalone editor page and `EditorApp`.
+  - **`core/`** - shared scene: `Viewport.js` (pure math), `MapScene.js` (SVG builder), `RoomStyles.js`, `Camera.js` (pointer-event viewBox camera).
+  - **`shortcuts/`** - badge compositor: `MapShortcut.js`, `ShortcutLayout.js`, `ShortcutRender.js`, `ShortcutGlow.js`, `ShortcutFx.js`, `ShortcutDefs.js`, `ShortcutInteractions.js`, `ShortcutDeps.js`, `ConditionEvaluator.js`, `TemplateEvaluator.js`, `components/` renderers.
+  - **`card/`** - card-only: `AmbientTint.js`, `PresenceLayer.js`, `OutsideBar.js`, `RoomFocus.js`, `CameraManager.js`, `MapBuilder.js`, `CardStyles.js`, `OverlayManager.js` + `overlay/` (per action type).
+  - **`editor/`** - `EditorCanvas.js`, `EditOverlay.js`, `ToolRouter.js`, `tools/` (Shortcut / Room / Wall), `HitTest.js`, `EditorStateManager.js`, `HistoryManager.js`, `HassBridge.js`, `EditorUI.js`, `ui/` (toolbar, inspector, panels, dialogs, dom helpers).
+  - **`shared/`** - `ShortcutGeometry.js` (badge frame per orientation), `OrientationProps.js`, `SensorPill.js`, `WallGeometry.js`, `ProgressBar.js`, `Color.js`, `MapGeometry.js`, `ActionRunner.js`, `ApiManager.js` (token path for the iframe, `setHass` for the panel).
+  - **`tests/`** - vitest + jsdom; `EditorBoot.test.js` and `Panel.test.js` boot the real entries.
+- **`server/`** - DXF/SVG sidecar (Flask + OpenCV/ezdxf).
+- **`scratch/`** - `deploy.sh`, `auto_version.py`, `check_lines.sh` (300-line rule), `browser_check/` (headless Chrome harness, see its README).
+- **`docs/`** - `project.md` (architecture), `history.md` (ADRs), `plan_unification.md`, `todo.md`.
 
-- **`/custom_components/dynamic_map/frontend/`**: The JavaScript/HTML application containing both the Lovelace Card and the visual Editor.
-  - `custom-svg-map.js`: The Web Component for the Lovelace Map Card (`<custom-svg-map>`). Handles rendering the SVG and executing configured shortcuts.
-  - `editor.html` & `editor.js`: The standalone Visual Editor interface for configuring the map, rooms, and mapping shortcuts.
-  - **`/card/`**: Core logic for the Lovelace Map Card.
-    - `MapBuilder.js`: SVG geometry construction logic.
-    - `OverlayManager.js`: Handles dynamic rendering of context menus and sliders when a shortcut is triggered.
-    - `CameraManager.js`: Handles zoom and pan interactions.
-  - **`/editor/`**: UI logic specific to the Visual Editor.
-    - `EditorUIManager.js`: Main state and event binding controller for the sidebar.
-    - `ShortcutConfigUI.js`: Renders the configuration forms for mapping complex custom shortcuts.
-  - **`/shortcuts/`**: The unified shortcut compositor.
-    - `ShortcutFactory.js`: Builds a `MapShortcut` from each JSON config.
-    - `MapShortcut.js`: The single shortcut class — evaluates conditional states, builds a declarative layout, and renders it through `ComponentRegistry` (all types: generic, light, vacuum, sensor).
-    - `ConditionEvaluator.js` / `TemplateEvaluator.js`: State-condition and `{…}` template evaluation.
-    - `components/`: Declarative renderers (gauges, badges, timelines, calendar, alarm clock, …).
+## Key entry points
+1. Card: `frontend/custom-svg-map.js`
+2. Panel: `frontend/dynamic-map-panel.js` -> `editor.js` (`EditorApp`)
+3. Backend: `custom_components/dynamic_map/__init__.py`
+4. Sidecar CLI: `server/dxf_processor.py`
 
-  - **`/shared/`**: Code shared between the Card and the Editor.
-    - `ApiManager.js`: Authenticated HTTP requests to the HA backend.
-    - `MapGeometry.js`: Polygon math and color parsing.
-    - `OrientationProps.js`: Per-orientation (horizontal/vertical) property resolution and getters/setters.
-    - `ActionRunner.js`: Unified execution of shortcut actions (toggle, service calls, vacuum remapping).
-  - **`/tests/`**: Unit testing suite (Vitest).
-
-- **`/server/`**: The DXF/SVG processing sidecar (Flask + OpenCV/ezdxf, Docker).
-  - `dxf_processor.py`: Parses `.dxf`/`.svg` floorplans into room polygons + background PNGs.
-  - `api.py` & `docker-compose.yml`: The `POST /process` HTTP wrapper the integration's `/recompute` endpoint calls (`sidecar_url` in configuration.yaml; env: `DYNAMIC_MAP_DATA_DIR`, `DYNAMIC_MAP_PORT`).
-
-- **`/docs/`**: Project documentation, handoff logs, and technical specs.
-
-## Key Entry Points
-1. **Lovelace Frontend:** `custom_components/dynamic_map/frontend/custom-svg-map.js`
-2. **Editor Interface:** `custom_components/dynamic_map/frontend/editor.html`
-3. **Backend Integration:** `custom_components/dynamic_map/__init__.py`
-4. **DXF Processing CLI:** `server/dxf_processor.py`
-
-## Critical Hotspots
-- **`OverlayManager.js`**: Contains complex DOM injection logic for sliders, toggles, and parsing HA entity states. Frequently modified for hardware integrations (e.g. Twinkly, Vacuums).
-- **`views.py`**: Manages the HA API endpoints (`/api/dynamic_map/...`) — auth required everywhere, admin required for writes.
-- **`ShortcutConfigUI.js`**: Contains heavy UI rendering logic for the Editor sidebar, expanding rapidly as new features are added. (Potential Gravity Well)
+## Hotspots
+- `shortcuts/ShortcutLayout.js` - the state > config > default precedence for every visual key; change with a test.
+- `shared/ShortcutGeometry.js` - the only place that converts width/height into the stored scales.
+- `editor/EditorCanvas.js#refresh` - decides between a cheap update and a full scene rebuild.

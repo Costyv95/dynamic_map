@@ -1,0 +1,231 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import '../custom-svg-map.js';
+
+function makeCard() {
+    const card = document.createElement('custom-svg-map');
+    return card;
+}
+
+function makeHass() {
+    return {
+        states: {},
+        callService: vi.fn(),
+        callApi: vi.fn().mockResolvedValue({ success: true, floors: [1, 2], version: '3.1.0' }),
+    };
+}
+
+describe('CustomSvgMap card', () => {
+    beforeEach(() => {
+        global.fetch = vi.fn().mockResolvedValue({ ok: false });
+        global.requestAnimationFrame = vi.fn();
+        global.cancelAnimationFrame = vi.fn();
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    describe('zoom camera', () => {
+        it('mapPointToView is identity without a transform', () => {
+            const card = makeCard();
+            expect(card.mapPointToView(30, 40)).toEqual({ x: 30, y: 40 });
+        });
+
+        it('mapPointToView applies rotation around the transform center', () => {
+            const card = makeCard();
+            card.transformCenter = { cx: 50, cy: 50 };
+            card.isRotated = true;
+            card.mapScaleX = 1;
+            card.mapScaleY = 1;
+            expect(card.mapPointToView(60, 50)).toEqual({ x: 50, y: 60 });
+        });
+
+        it('mapPointToView applies flips before rotation', () => {
+            const card = makeCard();
+            card.transformCenter = { cx: 50, cy: 50 };
+            card.isRotated = true;
+            card.mapScaleX = -1;
+            card.mapScaleY = 1;
+            expect(card.mapPointToView(60, 50)).toEqual({ x: 50, y: 40 });
+        });
+
+        it('zoomToRoom targets a padded, aspect-corrected viewBox around the room', () => {
+            const card = makeCard();
+            card.imgW = 1000;
+            card.imgH = 1000;
+            card.vb = { x: 0, y: 0, w: 1000, h: 1000 };
+            card.animateViewBox = vi.fn();
+            // Room spanning 10%..30% horizontally, 10%..20% vertically
+            card.zoomToRoom({ id: 'r1', polygon: [[10, 10], [30, 10], [30, 20], [10, 20]] });
+            const target = card._zoomTargetVb;
+            expect(target).toBeTruthy();
+            // Center preserved
+            expect(target.x + target.w / 2).toBeCloseTo(200);
+            expect(target.y + target.h / 2).toBeCloseTo(150);
+            // Padded beyond the raw 200-wide bbox, and square (jsdom rect is 0 → ratio 1)
+            expect(target.w).toBeCloseTo(200 * 1.24);
+            expect(target.h).toBeCloseTo(target.w);
+            expect(card.animateViewBox).toHaveBeenCalledWith(target);
+        });
+
+        it('zoomOutToDefault clears focus and animates to the default view', () => {
+            const card = makeCard();
+            card.defaultVb = { x: 0, y: 0, w: 1000, h: 800 };
+            card.vb = { x: 100, y: 100, w: 200, h: 160 };
+            card.animateViewBox = vi.fn();
+            card.updateRoomStyles = vi.fn();
+            card.syncFocusPill = vi.fn();
+            card.focusedRoomId = 'r1';
+            card.zoomOutToDefault();
+            expect(card.focusedRoomId).toBeNull();
+            expect(card.animateViewBox).toHaveBeenCalledWith({ x: 0, y: 0, w: 1000, h: 800 });
+        });
+
+        it('onCameraReset clears focus after a manual zoom-out snap', () => {
+            const card = makeCard();
+            card.updateRoomStyles = vi.fn();
+            card.syncFocusPill = vi.fn();
+            card.focusedRoomId = 'r1';
+            card.onCameraReset();
+            expect(card.focusedRoomId).toBeNull();
+            expect(card.syncFocusPill).toHaveBeenCalled();
+        });
+    });
+
+    describe('outside bar', () => {
+        function outsideSetup(items, config = {}) {
+            const card = makeCard();
+            card.loadData = vi.fn();
+            card.setConfig({ floors: [1], ...config });
+            card.outsideItems = items;
+            card.buildOutsideBar();
+            return card;
+        }
+
+        it('renders one chip per item and formats values with units', () => {
+            const card = outsideSetup([
+                { entity_id: 'sensor.out_temp', icon: '🌡️', name: 'Outside' },
+                { entity_id: 'sensor.pollen_grass', name: 'Grass' },
+            ]);
+            const hass = makeHass();
+            hass.states['sensor.out_temp'] = { state: '23.14', attributes: { unit_of_measurement: '°C' } };
+            hass.states['sensor.pollen_grass'] = { state: '31', attributes: { unit_of_measurement: 'gr/m³' } };
+            card.updateOutsideBar(hass);
+            const chips = card.outsideBar.querySelectorAll('.dm-outside-item');
+            expect(chips.length).toBe(2);
+            expect(chips[0].querySelector('.dm-oi-text').textContent).toBe('23.1°C');
+            expect(chips[0].querySelector('.dm-outside-label').textContent).toBe('Outside');
+            expect(chips[1].querySelector('.dm-oi-text').textContent).toBe('31 gr/m³');
+        });
+
+        it('weather entities show a condition icon and current temperature', () => {
+            const card = outsideSetup([{ entity_id: 'weather.forecast_home' }]);
+            const hass = makeHass();
+            hass.states['weather.forecast_home'] = { state: 'partlycloudy', attributes: { temperature: 21.5 } };
+            card.updateOutsideBar(hass);
+            const chip = card.outsideBar.querySelector('.dm-outside-item');
+            expect(chip.querySelector('.dm-oi-icon').textContent).toBe('⛅');
+            expect(chip.querySelector('.dm-oi-text').textContent).toBe('21.5°');
+            expect(chip.querySelector('.dm-outside-label').textContent).toBe('partlycloudy');
+        });
+
+        it('marks unavailable entities and shows an em dash', () => {
+            const card = outsideSetup([{ entity_id: 'sensor.gone' }]);
+            const hass = makeHass();
+            hass.states['sensor.gone'] = { state: 'unavailable', attributes: {} };
+            card.updateOutsideBar(hass);
+            const chip = card.outsideBar.querySelector('.dm-outside-item');
+            expect(chip.classList.contains('dm-unavailable')).toBe(true);
+            expect(chip.querySelector('.dm-oi-text').textContent).toBe('—');
+        });
+
+        it('renders nothing without items or when outside_bar is false', () => {
+            expect(outsideSetup([]).outsideBar).toBeNull();
+            expect(outsideSetup([{ entity_id: 'sensor.x' }], { outside_bar: false }).outsideBar).toBeNull();
+        });
+
+        it('chip click dispatches hass-more-info for the entity', () => {
+            const card = outsideSetup([{ entity_id: 'sensor.out_temp' }]);
+            const listener = vi.fn();
+            card.addEventListener('hass-more-info', listener);
+            card.outsideBar.querySelector('.dm-outside-item').click();
+            expect(listener).toHaveBeenCalled();
+            expect(listener.mock.calls[0][0].detail).toEqual({ entityId: 'sensor.out_temp' });
+        });
+
+        it('reads an attribute instead of state when configured', () => {
+            const card = outsideSetup([{ entity_id: 'weather.forecast_home', attribute: 'humidity', unit: '%', icon: '💧' }]);
+            const hass = makeHass();
+            hass.states['weather.forecast_home'] = { state: 'sunny', attributes: { humidity: 58 } };
+            card.updateOutsideBar(hass);
+            const chip = card.outsideBar.querySelector('.dm-outside-item');
+            expect(chip.querySelector('.dm-oi-text').textContent).toBe('58 %');
+            expect(chip.querySelector('.dm-oi-icon').textContent).toBe('💧');
+        });
+    });
+
+    describe('floor background color', () => {
+        it('paints and clears the render root background', () => {
+            const card = makeCard();
+            card.floorBgColor = '#334455';
+            card.applyFloorBackground();
+            expect(card.renderRoot.style.background).not.toBe('');
+            card.floorBgColor = null;
+            card.applyFloorBackground();
+            expect(card.renderRoot.style.background).toBe('');
+        });
+
+        it('fit mode keeps the letterbox on the card surface', () => {
+            const card = makeCard();
+            card.floorBgColor = '#334455';
+            card.floorBgMode = 'fit';
+            card.applyFloorBackground();
+            expect(card.renderRoot.style.background).toBe('');
+        });
+
+        it('buildRoomPlate draws a padded round-joined polygon per room', () => {
+            const card = makeCard();
+            card.imgW = 1000;
+            card.imgH = 800;
+            card.floorBgColor = '#222831';
+            card.rooms = [
+                { id: 'r1', polygon: [[10, 10], [30, 10], [30, 20]] },
+                { id: 'r2', polygon: [[40, 40], [60, 40], [60, 60]] },
+            ];
+            const plate = card.buildRoomPlate();
+            const polys = plate.querySelectorAll('polygon');
+            expect(polys.length).toBe(2);
+            expect(polys[0].getAttribute('fill')).toBe('#222831');
+            expect(polys[0].getAttribute('stroke')).toBe('#222831');
+            expect(polys[0].getAttribute('stroke-linejoin')).toBe('round');
+            expect(Number(polys[0].getAttribute('stroke-width'))).toBeGreaterThan(0);
+            expect(polys[0].getAttribute('pointer-events')).toBe('none');
+        });
+    });
+
+    describe('loadData stale-response guard', () => {
+        it('drops results of a superseded floor load', async () => {
+            const card = makeCard();
+            card.setConfig({ floors: [1, 2], default_floor: 1 });
+
+            let resolveFirst;
+            const firstRooms = new Promise((resolve) => { resolveFirst = resolve; });
+            global.fetch = vi.fn()
+                // First load (floor 1) hangs until we resolve it later
+                .mockImplementationOnce(() => firstRooms)
+                .mockResolvedValue({ ok: false });
+
+            card.buildSVG = vi.fn();
+            const first = card.loadData();
+
+            // Second load supersedes the first
+            card.activeFloor = 2;
+            await card.loadData();
+
+            resolveFirst({ ok: true, json: () => Promise.resolve([{ id: 'stale' }]) });
+            await first;
+
+            expect(card.rooms.find(r => r.id === 'stale')).toBeUndefined();
+        });
+    });
+});

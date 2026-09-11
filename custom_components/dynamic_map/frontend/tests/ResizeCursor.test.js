@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resizeCursorFor } from '../editor/EditorInteractionManager.js';
+import { resizeCursorFor } from '../editor/HitTest.js';
 
 // Local handle directions (x right, y down): N up, E right, corners diagonal.
 const N = [0, -1], S = [0, 1], E = [1, 0], W = [-1, 0];

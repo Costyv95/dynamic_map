@@ -2,11 +2,15 @@
 
 A Home Assistant custom integration that turns your floor plan into a live, interactive SVG map — with a built-in visual editor in the HA sidebar. Draw rooms, place device shortcuts, and control your home spatially from any dashboard, wall tablet, or the companion app.
 
+Since 4.0 the editor renders with the card's own SVG code, so what you see while editing is exactly what the dashboard shows, and it runs as a native Home Assistant panel (no iframe) that works on phones and in the Companion app.
+
 ## Features
 
 - **Interactive map card** (`custom:custom-svg-map`) — rooms light up with their entities, shortcuts show live state (lights, sensors, vacuum, media), auto-rotation fits any screen orientation, pinch/pan/zoom.
-- **Native sidebar editor** — draw, split, merge and reshape room polygons; place and style shortcut objects; undo/redo; no external tools required. Moves/resizes apply to both screen orientations by default — click the 🔗 toggle next to Land/Port to unlink and design divergent landscape/portrait layouts.
-- **Editor layers** — the editor edits one layer at a time (**Objects** / **Decor** / 🧱 **Walls**); the other layers dim and stop taking clicks, so furniture never steals a click from a badge. `Delete`/`Backspace` removes whatever is selected on the active layer (undoable), same as the sidebar 🗑️ buttons.
+- **Native sidebar editor** — draw, split, merge and reshape room polygons; place and style shortcut objects; undo/redo; no external tools required. The live preview is the card itself (same SVG renderer, live entity state).
+- **Editor layers** — the editor edits one layer at a time (🏠 **Rooms** / 📍 **Objects** / 🪴 **Decor** / 🧱 **Walls**); the other layers dim and stop taking clicks. Room drawing and reshaping are on while the Rooms layer is active. `Delete`/`Backspace` removes the selection (undoable); the inspector's Delete buttons ask first.
+- **Two layouts, plain words** — the card shows a landscape layout on wide screens and a portrait layout on phones. In the object's *Size & position* panel choose whether edits apply to **Both layouts**, **Landscape** or **Portrait**; a *Copy* button syncs one onto the other. Width, height and rotation are in map units with an aspect lock.
+- **Phone friendly** — the inspector becomes a bottom sheet on narrow screens, handles grow for touch, and the editor opens on the portrait layout when held upright.
 - **Walls** — draw architectural walls as thick polylines: click ✏️ Draw Wall, click corners on the map (segments snap to horizontal/vertical within 10° — hold `Shift` for a free angle), `Enter` commits, `Esc` cancels. Drag a corner handle to reshape, drag the body to move; per-wall thickness and color. Walls are pure scenery — the card strokes them above the rooms and below decor, and they never take a tap.
 - **Room actions** — tap a room to smoothly zoom into it (making its shortcuts easy to tap), toggle its light (or all lights in its HA area), open more-info, or select rooms for vacuum segment cleaning. Configurable per card and per room.
 - **Outside dashboard** — a fixed glass bar at the top of the card for outdoor data (temperature, humidity, pollen, UV, a weather entity for the forecast icon). Managed from the editor, stored in `outside.json`; unlike map shortcuts it never pans or zooms out of sight.
@@ -35,7 +39,7 @@ dynamic_map:
   # texture_model: claude-opus-4-8
 ```
 
-4. Restart HA. A **Map Editor** entry appears in the sidebar (admin only).
+4. Restart HA. A **Map Editor** entry appears in the sidebar (admin only). It is a native panel: it uses your HA session directly, also in the Companion app.
 5. Add the card resource (Settings → Dashboards → Resources): `/dynamic_map_ui/custom-svg-map.js` (JavaScript Module).
 
 ## Card configuration
@@ -111,6 +115,8 @@ Backend unit tests (no HA install needed):
 python -m pytest tests/
 ```
 
-A disposable HA instance for manual testing is in `ha_test/` (`docker compose up`). Deployment to a live box: `scratch/deploy.sh` (stamps cache-busting versions into a temp build dir — the repo stays clean — then rsyncs and restarts HA core).
+Rules: every source and test file stays under 300 lines (`scratch/check_lines.sh`); new visuals go into `frontend/core/` or `frontend/shortcuts/` so the card and the editor both pick them up.
 
-Docs: [architecture](docs/project.md) · [textures & style recipe](docs/textures.md) · [map card](docs/map.md) · [use cases & roadmap](docs/use_cases.md) · [sidecar](docs/server.md)
+Real-browser checks (card, standalone editor, and the panel inside a throwaway Home Assistant container) are scripted in `scratch/browser_check/` — see its README. Deployment to a live box: `scratch/deploy.sh` (stamps cache-busting versions into a temp build dir — the repo stays clean — then rsyncs and restarts HA core).
+
+Docs: [architecture](docs/project.md) · [module map](docs/map.md) · [decision records](docs/history.md) · [textures & style recipe](docs/textures.md) · [use cases & roadmap](docs/use_cases.md) · [sidecar](docs/server.md)

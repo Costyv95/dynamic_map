@@ -3,9 +3,11 @@ import { resizeCursorFor, HANDLE_DIRS } from './HitTest.js?v=3.2.1';
 import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeometry.js?v=3.2.1';
 
 const ACCENT = '#0ea5e9';
-const HANDLE_PX = 5;      // half-size of a resize handle on screen
-const VERTEX_PX = 8;      // room corner handle radius on screen
-const ROT_STEM_PX = 18;
+// Handles grow on touch screens (coarse pointer) so fingers can grab them.
+const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 1.7 : 1;
+const HANDLE_PX = 5 * COARSE;      // half-size of a resize handle on screen
+const VERTEX_PX = 8 * COARSE;      // room corner handle radius on screen
+const ROT_STEM_PX = 18 * COARSE;
 
 /**
  * The editing layer: an SVG group that shares the map root's transform so
@@ -160,10 +162,14 @@ export class EditOverlay {
             }
             this.el('rect', { ...box, fill: 'none', stroke: ACCENT, 'stroke-width': 2 * k, 'pointer-events': 'none' }, g);
             this.renderHandles(g, frame, k, screenRotation(frame, isRotated), flipX, flipY);
+            // Inside the badge group the axes already include the badge's
+            // own rotation and, for upright badges, the map counter-turn;
+            // undo what is left so the name reads horizontally.
+            const textRot = -(frame.rotation || 0) - ((isRotated && !frame.upright) ? 90 : 0);
             const label = this.el('text', {
                 x: 0, y: frame.h / 2 + 12 * k, 'text-anchor': 'middle', 'font-size': 11 * k,
                 fill: '#1e293b', 'paint-order': 'stroke', stroke: '#ffffff', 'stroke-width': 3 * k,
-                'pointer-events': 'none', transform: `rotate(${-screenRotation(frame, isRotated)} 0 ${frame.h / 2 + 12 * k})`
+                'pointer-events': 'none', transform: `rotate(${textRot} 0 ${frame.h / 2 + 12 * k})`
             }, g);
             label.textContent = sc.name || 'Shortcut';
         });

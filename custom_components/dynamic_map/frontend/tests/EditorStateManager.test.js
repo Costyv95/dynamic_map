@@ -134,16 +134,15 @@ describe('EditorStateManager', () => {
         expect(requestDrawCallback).toHaveBeenCalledTimes(1);
     });
 
-    it('should correctly update edit mode and reset selections when edit mode is disabled', () => {
-        manager.isEditMode = true;
-        manager.selectedRooms = ['room_1'];
+    it('leaving the rooms layer turns edit mode off and clears the room selection', () => {
+        manager.setActiveLayer('rooms');
+        manager.selectedRooms = [1];
         manager.selectedShortcutIdx = 3;
-        
         updateUICallback.mockClear();
         requestDrawCallback.mockClear();
-        
-        manager.setEditMode(false);
-        
+
+        manager.setActiveLayer('objects');
+
         expect(manager.isEditMode).toBe(false);
         expect(manager.selectedRooms).toEqual([]);
         expect(manager.selectedShortcutIdx).toBe(-1);
@@ -151,20 +150,13 @@ describe('EditorStateManager', () => {
         expect(requestDrawCallback).toHaveBeenCalledTimes(1);
     });
 
-    it('should update edit mode and not reset selections when edit mode is enabled', () => {
-        manager.isEditMode = false;
-        manager.selectedRooms = ['room_1'];
-        manager.selectedShortcutIdx = 3;
-        
-        updateUICallback.mockClear();
-        requestDrawCallback.mockClear();
-        
-        manager.setEditMode(true);
-        
+    it('the rooms layer keeps the room selection and enables edit mode; setEditMode maps onto it', () => {
+        manager.selectedRooms = [1];
+        manager.setActiveLayer('rooms');
         expect(manager.isEditMode).toBe(true);
-        expect(manager.selectedRooms).toEqual(['room_1']);
-        expect(manager.selectedShortcutIdx).toBe(3);
-        expect(updateUICallback).toHaveBeenCalledTimes(1);
-        expect(requestDrawCallback).toHaveBeenCalledTimes(1);
+        expect(manager.selectedRooms).toEqual([1]);
+        manager.setEditMode(false);
+        expect(manager.activeLayer).toBe('objects');
+        expect(manager.isEditMode).toBe(false);
     });
 });
