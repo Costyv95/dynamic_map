@@ -9,9 +9,23 @@
  *       confirm: true          # two taps
  *     - entity: switch.garden  # shorthand: toggle, chip lit while on
  *       name: Garden
+ *
+ * A built-in "All lights off · N" chip (two taps) leads the row while any
+ * light is on; `lights_off_button: false` removes it.
  */
 
 const CONFIRM_MS = 4000;
+
+/** Built-in chip: switch off every light in the house (two taps). Off with `lights_off_button: false`. */
+const LIGHTS_OFF = { builtin: 'lights_off', name: 'All lights off', icon: '🌙', call: { domain: 'light', service: 'turn_off', data: { entity_id: 'all' } }, entity: null, confirm: true };
+
+/** How many lights are on right now. */
+export function lightsOnCount(hass) {
+    if (!hass || !hass.states) return 0;
+    let n = 0;
+    for (const id in hass.states) if (id.startsWith('light.') && hass.states[id].state === 'on') n++;
+    return n;
+}
 
 /** Normalise one config entry into { name, icon, call, entity, confirm }. */
 export function normalizeAction(a) {
@@ -33,6 +47,7 @@ export function buildQuickActions(host) {
     // Card YAML first, then the global quick_actions.json managed in the editor.
     const raw = [...(Array.isArray(host.config.quick_actions) ? host.config.quick_actions : []), ...(Array.isArray(host.quickActionItems) ? host.quickActionItems : [])];
     const items = raw.map(normalizeAction).filter(Boolean);
+    if (host.config.lights_off_button !== false) items.unshift({ ...LIGHTS_OFF });
     if (!items.length) return;
     const bar = document.createElement('div');
     bar.className = 'dm-quick-actions';
@@ -72,6 +87,14 @@ export function buildQuickActions(host) {
 export function updateQuickActions(host, hass) {
     if (!host._quickEls || !hass || !hass.states) return;
     host._quickEls.forEach(({ chip, item }) => {
+        if (item.builtin === 'lights_off') {
+            const n = lightsOnCount(hass);
+            chip.hidden = n === 0;                                   // nothing to switch off: stay out of the way
+            item.name = n ? `All lights off · ${n}` : 'All lights off';
+            if (!chip.classList.contains('dm-armed')) chip.querySelector('.dm-qc-name').textContent = item.name;
+            chip.title = n ? `${n} light${n === 1 ? '' : 's'} on — tap twice to switch them all off` : item.name;
+            return;
+        }
         const st = item.entity ? hass.states[item.entity] : null;
         chip.classList.toggle('dm-on', !!st && ['on', 'playing', 'open', 'unlocked', 'cleaning', 'heat', 'cool'].includes(st.state));
         chip.classList.toggle('dm-unavailable', !!item.entity && (!st || st.state === 'unavailable'));

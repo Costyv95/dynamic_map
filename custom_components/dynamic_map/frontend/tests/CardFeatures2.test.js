@@ -1,7 +1,30 @@
 import { describe, it, expect, vi } from 'vitest';
-import { normalizeAction, buildQuickActions, updateQuickActions } from '../card/QuickActions.js';
+import { normalizeAction, buildQuickActions, updateQuickActions, lightsOnCount } from '../card/QuickActions.js';
 import { tempColor, roomTemperatureEntity, roomTint, tintSignature } from '../card/RoomTemperature.js';
 import { tintPalette, updateRoomStyles } from '../core/RoomStyles.js';
+
+describe('built-in all-lights-off chip', () => {
+    it('leads the chips with the count of lights on, needs two taps, hides when no light is on, and can be turned off', () => {
+        const hass = { states: { 'light.a': { state: 'on' }, 'light.b': { state: 'on' }, 'light.c': { state: 'off' }, 'switch.x': { state: 'on' } }, callService: vi.fn() };
+        expect(lightsOnCount(hass)).toBe(2);
+        const host = { renderRoot: document.createElement('div'), config: {}, _hass: hass };
+        buildQuickActions(host);
+        const chip = host.renderRoot.querySelector('.dm-quick-chip');
+        expect(chip.hidden).toBe(false);
+        expect(chip.textContent).toContain('All lights off · 2');
+        chip.click();
+        expect(hass.callService).not.toHaveBeenCalled();              // armed
+        expect(chip.textContent).toContain('Tap again');
+        chip.click();
+        expect(hass.callService).toHaveBeenCalledWith('light', 'turn_off', { entity_id: 'all' });
+        hass.states['light.a'].state = 'off'; hass.states['light.b'].state = 'off';
+        updateQuickActions(host, hass);
+        expect(chip.hidden).toBe(true);
+        const off = { renderRoot: document.createElement('div'), config: { lights_off_button: false }, _hass: hass };
+        buildQuickActions(off);
+        expect(off.renderRoot.querySelector('.dm-quick-chip')).toBeNull();
+    });
+});
 
 describe('quick actions', () => {
     it('normalises service and entity entries', () => {
@@ -13,7 +36,7 @@ describe('quick actions', () => {
 
     it('renders chips, fires services, confirms when asked and lights chips whose entity is on', () => {
         vi.useFakeTimers();
-        const host = { renderRoot: document.createElement('div'), config: { quick_actions: [
+        const host = { renderRoot: document.createElement('div'), config: { lights_off_button: false, quick_actions: [
             { name: 'All off', service: 'light.turn_off', data: { entity_id: 'all' }, confirm: true },
             { entity: 'switch.pump', name: 'Pump' }
         ] }, _hass: { states: { 'switch.pump': { state: 'on' } }, callService: vi.fn() } };
