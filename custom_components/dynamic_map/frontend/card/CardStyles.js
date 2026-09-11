@@ -238,8 +238,15 @@ export const CARD_STYLES = `
     .dm-rp-value { color: var(--dm-muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12px; }
     .dm-rp-row.dm-on .dm-rp-value { color: var(--dm-accent); font-weight: 600; }
     .dm-rp-row.dm-rp-unavailable { opacity: 0.55; }
+    .dm-rp-trend { display: flex; align-items: center; gap: 10px; padding: 6px 16px 4px; color: var(--dm-accent); border-bottom: 1px solid var(--dm-glass-border); }
+    .dm-rp-trend svg { flex: 1; height: 26px; min-width: 0; }
+    .dm-rp-trend-label { font-size: 11px; font-weight: 600; color: var(--dm-muted); white-space: nowrap; }
+    .dm-rp-scenes { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 4px; }
+    .dm-rp-scene { min-height: 30px; padding: 4px 12px; border: 1px solid var(--dm-glass-border); border-radius: 999px; background: rgba(127,127,127,0.12); color: inherit; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; transition: background 0.2s, transform 0.15s; }
+    .dm-rp-scene:hover { background: rgba(127,127,127,0.22); }
+    .dm-rp-scene.dm-fired { background: var(--dm-accent); color: #fff; transform: scale(0.96); }
     .dm-rp-row.dm-rp-dim { flex-wrap: wrap; }
-    .dm-rp-slider { flex: 1 0 100%; order: 10; margin: 0 4px 4px 30px; height: 22px; accent-color: var(--dm-accent); cursor: pointer; }
+    .dm-rp-slider { flex: 0 0 calc(100% - 34px); order: 10; margin: 0 4px 4px 30px; height: 22px; accent-color: var(--dm-accent); cursor: pointer; min-width: 0; }
     .dm-rp-alloff { min-height: 26px; padding: 2px 10px; border: 1px solid var(--dm-glass-border); border-radius: 999px; background: rgba(127,127,127,0.12); color: inherit; cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; white-space: nowrap; }
     .dm-rp-alloff:hover { background: rgba(127,127,127,0.22); }
     .dm-rp-row.dm-rp-unavailable .dm-rp-value { font-style: italic; }

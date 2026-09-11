@@ -25,6 +25,18 @@ export function areaEntities(hass, areaId) {
     return out.sort((a, b) => (ORDER[a.split('.')[0]] ?? 99) - (ORDER[b.split('.')[0]] ?? 99) || a.localeCompare(b));
 }
 
+/** Scenes and scripts assigned to an area (directly or via device), for one-tap chips. */
+export function areaScenes(hass, areaId) {
+    if (!hass || !areaId || !hass.entities) return [];
+    const devices = hass.devices || {};
+    return Object.entries(hass.entities).filter(([id, ent]) => {
+        if (ent.hidden || ent.disabled_by) return false;
+        if (!id.startsWith('scene.') && !id.startsWith('script.')) return false;
+        const area = ent.area_id || (ent.device_id && devices[ent.device_id] ? devices[ent.device_id].area_id : null);
+        return area === areaId && hass.states && hass.states[id];
+    }).map(([id]) => id).sort();
+}
+
 export function isInteresting(id, st) {
     const domain = id.split('.')[0];
     if (CONTROL_DOMAINS.includes(domain)) return true;

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { areaEntities, describeEntity, controlCall, isInteresting } from '../card/RoomEntities.js';
 import { buildRoomPanelEl, showRoomPanel, updateRoomPanel, hideRoomPanel } from '../card/RoomPanel.js';
+import { parseHistory, sparklinePoints, thin } from '../card/RoomHistory.js';
 
 function makeHass() {
     return {
@@ -13,7 +14,9 @@ function makeHass() {
             'light.other': { area_id: 'kitchen' },
             'climate.ac': { area_id: 'office' },
             'binary_sensor.door': { area_id: 'office' },
-            'update.firmware': { area_id: 'office' }
+            'update.firmware': { area_id: 'office' },
+            'scene.office_work': { area_id: 'office' },
+            'script.office_reset': { area_id: 'office' }
         },
         devices: { d1: { area_id: 'office' } },
         states: {
@@ -25,7 +28,9 @@ function makeHass() {
             'light.other': { state: 'on', attributes: {} },
             'climate.ac': { state: 'cool', attributes: { friendly_name: 'AC', temperature: 22, current_temperature: 24.5, target_temp_step: 1 } },
             'binary_sensor.door': { state: 'on', attributes: { friendly_name: 'Door', device_class: 'door' } },
-            'update.firmware': { state: 'off', attributes: {} }
+            'update.firmware': { state: 'off', attributes: {} },
+            'scene.office_work': { state: 'unknown', attributes: { friendly_name: 'Work' } },
+            'script.office_reset': { state: 'off', attributes: { friendly_name: 'Reset office' } }
         },
         callService: vi.fn()
     };
@@ -120,6 +125,41 @@ describe('RoomPanel', () => {
         hass.states['light.desk'].state = 'off';
         updateRoomPanel(h, hass);
         expect(h.roomPanel.querySelector('.dm-rp-alloff').hidden).toBe(true);
+    });
+
+    it('lists the area scenes and scripts as chips that activate on tap', () => {
+        const hass = makeHass();
+        const h = host(hass);
+        buildRoomPanelEl(h);
+        showRoomPanel(h, { id: 'r', name: 'Office', area_id: 'office' });
+        const chips = [...h.roomPanel.querySelectorAll('.dm-rp-scene')];
+        expect(chips.map(c => c.textContent)).toEqual(['✨ Work', '▶ Reset office']);
+        chips[0].click();
+        expect(hass.callService).toHaveBeenCalledWith('scene', 'turn_on', { entity_id: 'scene.office_work' });
+        expect(h.roomPanel.querySelectorAll('.dm-rp-list .dm-rp-row').length).toBe(5);   // scenes never appear as rows
+    });
+
+    it('draws a cached 24h temperature sparkline from the history API', async () => {
+        const hass = makeHass();
+        const day = [['2026-09-10T12:00:00Z', '20'], ['2026-09-10T18:00:00Z', '22.5'], ['2026-09-11T06:00:00Z', '19']];
+        hass.callApi = vi.fn(() => Promise.resolve([day.map(([t, v]) => ({ state: v, last_changed: t }))]));
+        const h = host(hass);
+        buildRoomPanelEl(h);
+        showRoomPanel(h, { id: 'r', name: 'Office', area_id: 'office' });
+        await new Promise(r => setTimeout(r, 0));
+        const trend = h.roomPanel.querySelector('.dm-rp-trend');
+        expect(trend.hidden).toBe(false);
+        expect(trend.querySelector('.dm-rp-trend-label').textContent).toBe('24 h · 19° – 22.5°');
+        expect(trend.querySelector('polyline').getAttribute('points').split(' ').length).toBe(3);
+        expect(hass.callApi).toHaveBeenCalledWith('GET', expect.stringContaining('filter_entity_id=sensor.temp'));
+        updateRoomPanel(h, hass);                     // next state tick: cache, no second request
+        expect(hass.callApi).toHaveBeenCalledTimes(1);
+        expect(h.roomPanel.querySelector('.dm-rp-trend polyline')).toBeTruthy();
+        expect(parseHistory([[{ state: 'unavailable', last_changed: '2026-09-11T00:00:00Z' }, { state: '3', last_changed: '2026-09-11T01:00:00Z' }]])).toEqual([[Date.parse('2026-09-11T01:00:00Z'), 3]]);
+        expect(sparklinePoints([[0, 1], [10, 3], [20, 1]], 120, 28)).toBe('2.0,26.0 60.0,2.0 118.0,26.0');
+        const many = [...Array(1000)].map((_, i) => [i, i]);
+        expect(thin(many, 240).length).toBeLessThanOrEqual(241);
+        expect(thin(many, 240).at(-1)).toEqual([999, 999]);
     });
 
     it('renders unavailable devices without controls; the row opens more-info', () => {

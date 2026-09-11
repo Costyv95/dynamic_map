@@ -6,6 +6,8 @@
  * to the room, or the first temperature sensor in the room's HA area.
  */
 
+import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
+
 const COOL = [59, 130, 246];   // blue
 const MID = [16, 185, 129];    // green
 const WARM = [249, 115, 22];   // orange
@@ -33,18 +35,38 @@ function isTempSensor(hass, id) {
     return a.device_class === 'temperature' || /°/.test(a.unit_of_measurement || '');
 }
 
+/** A sensor with a numeric reading right now (unavailable/unknown never wins over a live one). */
+function live(hass, id) {
+    return !!id && !!hass.states[id] && Number.isFinite(Number(hass.states[id].state));
+}
+
+/** Badge position as [x%, y%] whichever way it is stored. */
+function badgePercent(sc) {
+    const p = sc.position;
+    if (Array.isArray(p)) return p;
+    if (p && typeof p === 'object') return p.horizontal || p.vertical || null;
+    return null;
+}
+
 /** The entity id that gives this room its temperature, or null. */
 export function roomTemperatureEntity(host, hass, room) {
     if (!hass || !hass.states) return null;
     if (room.temperature_entity && hass.states[room.temperature_entity]) return room.temperature_entity;
-    const badge = (host.shortcuts || []).find(sc => sc.parent === room.id && sc.type === 'sensor' && sc.config && sc.config.temperature_entity && hass.states[sc.config.temperature_entity]);
+    // A sensor badge parented to the room, or simply placed inside its polygon.
+    const badges = (host.shortcuts || []).filter(sc => sc.type === 'sensor' && sc.config && live(hass, sc.config.temperature_entity));
+    const inside = (sc) => sc.parent === room.id || (Array.isArray(room.polygon) && badgePercent(sc) && MapGeometry.isPointInPolygon(badgePercent(sc), room.polygon));
+    const badge = badges.find(sc => sc.parent === room.id) || badges.find(inside);
     if (badge) return badge.config.temperature_entity;
     if (room.area_id && hass.entities) {
         const devices = hass.devices || {};
+        let fallback = null;
         for (const [id, ent] of Object.entries(hass.entities)) {
             const area = ent.area_id || (ent.device_id && devices[ent.device_id] ? devices[ent.device_id].area_id : null);
-            if (area === room.area_id && !ent.hidden && isTempSensor(hass, id)) return id;
+            if (area !== room.area_id || ent.hidden || !isTempSensor(hass, id)) continue;
+            if (live(hass, id)) return id;
+            fallback = fallback || id;
         }
+        return fallback;
     }
     return null;
 }

@@ -53,6 +53,13 @@ describe('room temperature tint', () => {
         expect(roomTemperatureEntity(host, hass, { id: 'r2' })).toBe('sensor.b');
         expect(roomTemperatureEntity(host, hass, { id: 'r3', area_id: 'office' })).toBe('sensor.c');
         expect(roomTemperatureEntity(host, hass, { id: 'r4' })).toBeNull();
+        // A live sensor badge inside the polygon beats a dead area sensor; a dead area sensor is still the last resort.
+        hass.states['sensor.dead'] = { state: 'unavailable', attributes: { device_class: 'temperature' } };
+        hass.entities['sensor.dead'] = { area_id: 'kitchen' };
+        host.shortcuts.push({ id: 'k', type: 'sensor', position: { horizontal: [20, 20], vertical: [20, 20] }, config: { temperature_entity: 'sensor.a' } });
+        const kitchen = { id: 'k1', area_id: 'kitchen', polygon: [[10, 10], [30, 10], [30, 30], [10, 30]] };
+        expect(roomTemperatureEntity(host, hass, kitchen)).toBe('sensor.a');
+        expect(roomTemperatureEntity(host, hass, { id: 'k2', area_id: 'kitchen', polygon: [[50, 50], [60, 50], [60, 60], [50, 60]] })).toBe('sensor.dead');
         expect(roomTint(host, hass, { id: 'r2' })).toBe(tempColor(19));
         expect(roomTint({ config: {} }, hass, { id: 'r2' })).toBeNull();
         host.rooms = [{ id: 'r2' }, { id: 'r4' }];
