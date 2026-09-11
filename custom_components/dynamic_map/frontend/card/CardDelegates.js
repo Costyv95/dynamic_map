@@ -45,6 +45,8 @@ export const cardDelegates = {
     showOverlay(shortcut, actions, event) { OverlayManager.showActionMenu(this, shortcut, actions, event); },
     showRoomSelectionUI() { OverlayManager.showRoomSelectionUI(this); },
     getCardSize() { return 3; },
+    /** Resolves after the next buildSVG (floor switch from search). */
+    whenBuilt() { return new Promise(r => { (this._buildWaiters = this._buildWaiters || []).push(r); }); },
     /** Temperature tint for a room (null unless room_temperature is on). */
     roomTint(room) { return roomTint(this, this._hass, room); },
     loadFloorNames(hass) { return MapBuilder.loadFloorNames(this, hass); },
