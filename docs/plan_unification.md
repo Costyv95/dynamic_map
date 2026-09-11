@@ -1,6 +1,11 @@
 # Plan: one renderer, one editor, one panel
 
-Status: in progress. Branch `sess/ha_dev-unify-editor`. Started 2026-09-10.
+Status: in progress. Branch `sess/ha_dev-unify-editor-2` (the first branch was
+auto-landed on main on 2026-09-11). Started 2026-09-10.
+
+Progress: Phase 1 done and deployed 2026-09-10. Phase 2 done, verified in a
+real browser (headless Chrome on .202 against a mock backend, see
+`scratch/browser_check/`) and deployed 2026-09-11. Phase 3 next.
 Owner of decisions: Costi. Executor: Claude (autonomous loop).
 
 ## Why
