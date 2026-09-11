@@ -16,6 +16,7 @@ import { buildRoomAlerts } from './card/RoomAlerts.js?v=3.2.1';
 import { discoverFloors, floorLabel, loadData } from './card/FloorData.js?v=3.2.1';
 import { applyAutoCrop } from './card/CardViewport.js?v=3.2.1';
 import { buildTempLegend } from './card/TempLegend.js?v=3.2.1';
+import { buildSearch } from './card/Search.js?v=3.2.1';
 
 /**
  * The Lovelace card. It is the scene host for core/MapScene and the
@@ -119,6 +120,7 @@ class CustomSvgMap extends HTMLElement {
         const floorSwitcher = MapBuilder.buildFloorSwitcher(this);
         if (floorSwitcher) this.topLeftUI.appendChild(floorSwitcher);
         this.topLeftUI.appendChild(MapBuilder.buildRotationSwitcher(this));
+        buildSearch(this);
         buildFocusPill(this);
         buildOutsideBar(this);
         buildRoomPanelEl(this);
@@ -130,6 +132,7 @@ class CustomSvgMap extends HTMLElement {
         if (this.animationFrame) cancelAnimationFrame(this.animationFrame);
         this.lastTime = performance.now();
         this.animate(this.lastTime);
+        (this._buildWaiters || []).splice(0).forEach(fn => fn());
     }
 
     /** Map a point from image coordinates into viewBox space (flips, then rotation). */
