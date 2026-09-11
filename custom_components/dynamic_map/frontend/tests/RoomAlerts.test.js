@@ -39,6 +39,21 @@ describe('room alerts', () => {
         expect(roomAlerts(makeHass(), room, alertKinds({})).map(a => a.kind)).toEqual(['open']);
     });
 
+    it('shows a legend chip while any badge is visible; tapping it opens the first alerting room', () => {
+        const hass = makeHass();
+        const host = { svgNS, mapRoot: document.createElementNS(svgNS, 'g'), renderRoot: document.createElement('div'), rooms: [room], imgW: 1000, imgH: 1000, config: {}, onAlertTap: vi.fn() };
+        buildRoomAlerts(host);
+        updateRoomAlerts(host, hass);
+        const legend = host.renderRoot.querySelector('.dm-alert-legend');
+        expect(legend.hidden).toBe(false);
+        expect(legend.textContent).toBe('1 open door/window');
+        legend.click();
+        expect(host.onAlertTap).toHaveBeenCalledWith(room);
+        hass.states['binary_sensor.door'].state = 'off';
+        updateRoomAlerts(host, hass);
+        expect(legend.hidden).toBe(true);
+    });
+
     it('keeps the digits upright under a rotated and mirrored map', () => {
         const hass = makeHass();
         const host = { svgNS, mapRoot: document.createElementNS(svgNS, 'g'), rooms: [room], imgW: 1000, imgH: 1000, config: {}, isRotated: true, mapScaleX: -1, mapScaleY: -1 };

@@ -88,6 +88,9 @@ button:disabled { opacity: 0.45; cursor: default; }
 .dm-list-item { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 4px 10px; border-radius: 8px; background: var(--dm-input-bg); cursor: pointer; min-width: 0; }
 .dm-list-item > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dm-list-item > .dm-hint { flex: 0 1 45%; text-align: right; }
+.dm-device-list .dm-list-item { cursor: default; }
+.dm-device-list .dm-list-item.dm-placed { cursor: pointer; }
+.dm-device-list .dm-list-item > button { flex: none; min-width: 32px; min-height: 28px; padding: 0 8px; }
 .dm-list-item:hover { background: var(--dm-hover); }
 .dm-list-item.active { background: var(--dm-accent); color: #fff; font-weight: 600; }
 .dm-card { border: 1px solid var(--dm-border); border-radius: 8px; padding: 8px; background: var(--dm-input-bg); display: flex; flex-direction: column; gap: 6px; }
