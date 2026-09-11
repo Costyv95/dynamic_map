@@ -45,3 +45,6 @@
 - [x] **Quick actions in the editor:** ⋯ → Quick actions edits the global `quick_actions.json`.
 - [x] **Temperature legend:** shown while `room_temperature` is on.
 - [x] **Multi-select:** shift-click, group move, align/distribute/match size, delete all.
+- [x] **Keys typed in panel fields** (2026-09-11): inside the HA panel the editor lives in a shadow root, so document-level key handlers saw the panel host as the target and moved/deleted badges while typing. `editor/Keys.js` resolves the real target through `composedPath()`.
+- [x] **Room alert badges made explicit** (2026-09-11): count open/danger only by default (`room_alerts: {unavailable: true}` opts in), stay upright under mirrored layouts, and tapping one opens the room panel with a *Needs attention* list whose rows open more-info.
+- [ ] **Alert legend / explanation in the card:** a first-time hint or legend chip for the corner badges (users read them as room numbers).

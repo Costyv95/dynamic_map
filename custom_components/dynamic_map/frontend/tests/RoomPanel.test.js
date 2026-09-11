@@ -73,10 +73,16 @@ describe('RoomPanel', () => {
         showRoomPanel(h, { id: 'r', name: 'Office', area_id: 'office' });
         expect(h.roomPanel.classList.contains('dm-visible')).toBe(true);
         expect(h.roomPanel.querySelector('.dm-rp-title').textContent).toBe('Office');
-        const rowsEl = h.roomPanel.querySelectorAll('.dm-rp-row');
+        const rowsEl = h.roomPanel.querySelectorAll('.dm-rp-list .dm-rp-row');
         expect(rowsEl.length).toBe(5);
         rowsEl[0].click();
         expect(hass.callService).toHaveBeenCalledWith('light', 'toggle', { entity_id: 'light.desk' });
+        // The open door is listed first under "Needs attention"; tapping it opens more-info.
+        const alerts = h.roomPanel.querySelectorAll('.dm-rp-attention .dm-rp-alert');
+        expect(alerts.length).toBe(1);
+        expect(alerts[0].textContent).toContain('Door');
+        alerts[0].click();
+        expect(h.dispatchEvent.mock.calls[0][0].detail).toEqual({ entityId: 'binary_sensor.door' });
         hideRoomPanel(h);
         expect(h.roomPanel.classList.contains('dm-visible')).toBe(false);
     });
@@ -91,6 +97,8 @@ describe('RoomPanel', () => {
         buildRoomPanelEl(off);
         showRoomPanel(off, { id: 'r', area_id: 'office' });
         expect(off.roomPanel.classList.contains('dm-visible')).toBe(false);
+        showRoomPanel(off, { id: 'r', area_id: 'office' }, true);   // alert badge tap forces it open
+        expect(off.roomPanel.classList.contains('dm-visible')).toBe(true);
     });
 
     it('re-renders from a new hass while visible', () => {

@@ -1,4 +1,5 @@
 import { areaEntities, describeEntity, controlCall } from './RoomEntities.js?v=3.2.1';
+import { roomAlerts, alertKinds } from './RoomAlerts.js?v=3.2.1';
 
 /**
  * Glass panel that opens with a room's zoom: everything in the room's HA
@@ -16,8 +17,9 @@ export function buildRoomPanelEl(host) {
     host._roomPanelRoom = null;
 }
 
-export function showRoomPanel(host, room) {
-    if (!host.roomPanel || host.config.room_panel === false) return;
+/** Open the panel for a room. `force` shows it even with `room_panel: false` (alert badge tap). */
+export function showRoomPanel(host, room, force = false) {
+    if (!host.roomPanel || (host.config.room_panel === false && !force)) return;
     host._roomPanelRoom = room;
     updateRoomPanel(host, host._hass);
 }
@@ -38,8 +40,11 @@ export function updateRoomPanel(host, hass) {
     if (room.entity_id && hass.states[room.entity_id] && !ids.includes(room.entity_id)) ids.unshift(room.entity_id);
     const max = Number(host.config.room_panel_max) > 0 ? Number(host.config.room_panel_max) : 12;
     const shown = ids.slice(0, max);
+    const kinds = alertKinds(host.config);
+    const alerts = kinds ? roomAlerts(hass, room, kinds) : [];
     panel.replaceChildren(
         header(host, room, ids.length),
+        ...(alerts.length ? [attention(host, alerts)] : []),
         shown.length ? rows(host, hass, shown) : empty(room)
     );
     panel.classList.add('dm-visible');
@@ -54,6 +59,31 @@ function header(host, room, count) {
     h.querySelector('.dm-rp-count').textContent = count ? `${count}` : '';
     h.querySelector('.dm-rp-close').addEventListener('click', () => host.zoomOutToDefault());
     return h;
+}
+
+const ALERT_ICON = { open: '🚪', danger: '⚠️', unavailable: '⛔' };
+const ALERT_TEXT = { open: 'Open', danger: 'Alert', unavailable: 'Unavailable' };
+
+/** "Needs attention" rows: one per alert, tap for the entity's more-info dialog. */
+function attention(host, alerts) {
+    const box = document.createElement('div');
+    box.className = 'dm-rp-attention';
+    const h = document.createElement('div');
+    h.className = 'dm-rp-subhead';
+    h.textContent = `Needs attention · ${alerts.length}`;
+    box.appendChild(h);
+    alerts.forEach(a => {
+        const r = document.createElement('div');
+        r.className = `dm-rp-row dm-rp-alert dm-rp-alert-${a.kind}`;
+        r.innerHTML = `<span class="dm-rp-icon"></span><span class="dm-rp-name"></span><span class="dm-rp-value"></span>`;
+        r.querySelector('.dm-rp-icon').textContent = ALERT_ICON[a.kind] || '!';
+        r.querySelector('.dm-rp-name').textContent = a.name;
+        r.querySelector('.dm-rp-value').textContent = ALERT_TEXT[a.kind] || a.kind;
+        r.title = `${a.name}: open details`;
+        r.addEventListener('click', () => host.dispatchEvent(new CustomEvent('hass-more-info', { detail: { entityId: a.id }, bubbles: true, composed: true })));
+        box.appendChild(r);
+    });
+    return box;
 }
 
 function empty(room) {

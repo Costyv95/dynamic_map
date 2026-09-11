@@ -10,6 +10,7 @@ import { loadIconList } from './editor/ui/RecomputeDialog.js?v=3.2.1';
 import { newObject, newDecor } from './editor/ui/Presets.js?v=3.2.1';
 import { setUiRoot, confirmDialog } from './editor/ui/Dialog.js?v=3.2.1';
 import { DirtyTracker, writeDraft, readDraft, clearDraft, draftDiffers, formatAge } from './editor/Drafts.js?v=3.2.1';
+import { isTyping } from './editor/Keys.js?v=3.2.1';
 
 console.log('[DynamicMapDebug] Map Editor loaded (Version: 4.0.0)');
 
@@ -216,8 +217,7 @@ export class EditorApp {
         };
         document.addEventListener('keydown', (e) => {
             if (!(e.ctrlKey || e.metaKey)) return;
-            const t = e.target;
-            if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+            if (isTyping(e)) return;
             if (e.key === 'z' && !e.shiftKey) { e.preventDefault(); this.state.undo(); }
             if (e.key === 'Z' || (e.key === 'z' && e.shiftKey) || e.key === 'y') { e.preventDefault(); this.state.redo(); }
             if (e.key === 's') { e.preventDefault(); this.saveWithFeedback(); }

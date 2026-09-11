@@ -264,4 +264,11 @@ export const CARD_STYLES = `
     .dm-tl-bar { width: 70px; height: 8px; border-radius: 4px; }
     .dm-render-root.dm-room-panel-open .dm-temp-legend { opacity: 0; pointer-events: none; }
     .dm-room-alert circle { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
+    .dm-room-alert:hover circle { stroke-width: 3; }
+    .dm-rp-attention { padding: 6px 6px 0; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid var(--dm-glass-border); padding-bottom: 6px; }
+    .dm-rp-subhead { padding: 4px 8px 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dm-muted); }
+    .dm-rp-alert .dm-rp-value { font-weight: 600; }
+    .dm-rp-alert-open .dm-rp-value { color: #d97706; }
+    .dm-rp-alert-danger .dm-rp-value { color: #dc2626; }
+    .dm-rp-alert-unavailable { opacity: 0.75; }
 `;
