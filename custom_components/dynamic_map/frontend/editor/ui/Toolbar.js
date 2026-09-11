@@ -91,6 +91,10 @@ export class Toolbar {
             : 'Unlinked: edits apply to the selected layout only. Click to link both layouts again.';
         this.undoBtn.disabled = !state.historyManager.canUndo();
         this.redoBtn.disabled = !state.historyManager.canRedo();
+        const dirty = !!(this.app.dirty && this.app.dirty.dirty);
+        this.saveBtn.classList.toggle('dm-dirty', dirty);
+        this.saveBtn.textContent = dirty ? '💾 Save •' : '💾 Save';
+        this.saveBtn.title = dirty ? 'Unsaved changes (Ctrl+S). A local draft is kept until you save.' : 'Save this floor to Home Assistant';
         const addLabel = { rooms: '＋ Room', objects: '＋ Object', decor: '＋ Decor', walls: '＋ Wall' };
         this.addBtn.textContent = addLabel[state.activeLayer] || '＋ Add';
     }

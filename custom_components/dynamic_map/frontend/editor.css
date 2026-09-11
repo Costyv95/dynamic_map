@@ -115,6 +115,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .dm-status[hidden] { display: none; }
 
 /* Toolbar extras */
+button.primary.dm-dirty { background: #f59e0b; border-color: #f59e0b; }
 .dm-brand { font-weight: 800; letter-spacing: 0.04em; color: var(--dm-accent); padding: 0 4px; }
 .dm-menu { min-width: 260px; background: var(--dm-panel); border: 1px solid var(--dm-border); border-radius: 12px; box-shadow: var(--dm-shadow); padding: 6px; display: flex; flex-direction: column; gap: 2px; }
 .dm-menu-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: none; background: transparent; border-radius: 8px; padding: 8px 10px; white-space: normal; }

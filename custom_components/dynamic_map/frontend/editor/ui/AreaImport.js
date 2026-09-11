@@ -53,12 +53,23 @@ export function gridInRoom(room, count, imgW, imgH) {
     return pts;
 }
 
+/** Median scale of the badges already on the floor, so imports match them. */
+export function typicalScale(shortcuts) {
+    const vals = (shortcuts || []).map(sc => {
+        const v = sc.scaleX !== undefined ? sc.scaleX : sc.scale;
+        const n = v && typeof v === 'object' ? v.horizontal : v;
+        return Number(n);
+    }).filter(n => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
+    return vals.length ? vals[Math.floor(vals.length / 2)] : 3;
+}
+
 /** Build one badge for an entity, using the type presets. */
-export function badgeFor(hass, id, pos, roomId) {
+export function badgeFor(hass, id, pos, roomId, scale = 3) {
     const domain = id.split('.')[0];
     const st = hass.states[id] || { attributes: {} };
     const name = (st.attributes && st.attributes.friendly_name) || id.split('.')[1].replace(/_/g, ' ');
-    const sc = { id: `sc_${Date.now()}_${Math.floor(Math.random() * 1e4)}`, name, entity_id: id, position: pos, parent: roomId, config: { shape: 'circle', color: '#0ea5e9' } };
+    const sc = { id: `sc_${Date.now()}_${Math.floor(Math.random() * 1e4)}`, name, entity_id: id, position: pos, parent: roomId,
+        scale, scaleX: scale, scaleY: scale, config: { shape: 'circle', color: '#0ea5e9' } };
     if (domain === 'sensor') {
         sc.type = 'sensor';
         sc.config.temperature_entity = id;
@@ -80,7 +91,8 @@ export function importArea(ctx, room) {
     const ids = unplacedAreaEntities(hass, room, state.shortcuts);
     if (!ids.length) { toast('Every device of this area is already on the map.'); return 0; }
     const pts = gridInRoom(room, ids.length, canvas.imgW, canvas.imgH);
-    ids.forEach((id, i) => state.shortcuts.push(badgeFor(hass, id, pts[i], room.id)));
+    const scale = typicalScale(state.shortcuts);
+    ids.forEach((id, i) => state.shortcuts.push(badgeFor(hass, id, pts[i], room.id, scale)));
     state.saveState();
     state.requestDrawCallback();
     ctx.refresh();
