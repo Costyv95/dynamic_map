@@ -93,7 +93,9 @@ describe('RoomPanel', () => {
         const h = host(hass);
         buildRoomPanelEl(h);
         showRoomPanel(h, { id: 'r', name: 'Office', area_id: 'office' });
-        const row = h.roomPanel.querySelector('.dm-rp-list .dm-rp-row');
+        const rowsEl = h.roomPanel.querySelectorAll('.dm-rp-list .dm-rp-row');
+        const row = rowsEl[rowsEl.length - 1];                       // dead devices sink to the bottom
+        expect(rowsEl[0].classList.contains('dm-rp-unavailable')).toBe(false);
         expect(row.classList.contains('dm-rp-unavailable')).toBe(true);
         expect(row.querySelector('.dm-rp-switch')).toBeNull();
         expect(row.querySelector('.dm-rp-value').textContent).toBe('Unavailable');
