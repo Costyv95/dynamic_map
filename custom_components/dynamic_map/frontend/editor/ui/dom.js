@@ -64,10 +64,15 @@ export function section(title, children, { key, open = true, actions } = {}) {
 /** Segmented control: options [{value, label, title}], returns the element with .set(value). */
 export function segmented(options, value, onChange, { className = '' } = {}) {
     const root = el(`div.dm-segmented${className ? '.' + className : ''}`, { role: 'group' });
+    // "🏠 Rooms" renders as icon + text spans so narrow screens can keep the icon only.
+    const parts = (label) => {
+        const m = /^(\S+)\s+(.+)$/.exec(String(label));
+        return m && /[^\w]/.test(m[1]) ? [el('span.dm-seg-ico', {}, m[1]), el('span.dm-seg-txt', {}, m[2])] : [label];
+    };
     const buttons = options.map(o => el('button.dm-seg', {
-        type: 'button', title: o.title || '', dataset: { value: o.value },
+        type: 'button', title: o.title || o.label, dataset: { value: o.value },
         onClick: () => { root.set(o.value); onChange(o.value); }
-    }, o.label));
+    }, parts(o.label)));
     append(root, buttons);
     root.set = (v) => buttons.forEach(b => b.classList.toggle('active', b.dataset.value === String(v)));
     root.set(value);

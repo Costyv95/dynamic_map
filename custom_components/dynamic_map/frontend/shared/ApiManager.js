@@ -129,24 +129,31 @@ export class ApiManager {
     }
 
     /** Global outside-dashboard items (fixed bar at the top of the card). */
-    static async fetchOutside() {
+    /** A global list file (outside.json, quick_actions.json); [] when missing. */
+    static async fetchGlobalList(filename) {
         try {
-            const res = await fetch(`/dynamic_map_data/outside.json?t=${Date.now()}`);
-            return res.ok ? await res.json() : [];
+            const res = await fetch(`/dynamic_map_data/${filename}?t=${Date.now()}`);
+            const data = res.ok ? await res.json() : [];
+            return Array.isArray(data) ? data : [];
         } catch (e) {
             return [];
         }
     }
 
-    static async saveOutside(items) {
+    static async saveGlobalList(filename, items, label) {
         const res = await apiFetch('/api/dynamic_map/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename: 'outside.json', content: items }),
+            body: JSON.stringify({ filename, content: items }),
         });
-        if (!res.ok) throw new Error(`Outside dashboard save failed: ${res.statusText}`);
+        if (!res.ok) throw new Error(`${label} save failed: ${res.statusText}`);
         return true;
     }
+
+    static fetchOutside() { return ApiManager.fetchGlobalList('outside.json'); }
+    static saveOutside(items) { return ApiManager.saveGlobalList('outside.json', items, 'Outside dashboard'); }
+    static fetchQuickActions() { return ApiManager.fetchGlobalList('quick_actions.json'); }
+    static saveQuickActions(items) { return ApiManager.saveGlobalList('quick_actions.json', items, 'Quick actions'); }
 
     /**
      * Ask the backend to draw a style-recipe texture with Claude and save it
