@@ -1,5 +1,5 @@
 import { el, clear } from './dom.js?v=3.2.1';
-import { openDialog } from './Dialog.js?v=3.2.1';
+import { openDialog, getUiRoot } from './Dialog.js?v=3.2.1';
 import { openBackgroundDialog } from './FloorDialogs.js?v=3.2.1';
 import { openOutsideDialog } from './OutsideDialog.js?v=3.2.1';
 import { openRecomputeDialog } from './RecomputeDialog.js?v=3.2.1';
@@ -9,7 +9,7 @@ const ROTATION = { auto: ['Auto (fits each screen)', 'horizontal'], horizontal: 
 /** The "⋯" menu: floor-level settings and tools that are rarely needed. */
 export function openOverflowMenu(app, anchor) {
     const { canvas, state } = app;
-    const existing = document.querySelector('.dm-menu');
+    const existing = getUiRoot().querySelector('.dm-menu');
     if (existing) { existing.remove(); return; }
     const menu = el('div.dm-menu', { role: 'menu' });
     const item = (label, hint, onClick) => el('button.dm-menu-item', { type: 'button', onClick: () => { menu.remove(); onClick(); } },
@@ -38,7 +38,7 @@ export function openOverflowMenu(app, anchor) {
     );
     const r = anchor.getBoundingClientRect();
     menu.style.cssText = `position: fixed; top: ${r.bottom + 6}px; right: ${Math.max(8, window.innerWidth - r.right)}px; z-index: 900;`;
-    document.body.appendChild(menu);
+    getUiRoot().appendChild(menu);
     setTimeout(() => document.addEventListener('pointerdown', (e) => { if (!menu.contains(e.target)) menu.remove(); }, { once: true }), 0);
 }
 

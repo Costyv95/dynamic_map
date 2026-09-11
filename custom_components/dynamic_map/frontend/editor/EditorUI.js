@@ -12,8 +12,8 @@ export class EditorUI {
     constructor(app) {
         this.app = app;
         this.state = app.state;
-        this.toolbar = new Toolbar(document.getElementById('toolbar'), app);
-        this.inspector = new Inspector(document.getElementById('inspector'), app);
+        this.toolbar = new Toolbar(app.root.querySelector('#toolbar'), app);
+        this.inspector = new Inspector(app.root.querySelector('#inspector'), app);
         this.status = el('div.dm-status', { hidden: true });
         app.container.appendChild(this.status);
         this._lastSel = null;

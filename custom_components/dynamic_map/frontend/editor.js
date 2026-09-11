@@ -8,6 +8,7 @@ import { setupAutocomplete, fillEntityDatalist } from './editor/ui/EntityAutocom
 import { openAddFloorDialog } from './editor/ui/FloorDialogs.js?v=3.2.1';
 import { loadIconList } from './editor/ui/RecomputeDialog.js?v=3.2.1';
 import { newObject, newDecor } from './editor/ui/Presets.js?v=3.2.1';
+import { setUiRoot } from './editor/ui/Dialog.js?v=3.2.1';
 
 console.log('[DynamicMapDebug] Map Editor loaded (Version: 3.3.0)');
 
@@ -17,8 +18,11 @@ console.log('[DynamicMapDebug] Map Editor loaded (Version: 3.3.0)');
  * custom panel and the smoke tests can boot it against any document.
  */
 export class EditorApp {
-    constructor() {
-        this.container = document.getElementById('canvas-container');
+    /** `root` is the document or a shadow root holding the app shell. */
+    constructor(root = document) {
+        this.root = root;
+        setUiRoot(root === document ? document.body : root.querySelector('#dm-app') || root);
+        this.container = root.querySelector('#canvas-container');
         this.state = new EditorStateManager(() => this.ui.refresh(), () => this.canvas.refresh());
         this.canvas = new EditorCanvas(this.container, this.state);
         this.canvas.linkOrientations = localStorage.getItem('dm_editor_link_orientations') !== 'false';
@@ -168,7 +172,8 @@ export class EditorApp {
         try {
             const data = await ApiManager.fetchFloors();
             if (data.success && Array.isArray(data.floors)) floors = data.floors;
-            if (data.version) document.querySelector('.dm-brand').title = `Dynamic Map v${data.version}`;
+            const brand = this.root.querySelector('.dm-brand');
+            if (data.version && brand) brand.title = `Dynamic Map v${data.version}`;
         } catch (err) {
             console.warn('[editor] Floor discovery failed:', err.message);
         }
@@ -203,18 +208,19 @@ export class EditorApp {
             const data = await ApiManager.fetchEntities();
             if (!(data.success && data.entities)) return;
             this.state.allEntities = data.entities;
-            fillEntityDatalist(data.entities);
+            fillEntityDatalist(data.entities, this.root);
         } catch (err) {
             console.warn('[editor] Failed to load entities for autocomplete:', err.message);
         }
     }
 
-    start() {
+    /** pollHass: read the parent app's hass (iframe mode); the panel hands hass in itself. */
+    start({ pollHass = true } = {}) {
         this.loadRegistry();
-        loadIconList();
+        loadIconList(this.root);
         this.discoverFloors();
         this.loadEntities();
-        this.hassBridge.startPolling();
+        if (pollHass) this.hassBridge.startPolling();
         return this;
     }
 }

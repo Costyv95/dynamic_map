@@ -41,7 +41,7 @@ export function setupAutocomplete(inputElement, getEntities) {
 }
 
 /** Fill the shared entity datalist. */
-export function fillEntityDatalist(entities) {
-    const entityList = document.getElementById('entityList');
+export function fillEntityDatalist(entities, root = document) {
+    const entityList = root.getElementById ? root.getElementById('entityList') : root.querySelector('#entityList');
     if (entityList) entityList.innerHTML = entities.map(ent => `<option value="${ent.id}"></option>`).join('');
 }

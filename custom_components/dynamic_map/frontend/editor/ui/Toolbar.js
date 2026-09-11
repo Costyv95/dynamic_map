@@ -49,6 +49,13 @@ export class Toolbar {
         this.sync();
     }
 
+    /** In the HA panel: a button that opens Home Assistant's own sidebar. */
+    addMenuButton(onClick) {
+        if (this.menuBtn) return;
+        this.menuBtn = iconButton('☰', 'Home Assistant menu', onClick, 'dm-ha-menu');
+        this.root.insertBefore(this.menuBtn, this.root.firstChild);
+    }
+
     onAdd() {
         const { state, app } = this;
         switch (state.activeLayer) {

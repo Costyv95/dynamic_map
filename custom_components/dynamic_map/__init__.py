@@ -68,15 +68,24 @@ async def async_setup(hass: HomeAssistant, config: dict):
         ]
     )
 
+    # Native custom panel: the editor element receives `hass` directly, so it
+    # needs no iframe and no token hand-off. The version query busts caches
+    # after every restart (deploys restart HA).
+    module_url = f"{URL_BASE_UI}/dynamic-map-panel.js?v={integration.version}-{int(time.time())}"
     async_register_built_in_panel(
         hass,
-        component_name="iframe",
+        component_name="custom",
         sidebar_title="Map Editor",
         sidebar_icon="mdi:map-search-outline",
         frontend_url_path="dynamic_map_editor",
-        # Include the startup time so the editor shell is re-fetched after every
-        # restart (deploys restart HA), regardless of browser heuristic caching.
-        config={"url": f"{URL_BASE_UI}/editor.html?v={integration.version}-{int(time.time())}"},
+        config={
+            "_panel_custom": {
+                "name": "dynamic-map-panel",
+                "module_url": module_url,
+                "embed_iframe": False,
+                "trust_external": False,
+            }
+        },
         require_admin=True,
     )
 

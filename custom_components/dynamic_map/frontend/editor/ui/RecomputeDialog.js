@@ -3,10 +3,10 @@ import { openDialog, confirmDialog, toast } from './Dialog.js?v=3.2.1';
 import { ApiManager } from '../../shared/ApiManager.js?v=3.2.1';
 
 /** Fill the icon datalist from the data dir (custom icons). */
-export async function loadIconList() {
+export async function loadIconList(root = document) {
     try {
         const data = await ApiManager.fetchAvailableFiles();
-        const iconList = document.getElementById('iconList');
+        const iconList = root.querySelector('#iconList');
         if (data.success && data.icons && iconList) iconList.innerHTML = data.icons.map(p => `<option value="${p}"></option>`).join('');
         return data.success ? (data.files || []) : [];
     } catch (err) {

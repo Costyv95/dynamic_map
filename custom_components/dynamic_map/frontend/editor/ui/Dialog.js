@@ -6,11 +6,17 @@ import { el, clear } from './dom.js?v=3.2.1';
  * reused; `open()` returns a promise resolved with the chosen button.
  */
 let host = null;
+let uiRoot = null;
+let toastEl = null;
+
+/** Where dialogs, menus and toasts mount (the app root, so shadow-DOM styles apply). */
+export function setUiRoot(root) { uiRoot = root; host = null; toastEl = null; }
+export function getUiRoot() { return uiRoot || document.body; }
 
 function ensureHost() {
     if (host && host.isConnected) return host;
     host = el('div.dm-dialog-host', { hidden: true });
-    document.body.appendChild(host);
+    getUiRoot().appendChild(host);
     return host;
 }
 
@@ -62,14 +68,13 @@ export function alertDialog(title, message) {
     return openDialog({ title, body: el('p', {}, message) });
 }
 
-let toastEl = null;
 let toastTimer = null;
 
 /** Short status message at the bottom of the screen. kind: 'ok' | 'error' | 'info' */
 export function toast(message, kind = 'info', ms = 2600) {
     if (!toastEl || !toastEl.isConnected) {
         toastEl = el('div.dm-toast');
-        document.body.appendChild(toastEl);
+        getUiRoot().appendChild(toastEl);
     }
     toastEl.textContent = message;
     toastEl.className = `dm-toast dm-toast-${kind} dm-visible`;

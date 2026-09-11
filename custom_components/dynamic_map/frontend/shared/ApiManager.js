@@ -102,11 +102,16 @@ async function authHeaders() {
     return token ? { 'Authorization': `Bearer ${token}` } : {};
 }
 
+/** Live hass object handed in by the custom panel; its fetchWithAuth carries the session. */
+let panelHass = null;
+
 async function apiFetch(path, options = {}) {
-    const res = await fetch(path, {
-        ...options,
-        headers: { ...(options.headers || {}), ...(await authHeaders()) },
-    });
+    const res = panelHass && typeof panelHass.fetchWithAuth === 'function'
+        ? await panelHass.fetchWithAuth(path, options)
+        : await fetch(path, {
+            ...options,
+            headers: { ...(options.headers || {}), ...(await authHeaders()) },
+        });
     if (res.status === 401) {
         throw new Error(
             lastTokenSource === 'none'
@@ -159,6 +164,10 @@ export function stripRuntimeKeys(value) {
 }
 
 export class ApiManager {
+    /** Custom panel mode: route API calls through hass.fetchWithAuth (no token juggling). */
+    static setHass(hass) { panelHass = hass || null; }
+    static get usesPanelHass() { return !!(panelHass && panelHass.fetchWithAuth); }
+
     static async fetchState(entityId) {
         try {
             const data = await apiJson(`/api/dynamic_map/state?entity_id=${encodeURIComponent(entityId)}`);

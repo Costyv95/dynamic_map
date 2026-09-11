@@ -3,9 +3,11 @@ import { resizeCursorFor, HANDLE_DIRS } from './HitTest.js?v=3.2.1';
 import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeometry.js?v=3.2.1';
 
 const ACCENT = '#0ea5e9';
-const HANDLE_PX = 5;      // half-size of a resize handle on screen
-const VERTEX_PX = 8;      // room corner handle radius on screen
-const ROT_STEM_PX = 18;
+// Handles grow on touch screens (coarse pointer) so fingers can grab them.
+const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches ? 1.7 : 1;
+const HANDLE_PX = 5 * COARSE;      // half-size of a resize handle on screen
+const VERTEX_PX = 8 * COARSE;      // room corner handle radius on screen
+const ROT_STEM_PX = 18 * COARSE;
 
 /**
  * The editing layer: an SVG group that shares the map root's transform so
