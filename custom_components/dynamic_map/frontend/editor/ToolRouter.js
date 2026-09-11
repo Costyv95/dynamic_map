@@ -103,7 +103,7 @@ export class ToolRouter {
         // Keys typed into a field (also inside the panel's shadow root) never reach the map.
         const typing = isTyping(e);
         if (typing) return;
-        if (e.key === '?' && !e.ctrlKey && !e.metaKey) { e.preventDefault(); openShortcutsHelp(); return; }
+        if ((e.key === '?' || (e.key === '/' && e.shiftKey)) && !e.ctrlKey && !e.metaKey) { e.preventDefault(); openShortcutsHelp(); return; }
         if (this.wallTool.onKey(e)) return;
         const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
         if (ARROWS[e.key] && this.state.selectedShortcutIdx !== -1) {

@@ -48,3 +48,6 @@
 - [x] **Keys typed in panel fields** (2026-09-11): inside the HA panel the editor lives in a shadow root, so document-level key handlers saw the panel host as the target and moved/deleted badges while typing. `editor/Keys.js` resolves the real target through `composedPath()`.
 - [x] **Room alert badges made explicit** (2026-09-11): count open/danger only by default (`room_alerts: {unavailable: true}` opts in), stay upright under mirrored layouts, and tapping one opens the room panel with a *Needs attention* list whose rows open more-info.
 - [x] **Alert legend in the card** (2026-09-11): a glass chip ("● 1 open door/window · ● 2 alarms") shows while any badge is visible; tapping it opens the first alerting room.
+- [x] **Room panel controls** (2026-09-11): brightness slider for dimmable lights, *All off* header button, dead devices last and inert.
+- [x] **Editor shortcuts** (2026-09-11): Ctrl+D duplicates the whole selection; `?` (or ⋯ → Keyboard & mouse) opens the reference.
+- [x] **Refactor** (2026-09-11): card/FloorData.js, card/CardViewport.js, editor/Discovery.js extracted; card and editor entries are ~210 and ~260 lines.
