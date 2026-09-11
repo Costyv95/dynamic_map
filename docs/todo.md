@@ -51,3 +51,4 @@
 - [x] **Room panel controls** (2026-09-11): brightness slider for dimmable lights, *All off* header button, dead devices last and inert.
 - [x] **Editor shortcuts** (2026-09-11): Ctrl+D duplicates the whole selection; `?` (or ⋯ → Keyboard & mouse) opens the reference.
 - [x] **Refactor** (2026-09-11): card/FloorData.js, card/CardViewport.js, editor/Discovery.js extracted; card and editor entries are ~210 and ~260 lines.
+- [x] **Room panel extras** (2026-09-11): area scenes/scripts as chips (`card/RoomScenes.js`), 24 h temperature sparkline from the history API with a 5-minute cache (`card/RoomHistory.js`).

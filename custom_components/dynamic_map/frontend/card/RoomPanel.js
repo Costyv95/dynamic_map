@@ -1,5 +1,8 @@
 import { areaEntities, describeEntity, controlCall } from './RoomEntities.js?v=3.2.1';
 import { roomAlerts, alertKinds } from './RoomAlerts.js?v=3.2.1';
+import { scenesBar } from './RoomScenes.js?v=3.2.1';
+import { attachTrend } from './RoomHistory.js?v=3.2.1';
+import { roomTemperatureEntity } from './RoomTemperature.js?v=3.2.1';
 
 /**
  * Glass panel that opens with a room's zoom: everything in the room's HA
@@ -44,11 +47,18 @@ export function updateRoomPanel(host, hass) {
     const kinds = alertKinds(host.config);
     const alerts = kinds ? roomAlerts(hass, room, kinds) : [];
     const onIds = shown.filter(id => describeEntity(hass, id).kind === 'toggle' && hass.states[id].state === 'on');
+    const tempId = roomTemperatureEntity(host, hass, room);
+    const trend = document.createElement('div');
+    trend.className = 'dm-rp-trend';
+    trend.hidden = true;
     panel.replaceChildren(
         header(host, room, ids.length, onIds),
+        trend,
         ...(alerts.length ? [attention(host, alerts)] : []),
+        ...[scenesBar(host, hass, room)].filter(Boolean),
         shown.length ? rows(host, hass, shown) : empty(room)
     );
+    if (tempId) attachTrend(host, trend, tempId);
     panel.classList.add('dm-visible');
     host.renderRoot.classList.add('dm-room-panel-open');
 }
