@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { roomAlerts, alertKinds, alertsSignature, buildRoomAlerts, updateRoomAlerts } from '../card/RoomAlerts.js';
+import { roomAlerts, alertKinds, alertsSignature, buildRoomAlerts, updateRoomAlerts, badgeRadius } from '../card/RoomAlerts.js';
 import { buildTempLegend } from '../card/TempLegend.js';
 import { buildQuickActions } from '../card/QuickActions.js';
 import { collectQuickActions } from '../editor/ui/QuickActionsDialog.js';
@@ -52,6 +52,14 @@ describe('room alerts', () => {
         hass.states['binary_sensor.door'].state = 'off';
         updateRoomAlerts(host, hass);
         expect(legend.hidden).toBe(true);
+    });
+
+    it('never renders a badge smaller than a tap target on a small screen', () => {
+        const host = { imgW: 1000, defaultVb: { w: 1000 }, svg: { getBoundingClientRect: () => ({ width: 300 }) } };
+        expect(badgeRadius(host)).toBeCloseTo(11 * 1000 / 300, 3);   // phone: 11px on screen wins over 14 map units
+        host.svg.getBoundingClientRect = () => ({ width: 1200 });
+        expect(badgeRadius(host)).toBe(14);                          // desktop: the image-relative size wins
+        expect(badgeRadius({ imgW: 1000 })).toBe(14);                // no layout yet
     });
 
     it('keeps the digits upright under a rotated and mirrored map', () => {
