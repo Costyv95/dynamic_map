@@ -10,7 +10,7 @@ import { loadIconList } from './editor/ui/RecomputeDialog.js?v=3.2.1';
 import { newObject, newDecor } from './editor/ui/Presets.js?v=3.2.1';
 import { setUiRoot } from './editor/ui/Dialog.js?v=3.2.1';
 
-console.log('[DynamicMapDebug] Map Editor loaded (Version: 3.3.0)');
+console.log('[DynamicMapDebug] Map Editor loaded (Version: 4.0.0)');
 
 /**
  * Editor entry: wires the state manager, the SVG canvas (the card's own

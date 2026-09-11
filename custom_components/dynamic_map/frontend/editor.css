@@ -31,6 +31,8 @@ body { margin: 0; background: var(--dm-bg); color: var(--dm-text); font-family: 
 .dm-toolbar { grid-area: toolbar; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--dm-panel); border-bottom: 1px solid var(--dm-border); overflow-x: auto; scrollbar-width: none; z-index: 20; }
 .dm-toolbar::-webkit-scrollbar { display: none; }
 .dm-toolbar .dm-spacer { flex: 1; }
+.dm-toolbar .dm-chip-row { flex-wrap: nowrap; }
+.dm-toolbar > * { flex: none; }
 .dm-map { grid-area: map; position: relative; overflow: hidden; background: var(--dm-map-bg); display: flex; justify-content: center; align-items: center; touch-action: none; }
 .dm-inspector { grid-area: inspector; background: var(--dm-panel); border-left: 1px solid var(--dm-border); overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; }
 .dm-inspector-handle { display: none; }
