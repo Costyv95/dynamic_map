@@ -225,6 +225,8 @@ export class EditorApp {
     }
 }
 
-if (typeof window !== 'undefined' && !window.__DM_EDITOR_NO_AUTOSTART) {
+// Standalone page (editor.html) boots itself; the HA custom panel imports
+// this module and mounts the app into its own shadow root instead.
+if (typeof document !== 'undefined' && document.getElementById('dm-app') && !window.__DM_EDITOR_NO_AUTOSTART) {
     window.dmEditor = new EditorApp().start();
 }
