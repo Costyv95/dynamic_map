@@ -1,15 +1,14 @@
 import { CameraManager } from './card/CameraManager.js?v=3.2.1';
-import { MapGeometry } from './shared/MapGeometry.js?v=3.2.1';
-import { OverlayManager } from './card/OverlayManager.js?v=3.2.1';
 import { MapBuilder } from './card/MapBuilder.js?v=3.2.1';
 import { CARD_STYLES } from './card/CardStyles.js?v=3.2.1';
 import { computeViewport, mapPointToView, DEFAULT_FLIPS } from './core/Viewport.js?v=3.2.1';
-import { SVG_NS, buildScene, buildRoomPlate, buildWalls, applyViewport, applyShortcutTransforms } from './core/MapScene.js?v=3.2.1';
-import { updateRoomStyles, roomIsOn } from './core/RoomStyles.js?v=3.2.1';
-import { buildAmbientTint, updateAmbientTint } from './card/AmbientTint.js?v=3.2.1';
-import { buildPresenceLayer, updatePresence, animatePresence } from './card/PresenceLayer.js?v=3.2.1';
-import { buildOutsideBar, updateOutsideBar } from './card/OutsideBar.js?v=3.2.1';
-import { buildFocusPill, syncFocusPill, onRoomTap, zoomToRoom, zoomOutToDefault, animateViewBox } from './card/RoomFocus.js?v=3.2.1';
+import { SVG_NS, buildScene, applyViewport } from './core/MapScene.js?v=3.2.1';
+import { roomIsOn } from './core/RoomStyles.js?v=3.2.1';
+import { buildAmbientTint } from './card/AmbientTint.js?v=3.2.1';
+import { buildPresenceLayer, animatePresence } from './card/PresenceLayer.js?v=3.2.1';
+import { buildOutsideBar } from './card/OutsideBar.js?v=3.2.1';
+import { buildFocusPill } from './card/RoomFocus.js?v=3.2.1';
+import { cardDelegates } from './card/CardDelegates.js?v=3.2.1';
 
 /**
  * The Lovelace card. It is the scene host for core/MapScene and the
@@ -186,22 +185,6 @@ class CustomSvgMap extends HTMLElement {
         if (this.renderRoot) this.renderRoot.style.background = paint || '';
     }
 
-    buildRoomPlate() { return buildRoomPlate(this); }
-    buildWalls() { buildWalls(this); }
-    buildAmbientTint() { buildAmbientTint(this); }
-    updateAmbientTint(hass) { updateAmbientTint(this, hass); }
-    buildPresenceLayer() { buildPresenceLayer(this); }
-    updatePresence(hass) { updatePresence(this, hass); }
-    buildOutsideBar() { buildOutsideBar(this); }
-    updateOutsideBar(hass) { updateOutsideBar(this, hass); }
-    onRoomTap(room) { onRoomTap(this, room); }
-    zoomToRoom(room) { zoomToRoom(this, room); }
-    zoomOutToDefault() { zoomOutToDefault(this); }
-    animateViewBox(target, duration) { animateViewBox(this, target, duration); }
-    syncFocusPill() { syncFocusPill(this); }
-    updateRoomStyles() { updateRoomStyles(this); }
-    applyShortcutTransforms(sx, sy) { applyShortcutTransforms(this, sx, sy); }
-
     /** Map a point from image coordinates into viewBox space (flips, then rotation). */
     mapPointToView(px, py) {
         const c = this.transformCenter;
@@ -295,13 +278,9 @@ class CustomSvgMap extends HTMLElement {
         this.animationFrame = requestAnimationFrame((t) => this.animate(t));
     }
 
-    getPolygonCenter(polygon) { return MapGeometry.getPolygonCenter(polygon); }
-    isPointInPolygon(point, vs) { return MapGeometry.isPointInPolygon(point, vs); }
-    getRandomPointInPolygon(polygon) { return MapGeometry.getRandomPointInPolygon(polygon); }
-    showOverlay(shortcut, actions, event) { OverlayManager.showActionMenu(this, shortcut, actions, event); }
-    showRoomSelectionUI() { OverlayManager.showRoomSelectionUI(this); }
-    getCardSize() { return 3; }
 }
+
+Object.assign(CustomSvgMap.prototype, cardDelegates);
 
 if (!customElements.get('custom-svg-map')) {
     customElements.define('custom-svg-map', CustomSvgMap);
