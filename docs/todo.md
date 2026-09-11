@@ -53,3 +53,4 @@
 - [x] **Refactor** (2026-09-11): card/FloorData.js, card/CardViewport.js, editor/Discovery.js extracted; card and editor entries are ~210 and ~260 lines.
 - [x] **Room panel extras** (2026-09-11): area scenes/scripts as chips (`card/RoomScenes.js`), 24 h temperature sparkline from the history API with a 5-minute cache (`card/RoomHistory.js`).
 - [x] **Card search** (2026-09-11): `card/SearchIndex.js` + `card/Search.js`; other floors' data comes from the public JSON files, `whenBuilt()` waits for the floor switch. Room panel CSS moved to `card/RoomPanelStyles.js`.
+- [x] **Room panel on phones** (2026-09-11): bottom sheet capped at 38% of the card (grip: tap/swipe up → 74%, swipe down → collapse, then close); `zoomToRoom` fits the room into the strip above the sheet. Rule: every UI change gets a phone screenshot on prod.
