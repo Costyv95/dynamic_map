@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>card test</title>
+<style>
+  body { margin: 0; background: #111; }
+  #wrap { width: 1200px; height: 700px; }
+  #wrap.portrait { width: 420px; height: 800px; }
+</style>
+</head>
+<body>
+<div id="wrap"><custom-svg-map id="card"></custom-svg-map></div>
+<script type="module">
+  import '/dynamic_map_ui/custom-svg-map.js';
+  const card = document.getElementById('card');
+  window.__errors = [];
+  window.addEventListener('error', e => window.__errors.push(String(e.message)));
+  card.setConfig({ floors: [1, 2], default_floor: 2 });
+  const states = {
+    'light.desk_lamp': { state: 'on', attributes: { brightness: 200, rgb_color: [255, 180, 80] } },
+    'vacuum.silvester': { state: 'docked', attributes: {} },
+    'sensor.room_temperature': { state: '21.4', attributes: { unit_of_measurement: '°C' } },
+    'sun.sun': { state: 'above_horizon', attributes: { elevation: 30 } }
+  };
+  window.__hass = { states, callService: (...a) => (window.__calls = (window.__calls || []).concat([a])), callApi: async () => ({ floors: [1, 2] }) };
+  card.hass = window.__hass;
+  window.__card = card;
+</script>
+</body>
+</html>
