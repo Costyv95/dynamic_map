@@ -26,6 +26,8 @@ export class EditorApp {
         this.state = new EditorStateManager(() => this.ui.refresh(), () => this.canvas.refresh());
         this.canvas = new EditorCanvas(this.container, this.state);
         this.canvas.linkOrientations = localStorage.getItem('dm_editor_link_orientations') !== 'false';
+        // Start on the layout this device would show: a phone held upright edits portrait.
+        if (typeof window !== 'undefined' && window.innerWidth > 0 && window.innerWidth < window.innerHeight) this.canvas.activeMode = 'vertical';
         this.router = new ToolRouter(this.canvas, this.state);
         this.ui = new EditorUI(this);
         this.hassBridge = new HassBridge((hass) => this.canvas.setHass(hass));

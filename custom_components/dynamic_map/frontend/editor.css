@@ -1,28 +1,33 @@
 /* Dynamic Map editor: tokens shared with the card (--dm-*), a toolbar on
    top, the map in the middle, a contextual inspector on the right that
    turns into a bottom sheet on narrow screens. */
-:root {
-    --dm-bg: #f4f4f5; --dm-panel: #ffffff; --dm-accent: #0ea5e9; --dm-accent-soft: rgba(14, 165, 233, 0.12);
-    --dm-text: #1e293b; --dm-muted: #64748b; --dm-input-bg: #f8fafc; --dm-border: #e2e8f0; --dm-hover: #f1f5f9;
-    --dm-danger: #ef4444; --dm-success: #10b981; --dm-map-bg: #ffffff; --dm-shadow: 0 8px 28px rgba(0, 0, 0, 0.14);
-    --dm-radius: 10px; --dm-tap: 40px;
+:root, :host {
+    --dm-bg: var(--primary-background-color, #f4f4f5); --dm-panel: var(--card-background-color, #ffffff);
+    --dm-accent: var(--primary-color, #0ea5e9); --dm-accent-soft: rgba(14, 165, 233, 0.12);
+    --dm-text: var(--primary-text-color, #1e293b); --dm-muted: var(--secondary-text-color, #64748b);
+    --dm-input-bg: var(--secondary-background-color, #f8fafc); --dm-border: var(--divider-color, #e2e8f0); --dm-hover: rgba(127, 127, 127, 0.12);
+    --dm-danger: var(--error-color, #ef4444); --dm-success: var(--success-color, #10b981); --dm-map-bg: var(--card-background-color, #ffffff);
+    --dm-shadow: 0 8px 28px rgba(0, 0, 0, 0.14); --dm-radius: 10px; --dm-tap: 40px;
     /* legacy aliases */
     --accent: var(--dm-accent); --text: var(--dm-text); --muted: var(--dm-muted); --input-bg: var(--dm-input-bg);
     --input-border: var(--dm-border); --btn-hover: var(--dm-hover); --panel: var(--dm-panel); --bg: var(--dm-bg);
     --border: var(--dm-border); --bg-primary: var(--dm-panel); --canvas-bg: var(--dm-map-bg); --danger: var(--dm-danger);
 }
+/* Standalone page (no HA theme variables): follow the OS scheme. */
 @media (prefers-color-scheme: dark) {
     :root {
-        --dm-bg: #0f172a; --dm-panel: #1e293b; --dm-text: #e2e8f0; --dm-muted: #94a3b8; --dm-input-bg: #0f172a;
-        --dm-border: #334155; --dm-hover: #334155; --dm-map-bg: #1e293b; --dm-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+        --dm-bg: var(--primary-background-color, #0f172a); --dm-panel: var(--card-background-color, #1e293b);
+        --dm-text: var(--primary-text-color, #e2e8f0); --dm-muted: var(--secondary-text-color, #94a3b8);
+        --dm-input-bg: var(--secondary-background-color, #0f172a); --dm-border: var(--divider-color, #334155);
+        --dm-map-bg: var(--card-background-color, #1e293b); --dm-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
     }
 }
+:host { display: block; height: 100vh; height: 100dvh; color: var(--dm-text); font-family: var(--primary-font-family, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif); font-size: 13px; }
+:host .dm-app { height: 100%; }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body { margin: 0; background: var(--dm-bg); color: var(--dm-text); font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 13px; overflow: hidden; }
 .dm-app { display: grid; grid-template-columns: 1fr 360px; grid-template-rows: auto 1fr; grid-template-areas: "toolbar toolbar" "map inspector"; height: 100vh; height: 100dvh; }
-:host { display: block; height: 100%; }
-:host .dm-app { height: 100%; }
 .dm-toolbar { grid-area: toolbar; display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--dm-panel); border-bottom: 1px solid var(--dm-border); overflow-x: auto; scrollbar-width: none; z-index: 20; }
 .dm-toolbar::-webkit-scrollbar { display: none; }
 .dm-toolbar .dm-spacer { flex: 1; }
