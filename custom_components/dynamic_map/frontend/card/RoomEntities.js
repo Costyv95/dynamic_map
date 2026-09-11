@@ -42,6 +42,14 @@ const ICONS = {
 
 /** Display model for one entity: { id, name, icon, value, kind, on }. */
 export function describeEntity(hass, id) {
+    const d = describeLive(hass, id);
+    const s = hass.states[id].state;
+    d.unavailable = s === 'unavailable' || s === 'unknown';
+    if (d.unavailable) { d.value = s === 'unknown' ? 'Unknown' : 'Unavailable'; d.on = false; }
+    return d;
+}
+
+function describeLive(hass, id) {
     const st = hass.states[id];
     const domain = id.split('.')[0];
     const a = st.attributes || {};
