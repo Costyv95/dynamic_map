@@ -9,6 +9,7 @@ import { buildPresenceLayer, animatePresence } from './card/PresenceLayer.js?v=3
 import { buildOutsideBar } from './card/OutsideBar.js?v=3.2.1';
 import { buildFocusPill } from './card/RoomFocus.js?v=3.2.1';
 import { cardDelegates } from './card/CardDelegates.js?v=3.2.1';
+import { buildRoomPanelEl, updateRoomPanel, hideRoomPanel } from './card/RoomPanel.js?v=3.2.1';
 
 /**
  * The Lovelace card. It is the scene host for core/MapScene and the
@@ -171,6 +172,7 @@ class CustomSvgMap extends HTMLElement {
         this.topLeftUI.appendChild(MapBuilder.buildRotationSwitcher(this));
         buildFocusPill(this);
         buildOutsideBar(this);
+        buildRoomPanelEl(this);
 
         if (this.cameraManager) this.cameraManager.destroy();
         this.cameraManager = new CameraManager(this.svg, this);
@@ -212,6 +214,7 @@ class CustomSvgMap extends HTMLElement {
     calculateAutoCrop() {
         this.focusedRoomId = null;
         this.syncFocusPill();
+        hideRoomPanel(this);
         const rect = this.getBoundingClientRect();
         const vp = computeViewport({
             rooms: this.rooms, imgW: this.imgW, imgH: this.imgH,
@@ -265,6 +268,7 @@ class CustomSvgMap extends HTMLElement {
         this.updateOutsideBar(hass);
         this.updateAmbientTint(hass);
         this.updatePresence(hass);
+        updateRoomPanel(this, hass);
     }
 
     animate(currentTime) {
