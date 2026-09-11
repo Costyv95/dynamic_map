@@ -103,6 +103,7 @@ export class ToolRouter {
         }
         if (e.key === 'Escape' && !typing && !this.state.drawingPolygon && !this.state.drawingWall) {
             this.state.selectedShortcutIdx = -1;
+            this.state.selectedExtra = [];
             this.state.selectedRooms = [];
             this.state.selectedWallIdx = -1;
             this.state.updateUICallback();

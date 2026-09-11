@@ -44,4 +44,4 @@
 - [ ] **Room panel on the editor side:** show the same area device list when a room is selected, with the import button per device.
 - [x] **Quick actions in the editor:** ⋯ → Quick actions edits the global `quick_actions.json`.
 - [x] **Temperature legend:** shown while `room_temperature` is on.
-- [ ] **Multi-select:** shift-click several badges and move them together.
+- [x] **Multi-select:** shift-click, group move, align/distribute/match size, delete all.

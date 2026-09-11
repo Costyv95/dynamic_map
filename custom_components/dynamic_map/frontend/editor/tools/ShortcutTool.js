@@ -20,6 +20,13 @@ export class ShortcutTool {
 
     get sc() { return this.state.shortcuts[this.state.selectedShortcutIdx]; }
 
+    /** Selected indices, primary first (plain state stubs may lack the helper). */
+    selection() {
+        const st = this.state;
+        if (typeof st.selectionIndices === 'function') return st.selectionIndices();
+        return st.selectedShortcutIdx !== -1 ? [st.selectedShortcutIdx] : [];
+    }
+
     geomOpts() {
         const state = this.state;
         const sc = this.sc;
@@ -39,6 +46,7 @@ export class ShortcutTool {
 
     select(idx) {
         this.state.selectedShortcutIdx = idx;
+        this.state.selectedExtra = [];
         this.state.selectedRooms = [];
         this.state.selectedWallIdx = -1;
         this.state.updateUICallback();
@@ -58,10 +66,21 @@ export class ShortcutTool {
             const sc = this.state.shortcuts[idx];
             const layer = (sc.config && sc.config.decor) ? 'decor' : 'objects';
             if (layer !== this.state.activeLayer) return false;
-            if (idx !== this.state.selectedShortcutIdx) this.select(idx);
+            if (e.shiftKey && typeof this.state.toggleExtraSelection === 'function') { this.state.toggleExtraSelection(idx); return true; }
+            const inSelection = this.selection().includes(idx);
+            if (!inSelection) this.select(idx);
+            else if (idx !== this.state.selectedShortcutIdx) {
+                // Dragging an extra makes it the reference without dropping the others.
+                this.state.selectedExtra = this.selection().filter(i => i !== idx);
+                this.state.selectedShortcutIdx = idx;
+                this.state.updateUICallback();
+            }
             const f = this.frame();
             // Keep the grab point: dragging moves by the pointer's delta.
             this.grab = { dx: f.x - pt.x, dy: f.y - pt.y };
+            // Companions move by the same delta as the reference.
+            this.companions = this.selection().filter(i => i !== this.state.selectedShortcutIdx)
+                .map(i => { const s = this.state.shortcuts[i]; const cf = shortcutFrame(s, this.geomOpts()); return { sc: s, dx: cf.x - f.x, dy: cf.y - f.y }; });
             const c = this.canvas;
             this.targets = snapTargets({ shortcuts: this.state.shortcuts, rooms: this.state.rooms, imgW: c.imgW, imgH: c.imgH,
                 mode: c.activeMode, excludeId: sc.id, hass: c._hass });
@@ -86,6 +105,7 @@ export class ShortcutTool {
                 this.state.snapGuides = snapped.guides.length ? snapped.guides : null;
             }
             writeFrame(this.sc, { x, y }, opts);
+            (this.companions || []).forEach(c => writeFrame(c.sc, { x: x + c.dx, y: y + c.dy }, opts));
         } else if (this.mode === 'rotate') {
             this.applyRotate(pt, opts);
         } else {
@@ -125,8 +145,12 @@ export class ShortcutTool {
     /** Arrow keys: move the selection by 1 map unit (Shift: 10). */
     nudge(dx, dy) {
         if (!this.sc) return false;
-        const f = this.frame();
-        writeFrame(this.sc, { x: f.x + dx, y: f.y + dy }, { ...this.geomOpts(), mode: this.writeMode() });
+        const o = { ...this.geomOpts(), mode: this.writeMode() };
+        this.selection().forEach(i => {
+            const s = this.state.shortcuts[i];
+            const f = shortcutFrame(s, { ...this.geomOpts(), state: null });
+            writeFrame(s, { x: f.x + dx, y: f.y + dy }, o);
+        });
         this.state.saveState();
         this.state.requestDrawCallback();
         return true;
@@ -137,6 +161,7 @@ export class ShortcutTool {
         this.mode = null;
         this.state.snapGuides = null;
         this.targets = null;
+        this.companions = null;
         if (!was) return false;
         if (this.moved) {
             this.state.saveState();
