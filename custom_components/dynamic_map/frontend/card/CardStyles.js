@@ -246,7 +246,7 @@ export const CARD_STYLES = `
     .dm-rp-scene:hover { background: rgba(127,127,127,0.22); }
     .dm-rp-scene.dm-fired { background: var(--dm-accent); color: #fff; transform: scale(0.96); }
     .dm-rp-row.dm-rp-dim { flex-wrap: wrap; }
-    .dm-rp-slider { flex: 1 0 100%; order: 10; margin: 0 4px 4px 30px; height: 22px; accent-color: var(--dm-accent); cursor: pointer; }
+    .dm-rp-slider { flex: 0 0 calc(100% - 34px); order: 10; margin: 0 4px 4px 30px; height: 22px; accent-color: var(--dm-accent); cursor: pointer; min-width: 0; }
     .dm-rp-alloff { min-height: 26px; padding: 2px 10px; border: 1px solid var(--dm-glass-border); border-radius: 999px; background: rgba(127,127,127,0.12); color: inherit; cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; white-space: nowrap; }
     .dm-rp-alloff:hover { background: rgba(127,127,127,0.22); }
     .dm-rp-row.dm-rp-unavailable .dm-rp-value { font-style: italic; }
