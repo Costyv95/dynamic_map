@@ -94,6 +94,7 @@ export function animatePresence(host, deltaTime) {
     const k = 1 - Math.exp(-deltaTime * 3);
     host._presenceDots.forEach(dot => {
         if (!dot.visible) return;
+        if (Math.abs(dot.tx - dot.curX) < 0.05 && Math.abs(dot.ty - dot.curY) < 0.05) return;   // settled: nothing to write
         dot.curX += (dot.tx - dot.curX) * k;
         dot.curY += (dot.ty - dot.curY) * k;
         dot.el.setAttribute('transform', `translate(${dot.curX.toFixed(1)}, ${dot.curY.toFixed(1)})`);

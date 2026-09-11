@@ -116,8 +116,78 @@ export function zoomOutToDefault(host) {
 }
 
 /** Smoothly interpolate the SVG viewBox to a target rectangle. */
+const EASE = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+const EASE_CSS = 'cubic-bezier(0.65, 0, 0.35, 1)';
+
+/** The viewBox the running zoom is currently showing (interpolated), or host.vb. */
+function currentVb(host) {
+    const a = host._vbAnim;
+    if (!a) return { ...host.vb };
+    const t = Math.max(0, Math.min(1, (performance.now() - a.start) / a.duration));
+    const k = EASE(t);
+    return { x: a.from.x + (a.to.x - a.from.x) * k, y: a.from.y + (a.to.y - a.from.y) * k, w: a.from.w + (a.to.w - a.from.w) * k, h: a.from.h + (a.to.h - a.from.h) * k };
+}
+
+/** Stop a running zoom where it is: commit the interpolated viewBox and drop the transform. */
+export function settleViewBox(host) {
+    if (!host._vbAnim) return;
+    const vb = currentVb(host);
+    host._vbAnim.anim.cancel();
+    host._vbAnim = null;
+    host.svg.style.transform = '';
+    host.svg.style.willChange = '';
+    host.vb = vb;
+    host.updateViewBox();
+}
+
+/**
+ * CSS transform that makes the svg (currently showing `from`) look like it
+ * shows `to`: scale about the top-left, then shift so `to`'s origin lands
+ * where `from`'s origin was (same aspect for both, as all zoom targets are).
+ */
+export function zoomTransform(from, to, rect) {
+    const ppu = Math.min(rect.width / from.w, rect.height / from.h);
+    const ox = (rect.width - from.w * ppu) / 2, oy = (rect.height - from.h * ppu) / 2;
+    const s = Math.min(from.w / to.w, from.h / to.h);
+    const X = ox + (to.x - from.x) * ppu, Y = oy + (to.y - from.y) * ppu;
+    return `translate(${(ox - X * s).toFixed(2)}px, ${(oy - Y * s).toFixed(2)}px) scale(${s.toFixed(5)})`;
+}
+
+/**
+ * Zoom the map to `target`. The animation is a compositor transform on the
+ * svg (no per-frame re-layout or re-raster of badges and filters); the
+ * real viewBox is written once at the end.
+ */
 export function animateViewBox(host, target, duration = ZOOM_ANIMATION_MS) {
-    if (host._vbAnimFrame) cancelAnimationFrame(host._vbAnimFrame);
+    if (host._vbAnimFrame) { cancelAnimationFrame(host._vbAnimFrame); host._vbAnimFrame = null; }
+    const svg = host.svg;
+    const canComposite = svg && typeof svg.animate === 'function' && typeof requestAnimationFrame === 'function';
+    if (!canComposite) { animateViewBoxByFrames(host, target, duration); return; }
+    const from = currentVb(host);
+    if (host._vbAnim) { host._vbAnim.anim.cancel(); host._vbAnim = null; }
+    // Draw `from` for real, then let the compositor carry the motion.
+    host.vb = from;
+    host.updateViewBox();
+    const rect = svg.getBoundingClientRect();
+    if (!(rect.width > 0 && rect.height > 0)) { host.vb = { ...target }; host.updateViewBox(); return; }
+    svg.style.transformOrigin = '0 0';
+    svg.style.willChange = 'transform';
+    const anim = svg.animate([{ transform: 'none' }, { transform: zoomTransform(from, target, rect) }], { duration, easing: EASE_CSS, fill: 'forwards' });
+    const entry = { anim, from, to: { ...target }, start: performance.now(), duration };
+    host._vbAnim = entry;
+    anim.onfinish = () => {
+        if (host._vbAnim !== entry) return;
+        host._vbAnim = null;
+        host.vb = { ...target };
+        host.updateViewBox();
+        anim.cancel();
+        svg.style.transform = '';
+        svg.style.willChange = '';
+    };
+}
+
+/** Fallback without the Web Animations API: interpolate the viewBox per frame. */
+function animateViewBoxByFrames(host, target, duration) {
     if (typeof requestAnimationFrame !== 'function') {
         host.vb = { ...target };
         host.updateViewBox();
@@ -125,16 +195,10 @@ export function animateViewBox(host, target, duration = ZOOM_ANIMATION_MS) {
     }
     const from = { ...host.vb };
     const start = performance.now();
-    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
     const step = (now) => {
         const t = Math.min(1, (now - start) / duration);
-        const k = ease(t);
-        host.vb = {
-            x: from.x + (target.x - from.x) * k,
-            y: from.y + (target.y - from.y) * k,
-            w: from.w + (target.w - from.w) * k,
-            h: from.h + (target.h - from.h) * k
-        };
+        const k = EASE(t);
+        host.vb = { x: from.x + (target.x - from.x) * k, y: from.y + (target.y - from.y) * k, w: from.w + (target.w - from.w) * k, h: from.h + (target.h - from.h) * k };
         host.updateViewBox();
         host._vbAnimFrame = (t < 1) ? requestAnimationFrame(step) : null;
     };
