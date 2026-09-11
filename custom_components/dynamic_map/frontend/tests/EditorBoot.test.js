@@ -18,7 +18,7 @@ const SHORTCUTS = [
 const CONFIG = { rotation_mode: 'auto', walls: [{ id: 'w1', points: [[10, 60], [60, 60]], thickness: 8 }] };
 
 function mockFetch(url) {
-    const json = (data) => Promise.resolve({ ok: true, json: () => Promise.resolve(data) });
+    const json = (data) => Promise.resolve({ ok: true, json: () => Promise.resolve(JSON.parse(JSON.stringify(data))) });   // fresh copies: tests mutate
     if (url.includes('rooms_floor1')) return json(ROOMS);
     if (url.includes('shortcuts_floor1')) return json(SHORTCUTS);
     if (url.includes('config_floor1')) return json(CONFIG);
@@ -130,5 +130,20 @@ describe('editor boot through the real entry point', () => {
         const cfg = calls.find(c => c.filename === 'config_floor1.json');
         expect(cfg.content.walls.length).toBe(1);
         expect(cfg.content.rotation_mode).toBe('auto');
+    });
+
+    it('switchFloor loads the floor on the first call even when it equals the state default', async () => {
+        document.body.innerHTML = body;
+        localStorage.clear();
+        const mod = await import('../editor.js');
+        const fresh = new mod.EditorApp();
+        expect(fresh.state.activeFloor).toBe('2');
+        fresh.setFloors([1, 2]);
+        global.fetch = vi.fn((url) => mockFetch(String(url).replace('floor2', 'floor1')));
+        await fresh.switchFloor(2);
+        expect(fresh.loadedFloor).toBe(2);
+        expect(fresh.state.shortcuts.length).toBe(2);
+        await fresh.switchFloor(2);   // same floor again: no reload, no prompt
+        fresh.hassBridge.stop();
     });
 });

@@ -109,7 +109,7 @@ export class EditorApp {
     }
 
     async switchFloor(n) {
-        if (String(n) === String(this.state.activeFloor)) return;
+        if (this.loadedFloor !== undefined && String(n) === String(this.loadedFloor)) return;
         if (this.dirty.dirty) {
             const ok = await confirmDialog('Unsaved changes', `Save floor ${this.state.activeFloor} before switching?`, { okLabel: 'Save and switch' });
             if (ok) { try { await this.save(); } catch (e) { this.ui.toast(`Save failed: ${e.message}`, 'error'); return; } }
@@ -147,6 +147,7 @@ export class EditorApp {
         state.saveState();
         if (restored) this.dirty.bump(); else this.dirty.markSaved();
         this.canvas.loadFloor({ bgUrl, imgW: dims.w, imgH: dims.h, config: restored ? { ...(data.config || {}), ...(draft.config || {}) } : data.config });
+        this.loadedFloor = floorNum;
         this.ui.toolbar.setActiveFloor(floorNum);
         this.ui.refresh();
     }
