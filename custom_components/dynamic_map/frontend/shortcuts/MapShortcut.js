@@ -16,6 +16,9 @@ import { collectEntities, snapshotStates, statesChanged } from './ShortcutDeps.j
  * glow / activity effects. The editor mounts the same class, so what you
  * edit is what the dashboard shows.
  */
+/** States that read as "off" for the one-artwork look (TVs and projectors report standby). */
+const OFF_STATES = ['off', 'standby'];
+
 export class MapShortcut {
     constructor(scData, svgNS, imgW, imgH, mapContext) {
         this.sc = scData;
@@ -187,7 +190,9 @@ export class MapShortcut {
         if (this.iconImage && !(this.config.states && this.config.states.length) && !isUnavailable) {
             const tgt = this.sc.entity_id || this.config.state_entity;
             const stObj = tgt && hass && hass.states ? hass.states[tgt] : null;
-            this.contentGroup.style.filter = (stObj && stObj.state === 'off') ? 'grayscale(55%) brightness(0.75)' : '';
+            const off = !!stObj && OFF_STATES.includes(stObj.state);
+            this.contentGroup.style.opacity = off ? '0.45' : '';
+            this.contentGroup.style.filter = '';
         }
         return true;
     }

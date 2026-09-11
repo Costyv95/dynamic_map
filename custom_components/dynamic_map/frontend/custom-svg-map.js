@@ -7,7 +7,7 @@ import { roomIsOn } from './core/RoomStyles.js?v=3.2.1';
 import { buildAmbientTint } from './card/AmbientTint.js?v=3.2.1';
 import { buildPresenceLayer, animatePresence } from './card/PresenceLayer.js?v=3.2.1';
 import { buildOutsideBar } from './card/OutsideBar.js?v=3.2.1';
-import { buildFocusPill } from './card/RoomFocus.js?v=3.2.1';
+import { buildFocusPill, settleViewBox } from './card/RoomFocus.js?v=3.2.1';
 import { cardDelegates } from './card/CardDelegates.js?v=3.2.1';
 import { buildRoomPanelEl } from './card/RoomPanel.js?v=3.2.1';
 import { buildQuickActions } from './card/QuickActions.js?v=3.2.1';
@@ -23,6 +23,8 @@ import { buildSearch } from './card/Search.js?v=3.2.1';
  * mapContext for every MapShortcut; the heavy lifting lives in core/ and
  * card/ modules that build into this element.
  */
+const FX_FRAME_S = 1 / 30;   // effects need no more than 30 fps; halves the raster work on phones
+
 class CustomSvgMap extends HTMLElement {
     constructor() {
         super();
@@ -50,6 +52,10 @@ class CustomSvgMap extends HTMLElement {
     }
 
     connectedCallback() {
+        if (!this._onVisible) {
+            this._onVisible = () => { if (!document.hidden) this.resumeAnimation(); };
+            document.addEventListener('visibilitychange', this._onVisible);
+        }
         if (!this.resizeObserver) {
             this.resizeObserver = new ResizeObserver(() => {
                 if (this.rooms && this.rooms.length > 0 && this.imgW && this.imgH) this.calculateAutoCrop();
@@ -59,6 +65,7 @@ class CustomSvgMap extends HTMLElement {
     }
 
     disconnectedCallback() {
+        if (this._onVisible) { document.removeEventListener('visibilitychange', this._onVisible); this._onVisible = null; }
         if (this.resizeObserver) { this.resizeObserver.disconnect(); this.resizeObserver = null; }
         if (this.cameraManager) { this.cameraManager.destroy(); this.cameraManager = null; }
         if (this.animationFrame) { cancelAnimationFrame(this.animationFrame); this.animationFrame = null; }
@@ -148,6 +155,7 @@ class CustomSvgMap extends HTMLElement {
     /** Called by CameraManager when the user starts a manual pan/pinch/wheel. */
     onManualCameraStart() {
         if (this._vbAnimFrame) { cancelAnimationFrame(this._vbAnimFrame); this._vbAnimFrame = null; }
+        settleViewBox(this);
     }
 
     /** Called by CameraManager when a manual zoom snaps back to the full view. */
@@ -191,15 +199,28 @@ class CustomSvgMap extends HTMLElement {
 
 
 
+    /** Effects loop (glow breathing, equaliser, dust, presence dots) at ~30 fps; parked while the tab is hidden. */
     animate(currentTime) {
+        this.animationFrame = null;
+        if (typeof document !== 'undefined' && document.hidden) { this._parked = true; return; }
         const deltaTime = (currentTime - this.lastTime) / 1000;
-        this.lastTime = currentTime;
-        for (const id in this.shortcutElements) {
-            const obj = this.shortcutElements[id];
-            if (obj.animate) obj.animate(deltaTime);
+        if (deltaTime >= FX_FRAME_S) {
+            this.lastTime = currentTime;
+            for (const id in this.shortcutElements) {
+                const obj = this.shortcutElements[id];
+                if (obj.animate) obj.animate(deltaTime);
+            }
+            animatePresence(this, deltaTime);
         }
-        animatePresence(this, deltaTime);
         this.animationFrame = requestAnimationFrame((t) => this.animate(t));
+    }
+
+    /** Resume the effects loop after the tab becomes visible again. */
+    resumeAnimation() {
+        if (!this._parked || this.animationFrame || !this.svg) return;
+        this._parked = false;
+        this.lastTime = performance.now();
+        this.animate(this.lastTime);
     }
 
 }
