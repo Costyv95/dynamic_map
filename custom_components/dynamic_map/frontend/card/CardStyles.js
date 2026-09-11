@@ -242,7 +242,7 @@ export const CARD_STYLES = `
     .dm-render-root.dm-room-panel-open .dm-alert-legend { opacity: 0; pointer-events: none; }
     .dm-room-alert circle { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
     /* Search */
-    .dm-search { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 28px)); z-index: 30; background: var(--dm-glass); border: 1px solid var(--dm-glass-border); border-radius: 18px; box-shadow: var(--dm-shadow); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); overflow: hidden; }
+    .dm-search { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 28px)); z-index: 30; background: color-mix(in srgb, var(--card-background-color, #ffffff) 94%, transparent); border: 1px solid var(--dm-glass-border); border-radius: 18px; box-shadow: var(--dm-shadow); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); overflow: hidden; }
     .dm-search input { width: 100%; box-sizing: border-box; border: none; background: transparent; color: var(--dm-text); font: inherit; font-size: 15px; padding: 12px 16px; outline: none; }
     .dm-search-results { max-height: min(320px, 50vh); overflow-y: auto; border-top: 1px solid var(--dm-glass-border); padding: 4px; }
     .dm-search-results[hidden] { display: none; }
