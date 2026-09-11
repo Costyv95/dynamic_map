@@ -35,7 +35,7 @@ export function hideRoomPanel(host) {
 export function updateRoomPanel(host, hass) {
     const panel = host.roomPanel;
     const room = host._roomPanelRoom;
-    if (!panel || !room || !hass) return;
+    if (!panel || !room || !hass || host._rpDragging) return;   // never re-render under a finger on a slider
     const ids = room.area_id ? areaEntities(hass, room.area_id) : [];
     if (room.entity_id && hass.states[room.entity_id] && !ids.includes(room.entity_id)) ids.unshift(room.entity_id);
     const max = Number(host.config.room_panel_max) > 0 ? Number(host.config.room_panel_max) : 12;
@@ -43,8 +43,9 @@ export function updateRoomPanel(host, hass) {
     const shown = [...ids.filter(id => !dead(id)), ...ids.filter(dead)].slice(0, max);   // live controls first
     const kinds = alertKinds(host.config);
     const alerts = kinds ? roomAlerts(hass, room, kinds) : [];
+    const onIds = shown.filter(id => describeEntity(hass, id).kind === 'toggle' && hass.states[id].state === 'on');
     panel.replaceChildren(
-        header(host, room, ids.length),
+        header(host, room, ids.length, onIds),
         ...(alerts.length ? [attention(host, alerts)] : []),
         shown.length ? rows(host, hass, shown) : empty(room)
     );
@@ -52,12 +53,15 @@ export function updateRoomPanel(host, hass) {
     host.renderRoot.classList.add('dm-room-panel-open');
 }
 
-function header(host, room, count) {
+function header(host, room, count, onIds = []) {
     const h = document.createElement('div');
     h.className = 'dm-rp-head';
-    h.innerHTML = `<span class="dm-rp-title"></span><span class="dm-rp-count"></span><button class="dm-rp-close" title="Close">✕</button>`;
+    h.innerHTML = `<span class="dm-rp-title"></span><span class="dm-rp-count"></span><button class="dm-rp-alloff" title="Switch off everything that is on in this room">All off</button><button class="dm-rp-close" title="Close">✕</button>`;
     h.querySelector('.dm-rp-title').textContent = room.name || 'Room';
     h.querySelector('.dm-rp-count').textContent = count ? `${count}` : '';
+    const off = h.querySelector('.dm-rp-alloff');
+    off.hidden = onIds.length === 0;
+    off.addEventListener('click', () => { if (host._hass) host._hass.callService('homeassistant', 'turn_off', { entity_id: onIds }); });
     h.querySelector('.dm-rp-close').addEventListener('click', () => host.zoomOutToDefault());
     return h;
 }
@@ -101,6 +105,22 @@ function rows(host, hass, ids) {
     return list;
 }
 
+/** Brightness slider under a dimmable light; the row's toggle stays on the switch. */
+function slider(host, d, r, call) {
+    r.classList.add('dm-rp-dim');
+    const s = document.createElement('input');
+    s.type = 'range'; s.min = '1'; s.max = '100'; s.value = String(d.brightness || 50);
+    s.className = 'dm-rp-slider';
+    s.title = 'Brightness';
+    s.addEventListener('click', (e) => e.stopPropagation());
+    s.addEventListener('pointerdown', (e) => { e.stopPropagation(); host._rpDragging = true; });
+    s.addEventListener('input', () => { r.querySelector('.dm-rp-value').textContent = `${s.value}%`; });
+    const commit = () => { host._rpDragging = false; call(controlCall(d, 'brightness', Number(s.value))); r.classList.add('dm-on'); };
+    s.addEventListener('change', commit);
+    s.addEventListener('pointercancel', () => { host._rpDragging = false; });
+    return s;
+}
+
 function row(host, d) {
     const r = document.createElement('div');
     r.className = `dm-rp-row dm-rp-${d.kind}${d.on ? ' dm-on' : ''}`;
@@ -110,6 +130,7 @@ function row(host, d) {
     r.querySelector('.dm-rp-value').textContent = d.value;
     r.title = d.name;
     const call = (c) => { if (c && host._hass) host._hass.callService(c.domain, c.service, c.data); };
+    if (d.dimmable && !d.unavailable) r.appendChild(slider(host, d, r, call));
     if (d.unavailable) {
         // No controls for a dead device: the row only opens more-info (where HA explains why).
         r.classList.add('dm-rp-unavailable');

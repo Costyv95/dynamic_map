@@ -17,7 +17,7 @@ function makeHass() {
         },
         devices: { d1: { area_id: 'office' } },
         states: {
-            'light.desk': { state: 'on', attributes: { friendly_name: 'Desk lamp' } },
+            'light.desk': { state: 'on', attributes: { friendly_name: 'Desk lamp', supported_color_modes: ['brightness'], brightness: 128 } },
             'switch.fan': { state: 'off', attributes: { friendly_name: 'Fan' } },
             'sensor.temp': { state: '21.44', attributes: { friendly_name: 'Temperature', device_class: 'temperature', unit_of_measurement: '°C' } },
             'sensor.diag': { state: '1', attributes: {} },
@@ -46,7 +46,8 @@ describe('RoomEntities', () => {
 
     it('describes each kind with a value and an on flag', () => {
         const h = makeHass();
-        expect(describeEntity(h, 'light.desk')).toMatchObject({ kind: 'toggle', on: true, value: 'On', name: 'Desk lamp', icon: '💡' });
+        expect(describeEntity(h, 'light.desk')).toMatchObject({ kind: 'toggle', on: true, value: '50%', name: 'Desk lamp', icon: '💡', dimmable: true, brightness: 50 });
+        expect(controlCall(describeEntity(h, 'light.desk'), 'brightness', 73)).toEqual({ domain: 'light', service: 'turn_on', data: { entity_id: 'light.desk', brightness_pct: 73 } });
         expect(describeEntity(h, 'sensor.temp')).toMatchObject({ kind: 'value', value: '21.4°C' });
         expect(describeEntity(h, 'climate.ac')).toMatchObject({ kind: 'climate', value: '22°', current: 24.5, target: 22, step: 1 });
         expect(describeEntity(h, 'binary_sensor.door')).toMatchObject({ kind: 'binary', value: 'Open', on: true });
@@ -85,6 +86,40 @@ describe('RoomPanel', () => {
         expect(h.dispatchEvent.mock.calls[0][0].detail).toEqual({ entityId: 'binary_sensor.door' });
         hideRoomPanel(h);
         expect(h.roomPanel.classList.contains('dm-visible')).toBe(false);
+    });
+
+    it('dimmable lights get a brightness slider that sets brightness_pct on release and blocks re-render while dragging', () => {
+        const hass = makeHass();
+        const h = host(hass);
+        buildRoomPanelEl(h);
+        showRoomPanel(h, { id: 'r', name: 'Office', area_id: 'office' });
+        const row = h.roomPanel.querySelector('.dm-rp-list .dm-rp-row');
+        const s = row.querySelector('.dm-rp-slider');
+        expect(row.classList.contains('dm-rp-dim')).toBe(true);
+        expect(s.value).toBe('50');
+        s.dispatchEvent(new Event('pointerdown'));
+        s.value = '80';
+        s.dispatchEvent(new Event('input'));
+        expect(row.querySelector('.dm-rp-value').textContent).toBe('80%');
+        updateRoomPanel(h, hass);                                   // mid-drag: nothing re-rendered
+        expect(h.roomPanel.querySelector('.dm-rp-slider')).toBe(s);
+        s.dispatchEvent(new Event('change'));
+        expect(hass.callService).toHaveBeenCalledWith('light', 'turn_on', { entity_id: 'light.desk', brightness_pct: 80 });
+        expect(h._rpDragging).toBe(false);
+    });
+
+    it('"All off" switches off what is on in the room and hides when nothing is', () => {
+        const hass = makeHass();
+        const h = host(hass);
+        buildRoomPanelEl(h);
+        showRoomPanel(h, { id: 'r', name: 'Office', area_id: 'office' });
+        const btn = h.roomPanel.querySelector('.dm-rp-alloff');
+        expect(btn.hidden).toBe(false);
+        btn.click();
+        expect(hass.callService).toHaveBeenCalledWith('homeassistant', 'turn_off', { entity_id: ['light.desk'] });
+        hass.states['light.desk'].state = 'off';
+        updateRoomPanel(h, hass);
+        expect(h.roomPanel.querySelector('.dm-rp-alloff').hidden).toBe(true);
     });
 
     it('renders unavailable devices without controls; the row opens more-info', () => {

@@ -168,3 +168,10 @@ button.primary.dm-dirty { background: #f59e0b; border-color: #f59e0b; }
     .dm-toolbar .dm-brand { display: none; }
     .dm-dialog-foot button { flex: 1; }
 }
+
+/* Shortcut reference dialog */
+.dm-help-group h4 { margin: 10px 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--dm-muted); }
+.dm-help-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.dm-help-table td { padding: 4px 6px 4px 0; vertical-align: top; }
+.dm-help-table td:first-child { white-space: nowrap; width: 38%; }
+.dm-help-table kbd { font-family: inherit; font-size: 11px; padding: 1px 6px; border: 1px solid var(--dm-border); border-bottom-width: 2px; border-radius: 4px; background: var(--dm-input-bg); }

@@ -1,18 +1,20 @@
 import { CameraManager } from './card/CameraManager.js?v=3.2.1';
 import { MapBuilder } from './card/MapBuilder.js?v=3.2.1';
 import { CARD_STYLES } from './card/CardStyles.js?v=3.2.1';
-import { computeViewport, mapPointToView, DEFAULT_FLIPS } from './core/Viewport.js?v=3.2.1';
-import { SVG_NS, buildScene, applyViewport } from './core/MapScene.js?v=3.2.1';
+import { mapPointToView } from './core/Viewport.js?v=3.2.1';
+import { SVG_NS, buildScene } from './core/MapScene.js?v=3.2.1';
 import { roomIsOn } from './core/RoomStyles.js?v=3.2.1';
 import { buildAmbientTint } from './card/AmbientTint.js?v=3.2.1';
 import { buildPresenceLayer, animatePresence } from './card/PresenceLayer.js?v=3.2.1';
 import { buildOutsideBar } from './card/OutsideBar.js?v=3.2.1';
 import { buildFocusPill } from './card/RoomFocus.js?v=3.2.1';
 import { cardDelegates } from './card/CardDelegates.js?v=3.2.1';
-import { buildRoomPanelEl, hideRoomPanel } from './card/RoomPanel.js?v=3.2.1';
+import { buildRoomPanelEl } from './card/RoomPanel.js?v=3.2.1';
 import { buildQuickActions } from './card/QuickActions.js?v=3.2.1';
 import { tintSignature } from './card/RoomTemperature.js?v=3.2.1';
-import { buildRoomAlerts, updateRoomAlerts } from './card/RoomAlerts.js?v=3.2.1';
+import { buildRoomAlerts } from './card/RoomAlerts.js?v=3.2.1';
+import { discoverFloors, floorLabel, loadData } from './card/FloorData.js?v=3.2.1';
+import { applyAutoCrop } from './card/CardViewport.js?v=3.2.1';
 import { buildTempLegend } from './card/TempLegend.js?v=3.2.1';
 
 /**
@@ -76,74 +78,11 @@ class CustomSvgMap extends HTMLElement {
         }
     }
 
-    async discoverFloors(hass) {
-        this._needsFloorDiscovery = false;
-        let floors = [1];
-        try {
-            const data = await hass.callApi('GET', 'dynamic_map/floors');
-            if (data && data.floors && data.floors.length) floors = data.floors;
-            if (data && data.names) this._floorNames = data.names;
-        } catch (e) {
-            console.warn('[custom-svg-map] Floor discovery failed, defaulting to floor 1', e);
-        }
-        this.config.floors = floors;
-        const preferred = this.config.default_floor || this.config.floor;
-        this.activeFloor = floors.includes(preferred) ? preferred : floors[0];
-        this.loadData();
-    }
-
-    floorLabel(floorNum) {
-        const names = this.config.floor_names || {};
-        const stored = this._floorNames || {};
-        return names[floorNum] || stored[String(floorNum)] || `Floor ${floorNum}`;
-    }
-
-
-    async loadData() {
-        const floor = this.activeFloor;
-        const requestId = ++this._loadSeq;
-        const t = Date.now();
-        const bgUrl = `/dynamic_map_data/bg_floor${floor}.png?t=${t}`;
-        const fetchJson = async (url) => {
-            try {
-                const res = await fetch(url);
-                return res.ok ? await res.json() : null;
-            } catch (e) { return null; }
-        };
-        try {
-            const [rooms, shortcuts, config, outside, quick] = await Promise.all([
-                fetchJson(`/dynamic_map_data/rooms_floor${floor}.json?t=${t}`),
-                fetchJson(`/dynamic_map_data/shortcuts_floor${floor}.json?t=${t}`),
-                fetchJson(`/dynamic_map_data/config_floor${floor}.json?t=${t}`),
-                fetchJson(`/dynamic_map_data/outside.json?t=${t}`),
-                fetchJson(`/dynamic_map_data/quick_actions.json?t=${t}`)
-            ]);
-            this.quickActionItems = Array.isArray(quick) ? quick : [];
-            if (requestId !== this._loadSeq) return; // superseded by a newer floor switch
-            this.rooms = rooms || [];
-            this.shortcuts = shortcuts || [];
-            this.outsideItems = outside || [];
-            const floorConfig = config || { rotation_mode: 'auto' };
-            this.rotationMode = floorConfig.rotation_mode || 'auto';
-            this.floorBgColor = floorConfig.background_color || null;
-            this.floorBgMode = floorConfig.background_mode || 'image';
-            this.walls = floorConfig.walls || [];
-            this.flips = floorConfig.flips || DEFAULT_FLIPS();
-
-            const img = new Image();
-            const ready = (w, h) => {
-                if (requestId !== this._loadSeq) return;
-                this.imgW = w; this.imgH = h;
-                this.buildSVG(bgUrl);
-            };
-            img.onload = () => ready(img.naturalWidth || 1000, img.naturalHeight || 1000);
-            img.onerror = () => ready(1000, 1000);
-            img.src = bgUrl;
-        } catch (e) {
-            console.error('Failed to load map data', e);
-            this.renderRoot.innerHTML = `<div class="dm-error">Failed to load map data. Ensure rooms_floor${floor}.json exists in /config/dynamic_map_data/.</div>`;
-        }
-    }
+    discoverFloors(hass) { return discoverFloors(this, hass); }
+    floorLabel(floorNum) { return floorLabel(this, floorNum); }
+    loadData() { return loadData(this); }
+    /** Fit the rooms into the card, rotating/flipping per the floor config. */
+    calculateAutoCrop() { applyAutoCrop(this); }
 
     buildSVG(bgUrl) {
         this.renderRoot.innerHTML = '';
@@ -215,37 +154,6 @@ class CustomSvgMap extends HTMLElement {
             this.updateRoomStyles();
             this.syncFocusPill();
         }
-    }
-
-    calculateAutoCrop() {
-        this.focusedRoomId = null;
-        this.syncFocusPill();
-        hideRoomPanel(this);
-        const rect = this.getBoundingClientRect();
-        const vp = computeViewport({
-            rooms: this.rooms, imgW: this.imgW, imgH: this.imgH,
-            screenW: rect.width, screenH: rect.height,
-            rotationMode: this.rotationMode, flips: this.flips
-        });
-        this.viewport = vp;
-        this.isRotated = vp.isRotated;
-        this.activeMode = vp.activeMode;
-        this.mapScaleX = vp.scaleX;
-        this.mapScaleY = vp.scaleY;
-        this.transformCenter = { cx: vp.cx, cy: vp.cy };
-        if (this.rooms.length) applyViewport(this, vp);
-        this.vb = { ...vp.vb };
-        this.defaultVb = { ...vp.vb };
-        this.updateViewBox();
-        // Shortcut layouts resolve per-orientation props at render time:
-        // when the mode flips, rebuild them now instead of waiting for the
-        // next hass tick.
-        if (this._lastAppliedMode !== this.activeMode && this.shortcutElements && this._hass) {
-            for (const id in this.shortcutElements) this.shortcutElements[id].updateState(this._hass);
-            this.applyShortcutTransforms(this.isRotated ? vp.scaleX : 1, this.isRotated ? vp.scaleY : 1);
-        }
-        this._lastAppliedMode = this.activeMode;
-        if (this._hass) updateRoomAlerts(this, this._hass);   // badge size follows the on-screen scale
     }
 
     updateViewBox() {
