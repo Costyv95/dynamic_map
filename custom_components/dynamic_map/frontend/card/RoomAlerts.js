@@ -46,7 +46,7 @@ export function roomAlerts(hass, room, kinds = ALL_KINDS) {
 export function alertsSignature(host, hass) {
     const kinds = alertKinds(host.config);
     if (!kinds) return '';
-    const view = `${host.isRotated ? 'r' : ''}${host.mapScaleX || 1},${host.mapScaleY || 1}`;
+    const view = `${host.isRotated ? 'r' : ''}${host.mapScaleX || 1},${host.mapScaleY || 1}@${badgeRadius(host).toFixed(0)}`;
     return view + '#' + (host.rooms || []).map(r => roomAlerts(hass, r, kinds).map(a => a.kind[0] + a.id).join(',')).join('|');
 }
 
@@ -71,19 +71,34 @@ function uprightTransform(host) {
     return s;
 }
 
-function makeBadge(host, room, r) {
+const MIN_RADIUS_PX = 11;   // a badge is a tap target: never smaller than this on screen
+
+/** Badge radius in map units: 1.4% of the image, but at least MIN_RADIUS_PX on screen at the default zoom. */
+export function badgeRadius(host) {
+    let r = host.imgW * 0.014;
+    const vbW = host.defaultVb ? host.defaultVb.w : 0;
+    const pxW = host.svg && host.svg.getBoundingClientRect ? host.svg.getBoundingClientRect().width : 0;
+    if (vbW > 0 && pxW > 0) r = Math.max(r, MIN_RADIUS_PX * vbW / pxW);
+    return r;
+}
+
+function sizeBadge(g, r) {
+    const c = g.querySelector('circle'), t = g.querySelector('text');
+    c.setAttribute('r', r.toFixed(1));
+    c.setAttribute('stroke-width', (r * 0.18).toFixed(1));
+    t.setAttribute('font-size', (r * 1.25).toFixed(1));
+}
+
+function makeBadge(host, room) {
     const svgNS = host.svgNS;
     const g = document.createElementNS(svgNS, 'g');
     g.classList.add('dm-room-alert');
     g.style.cursor = 'pointer';
     const c = document.createElementNS(svgNS, 'circle');
-    c.setAttribute('r', r.toFixed(1));
     c.setAttribute('stroke', 'rgba(255,255,255,0.9)');
-    c.setAttribute('stroke-width', (r * 0.18).toFixed(1));
     const t = document.createElementNS(svgNS, 'text');
     t.setAttribute('text-anchor', 'middle');
     t.setAttribute('dominant-baseline', 'central');
-    t.setAttribute('font-size', (r * 1.25).toFixed(1));
     t.setAttribute('font-weight', '700');
     t.setAttribute('fill', '#fff');
     t.style.pointerEvents = 'none';
@@ -100,7 +115,7 @@ export function updateRoomAlerts(host, hass) {
     if (sig === host._alertsSig) return;
     host._alertsSig = sig;
     const kinds = alertKinds(host.config);
-    const r = host.imgW * 0.014;
+    const r = badgeRadius(host);
     const upright = uprightTransform(host);
     const counts = { open: 0, danger: 0, unavailable: 0 };
     let firstRoom = null;
@@ -110,7 +125,8 @@ export function updateRoomAlerts(host, hass) {
         if (!alerts.length) { if (g) g.style.display = 'none'; return; }
         alerts.forEach(a => { counts[a.kind]++; });
         firstRoom = firstRoom || room;
-        if (!g) g = host._alertEls[room.id] = makeBadge(host, room, r);
+        if (!g) g = host._alertEls[room.id] = makeBadge(host, room);
+        sizeBadge(g, r);
         const box = roomBox(room, host.imgW, host.imgH);
         const x = box.cx + box.w / 2 - r * 1.6, y = box.cy - box.h / 2 + r * 1.6;
         const worst = alerts.some(a => a.kind === 'danger') ? 'danger' : alerts.some(a => a.kind === 'open') ? 'open' : 'unavailable';

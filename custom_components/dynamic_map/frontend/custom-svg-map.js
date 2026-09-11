@@ -12,7 +12,7 @@ import { cardDelegates } from './card/CardDelegates.js?v=3.2.1';
 import { buildRoomPanelEl, hideRoomPanel } from './card/RoomPanel.js?v=3.2.1';
 import { buildQuickActions } from './card/QuickActions.js?v=3.2.1';
 import { tintSignature } from './card/RoomTemperature.js?v=3.2.1';
-import { buildRoomAlerts } from './card/RoomAlerts.js?v=3.2.1';
+import { buildRoomAlerts, updateRoomAlerts } from './card/RoomAlerts.js?v=3.2.1';
 import { buildTempLegend } from './card/TempLegend.js?v=3.2.1';
 
 /**
@@ -245,6 +245,7 @@ class CustomSvgMap extends HTMLElement {
             this.applyShortcutTransforms(this.isRotated ? vp.scaleX : 1, this.isRotated ? vp.scaleY : 1);
         }
         this._lastAppliedMode = this.activeMode;
+        if (this._hass) updateRoomAlerts(this, this._hass);   // badge size follows the on-screen scale
     }
 
     updateViewBox() {
