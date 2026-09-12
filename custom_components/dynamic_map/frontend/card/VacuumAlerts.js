@@ -1,47 +1,56 @@
 import { roomOfBadge } from './BadgeRoom.js?v=3.2.1';
+import { vacuumIndex } from './VacuumEntities.js?v=3.2.1';
 
 /**
  * Robot vacuum to-dos on the map: water to add or empty, consumables due,
- * dock or robot errors. Derived from the entities the Roborock (and
- * similar) integrations create next to the vacuum entity. Each alert can
- * carry an `action` (a button press) that clears it, e.g. after cleaning
- * the sensors.
+ * dock or robot errors. The entities come from the robot's own device and
+ * its dock, looked up by translation key so renames do not lose a to-do
+ * (see VacuumEntities). Each alert can carry an `action` (a button press)
+ * that clears it, e.g. after cleaning the sensors.
  */
 const CONSUMABLES = [
-    ['sensor_time_left', 'Clean the sensors', 'reset_sensor_consumable'],
-    ['main_brush_time_left', 'Replace the main brush', 'reset_main_brush_consumable'],
-    ['side_brush_time_left', 'Replace the side brush', 'reset_side_brush_consumable'],
-    ['filter_time_left', 'Replace the filter', 'reset_air_filter_consumable'],
-    ['dock_strainer_time_left', 'Clean the dock strainer', 'dock_reset_strainer_consumable'],
-    ['dock_maintenance_brush_time_left', 'Clean the dock brush', 'dock_reset_cleaning_brush_consumable']
+    { key: 'sensor_time_left', label: 'Clean the sensors', reset: 'reset_sensor_consumable' },
+    { key: 'main_brush_time_left', label: 'Replace the main brush', reset: 'reset_main_brush_consumable' },
+    { key: 'side_brush_time_left', label: 'Replace the side brush', reset: 'reset_side_brush_consumable' },
+    { key: 'filter_time_left', label: 'Replace the filter', reset: 'reset_air_filter_consumable' },
+    { key: 'strainer_time_left', id: 'dock_strainer_time_left', label: 'Clean the dock strainer', reset: 'reset_dock_strainer_consumable', resetId: 'dock_reset_strainer_consumable' },
+    { key: 'cleaning_brush_time_left', id: 'dock_maintenance_brush_time_left', label: 'Clean the dock brush', reset: 'reset_dock_cleaning_brush_consumable', resetId: 'dock_reset_cleaning_brush_consumable' }
 ];
-const PROBLEMS = { water_shortage: 'Add water to the robot', dock_clean_water_box: 'Fill the dock\'s clean water tank', dock_dirty_water_box: 'Empty the dock\'s dirty water tank' };
-const ERRORS = [['vacuum_error', 'Robot error'], ['dock_dock_error', 'Dock error']];
+/** Labels for problem sensors, by translation key and by entity-id suffix. */
+const PROBLEMS = {
+    water_shortage: 'Add water to the robot',
+    clean_box_empty: 'Fill the dock\'s clean water tank', dock_clean_water_box: 'Fill the dock\'s clean water tank',
+    dirty_box_full: 'Empty the dock\'s dirty water tank', dock_dirty_water_box: 'Empty the dock\'s dirty water tank'
+};
+const ERRORS = [{ key: 'vacuum_error', label: 'Robot error' }, { key: 'dock_error', id: 'dock_dock_error', label: 'Dock error' }];
 const OK = ['ok', 'none', 'unknown', 'unavailable', ''];
 
 /** Alerts for one vacuum entity id: [{ id, kind: 'vacuum'|'danger', name, icon, action? }]. */
 export function vacuumAlerts(hass, vacuumId) {
     if (!hass || !hass.states || !vacuumId || !hass.states[vacuumId]) return [];
-    const p = vacuumId.split('.')[1];
-    const robot = (hass.states[vacuumId].attributes || {}).friendly_name || p;
+    const idx = vacuumIndex(hass, vacuumId);
+    const robot = (hass.states[vacuumId].attributes || {}).friendly_name || idx.slug;
     const st = (id) => hass.states[id];
     const out = [];
-    ERRORS.forEach(([suffix, label]) => {
-        const s = st(`sensor.${p}_${suffix}`);
-        if (s && !OK.includes(String(s.state).toLowerCase())) out.push({ id: `sensor.${p}_${suffix}`, kind: 'danger', name: `${label}: ${String(s.state).replace(/_/g, ' ')}`, icon: '🤖' });
+    ERRORS.forEach(({ key, id, label }) => {
+        const found = idx.find('sensor', key, id);
+        const s = found && st(found);
+        if (s && !OK.includes(String(s.state).toLowerCase())) out.push({ id: found, kind: 'danger', name: `${label}: ${String(s.state).replace(/_/g, ' ')}`, icon: '🤖' });
     });
-    Object.keys(hass.states).forEach(id => {
-        if (!id.startsWith(`binary_sensor.${p}_`)) return;
+    idx.binarySensors().forEach(id => {
         const s = st(id);
-        if (s.state !== 'on' || (s.attributes || {}).device_class !== 'problem') return;
-        const suffix = id.slice(`binary_sensor.${p}_`.length);
-        out.push({ id, kind: 'vacuum', name: PROBLEMS[suffix] || `${(s.attributes || {}).friendly_name || suffix}`, icon: '🤖' });
+        if (!s || s.state !== 'on' || (s.attributes || {}).device_class !== 'problem') return;
+        const e = (hass.entities || {})[id] || {};
+        const suffix = id.slice(`binary_sensor.${idx.slug}_`.length);
+        const label = PROBLEMS[e.translation_key] || PROBLEMS[suffix] || (s.attributes || {}).friendly_name || suffix;
+        out.push({ id, kind: 'vacuum', name: label, icon: '🤖' });
     });
-    CONSUMABLES.forEach(([suffix, label, reset]) => {
-        const s = st(`sensor.${p}_${suffix}`);
+    CONSUMABLES.forEach(({ key, id, label, reset, resetId }) => {
+        const found = idx.find('sensor', key, id);
+        const s = found && st(found);
         if (!s || !Number.isFinite(Number(s.state)) || Number(s.state) > 0) return;
-        const btn = `button.${p}_${reset}`;
-        out.push({ id: `sensor.${p}_${suffix}`, kind: 'vacuum', name: label, icon: '🤖', action: st(btn) ? { domain: 'button', service: 'press', data: { entity_id: btn }, label: 'Done' } : null });
+        const btn = idx.find('button', reset, resetId);
+        out.push({ id: found, kind: 'vacuum', name: label, icon: '🤖', action: btn ? { domain: 'button', service: 'press', data: { entity_id: btn }, label: 'Done' } : null });
     });
     return out.map(a => ({ ...a, robot }));
 }
@@ -63,7 +72,8 @@ export function vacuumRoom(host, hass, vacuumId) {
     const area = ent ? (ent.area_id || (ent.device_id && hass.devices && hass.devices[ent.device_id] ? hass.devices[ent.device_id].area_id : null)) : null;
     const byArea = area ? rooms.find(r => r.area_id === area) : null;
     if (byArea) return byArea;
-    const cur = hass && hass.states ? hass.states[`sensor.${vacuumId.split('.')[1]}_current_room`] : null;
+    const curId = hass && hass.states ? vacuumIndex(hass, vacuumId).find('sensor', 'current_room') : null;
+    const cur = curId ? hass.states[curId] : null;
     if (cur && cur.state) return rooms.find(r => (r.name || '').toLowerCase() === String(cur.state).toLowerCase()) || null;
     return null;
 }
