@@ -37,7 +37,7 @@
 - [x] **Compact phone toolbar:** segmented controls show icons only under 768px.
 - [ ] **Store width/height instead of scales:** the size panel already speaks in map units; a one-time migration of `scale*` keys to `size` would remove the 24-unit convention from the files (needs the card to read both during the transition).
 - [ ] **Card camera on Pointer Events:** `card/CameraManager.js` still binds mouse and touch separately; `core/Camera.js` (used by the editor) could replace it.
-- [ ] **Backend tests locally:** pytest is not installed on the dev machine; `tests/test_storage.py` runs only on the box.
+- [x] **Backend tests locally:** `uv venv` + `uv pip install pytest pillow` runs `tests/` on the dev machine (69 tests).
 
 ## 6. After the 2026-09-11 polish pass
 
