@@ -5,6 +5,7 @@ does not trigger the integration's __init__.py (which needs Home Assistant).
 Run with: python -m pytest tests/
 """
 import importlib.util
+import json
 import os
 
 import pytest
@@ -133,3 +134,21 @@ def test_quick_actions_file_is_managed():
     assert storage.is_allowed_data_filename("quick_actions.json")
     assert storage.validate_save_content("quick_actions.json", [{"name": "x"}])
     assert not storage.validate_save_content("quick_actions.json", {"name": "x"})
+
+
+class TestEnsureGlobalLists:
+    def test_creates_the_optional_lists_empty(self, tmp_path):
+        created = storage.ensure_global_lists(str(tmp_path))
+        assert sorted(created) == ["outside.json", "quick_actions.json"]
+        for name in created:
+            assert json.loads((tmp_path / name).read_text()) == []
+
+    def test_leaves_existing_files_untouched(self, tmp_path):
+        kept = tmp_path / "quick_actions.json"
+        kept.write_text('[{"name": "Movie"}]')
+        created = storage.ensure_global_lists(str(tmp_path))
+        assert created == ["outside.json"]
+        assert json.loads(kept.read_text()) == [{"name": "Movie"}]
+
+    def test_a_missing_directory_is_not_an_error(self, tmp_path):
+        assert storage.ensure_global_lists(str(tmp_path / "nope")) == []
