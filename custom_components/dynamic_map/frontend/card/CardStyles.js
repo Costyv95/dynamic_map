@@ -226,6 +226,7 @@ export const CARD_STYLES = `
         font: inherit; font-size: 13px; font-weight: 600; backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
         transition: background 0.2s ease, transform 0.15s ease, color 0.2s ease;
     }
+    .dm-quick-chip[hidden] { display: none; }
     .dm-quick-chip:hover { background: rgba(127, 127, 127, 0.14); }
     .dm-quick-chip:active, .dm-quick-chip.dm-fired { transform: scale(0.95); }
     .dm-quick-chip.dm-on { background: var(--dm-accent); border-color: var(--dm-accent); color: #fff; }

@@ -3,8 +3,9 @@
  * from HA's history API, cached per entity for a few minutes so the
  * panel can re-render on every state tick without refetching.
  */
+import { drawTrend } from './TrendChart.js?v=3.2.1';
+
 const TTL_MS = 5 * 60 * 1000;
-const svgNS = 'http://www.w3.org/2000/svg';
 
 /** Numeric [timestamp, value] points from a history/period response. */
 export function parseHistory(res) {
@@ -22,15 +23,6 @@ export function thin(pts, max) {
     return out;
 }
 
-/** Polyline points string for `pts` inside a w x h box (2px padding). */
-export function sparklinePoints(pts, w = 120, h = 28) {
-    if (pts.length < 2) return '';
-    const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
-    const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
-    const sx = x1 > x0 ? (w - 4) / (x1 - x0) : 0, sy = y1 > y0 ? (h - 4) / (y1 - y0) : 0;
-    return pts.map(([x, y]) => `${(2 + (x - x0) * sx).toFixed(1)},${(h - 2 - (y - y0) * sy).toFixed(1)}`).join(' ');
-}
-
 export async function loadHistory(hass, id, hours = 24) {
     if (!hass || !hass.callApi) return [];
     const start = new Date(Date.now() - hours * 3600 * 1000).toISOString();
@@ -46,27 +38,7 @@ function cached(host, id) {
 /** Fill `slot` with the trend of `id`; fetches at most once per TTL. Returns the promise for tests. */
 export function attachTrend(host, slot, id, unit = '°') {
     host._histCache = host._histCache || {};
-    const draw = (pts) => {
-        slot.replaceChildren();
-        if (pts.length < 2) { slot.hidden = true; return; }
-        slot.hidden = false;
-        const vals = pts.map(p => p[1]);
-        const min = Math.min(...vals), max = Math.max(...vals);
-        const lab = document.createElement('span');
-        lab.className = 'dm-rp-trend-label';
-        lab.textContent = `24 h · ${Math.round(min * 10) / 10}${unit} – ${Math.round(max * 10) / 10}${unit}`;
-        const svg = document.createElementNS(svgNS, 'svg');
-        svg.setAttribute('viewBox', '0 0 120 28');
-        svg.setAttribute('preserveAspectRatio', 'none');
-        const line = document.createElementNS(svgNS, 'polyline');
-        line.setAttribute('points', sparklinePoints(pts));
-        line.setAttribute('fill', 'none');
-        line.setAttribute('stroke', 'currentColor');
-        line.setAttribute('stroke-width', '1.6');
-        line.setAttribute('vector-effect', 'non-scaling-stroke');
-        svg.appendChild(line);
-        slot.append(lab, svg);
-    };
+    const draw = (pts) => drawTrend(slot, pts, { unit, onHover: (on) => { host._rpHover = on; } });
     const hit = cached(host, id);
     if (hit && hit.pts) { draw(hit.pts); return Promise.resolve(hit.pts); }
     if (hit && hit.promise) return hit.promise.then(pts => { if (slot.parentNode) draw(pts); return pts; });

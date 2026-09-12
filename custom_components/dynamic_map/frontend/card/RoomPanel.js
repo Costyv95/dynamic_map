@@ -38,7 +38,7 @@ export function hideRoomPanel(host) {
 export function updateRoomPanel(host, hass) {
     const panel = host.roomPanel;
     const room = host._roomPanelRoom;
-    if (!panel || !room || !hass || host._rpDragging) return;   // never re-render under a finger on a slider
+    if (!panel || !room || !hass || host._rpDragging || host._rpHover) return;   // never re-render under a finger on a slider or the chart
     const ids = room.area_id ? areaEntities(hass, room.area_id) : [];
     if (room.entity_id && hass.states[room.entity_id] && !ids.includes(room.entity_id)) ids.unshift(room.entity_id);
     const max = Number(host.config.room_panel_max) > 0 ? Number(host.config.room_panel_max) : 12;

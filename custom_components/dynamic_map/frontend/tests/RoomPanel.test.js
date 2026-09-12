@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { areaEntities, describeEntity, controlCall, isInteresting } from '../card/RoomEntities.js';
 import { buildRoomPanelEl, showRoomPanel, updateRoomPanel, hideRoomPanel } from '../card/RoomPanel.js';
-import { parseHistory, sparklinePoints, thin } from '../card/RoomHistory.js';
+import { parseHistory, thin } from '../card/RoomHistory.js';
+import { windowPoints } from '../card/TrendChart.js';
 
 function makeHass() {
     return {
@@ -156,7 +157,7 @@ describe('RoomPanel', () => {
         expect(hass.callApi).toHaveBeenCalledTimes(1);
         expect(h.roomPanel.querySelector('.dm-rp-trend polyline')).toBeTruthy();
         expect(parseHistory([[{ state: 'unavailable', last_changed: '2026-09-11T00:00:00Z' }, { state: '3', last_changed: '2026-09-11T01:00:00Z' }]])).toEqual([[Date.parse('2026-09-11T01:00:00Z'), 3]]);
-        expect(sparklinePoints([[0, 1], [10, 3], [20, 1]], 120, 28)).toBe('2.0,26.0 60.0,2.0 118.0,26.0');
+        expect(windowPoints([[0, 1], [10, 3], [20, 1]], 0, 20, 120, 28)).toBe('2.0,26.0 60.0,2.0 118.0,26.0');
         const many = [...Array(1000)].map((_, i) => [i, i]);
         expect(thin(many, 240).length).toBeLessThanOrEqual(241);
         expect(thin(many, 240).at(-1)).toEqual([999, 999]);
