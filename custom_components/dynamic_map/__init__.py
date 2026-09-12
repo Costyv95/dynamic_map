@@ -14,7 +14,7 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.start import async_at_started
 from homeassistant.loader import async_get_integration
 
-from . import roborock_maps
+from . import roborock_maps, storage
 from .const import (
     CONF_ANTHROPIC_API_KEY,
     CONF_SIDECAR_URL,
@@ -70,6 +70,8 @@ async def async_setup(hass: HomeAssistant, config: dict):
     data_dir = hass.config.path(DATA_DIR)
     if not await hass.async_add_executor_job(os.path.exists, data_dir):
         await hass.async_add_executor_job(os.makedirs, data_dir)
+    if created := await hass.async_add_executor_job(storage.ensure_global_lists, data_dir):
+        _LOGGER.debug("Dynamic Map: created empty %s", ", ".join(created))
 
     await hass.http.async_register_static_paths(
         [

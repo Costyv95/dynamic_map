@@ -19,6 +19,11 @@ SOURCE_EXTENSIONS = (".dxf", ".svg")
 # Maximum accepted size for an uploaded floor background (decoded bytes).
 MAX_BACKGROUND_BYTES = 20 * 1024 * 1024
 
+# Global list files the card asks for on every load. They are optional, so a
+# fresh install has none and every load logs a 404 in the browser console.
+# Creating them empty keeps the console clean and changes nothing else.
+GLOBAL_LIST_FILES = ("outside.json", "quick_actions.json")
+
 
 def is_allowed_data_filename(filename):
     """Return True if filename is one of the per-floor data files we manage."""
@@ -78,6 +83,25 @@ def validate_save_content(filename, content):
     if filename.startswith("config_"):
         return isinstance(content, dict)
     return False
+
+
+def ensure_global_lists(data_dir):
+    """Create any missing global list file as an empty list.
+
+    Returns the names created, so start-up can say what it did.
+    """
+    created = []
+    for name in GLOBAL_LIST_FILES:
+        path = os.path.join(data_dir, name)
+        if os.path.exists(path):
+            continue
+        try:
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump([], handle)
+        except OSError:
+            continue
+        created.append(name)
+    return created
 
 
 def floor_names(data_dir):
