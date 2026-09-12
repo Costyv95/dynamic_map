@@ -116,8 +116,9 @@ export function drawTrend(slot, pts, { unit = '°', now = Date.now(), hours = 24
     const hide = () => { cursor.style.display = 'none'; readout.textContent = ''; lab.textContent = summary; if (onHover) onHover(false); };
     svg.addEventListener('pointerdown', (e) => { e.stopPropagation(); if (onHover) onHover(true); show(e.clientX); });
     svg.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || e.buttons) { if (onHover) onHover(true); show(e.clientX); } });
-    svg.addEventListener('pointerup', hide);
+    // A finger lifts: keep the readout on screen (until the next state tick redraws), just resume re-rendering.
+    svg.addEventListener('pointerup', (e) => { if (e.pointerType === 'touch') { if (onHover) onHover(false); } else hide(); });
     svg.addEventListener('pointercancel', hide);
-    svg.addEventListener('pointerleave', hide);
+    svg.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') hide(); });
     slot.append(head, svg, axis);
 }

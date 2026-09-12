@@ -29,8 +29,11 @@ describe('trend chart time axis', () => {
         expect(onHover).toHaveBeenCalledWith(true);
         expect(slot.querySelector('.dm-rp-trend-readout').textContent).toBe('00:00 · 22°');
         expect(slot.querySelector('.dm-rp-cursor').style.display).toBe('');
-        svg.dispatchEvent(new MouseEvent('pointerleave'));
+        const lift = new Event('pointerup'); lift.pointerType = 'touch';
+        svg.dispatchEvent(lift);                                          // finger up: readout stays, re-render resumes
         expect(onHover).toHaveBeenLastCalledWith(false);
+        expect(slot.querySelector('.dm-rp-trend-readout').textContent).toBe('00:00 · 22°');
+        svg.dispatchEvent(new MouseEvent('pointerleave'));
         expect(slot.querySelector('.dm-rp-trend-label').textContent).toBe('24 h · 18° – 22°');
         expect(nearestPoint(pts, 0.95, now - 24 * h, now)).toEqual(pts[2]);
         drawTrend(slot, [[now, 1]], { now });
