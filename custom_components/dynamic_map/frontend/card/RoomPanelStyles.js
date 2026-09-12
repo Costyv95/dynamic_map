@@ -22,9 +22,17 @@ export const ROOM_PANEL_STYLES = `
     .dm-rp-value { color: var(--dm-muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-size: 12px; }
     .dm-rp-row.dm-on .dm-rp-value { color: var(--dm-accent); font-weight: 600; }
     .dm-rp-row.dm-rp-unavailable { opacity: 0.55; }
-    .dm-rp-trend { display: flex; align-items: center; gap: 10px; padding: 6px 16px 4px; color: var(--dm-accent); border-bottom: 1px solid var(--dm-glass-border); }
-    .dm-rp-trend svg { flex: 1; height: 26px; min-width: 0; }
+    .dm-rp-trend { display: block; padding: 6px 16px 4px; color: var(--dm-accent); border-bottom: 1px solid var(--dm-glass-border); }
+    .dm-rp-trend-head { display: flex; justify-content: space-between; align-items: baseline; min-height: 14px; }
+    .dm-rp-trend svg { display: block; width: 100%; height: 34px; touch-action: none; cursor: crosshair; }
     .dm-rp-trend-label { font-size: 11px; font-weight: 600; color: var(--dm-muted); white-space: nowrap; }
+    .dm-rp-trend-readout { font-size: 11px; font-weight: 700; color: var(--dm-accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .dm-rp-tick { stroke: var(--dm-glass-border); stroke-width: 1; stroke-dasharray: 2 3; }
+    .dm-rp-cursor { stroke: var(--dm-accent); stroke-width: 1.2; }
+    .dm-rp-axis { position: relative; height: 13px; margin-top: 2px; font-size: 10px; color: var(--dm-muted); font-variant-numeric: tabular-nums; }
+    .dm-rp-axis span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+    .dm-rp-axis span.dm-first { transform: none; }
+    .dm-rp-axis span.dm-last { transform: translateX(-100%); }
     .dm-rp-scenes { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px 4px; }
     .dm-rp-scene { min-height: 30px; padding: 4px 12px; border: 1px solid var(--dm-glass-border); border-radius: 999px; background: rgba(127,127,127,0.12); color: inherit; cursor: pointer; font: inherit; font-size: 12px; font-weight: 600; transition: background 0.2s, transform 0.15s; }
     .dm-rp-scene:hover { background: rgba(127,127,127,0.22); }
