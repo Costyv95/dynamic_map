@@ -18,3 +18,8 @@ CONF_TEXTURE_MODEL = "texture_model"
 # Preferred texture backend: a claude-agent instance (headless Claude Code on
 # the operator's subscription) - e.g. http://192.168.1.202:8098
 CONF_TEXTURE_SIDECAR_URL = "texture_sidecar_url"
+# Aligned vacuum maps: republish each robot map trimmed, padded and
+# calibrated for a map card. `vacuum_maps: false` turns it off;
+# `vacuum_map_aspect` sets the shape it is padded to (false keeps it tight).
+CONF_VACUUM_MAPS = "vacuum_maps"
+CONF_VACUUM_MAP_ASPECT = "vacuum_map_aspect"
