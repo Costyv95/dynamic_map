@@ -17,6 +17,7 @@ import { discoverFloors, floorLabel, loadData } from './card/FloorData.js?v=3.2.
 import { applyAutoCrop } from './card/CardViewport.js?v=3.2.1';
 import { buildTempLegend } from './card/TempLegend.js?v=3.2.1';
 import { buildSearch } from './card/Search.js?v=3.2.1';
+import { applyHidden, unwatchHidden, watchHidden } from './card/HiddenEntities.js?v=3.2.1';
 
 /**
  * The Lovelace card. It is the scene host for core/MapScene and the
@@ -69,6 +70,7 @@ class CustomSvgMap extends HTMLElement {
         if (this.resizeObserver) { this.resizeObserver.disconnect(); this.resizeObserver = null; }
         if (this.cameraManager) { this.cameraManager.destroy(); this.cameraManager = null; }
         if (this.animationFrame) { cancelAnimationFrame(this.animationFrame); this.animationFrame = null; }
+        unwatchHidden(this);
     }
 
     static getStubConfig() {
@@ -195,6 +197,8 @@ class CustomSvgMap extends HTMLElement {
             this._initialStylesRendered = true;
         }
         this.updateLiveFeatures(hass);
+        watchHidden(this, hass);
+        applyHidden(this);
     }
 
 
