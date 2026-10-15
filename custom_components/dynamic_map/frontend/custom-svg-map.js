@@ -18,6 +18,7 @@ import { applyAutoCrop } from './card/CardViewport.js?v=3.2.1';
 import { buildTempLegend } from './card/TempLegend.js?v=3.2.1';
 import { buildSearch } from './card/Search.js?v=3.2.1';
 import { applyHidden, unwatchHidden, watchHidden } from './card/HiddenEntities.js?v=3.2.1';
+import { setDataBase } from './shared/DataUrl.js?v=3.2.1';
 
 /**
  * The Lovelace card. It is the scene host for core/MapScene and the
@@ -79,6 +80,7 @@ class CustomSvgMap extends HTMLElement {
 
     setConfig(config) {
         this.config = { ...config };
+        setDataBase(this.config.data_base);
         if (this.config.floors && this.config.floors.length) {
             this.activeFloor = this.config.default_floor || this.config.floor || this.config.floors[0];
             this.loadData();

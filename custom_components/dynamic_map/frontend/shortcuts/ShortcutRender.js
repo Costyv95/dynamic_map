@@ -1,6 +1,7 @@
 import { ComponentRegistry } from './ComponentRegistry.js?v=3.2.1';
 import { evaluateTemplate } from './TemplateEvaluator.js?v=3.2.1';
 import { buildTiledImage, applyBadgeDepth } from './ShortcutDefs.js?v=3.2.1';
+import { resolveDataUrl } from '../shared/DataUrl.js?v=3.2.1';
 
 const IMAGE_RETRY_MS = 15000;
 
@@ -73,7 +74,7 @@ export function resetImageProbes() { probes.clear(); }
 /** Returns true when the image is known to have failed (fallback needed). */
 function bindImage(host, el, comp, hass) {
     host.iconImage = el;
-    const href = comp.value || '';
+    const href = resolveDataUrl(comp.value || '');
     if (!host._imageLoadStates[href]) {
         host._imageLoadStates[href] = { status: 'loading', failedTime: 0 };
     }
