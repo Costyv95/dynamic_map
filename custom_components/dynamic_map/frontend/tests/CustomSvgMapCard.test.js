@@ -41,6 +41,15 @@ describe('CustomSvgMap card', () => {
             expect(card._needsFloorDiscovery).toBe(true);
             expect(card.loadData).not.toHaveBeenCalled();
         });
+
+        it('loads every floor file from the data_base option', async () => {
+            const card = makeCard();
+            card.setConfig({ floors: [1], data_base: '/portal/files/ha/dynamic_map_data' });
+            await vi.waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(5));
+            const urls = global.fetch.mock.calls.map(c => c[0]);
+            urls.forEach(u => expect(u.startsWith('/portal/files/ha/dynamic_map_data/')).toBe(true));
+            card.setConfig({ floors: [1], data_base: undefined });
+        });
     });
 
     describe('discoverFloors', () => {

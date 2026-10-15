@@ -1,4 +1,5 @@
 import { apiFetch, apiJson, postJson, setPanelHass, usesPanelHass } from './HassApi.js?v=3.2.1';
+import { dataUrl } from './DataUrl.js?v=3.2.1';
 
 const DEBUG = false;
 const log = (...args) => { if (DEBUG) console.log('[ApiManager]', ...args); };
@@ -120,9 +121,9 @@ export class ApiManager {
             }
         };
 
-        rooms = (await fetchJson(`/dynamic_map_data/rooms_floor${floorNum}.json?t=${t}`)) || [];
-        shortcuts = (await fetchJson(`/dynamic_map_data/shortcuts_floor${floorNum}.json?t=${t}`)) || [];
-        const savedConfig = await fetchJson(`/dynamic_map_data/config_floor${floorNum}.json?t=${t}`);
+        rooms = (await fetchJson(dataUrl(`rooms_floor${floorNum}.json?t=${t}`))) || [];
+        shortcuts = (await fetchJson(dataUrl(`shortcuts_floor${floorNum}.json?t=${t}`))) || [];
+        const savedConfig = await fetchJson(dataUrl(`config_floor${floorNum}.json?t=${t}`));
         if (savedConfig) config = { ...config, ...savedConfig };
 
         return { rooms, shortcuts, config };
@@ -132,7 +133,7 @@ export class ApiManager {
     /** A global list file (outside.json, quick_actions.json); [] when missing. */
     static async fetchGlobalList(filename) {
         try {
-            const res = await fetch(`/dynamic_map_data/${filename}?t=${Date.now()}`);
+            const res = await fetch(dataUrl(`${filename}?t=${Date.now()}`));
             const data = res.ok ? await res.json() : [];
             return Array.isArray(data) ? data : [];
         } catch (e) {

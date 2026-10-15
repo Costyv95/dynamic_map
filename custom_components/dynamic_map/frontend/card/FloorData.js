@@ -1,4 +1,5 @@
 import { DEFAULT_FLIPS } from '../core/Viewport.js?v=3.2.1';
+import { dataUrl } from '../shared/DataUrl.js?v=3.2.1';
 
 /**
  * Floor discovery and per-floor data loading for the card. `host` is the
@@ -31,7 +32,7 @@ export async function loadData(host) {
     const floor = host.activeFloor;
     const requestId = ++host._loadSeq;
     const t = Date.now();
-    const bgUrl = `/dynamic_map_data/bg_floor${floor}.png?t=${t}`;
+    const bgUrl = dataUrl(`bg_floor${floor}.png?t=${t}`);
     const fetchJson = async (url) => {
         try {
             const res = await fetch(url);
@@ -40,11 +41,11 @@ export async function loadData(host) {
     };
     try {
         const [rooms, shortcuts, config, outside, quick] = await Promise.all([
-            fetchJson(`/dynamic_map_data/rooms_floor${floor}.json?t=${t}`),
-            fetchJson(`/dynamic_map_data/shortcuts_floor${floor}.json?t=${t}`),
-            fetchJson(`/dynamic_map_data/config_floor${floor}.json?t=${t}`),
-            fetchJson(`/dynamic_map_data/outside.json?t=${t}`),
-            fetchJson(`/dynamic_map_data/quick_actions.json?t=${t}`)
+            fetchJson(dataUrl(`rooms_floor${floor}.json?t=${t}`)),
+            fetchJson(dataUrl(`shortcuts_floor${floor}.json?t=${t}`)),
+            fetchJson(dataUrl(`config_floor${floor}.json?t=${t}`)),
+            fetchJson(dataUrl(`outside.json?t=${t}`)),
+            fetchJson(dataUrl(`quick_actions.json?t=${t}`))
         ]);
         host.quickActionItems = Array.isArray(quick) ? quick : [];
         if (requestId !== host._loadSeq) return; // superseded by a newer floor switch

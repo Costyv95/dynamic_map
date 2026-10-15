@@ -12,6 +12,7 @@ import { newObject, newDecor } from './editor/ui/Presets.js?v=3.2.1';
 import { setUiRoot, confirmDialog } from './editor/ui/Dialog.js?v=3.2.1';
 import { DirtyTracker, writeDraft, readDraft, clearDraft, draftDiffers, formatAge } from './editor/Drafts.js?v=3.2.1';
 import { isTyping } from './editor/Keys.js?v=3.2.1';
+import { dataUrl } from './shared/DataUrl.js?v=3.2.1';
 
 console.log('[DynamicMapDebug] Map Editor loaded (Version: 4.0.0)');
 
@@ -127,7 +128,7 @@ export class EditorApp {
         const state = this.state;
         state.activeFloor = floorNum;
         localStorage.setItem('dm_editor_last_floor', String(floorNum));
-        const bgUrl = `/dynamic_map_data/bg_floor${floorNum}.png?t=${Date.now()}`;
+        const bgUrl = dataUrl(`bg_floor${floorNum}.png?t=${Date.now()}`);
         const [dims, data] = await Promise.all([this.loadImageSize(bgUrl), this.loadFloorJson(floorNum)]);
         const draft = readDraft(floorNum);
         let restored = false;

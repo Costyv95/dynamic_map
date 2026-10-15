@@ -1,6 +1,7 @@
 import { indexFloor, matchIndex } from './SearchIndex.js?v=3.2.1';
 import { shortcutFrame } from '../shared/ShortcutGeometry.js?v=3.2.1';
 import { showRoomPanel } from './RoomPanel.js?v=3.2.1';
+import { dataUrl } from '../shared/DataUrl.js?v=3.2.1';
 
 /**
  * Find a device or room across floors: 🔍 next to the floor chips opens a
@@ -22,7 +23,7 @@ async function floorData(host, floor) {
     if (floor == host.activeFloor) return { rooms: host.rooms || [], shortcuts: host.shortcuts || [] };
     if (!host._searchCache[floor]) {
         const get = (u) => fetch(u).then(r => (r.ok ? r.json() : [])).catch(() => []);
-        host._searchCache[floor] = Promise.all([get(`/dynamic_map_data/rooms_floor${floor}.json`), get(`/dynamic_map_data/shortcuts_floor${floor}.json`)]).then(([rooms, shortcuts]) => ({ rooms: rooms || [], shortcuts: shortcuts || [] }));
+        host._searchCache[floor] = Promise.all([get(dataUrl(`rooms_floor${floor}.json`)), get(dataUrl(`shortcuts_floor${floor}.json`))]).then(([rooms, shortcuts]) => ({ rooms: rooms || [], shortcuts: shortcuts || [] }));
     }
     return host._searchCache[floor];
 }

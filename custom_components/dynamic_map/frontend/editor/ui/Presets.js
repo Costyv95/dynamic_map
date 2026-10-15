@@ -1,3 +1,4 @@
+import { DEFAULT_DATA_BASE } from '../../shared/DataUrl.js?v=3.2.1';
 /**
  * Default states and actions applied when a shortcut's type changes and
  * the shortcut has none yet. Kept as data so the panel stays small.
@@ -7,10 +8,10 @@ const uid = (p) => `${p}_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
 const PRESETS = {
     vacuum: (entity) => ({
         states: [
-            { id: uid('st'), name: 'Docked', state_entity: entity, operator: '==', value: 'docked', color: '#10b981', icon: '🔋', image: '/dynamic_map_data/icons/dock.svg' },
-            { id: uid('st'), name: 'Cleaning', state_entity: entity, operator: '==', value: 'cleaning', color: '#3b82f6', icon: '🧹', image: '/dynamic_map_data/icons/vacuum.svg' },
-            { id: uid('st'), name: 'Returning', state_entity: entity, operator: '==', value: 'returning', color: '#f59e0b', icon: '🏠', image: '/dynamic_map_data/icons/vacuum_return.svg' },
-            { id: uid('st'), name: 'Error', state_entity: entity, operator: '==', value: 'error', color: '#ef4444', icon: '⚠️', image: '/dynamic_map_data/icons/vacuum_error.svg' }
+            { id: uid('st'), name: 'Docked', state_entity: entity, operator: '==', value: 'docked', color: '#10b981', icon: '🔋', image: `${DEFAULT_DATA_BASE}/icons/dock.svg` },
+            { id: uid('st'), name: 'Cleaning', state_entity: entity, operator: '==', value: 'cleaning', color: '#3b82f6', icon: '🧹', image: `${DEFAULT_DATA_BASE}/icons/vacuum.svg` },
+            { id: uid('st'), name: 'Returning', state_entity: entity, operator: '==', value: 'returning', color: '#f59e0b', icon: '🏠', image: `${DEFAULT_DATA_BASE}/icons/vacuum_return.svg` },
+            { id: uid('st'), name: 'Error', state_entity: entity, operator: '==', value: 'error', color: '#ef4444', icon: '⚠️', image: `${DEFAULT_DATA_BASE}/icons/vacuum_error.svg` }
         ],
         actions: [
             { id: uid('act'), type: 'VACUUM_ROOMS', trigger: 'overlay', action_entity: entity },
