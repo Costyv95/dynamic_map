@@ -1,6 +1,7 @@
 import { DEFAULT_FLIPS } from '../core/Viewport.js?v=3.2.1';
 import { dataUrl, resolveDataUrl } from '../shared/DataUrl.js?v=3.2.1';
 import { readFloorTone, tonedImageUrl, tonedDecor } from './FloorTone.js?v=3.2.1';
+import { floorCanvas, floorBackgroundMode } from '../shared/FloorPlan.js?v=3.2.1';
 
 /**
  * Floor discovery and per-floor data loading for the card. `host` is the
@@ -72,13 +73,22 @@ function applyFiles(host, { rooms, shortcuts, config, outside, quick }) {
     const floorConfig = config || { rotation_mode: 'auto' };
     host.rotationMode = floorConfig.rotation_mode || 'auto';
     host.floorBgColor = floorConfig.background_color || null;
-    host.floorBgMode = floorConfig.background_mode || 'image';
+    host.floorBgMode = floorBackgroundMode(floorConfig);
     host.walls = floorConfig.walls || [];
     host.flips = floorConfig.flips || DEFAULT_FLIPS();
 }
 
-/** Everything a floor needs before it is drawn: its picture's size and toned copies. */
+/**
+ * Everything a floor needs before it is drawn: its size (the canvas, or a
+ * legacy picture's) and toned copies of decor pictures.
+ */
 async function prepare(entry, floor, tone) {
+    const canvas = floorCanvas(entry.files.config);
+    if (canvas) {
+        Object.assign(entry, canvas);
+        const decorTones = await tonedDecor(entry.files.shortcuts, tone, resolveDataUrl);
+        return { raw: null, bgUrl: null, decorTones };
+    }
     const raw = dataUrl(`bg_floor${floor}.png?t=${entry.stamp}`);
     if (!entry.w) Object.assign(entry, await imageSize(raw));
     const [toned, decorTones] = await Promise.all([
@@ -123,7 +133,7 @@ async function showFloor(host, requestId, entry) {
     host.floorTone = tone;
     host.decorTones = decorTones;
     host.imgW = entry.w; host.imgH = entry.h;
-    host.floorToned = bgUrl !== raw;
+    host.floorToned = !!raw && bgUrl !== raw;
     host.buildSVG(bgUrl);
     warmFloors(host);
 }

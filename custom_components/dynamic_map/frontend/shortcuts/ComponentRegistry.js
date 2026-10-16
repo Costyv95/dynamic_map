@@ -13,6 +13,7 @@ import { renderSelector } from './components/renderSelector.js?v=3.2.1';
 import { renderAlarmClock } from './components/renderAlarmClock.js?v=3.2.1';
 import { renderCalendarCard } from './components/renderCalendarCard.js?v=3.2.1';
 import { renderTimeline } from './components/renderTimeline.js?v=3.2.1';
+import { renderFurniture } from './components/renderFurniture.js?v=3.2.1';
 
 export const ComponentRegistry = {
     circle: renderCircle,
@@ -29,6 +30,7 @@ export const ComponentRegistry = {
     room_selector: renderSelector,
     alarm_clock: renderAlarmClock,
     calendar_card: renderCalendarCard,
-    timeline: renderTimeline
+    timeline: renderTimeline,
+    furniture: renderFurniture
 };
 

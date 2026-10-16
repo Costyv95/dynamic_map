@@ -251,12 +251,10 @@ export const CARD_STYLES = `
     .room-label {
         pointer-events: none;
         user-select: none;
-        text-transform: uppercase;
-        letter-spacing: 0.09em;
-        paint-order: stroke;
-        stroke: rgba(10, 16, 30, 0.6);
-        stroke-width: 3px;
-        stroke-linejoin: round;
+        letter-spacing: 0.01em;
+        fill: var(--dm-room-label, var(--dm-room-label-auto, #0f172a)); fill-opacity: 0.82;
+        paint-order: stroke; stroke-width: 4px; stroke-linejoin: round; stroke-opacity: 0.85;
+        stroke: var(--dm-room-label-halo, var(--dm-room-label-halo-auto, #eeeeee));
         transition: opacity 0.35s ease;
     }
     .room-label.dm-dimmed { opacity: 0.35; }

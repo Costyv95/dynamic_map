@@ -9,12 +9,14 @@ import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
 
 /** Colour helpers for one room: solid rgb and a fill at alpha. */
 export function roomPalette(room, idx) {
-    const hue = (idx * 137.5) % 360;
     const rgb = MapGeometry.hexToRgb(room.color);
-    const base = rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : null;
+    // A room without a colour is plain floor: the walls already tell rooms
+    // apart, so it shows no tint at rest and warm light when it is on.
+    const base = rgb ? `${rgb.r}, ${rgb.g}, ${rgb.b}` : '245, 176, 65';
     return {
-        solid: base ? `rgb(${base})` : `hsl(${hue}, 100%, 50%)`,
-        fillAt: (a) => base ? `rgba(${base}, ${a})` : `hsla(${hue}, 100%, 50%, ${a})`
+        solid: `rgb(${base})`,
+        neutral: !rgb,
+        fillAt: (a) => `rgba(${base}, ${a})`
     };
 }
 
@@ -40,7 +42,7 @@ export function updateRoomStyles(host) {
         if (!room) return;
         const isFocused = (host.focusedRoomId === room.id);
         const tint = typeof host.roomTint === 'function' ? host.roomTint(room) : null;
-        const { solid, fillAt } = tint ? tintPalette(tint) : roomPalette(room, idx);
+        const { solid, fillAt, neutral } = tint ? tintPalette(tint) : roomPalette(room, idx);
         const isOn = roomIsOn(room, host._hass);
 
         poly.classList.remove('dm-selected', 'dm-on');
@@ -66,13 +68,14 @@ export function updateRoomStyles(host) {
             poly.setAttribute('stroke', 'var(--dm-accent)');
             poly.classList.add('dm-selected');
         } else if (isOn) {
-            poly.setAttribute('fill', fillAt(0.5));
-            poly.setAttribute('stroke', solid);
+            poly.setAttribute('fill', fillAt(neutral ? 0.24 : 0.36));
+            poly.setAttribute('stroke', 'none');
             poly.style.setProperty('--dm-room-glow', solid);
             poly.classList.add('dm-on');
         } else {
-            poly.setAttribute('fill', fillAt(0.18));
-            poly.setAttribute('stroke', fillAt(0.7));
+            // At rest a soft wash of the room's colour; the walls draw the edges.
+            poly.setAttribute('fill', neutral ? 'rgba(0, 0, 0, 0)' : fillAt(0.12));
+            poly.setAttribute('stroke', 'none');
         }
     });
     // Dim other rooms' labels while one room has focus.

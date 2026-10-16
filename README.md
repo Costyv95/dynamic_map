@@ -31,7 +31,7 @@ Since 4.0 the editor renders with the card's own SVG code, so what you see while
 - **Temperature tint** — `room_temperature: true` colours every room from cool blue to warm red across `temperature_range: [16, 28]`, reading each room's `temperature_entity`, a sensor badge in the room, or the first temperature sensor of its area.
 - **Room actions** — tap a room to smoothly zoom into it (making its shortcuts easy to tap), toggle its light (or all lights in its HA area), open more-info, or select rooms for vacuum segment cleaning. Configurable per card and per room.
 - **Outside dashboard** — a fixed glass bar at the top of the card for outdoor data (temperature, humidity, pollen, UV, a weather entity for the forecast icon). Managed from the editor, stored in `outside.json`; unlike map shortcuts it never pans or zooms out of sight.
-- **Floor management** — floors are auto-discovered from your data; add floors from a plan image or a blank canvas ("Builder Mode"), or generate rooms automatically from DXF/SVG architectural drawings via the optional sidecar. The editor's 🎨 button sets a per-floor background (`background_color` / `background_mode` in `config_floorN.json`): **fit room layout** (a rounded plate hugging the rooms — no fixed canvas, ideal for Builder-Mode floors), **repaint canvas**, or **color around the plan**.
+- **Drawn floors** — every floor is vector data you build in the editor: walls (centre-line polylines with a thickness), rooms (polygons linked to HA areas), and furniture, doors and windows drawn from a kind and a size (`shared/Furniture.js`: sofa, bed, dining table with chairs, wardrobe, kitchen counter, bathtub, stairs, door with its swing, window, and more). Nothing is scanned or traced from a picture, so the plan stays sharp at any zoom and takes the host's colours (see `THEME.md`). Floors are auto-discovered; ＋ in the editor adds one as a blank canvas (`canvas: {w, h}` in `config_floorN.json`), and 🎨 sets its floor colour.
 
 > **Auto-discovery caveat:** if your card config lists `floors: [...]` explicitly, newly added floors will NOT appear until you add them there — or simply remove the `floors:` line to let the card discover floors from the backend.
 - **Theme-aware** — the card follows your HA theme (light/dark); the editor follows your OS theme.
@@ -44,8 +44,6 @@ Since 4.0 the editor renders with the card's own SVG code, so what you see while
 
 ```yaml
 dynamic_map:
-  # Optional: address of the DXF/SVG processing sidecar (see server/)
-  # sidecar_url: http://192.168.1.50:5000
   # Optional: enables the editor's "✨ Generate texture" button (Claude-drawn
   # object artwork). Two backends, first one configured wins:
   #  - a claude-agent service (headless Claude Code on your subscription,
@@ -97,24 +95,13 @@ Everything lives in `<config>/dynamic_map_data/`:
 |---|---|
 | `rooms_floorN.json` | Room polygons (percent coordinates), names, colors, HA `area_id`/`entity_id` links |
 | `shortcuts_floorN.json` | Shortcut objects: type, entity, per-orientation position/scale, states, actions |
-| `config_floorN.json` | Per-floor rotation mode, flips, background style, and the `walls` array (polylines: `points` in percent, `thickness` in map px, `color`) |
-| `bg_floorN.png` | Floor background image |
-| `floorN.dxf` / `floorN.svg` | Optional source drawings for the sidecar pipeline |
+| `config_floorN.json` | Per-floor `canvas` {w, h} (map units), floor colour, rotation mode, flips, and the `walls` array (polylines: `points` in percent of the canvas, `thickness` in map units, `color`) |
+| `bg_floorN.png` | Only on floors made before floors were drawn (no `canvas`): read as the background, never written. The editor's 🎨 dialog can retire it. |
 | `icons/` | Custom icon images offered in the editor |
-
-## The DXF/SVG sidecar (optional)
-
-Automatic room extraction from architectural drawings runs in a separate container (OpenCV + ezdxf), typically on another machine. See `server/`:
-
-```bash
-cd server && docker compose up -d
-```
-
-Environment variables: `DYNAMIC_MAP_DATA_DIR` (default `/data/dynamic_map_data`, mount your HA config share there) and `DYNAMIC_MAP_PORT` (default 5000). Point the integration at it via `sidecar_url`.
 
 ## Security model
 
-All `/api/dynamic_map/*` endpoints require Home Assistant authentication; write endpoints (save/delete/recompute) additionally require an **admin** user. The save endpoint only accepts the known per-floor filenames — it cannot write arbitrary files. The editor (an iframe panel) authenticates with your existing HA session; if you get an authentication error there, log in to HA with *"Keep me logged in"* checked and reload.
+All `/api/dynamic_map/*` endpoints require Home Assistant authentication; write endpoints (save/delete) additionally require an **admin** user. The save endpoint only accepts the known per-floor filenames — it cannot write arbitrary files. The editor (an iframe panel) authenticates with your existing HA session; if you get an authentication error there, log in to HA with *"Keep me logged in"* checked and reload.
 
 ## Development
 

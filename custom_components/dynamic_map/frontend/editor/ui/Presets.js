@@ -1,4 +1,5 @@
 import { DEFAULT_DATA_BASE } from '../../shared/DataUrl.js?v=3.2.1';
+import { furnitureKinds } from '../../shared/Furniture.js?v=3.2.1';
 /**
  * Default states and actions applied when a shortcut's type changes and
  * the shortcut has none yet. Kept as data so the panel stays small.
@@ -76,10 +77,14 @@ export function newObject(color) {
     return { id: `sc_${Date.now()}`, name: 'New object', type: 'generic', position: [50, 50], config: { shape: 'circle', color: color || '#0ea5e9' } };
 }
 
-/** Scenery-only item: rect + texture, rotates with the plan, never interactive. */
-export function newDecor() {
+/**
+ * Scenery-only item: drawn furniture (shared/Furniture.js; a cabinet until
+ * another kind is picked), rotates with the plan, never interactive.
+ */
+export function newDecor(kind = 'cabinet') {
+    const size = (furnitureKinds().find(k => k.value === kind) || { size: [72, 72] }).size;
     return {
-        id: `sc_${Date.now()}`, name: 'New decor', type: 'generic', position: [50, 50], scaleX: 3, scaleY: 3,
-        config: { shape: 'rect', color: '#94a3b8', transparent: true, decor: true, autoRotate: true, proportional: false }
+        id: `sc_${Date.now()}`, name: 'New decor', type: 'generic', position: [50, 50], scaleX: size[0] / 24, scaleY: size[1] / 24,
+        config: { shape: 'rect', color: '#94a3b8', transparent: true, decor: true, autoRotate: true, proportional: false, furniture: kind }
     };
 }

@@ -24,7 +24,6 @@ class TestIsAllowedDataFilename:
         "rooms_floor1.json",
         "shortcuts_floor2.json",
         "config_floor10.json",
-        "bg_floor3.png",
         "outside.json",
     ])
     def test_accepts_managed_files(self, name):
@@ -38,6 +37,7 @@ class TestIsAllowedDataFilename:
         "secrets.yaml",
         "rooms_floor.json",          # missing number
         "bg_floor1.jpg",             # wrong extension
+        "bg_floor3.png",             # floors are drawn: pictures are never written
         "evil.png",
         "rooms_floor1.png",          # wrong pairing
         "shortcuts_floor2.json/",
@@ -74,13 +74,6 @@ class TestDiscoverFloors:
         (tmp_path / "floor3.svg").touch()
         (tmp_path / "background_floor4.png").touch()
         assert storage.discover_floors(str(tmp_path)) == []
-
-
-class TestListSourceFiles:
-    def test_lists_dxf_and_svg_only(self, tmp_path):
-        for name in ["floor1.dxf", "floor2.svg", "bg_floor1.png", "readme.md"]:
-            (tmp_path / name).touch()
-        assert storage.list_source_files(str(tmp_path)) == ["floor1.dxf", "floor2.svg"]
 
 
 class TestListIcons:

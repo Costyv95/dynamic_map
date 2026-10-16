@@ -193,17 +193,6 @@ export class ApiManager {
         return true;
     }
 
-    // Builder Mode: save a background PNG (data URL) as bg_floor{N}.png
-    static async saveImage(filename, dataUrl) {
-        const res = await apiFetch('/api/dynamic_map/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename, image_base64: dataUrl }),
-        });
-        if (!res.ok) throw new Error(`Image save failed: ${res.statusText}`);
-        return true;
-    }
-
     static async fetchAvailableFiles() {
         const res = await apiFetch('/api/dynamic_map/files');
         if (!res.ok) throw new Error('Failed to load files');
@@ -216,14 +205,6 @@ export class ApiManager {
 
     static async deleteFloor(floorNum) {
         return await postJson('/api/dynamic_map/delete_floor', { floor_num: parseInt(floorNum) });
-    }
-
-    static async recomputeFloor(floorNum, svgFile, dxfFile) {
-        return await postJson('/api/dynamic_map/recompute', {
-            floor_num: parseInt(floorNum),
-            svg_file: svgFile || null,
-            dxf_file: dxfFile || null,
-        });
     }
 
     static async fetchRegistry() {

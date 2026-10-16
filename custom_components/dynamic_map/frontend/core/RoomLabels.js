@@ -7,12 +7,11 @@ import { estimateTextWidth } from '../shared/SensorPill.js?v=3.2.1';
  */
 const MIN_SCALE = 0.45;        // never smaller than 45% of the base size
 const PADDING = 0.9;           // use at most 90% of the room width
-const LETTER_SPACING_EM = 0.09; // matches .room-label's letter-spacing
+const LETTER_SPACING_EM = 0.01; // matches .room-label's letter-spacing
 
 function width(text, fontSize) {
-    // Labels render uppercase with letter spacing.
-    const upper = String(text).toUpperCase();
-    return estimateTextWidth(upper, fontSize) + upper.length * LETTER_SPACING_EM * fontSize;
+    const s = String(text);
+    return estimateTextWidth(s, fontSize) + s.length * LETTER_SPACING_EM * fontSize;
 }
 
 /** Split on the space closest to the middle; null when there is none. */

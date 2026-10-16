@@ -10,6 +10,7 @@ URL_BASE_UI = "/dynamic_map_ui"
 URL_BASE_DATA = "/dynamic_map_data"
 
 # configuration.yaml options
+# Obsolete (DXF scan import, removed); accepted and ignored.
 CONF_SIDECAR_URL = "sidecar_url"
 # Anthropic key for editor-triggered texture generation. Reference a !secret in
 # configuration.yaml; the value stays in hass.data and is never logged.

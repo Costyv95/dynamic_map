@@ -1,4 +1,5 @@
-import { el, field, section, textInput, select, checkbox, colorInput } from './dom.js?v=3.2.1';
+import { el, field, section, textInput, select, checkbox, colorInput, numberInput } from './dom.js?v=3.2.1';
+import { furnitureKinds } from '../../shared/Furniture.js?v=3.2.1';
 import { confirmDialog, toast } from './Dialog.js?v=3.2.1';
 import { readProp, writeProp, overrideBadge, previewState, layerOf } from './binding.js?v=3.2.1';
 import { applyTypePreset, SHORTCUT_TYPES } from './Presets.js?v=3.2.1';
@@ -19,7 +20,8 @@ export function renderShortcutPanel(ctx, sc) {
         st ? el('div.dm-badge', { style: { alignSelf: 'flex-start' } }, `Editing state: ${st.name || 'state'}`,
             el('button', { type: 'button', onClick: () => { state.togglePreviewState(state.previewStateIdx); ctx.refresh(); } }, '× stop')) : null,
         renderIdentity(ctx, sc, decor),
-        renderLook(ctx, sc),
+        decor ? renderFurniture(ctx, sc) : null,
+        decor && sc.config.furniture ? null : renderLook(ctx, sc),
         renderSizePanel(ctx, sc),
         sc.type === 'sensor' && !decor ? renderSensorFields(ctx, sc) : null,
         sc.type === 'vacuum' && !decor ? renderVacuumPanel(ctx, sc) : null,
@@ -48,6 +50,55 @@ function renderIdentity(ctx, sc, decor) {
             onChange: (v) => writeProp(ctx, sc, 'availability_entity', v || undefined) }),
             { hint: 'Greys the badge out when this entity is unavailable.' })
     ], { key: 'sc-identity' });
+}
+
+/**
+ * Decor drawn by shared/Furniture.js: pick a kind (or a picture), plus the
+ * few knobs that change how a kind draws. Picking a kind on a fresh item
+ * sizes it to that kind's usual size.
+ */
+function renderFurniture(ctx, sc) {
+    const { state } = ctx;
+    const cfg = sc.config;
+    const kinds = furnitureKinds();
+    const opts = () => (cfg.furniture_opts = cfg.furniture_opts || {});
+    const setOpt = (key, value) => {
+        if (value === undefined || value === false || value === '' || Number.isNaN(value)) delete opts()[key];
+        else opts()[key] = value;
+        if (!Object.keys(cfg.furniture_opts).length) delete cfg.furniture_opts;
+        state.saveState(); state.requestDrawCallback();
+    };
+    const pick = (v) => {
+        const kind = kinds.find(k => k.value === v);
+        if (kind) {
+            // Still at the previous kind's usual size (never resized): take the new one's.
+            const prev = kinds.find(k => k.value === cfg.furniture);
+            const near = (scale, px) => typeof scale === 'number' && Math.abs(scale * 24 - px) < 0.5;
+            const untouched = prev ? near(sc.scaleX, prev.size[0]) && near(sc.scaleY, prev.size[1]) : !cfg.image;
+            cfg.furniture = v;
+            cfg.shape = 'rect'; cfg.transparent = true; cfg.proportional = false;
+            if (untouched) { sc.scaleX = kind.size[0] / 24; sc.scaleY = kind.size[1] / 24; }
+            if (sc.name === 'New decor' || !sc.name || (prev && sc.name === prev.label)) sc.name = kind.label;
+        } else {
+            delete cfg.furniture; delete cfg.furniture_opts;
+        }
+        state.saveState(); state.requestDrawCallback(); ctx.refresh();
+    };
+    const kind = cfg.furniture || '';
+    const o = cfg.furniture_opts || {};
+    const isDoor = kind === 'door' || kind === 'double_door';
+    return section('Drawing', [
+        field('Draw as', select([{ value: '', label: 'Picture / texture' }, ...kinds.map(k => ({ value: k.value, label: k.label }))], kind, pick),
+            { hint: 'Furniture, doors and windows are drawn from their size, in the floor\'s colours. Rotate them with the size handles.' }),
+        kind ? checkbox(isDoor ? 'Hinge on the right' : 'Mirror', !!o.mirror, (on) => setOpt('mirror', on || undefined)) : null,
+        isDoor ? field('Cut the wall (thickness)', numberInput({ value: o.cut, min: 0, step: 1, placeholder: '0 = the wall already has a gap', onChange: (v) => setOpt('cut', v > 0 ? v : undefined) }),
+            { hint: 'Paints the wall under the doorway away, so a door can sit on an unbroken wall.' }) : null,
+        kind === 'stairs' ? field('Steps', numberInput({ value: o.steps, min: 2, step: 1, placeholder: 'auto', onChange: (v) => setOpt('steps', v) })) : null,
+        kind === 'stairs' ? checkbox('Arrow points the other way', !!o.down, (on) => setOpt('down', on || undefined)) : null,
+        kind === 'sofa' ? field('Seats', numberInput({ value: o.seats, min: 1, max: 6, step: 1, placeholder: 'auto', onChange: (v) => setOpt('seats', v) })) : null,
+        kind === 'dining_table' ? field('Chairs per long side', numberInput({ value: o.per_side, min: 1, max: 6, step: 1, placeholder: 'auto', onChange: (v) => setOpt('per_side', v) })) : null,
+        kind === 'table' || kind === 'dining_table' || kind === 'rug' ? checkbox('Round', !!o.round, (on) => setOpt('round', on || undefined)) : null
+    ], { key: 'sc-furniture' });
 }
 
 /** Changing the entity also re-points states/actions that followed the old one. */

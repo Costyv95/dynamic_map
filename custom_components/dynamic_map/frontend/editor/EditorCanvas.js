@@ -1,3 +1,4 @@
+import { floorCanvas, floorBackgroundMode } from '../shared/FloorPlan.js?v=3.2.1';
 import { SVG_NS, buildScene, buildWalls, applyViewport } from '../core/MapScene.js?v=3.2.1';
 import { computeViewport, viewPointToMap, labelTransform, DEFAULT_FLIPS } from '../core/Viewport.js?v=3.2.1';
 import { updateRoomStyles } from '../core/RoomStyles.js?v=3.2.1';
@@ -69,10 +70,12 @@ export class EditorCanvas {
         this.imgW = imgW || 1000;
         this.imgH = imgH || 1000;
         const c = config || {};
+        this.floorConfig = c;
+        this.canvasSize = floorCanvas(c);
         this.rotationMode = c.rotation_mode || 'auto';
         this.flips = c.flips || DEFAULT_FLIPS();
         this.backgroundColor = c.background_color || null;
-        this.backgroundMode = c.background_mode || 'image';
+        this.backgroundMode = floorBackgroundMode(c);
         this.rebuild();
     }
 

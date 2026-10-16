@@ -109,7 +109,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .dm-editor-svg { user-select: none; -webkit-user-select: none; }
 .dm-editor-svg.dm-phone-sim { border-radius: 22px; box-shadow: 0 0 0 6px #0f172a, 0 12px 40px rgba(0,0,0,0.35); background: var(--dm-map-bg); }
 .dm-editor-svg .room-polygon { cursor: pointer; stroke-linejoin: round; }
-.dm-editor-svg .room-label { pointer-events: none; user-select: none; text-transform: uppercase; letter-spacing: 0.09em; paint-order: stroke; stroke: rgba(10, 16, 30, 0.6); stroke-width: 3px; stroke-linejoin: round; }
+.dm-editor-svg .room-label { pointer-events: none; user-select: none; letter-spacing: 0.01em; fill: var(--dm-room-label, var(--dm-room-label-auto, #0f172a)); fill-opacity: 0.82; paint-order: stroke; stroke: var(--dm-room-label-halo, var(--dm-room-label-halo-auto, #eeeeee)); stroke-opacity: 0.85; stroke-width: 4px; stroke-linejoin: round; }
 .dm-editor-svg .room-polygon.dm-selected { filter: drop-shadow(0 0 8px var(--dm-accent)); }
 .dm-editor-svg .shortcut-group { cursor: move; }
 .dm-map-hud { position: absolute; left: 12px; bottom: 12px; display: flex; gap: 6px; z-index: 5; }
