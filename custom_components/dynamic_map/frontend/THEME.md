@@ -91,6 +91,6 @@ point them at its own surface.
 
 Under `(pointer: coarse)` every control grows to `--dm-tap`
 (`card/TouchStyles.js`). Hover tints apply only under `(hover: hover)`. On a
-narrow card (< 600px) the room panel and the long-press menu dock to the
+narrow card (under 600px wide, or an upright card under 900px such as the wall tablet) the room panel and the long-press menu dock to the
 bottom edge as sheets. One-finger drags still scroll a dashboard; pinch
 zooms the map. `prefers-reduced-motion` turns transitions off.

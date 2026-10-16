@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { zoomToRoom, sheetFraction } from '../card/RoomFocus.js';
 import { buildRoomPanelEl, showRoomPanel } from '../card/RoomPanel.js';
-import { applyAutoCrop } from '../card/CardViewport.js';
+import { applyAutoCrop, isSheetLayout } from '../card/CardViewport.js';
 
 const room = { id: 'r', name: 'Bedroom', polygon: [[10, 10], [50, 10], [50, 40], [10, 40]] };
 function host(width) {
@@ -39,6 +39,14 @@ describe('room panel as a phone bottom sheet', () => {
         grip.dispatchEvent(new MouseEvent('pointerdown', { clientY: 500 }));
         grip.dispatchEvent(new MouseEvent('pointerup', { clientY: 560 }));      // again -> close
         expect(h.zoomOutToDefault).toHaveBeenCalled();
+    });
+
+    it('sheets on phones and upright tablets, panels on wide cards', () => {
+        expect(isSheetLayout(390, 844)).toBe(true);
+        expect(isSheetLayout(800, 1280)).toBe(true);
+        expect(isSheetLayout(1280, 800)).toBe(false);
+        expect(isSheetLayout(1024, 1366)).toBe(false);
+        expect(isSheetLayout(0, 0)).toBe(false);
     });
 
     it('applyAutoCrop flags narrow cards on the render root', () => {

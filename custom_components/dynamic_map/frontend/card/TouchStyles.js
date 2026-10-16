@@ -36,7 +36,10 @@ export const TOUCH_STYLES = `
     /* Narrow cards: floor chips and the round buttons share one row; the outside bar takes the next. */
     .dm-render-root.dm-narrow .dm-top-ui { top: 8px; left: 8px; right: 8px; gap: 6px; }
     .dm-render-root.dm-narrow .dm-chip { padding: 0 12px; }
-    .dm-render-root.dm-narrow .dm-outside-bar { flex-basis: 100%; }
+    .dm-render-root.dm-narrow .dm-outside-bar { flex-basis: 100%; box-sizing: border-box; }
+    /* Centred while it fits; auto margins (not justify-content) keep the overflow scrollable. */
+    .dm-render-root.dm-narrow .dm-outside-item:first-child { margin-left: auto; }
+    .dm-render-root.dm-narrow .dm-outside-item:last-child { margin-right: auto; }
     /* Narrow cards: the long-press menu docks to the bottom edge like the room panel. */
     .dm-render-root.dm-narrow .dm-overlay.dm-sheet {
         left: 8px !important; right: 8px; top: auto !important; bottom: 8px; transform: none !important;
