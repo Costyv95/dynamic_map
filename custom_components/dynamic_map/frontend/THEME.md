@@ -65,11 +65,12 @@ declared, or if a declared token is missing from this list.
 | `--dm-duration` | `0.2s` |
 | `--dm-tap` | `36px`, raised to `44px` under `(pointer: coarse)` |
 
-## Floor picture
+## Floor picture and decor
 
 | Token | Default |
 |---|---|
-| `--dm-floor-filter` | `none`. A CSS filter on the floor's background PNG. On a dark host, `invert(0.9) hue-rotate(180deg)` turns a white plan dark while the room colours (drawn on top) stay as designed. |
+| `--dm-floor-filter` | `none`. A CSS filter on the floor itself: the background PNG, the floor colour under it, and in `fit` mode the room plate (which is drawn in the floor colour). On a dark host, `invert(0.9) hue-rotate(180deg)` turns a white plan dark while the room colours (drawn on top) stay as designed. |
+| `--dm-object-filter` | `none`. A CSS filter on decor shortcuts (furniture and other drawings marked `decor`). On a dark host, e.g. `brightness(0.75)`, or `invert(0.85) hue-rotate(180deg)` for line drawings. Device icons are not filtered: their colours and state images carry meaning. |
 
 ## HUD (long-press menus, sensor gauges, room selection)
 

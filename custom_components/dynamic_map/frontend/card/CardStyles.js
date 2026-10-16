@@ -43,8 +43,11 @@ export const CARD_STYLES = `
         /* Smallest tap target; raised on touch screens below. */
         --dm-tap: 36px;
         /* Long-press menus and the room-selection bar: a dark HUD by default. */
-        /* Filter on the floor's background picture (e.g. a dark host: invert(.9) hue-rotate(180deg)). */
+        /* Filter on the floor itself: its picture, the colour under it, and the 'fit' room plate
+           (e.g. a dark host: invert(.9) hue-rotate(180deg)). */
         --dm-floor-filter: none;
+        /* Filter on decor (furniture drawings). Device icons are left alone: their colours are state. */
+        --dm-object-filter: none;
         --dm-hud-bg: rgba(15, 23, 42, 0.92);
         --dm-hud-text: #ffffff;
         --dm-hud-muted: #94a3b8;
@@ -229,7 +232,8 @@ export const CARD_STYLES = `
         background: var(--dm-fill);
         transition: background var(--dm-duration) var(--dm-ease);
     }
-    .dm-bg-image { filter: var(--dm-floor-filter); }
+    .dm-bg-image, .dm-bg-underlay, .dm-room-plate { filter: var(--dm-floor-filter); }
+    .dm-decor-layer { filter: var(--dm-object-filter); }
     .room-polygon {
         cursor: pointer;
         stroke-linejoin: round;
