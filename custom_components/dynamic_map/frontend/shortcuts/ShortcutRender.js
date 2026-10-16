@@ -111,7 +111,13 @@ export function renderComponents(host, layout, hass) {
     clear(host.contentGroup);
     let hasFailedImage = false;
 
+    // A host with a floor tone (card/FloorTone.js) has toned copies of decor pictures.
+    const tones = host.config && host.config.decor && host.mapContext ? host.mapContext.decorTones : null;
     layout.forEach(comp => {
+        if (tones && comp.type === 'image' && typeof comp.value === 'string') {
+            const toned = tones[resolveDataUrl(comp.value)];
+            if (toned) comp = { ...comp, value: toned };
+        }
         if (comp.type === 'image' && comp.tiling) {
             const el = buildTiledImage(host, comp);
             if (comp.id) el.setAttribute('id', comp.id);

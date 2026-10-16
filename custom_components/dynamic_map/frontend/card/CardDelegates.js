@@ -8,6 +8,7 @@ import { buildOutsideBar, updateOutsideBar } from './OutsideBar.js?v=3.2.1';
 import { syncFocusPill, onRoomTap, zoomToRoom, zoomOutToDefault, animateViewBox } from './RoomFocus.js?v=3.2.1';
 import { roomTint } from './RoomTemperature.js?v=3.2.1';
 import { MapBuilder } from './MapBuilder.js?v=3.2.1';
+import { toneColor } from './FloorTone.js?v=3.2.1';
 import { updateRoomPanel, showRoomPanel } from './RoomPanel.js?v=3.2.1';
 import { updateQuickActions } from './QuickActions.js?v=3.2.1';
 import { updateRoomAlerts } from './RoomAlerts.js?v=3.2.1';
@@ -61,7 +62,7 @@ export const cardDelegates = {
     },
     /** Paint the letterbox around the map in the floor colour ('fit' keeps the card surface). */
     applyFloorBackground() {
-        const paint = this.floorBgMode === 'fit' ? null : this.floorBgColor;
+        const paint = this.floorBgMode === 'fit' ? null : toneColor(this.floorTone, this.floorBgColor);
         if (this.renderRoot) this.renderRoot.style.background = paint || '';
     }
 };

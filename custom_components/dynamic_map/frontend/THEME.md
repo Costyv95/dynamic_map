@@ -69,7 +69,9 @@ declared, or if a declared token is missing from this list.
 
 | Token | Default |
 |---|---|
-| `--dm-floor-filter` | `none`. A CSS filter on the floor itself: the background PNG, the floor colour under it, and in `fit` mode the room plate (which is drawn in the floor colour). On a dark host, `invert(0.9) hue-rotate(180deg)` turns a white plan dark while the room colours (drawn on top) stay as designed. |
+| `--dm-floor-paper` | unset. With `--dm-floor-ink`, the floor's own colours for a host that is not white: the card recolours the floor picture once (on a canvas, kept for the page) and draws the floor colour, the `fit` plate and grey walls in the same scale. White becomes paper, black becomes ink, and the greys blend between them; saturated colours (a coloured wall) stay as drawn. A hex or `rgb()` colour, e.g. `#0c111b`. Prefer this to a filter: nothing is repainted per frame and the result is designed rather than inverted. Toned surfaces ignore `--dm-floor-filter`. |
+| `--dm-floor-ink` | unset. What black becomes on the floor (walls and furniture lines), e.g. `#7d879a`. The same tone recolours decor pictures (SVG greys are rewritten, raster decor goes through the canvas), so a toned decor layer ignores `--dm-object-filter`. Floors are kept for the page and the other floors are prepared while the card is idle, so a floor switch draws from memory. |
+| `--dm-floor-filter` | `none`. A CSS filter on the floor itself: the background PNG, the floor colour under it, and in `fit` mode the room plate (which is drawn in the floor colour). Kept for hosts that want a filter; a dark host should set the paper and ink above instead. |
 | `--dm-object-filter` | `none`. A CSS filter on decor shortcuts (furniture and other drawings marked `decor`). On a dark host, e.g. `brightness(0.75)`, or `invert(0.85) hue-rotate(180deg)` for line drawings. Device icons are not filtered: their colours and state images carry meaning. |
 
 ## HUD (long-press menus, sensor gauges, room selection)
