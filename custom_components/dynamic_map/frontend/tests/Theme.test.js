@@ -33,6 +33,14 @@ describe('theme tokens', () => {
         expect(offenders).toEqual([]);
         expect(readdirSync(dir)).toEqual(expect.arrayContaining(files));
     });
+
+    it('the floor filter reaches every floor surface; the object filter reaches decor only', () => {
+        const rule = sel => CARD_STYLES.match(new RegExp(`([^{}]*${sel}[^{}]*)\\{([^}]*)\\}`));
+        for (const sel of ['\\.dm-bg-image', '\\.dm-bg-underlay', '\\.dm-room-plate']) {
+            expect(rule(sel)[2]).toContain('var(--dm-floor-filter)');
+        }
+        expect(rule('\\.dm-decor-layer')[2]).toContain('var(--dm-object-filter)');
+    });
 });
 
 describe('long-press menu placement', () => {

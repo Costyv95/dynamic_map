@@ -32,6 +32,7 @@ export function buildBackground(host, bgUrl) {
         underlay.setAttribute('width', host.imgW.toString());
         underlay.setAttribute('height', host.imgH.toString());
         underlay.setAttribute('fill', host.floorBgColor);
+        underlay.classList.add('dm-bg-underlay');
         host.mapRoot.appendChild(underlay);
     }
     const image = document.createElementNS(svgNS, 'image');
