@@ -154,9 +154,26 @@ export function zoomTransform(from, to, rect) {
 }
 
 /**
+ * The smallest box with `like`'s aspect that holds both `a` and `b`. The
+ * zoom draws this for real, so both ends of the motion have content: a
+ * zoom-out drawn from the room alone shrank it in an empty card and the
+ * house popped in at the end (#1264).
+ */
+export function spanBox(a, b, like) {
+    const x0 = Math.min(a.x, b.x), y0 = Math.min(a.y, b.y);
+    let w = Math.max(a.x + a.w, b.x + b.w) - x0, h = Math.max(a.y + a.h, b.y + b.h) - y0;
+    const ratio = like.w / like.h;
+    const cx = x0 + w / 2, cy = y0 + h / 2;
+    if (w / h < ratio) w = h * ratio; else h = w / ratio;
+    return { x: cx - w / 2, y: cy - h / 2, w, h };
+}
+
+/**
  * Zoom the map to `target`. The animation is a compositor transform on the
- * svg (no per-frame re-layout or re-raster of badges and filters); the
- * real viewBox is written once at the end.
+ * svg (no per-frame re-layout or re-raster of badges and filters): the
+ * span of both views is drawn once, the transform moves the camera across
+ * it, and the real viewBox is written at the end. Zooming out therefore
+ * ends on exactly what was drawn.
  */
 export function animateViewBox(host, target, duration = ZOOM_ANIMATION_MS) {
     if (host._vbAnimFrame) { cancelAnimationFrame(host._vbAnimFrame); host._vbAnimFrame = null; }
@@ -165,14 +182,15 @@ export function animateViewBox(host, target, duration = ZOOM_ANIMATION_MS) {
     if (!canComposite) { animateViewBoxByFrames(host, target, duration); return; }
     const from = currentVb(host);
     if (host._vbAnim) { host._vbAnim.anim.cancel(); host._vbAnim = null; }
-    // Draw `from` for real, then let the compositor carry the motion.
-    host.vb = from;
+    // Draw the span of both views for real, then let the compositor carry the motion.
+    const span = spanBox(from, target, from);
+    host.vb = span;
     host.updateViewBox();
     const rect = svg.getBoundingClientRect();
     if (!(rect.width > 0 && rect.height > 0)) { host.vb = { ...target }; host.updateViewBox(); return; }
     svg.style.transformOrigin = '0 0';
     svg.style.willChange = 'transform';
-    const anim = svg.animate([{ transform: 'none' }, { transform: zoomTransform(from, target, rect) }], { duration, easing: EASE_CSS, fill: 'forwards' });
+    const anim = svg.animate([{ transform: zoomTransform(span, from, rect) }, { transform: zoomTransform(span, target, rect) }], { duration, easing: EASE_CSS, fill: 'forwards' });
     const entry = { anim, from, to: { ...target }, start: performance.now(), duration };
     host._vbAnim = entry;
     anim.onfinish = () => {

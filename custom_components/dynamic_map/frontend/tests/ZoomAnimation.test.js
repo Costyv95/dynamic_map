@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { animateViewBox, zoomTransform, settleViewBox } from '../card/RoomFocus.js';
+import { animateViewBox, zoomTransform, settleViewBox, spanBox } from '../card/RoomFocus.js';
 
 function fakeSvg() {
     const anims = [];
@@ -45,7 +45,26 @@ describe('room zoom animation', () => {
         expect(Math.abs(host.vb.x - 250)).toBeLessThan(2);              // eased midpoint of 0..500
         expect(svg.anims[0].cancel).toHaveBeenCalled();
         animateViewBox(host, { x: 0, y: 0, w: 1000, h: 500 }, 300);
-        expect(svg.anims[1].frames[1].transform).toContain('scale(1.00000)');
+        // drawn: the span of ~x250 and x0 (1250 wide); the end frame shows the 1000-wide target in it
+        expect(host.vb.w).toBeCloseTo(1250, 0);
+        expect(svg.anims[1].frames[1].transform).toContain('scale(1.25');
+    });
+
+    it('zooming out draws the wide view first and ends on it, so the house never pops in (#1264)', () => {
+        const svg = fakeSvg();
+        const room = { x: 250, y: 100, w: 500, h: 250 }, house = { x: 0, y: 0, w: 1000, h: 500 };
+        const host = { svg, vb: { ...room }, updateViewBox: vi.fn() };
+        animateViewBox(host, house, 300);
+        expect(host.vb).toEqual(house);                                // the whole house is drawn during the motion
+        expect(svg.anims[0].frames[0].transform).toBe('translate(-500.00px, -200.00px) scale(2.00000)');  // starts looking like the room
+        expect(svg.anims[0].frames[1].transform).toBe('translate(0.00px, 0.00px) scale(1.00000)');        // ends on what is drawn
+        svg.anims[0].onfinish();
+        expect(host.vb).toEqual(house);
+    });
+
+    it('spanBox holds both views at the first one\'s aspect', () => {
+        const b = spanBox({ x: 0, y: 0, w: 100, h: 50 }, { x: 300, y: 0, w: 100, h: 50 }, { w: 100, h: 50 });
+        expect(b).toEqual({ x: 0, y: -75, w: 400, h: 200 });
     });
 
     it('falls back to per-frame interpolation without the Web Animations API', () => {
