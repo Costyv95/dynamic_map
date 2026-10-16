@@ -3,12 +3,15 @@ import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
 import { labelTransform } from './Viewport.js?v=3.2.1';
 import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeometry.js?v=3.2.1';
 import { applyRoomLabel, roomBox } from './RoomLabels.js?v=3.2.1';
+import { toneColor } from '../card/FloorTone.js?v=3.2.1';
 
 /**
  * The one SVG scene for a floor, built into a "scene host": an object (the
  * card element, or the editor's host) carrying `svgNS`, `mapRoot`,
  * `rooms`, `walls`, `shortcuts`, `imgW`, `imgH`, `floorBgMode`,
- * `floorBgColor` and `_hass`. Shortcuts also read `activeMode`,
+ * `floorBgColor` and `_hass`; with `floorTone` (card/FloorTone.js) the floor
+ * colours are drawn in the host's tone, and `floorToned` says the picture
+ * already is. Shortcuts also read `activeMode`,
  * `isRotated`, `showOverlay`, `interactive` and `skipUnchanged` from it.
  */
 
@@ -31,8 +34,9 @@ export function buildBackground(host, bgUrl) {
         const underlay = document.createElementNS(svgNS, 'rect');
         underlay.setAttribute('width', host.imgW.toString());
         underlay.setAttribute('height', host.imgH.toString());
-        underlay.setAttribute('fill', host.floorBgColor);
+        underlay.setAttribute('fill', toneColor(host.floorTone, host.floorBgColor));
         underlay.classList.add('dm-bg-underlay');
+        if (host.floorTone) underlay.classList.add('dm-toned');
         host.mapRoot.appendChild(underlay);
     }
     const image = document.createElementNS(svgNS, 'image');
@@ -41,6 +45,7 @@ export function buildBackground(host, bgUrl) {
     image.setAttribute('height', host.imgH.toString());
     image.setAttribute('preserveAspectRatio', 'none');
     image.classList.add('dm-bg-image');
+    if (host.floorToned) image.classList.add('dm-toned');
     host.mapRoot.appendChild(image);
 }
 
@@ -52,7 +57,8 @@ export function buildBackground(host, bgUrl) {
 export function buildRoomPlate(host) {
     const plate = document.createElementNS(host.svgNS, 'g');
     plate.classList.add('dm-room-plate');
-    const color = host.floorBgColor || '#1e293b';
+    if (host.floorTone) plate.classList.add('dm-toned');
+    const color = toneColor(host.floorTone, host.floorBgColor || '#1e293b');
     const pad = Math.max(host.imgW, host.imgH) * 0.035;
     host.rooms.forEach(room => {
         const poly = document.createElementNS(host.svgNS, 'polygon');
@@ -137,7 +143,7 @@ export function buildWalls(host) {
         ).join(' ');
         path.setAttribute('d', d);
         path.setAttribute('fill', 'none');
-        path.setAttribute('stroke', wall.color || WALL_DEFAULT_COLOR);
+        path.setAttribute('stroke', toneColor(host.floorTone, wall.color || WALL_DEFAULT_COLOR));
         path.setAttribute('stroke-width', Number(wall.thickness) > 0 ? wall.thickness : WALL_DEFAULT_THICKNESS);
         path.setAttribute('stroke-linecap', 'square');
         path.setAttribute('stroke-linejoin', 'miter');
@@ -157,6 +163,7 @@ export function buildShortcuts(host) {
     host.shortcutElements = {};
     host.decorLayer = document.createElementNS(host.svgNS, 'g');
     host.decorLayer.classList.add('dm-decor-layer');
+    if (host.decorTones) host.decorLayer.classList.add('dm-toned');
     // Below the room labels (which sit right after the walls), above walls.
     if (host.labelsLayer && host.labelsLayer.parentNode === host.mapRoot) host.mapRoot.insertBefore(host.decorLayer, host.labelsLayer);
     else host.mapRoot.appendChild(host.decorLayer);

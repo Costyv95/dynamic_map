@@ -49,6 +49,9 @@ export const CARD_STYLES = `
         --dm-floor-filter: none;
         /* Filter on decor (furniture drawings). Device icons are left alone: their colours are state. */
         --dm-object-filter: none;
+        /* The floor's own colours instead of a filter: white -> paper, black -> ink (FloorTone.js). */
+        --dm-floor-paper: ;
+        --dm-floor-ink: ;
         --dm-hud-bg: rgba(15, 23, 42, 0.92);
         --dm-hud-text: #ffffff;
         --dm-hud-muted: #94a3b8;
@@ -234,7 +237,9 @@ export const CARD_STYLES = `
         transition: background var(--dm-duration) var(--dm-ease);
     }
     .dm-bg-image, .dm-bg-underlay, .dm-room-plate { filter: var(--dm-floor-filter); }
+    .dm-bg-image.dm-toned, .dm-bg-underlay.dm-toned, .dm-room-plate.dm-toned { filter: none; }
     .dm-decor-layer { filter: var(--dm-object-filter); }
+    .dm-decor-layer.dm-toned { filter: none; }
     .room-polygon {
         cursor: pointer;
         stroke-linejoin: round;
