@@ -22,9 +22,8 @@ scene code; the editor is a native HA custom panel.
   - **`shortcuts/`** - badge compositor: `MapShortcut.js`, `ShortcutLayout.js`, `ShortcutRender.js`, `ShortcutGlow.js`, `ShortcutFx.js`, `ShortcutDefs.js`, `ShortcutInteractions.js`, `ShortcutDeps.js`, `ConditionEvaluator.js`, `TemplateEvaluator.js`, `components/` renderers.
   - **`card/`** - card-only: `AmbientTint.js`, `PresenceLayer.js`, `OutsideBar.js`, `RoomFocus.js`, `CameraManager.js`, `MapBuilder.js`, `CardStyles.js`, `OverlayManager.js` + `overlay/` (per action type).
   - **`editor/`** - `EditorCanvas.js`, `EditOverlay.js`, `ToolRouter.js`, `tools/` (Shortcut / Room / Wall), `HitTest.js`, `EditorStateManager.js`, `HistoryManager.js`, `HassBridge.js`, `EditorUI.js`, `ui/` (toolbar, inspector, panels, dialogs, dom helpers).
-  - **`shared/`** - `ShortcutGeometry.js` (badge frame per orientation), `OrientationProps.js`, `SensorPill.js`, `WallGeometry.js`, `ProgressBar.js`, `Color.js`, `MapGeometry.js`, `ActionRunner.js`, `ApiManager.js` (token path for the iframe, `setHass` for the panel).
+  - **`shared/`** - `FloorPlan.js` (a floor's canvas and plate), `Furniture.js` (parametric furniture, doors, windows), `ShortcutGeometry.js` (badge frame per orientation), `OrientationProps.js`, `SensorPill.js`, `WallGeometry.js`, `ProgressBar.js`, `Color.js`, `MapGeometry.js`, `ActionRunner.js`, `ApiManager.js` (token path for the iframe, `setHass` for the panel).
   - **`tests/`** - vitest + jsdom; `EditorBoot.test.js` and `Panel.test.js` boot the real entries.
-- **`server/`** - DXF/SVG sidecar (Flask + OpenCV/ezdxf).
 - **`scratch/`** - `deploy.sh`, `auto_version.py`, `check_lines.sh` (300-line rule), `browser_check/` (headless Chrome harness, see its README).
 - **`docs/`** - `project.md` (architecture), `history.md` (ADRs), `plan_unification.md`, `todo.md`.
 
@@ -32,7 +31,6 @@ scene code; the editor is a native HA custom panel.
 1. Card: `frontend/custom-svg-map.js`
 2. Panel: `frontend/dynamic-map-panel.js` -> `editor.js` (`EditorApp`)
 3. Backend: `custom_components/dynamic_map/__init__.py`
-4. Sidecar CLI: `server/dxf_processor.py`
 
 ## Hotspots
 - `shortcuts/ShortcutLayout.js` - the state > config > default precedence for every visual key; change with a test.

@@ -1,5 +1,4 @@
-"""Tool views: sidecar recompute, floor deletion, HA registry, Roborock rooms, texture generation."""
-import base64
+"""Tool views: floor deletion, HA registry, Roborock rooms, texture generation."""
 import json
 import logging
 import os
@@ -12,7 +11,6 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     CONF_ANTHROPIC_API_KEY,
-    CONF_SIDECAR_URL,
     CONF_TEXTURE_MODEL,
     CONF_TEXTURE_SIDECAR_URL,
     DATA_DIR,
@@ -23,55 +21,9 @@ from . import storage, texture_gen
 
 _LOGGER = logging.getLogger(__name__)
 
-SIDECAR_TIMEOUT = aiohttp.ClientTimeout(total=300)
 TEXTURE_TIMEOUT = aiohttp.ClientTimeout(total=240)
 
 from .views_base import DynamicMapView
-
-
-class DynamicMapRecomputeView(DynamicMapView):
-    """Recompute a floor's rooms/background from DXF/SVG via the sidecar."""
-
-    url = "/api/dynamic_map/recompute"
-    name = "api:dynamic_map:recompute"
-
-    async def post(self, request):
-        if (denied := self.forbidden_unless_admin(request)) is not None:
-            return denied
-        try:
-            data = await request.json()
-        except ValueError:
-            return self.error("Invalid JSON body.")
-
-        floor_num = data.get("floor_num")
-        if not floor_num:
-            return self.error("Missing floor_num.")
-
-        sidecar_url = self.hass.data.get(DOMAIN, {}).get(CONF_SIDECAR_URL)
-        if not sidecar_url:
-            return self.error(
-                "No sidecar configured. Add 'sidecar_url' under 'dynamic_map:' in "
-                "configuration.yaml (see server/README)."
-            )
-
-        payload = {
-            "floor": floor_num,
-            "svg_file": data.get("svg_file"),
-            "dxf_file": data.get("dxf_file"),
-        }
-        session = async_get_clientsession(self.hass)
-        try:
-            async with session.post(
-                f"{sidecar_url}/process", json=payload, timeout=SIDECAR_TIMEOUT
-            ) as resp:
-                result = await resp.json()
-        except (aiohttp.ClientError, TimeoutError) as err:
-            _LOGGER.error("Sidecar request failed: %s", err)
-            return self.error(f"Sidecar unreachable at {sidecar_url}: {err}", status=502)
-
-        if not result.get("success"):
-            return self.error(result.get("error", "Unknown error from sidecar"), status=502)
-        return self.json({"success": True})
 
 
 class DynamicMapDeleteFloorView(DynamicMapView):

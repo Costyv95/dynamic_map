@@ -16,7 +16,7 @@ data dir) and the editor as a **native custom panel** (`dynamic-map-panel`,
 admin only). `views.py` holds the authenticated REST API (`/api/dynamic_map/*`;
 writes need an admin), `storage.py` the HA-free filename rules and payload
 validation (unit-tested in `tests/`), `texture_gen.py` the Claude texture
-generation. Heavy DXF/SVG geometry runs in the optional sidecar (`server/`).
+generation.
 
 ### 2. The map card (`custom:custom-svg-map`)
 `frontend/custom-svg-map.js` is a thin web component. It composes:
@@ -65,8 +65,10 @@ per orientation; `OrientationProps.js` the low-level oriented read/write;
 
 ## Data
 Everything lives in `<config>/dynamic_map_data/`: `rooms_floorN.json`,
-`shortcuts_floorN.json`, `config_floorN.json` (rotation mode, flips,
-background, walls), `bg_floorN.png`, `outside.json`, `icons/`. The schema is
+`shortcuts_floorN.json`, `config_floorN.json` (canvas, floor colour,
+rotation mode, flips, walls), `outside.json`, `icons/`. Floors are drawn:
+furniture, doors and windows are decor shortcuts with `config.furniture`
+(ADR 015). A `bg_floorN.png` is read only on a floor without a canvas. The schema is
 unchanged by the 4.0 unification; keys starting with `_` are editor runtime
 state and are never saved.
 

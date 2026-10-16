@@ -35,6 +35,8 @@ CONFIG_SCHEMA = vol.Schema(
     {
         DOMAIN: vol.Schema(
             {
+                # Scan import was removed; still accepted so an old
+                # configuration.yaml keeps validating. Ignored.
                 vol.Optional(CONF_SIDECAR_URL): cv.url,
                 vol.Optional(CONF_ANTHROPIC_API_KEY): cv.string,
                 vol.Optional(CONF_TEXTURE_MODEL): cv.string,
@@ -57,7 +59,6 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
     hass.data[DOMAIN] = {
         "version": integration.version,
-        CONF_SIDECAR_URL: conf.get(CONF_SIDECAR_URL),
         CONF_ANTHROPIC_API_KEY: conf.get(CONF_ANTHROPIC_API_KEY),
         CONF_TEXTURE_MODEL: conf.get(CONF_TEXTURE_MODEL),
         CONF_TEXTURE_SIDECAR_URL: conf.get(CONF_TEXTURE_SIDECAR_URL),

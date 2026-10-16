@@ -97,7 +97,9 @@ describe('room temperature tint', () => {
         mapRoot.appendChild(poly);
         const host = { mapRoot, rooms: [{ id: 'r', color: '#336699' }], _hass: { states: {} }, roomTint: () => 'rgb(10, 20, 30)' };
         updateRoomStyles(host);
-        expect(poly.getAttribute('stroke')).toBe('rgba(10, 20, 30, 1)');
+        // At rest the tint is a soft wash; the walls draw the room's edges.
+        expect(poly.getAttribute('fill')).toMatch(/^rgba\(10, 20, 30, 0\.2/);
+        expect(poly.getAttribute('stroke')).toBe('none');
         expect(tintPalette('nope').solid).toBe('rgb(100, 116, 139)');
     });
 });

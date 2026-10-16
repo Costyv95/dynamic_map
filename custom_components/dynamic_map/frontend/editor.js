@@ -7,7 +7,8 @@ import { HassBridge } from './editor/HassBridge.js?v=3.2.1';
 import { setupAutocomplete } from './editor/ui/EntityAutocomplete.js?v=3.2.1';
 import { discoverFloors, loadRegistry, loadEntities } from './editor/Discovery.js?v=3.2.1';
 import { openAddFloorDialog } from './editor/ui/FloorDialogs.js?v=3.2.1';
-import { loadIconList } from './editor/ui/RecomputeDialog.js?v=3.2.1';
+import { floorCanvas } from './shared/FloorPlan.js?v=3.2.1';
+import { loadIconList } from './editor/ui/FloorDialogs.js?v=3.2.1';
 import { newObject, newDecor } from './editor/ui/Presets.js?v=3.2.1';
 import { setUiRoot, confirmDialog } from './editor/ui/Dialog.js?v=3.2.1';
 import { DirtyTracker, writeDraft, readDraft, clearDraft, draftDiffers, formatAge } from './editor/Drafts.js?v=3.2.1';
@@ -65,6 +66,9 @@ export class EditorApp {
     floorConfig(extra = {}) {
         const c = this.canvas;
         return {
+            // Keys this editor does not manage (and future ones) survive a save.
+            ...(c.floorConfig || {}),
+            canvas: c.canvasSize || undefined,
             rotation_mode: c.rotationMode, flips: c.flips,
             name: this.state.floorName || undefined,
             background_color: c.backgroundColor || undefined,
@@ -128,8 +132,11 @@ export class EditorApp {
         const state = this.state;
         state.activeFloor = floorNum;
         localStorage.setItem('dm_editor_last_floor', String(floorNum));
-        const bgUrl = dataUrl(`bg_floor${floorNum}.png?t=${Date.now()}`);
-        const [dims, data] = await Promise.all([this.loadImageSize(bgUrl), this.loadFloorJson(floorNum)]);
+        const data = await this.loadFloorJson(floorNum);
+        // A vector floor has a canvas; a legacy one takes its size from its picture.
+        const canvasSize = floorCanvas(data.config);
+        const bgUrl = canvasSize ? null : dataUrl(`bg_floor${floorNum}.png?t=${Date.now()}`);
+        const dims = canvasSize || await this.loadImageSize(bgUrl);
         const draft = readDraft(floorNum);
         let restored = false;
         if (draftDiffers(draft, data)) {

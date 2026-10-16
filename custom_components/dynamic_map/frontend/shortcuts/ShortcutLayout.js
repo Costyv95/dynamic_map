@@ -1,6 +1,8 @@
 import { resolveOriented } from '../shared/OrientationProps.js?v=3.2.1';
 import { computeSensorPill } from '../shared/SensorPill.js?v=3.2.1';
 import { contrastText, resolveEntityColor } from '../shared/Color.js?v=3.2.1';
+import { FURNITURE_COLORS } from '../shared/Furniture.js?v=3.2.1';
+import { toneColor } from '../card/FloorTone.js?v=3.2.1';
 
 /**
  * Builds the declarative component layout for a badge from its config and
@@ -37,6 +39,23 @@ function sensorLayout(host, matchedState, hass, scaleX, scaleY) {
         { id: 'sensor_value', type: 'text', x: p.textX, y: 0, value: p.value, font_size: p.fontValue, align: 'start', font_weight: 'bold', color: p.fg }
     ];
     return { layout, pillHalfW: p.width / 2 };
+}
+
+/**
+ * A furniture / door / window drawing (shared/Furniture.js) in the floor's
+ * tone. `config.furniture_colors` overrides the greys; `floor` follows the
+ * floor colour so a door's cut and a window match the plate.
+ */
+function furnitureLayout(host, scaleX, scaleY) {
+    const config = host.config;
+    const ctx = host.mapContext || {};
+    const tone = ctx.floorTone || null;
+    const base = { ...FURNITURE_COLORS, ...(ctx.floorBgColor ? { floor: ctx.floorBgColor } : {}), ...(config.furniture_colors || {}) };
+    const colors = Object.fromEntries(Object.entries(base).map(([k, v]) => [k, toneColor(tone, v)]));
+    return [{
+        id: 'furniture', type: 'furniture', kind: config.furniture,
+        width: 24 * scaleX, height: 24 * scaleY, colors, opts: config.furniture_opts || {}
+    }];
 }
 
 /** Default badge: a shape plus an icon or an image. */
@@ -164,6 +183,8 @@ export function buildLayout(host, matchedState, hass, activeMode) {
             const r = sensorLayout(host, matchedState, hass, scaleX, scaleY);
             layout = r.layout;
             pillHalfW = r.pillHalfW;
+        } else if (config.furniture) {
+            layout = furnitureLayout(host, scaleX, scaleY);
         } else {
             layout = badgeLayout(host, matchedState, hass, shape, scaleX, scaleY);
         }

@@ -4,6 +4,7 @@ import { labelTransform } from './Viewport.js?v=3.2.1';
 import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeometry.js?v=3.2.1';
 import { applyRoomLabel, roomBox } from './RoomLabels.js?v=3.2.1';
 import { toneColor } from '../card/FloorTone.js?v=3.2.1';
+import { platePad } from '../shared/FloorPlan.js?v=3.2.1';
 
 /**
  * The one SVG scene for a floor, built into a "scene host": an object (the
@@ -59,7 +60,7 @@ export function buildRoomPlate(host) {
     plate.classList.add('dm-room-plate');
     if (host.floorTone) plate.classList.add('dm-toned');
     const color = toneColor(host.floorTone, host.floorBgColor || '#1e293b');
-    const pad = Math.max(host.imgW, host.imgH) * 0.035;
+    const pad = platePad(host.walls, host.imgW, host.imgH);
     host.rooms.forEach(room => {
         const poly = document.createElementNS(host.svgNS, 'polygon');
         poly.setAttribute('points', polygonPoints(host, room.polygon));
@@ -93,6 +94,9 @@ export function buildRooms(host, onRoomTap) {
     host.labelsLayer = document.createElementNS(svgNS, 'g');
     host.labelsLayer.classList.add('dm-room-labels');
     host.labelsLayer.style.pointerEvents = 'none';
+    // Ink-on-floor labels in the floor's tone; --dm-room-label overrides.
+    host.labelsLayer.style.setProperty('--dm-room-label-auto', toneColor(host.floorTone, '#0f172a'));
+    host.labelsLayer.style.setProperty('--dm-room-label-halo-auto', toneColor(host.floorTone, host.floorBgColor || '#eeeeee'));
     host.rooms.forEach(room => {
         const polygon = document.createElementNS(svgNS, 'polygon');
         polygon.setAttribute('points', polygonPoints(host, room.polygon));
@@ -112,7 +116,6 @@ export function buildRooms(host, onRoomTap) {
             text.setAttribute('x', cx);
             text.setAttribute('text-anchor', 'middle');
             text.setAttribute('dominant-baseline', 'central');
-            text.setAttribute('fill', 'rgba(255, 255, 255, 0.96)');
             text.setAttribute('font-weight', '600');
             applyRoomLabel(text, room.name, w, h, host.imgW * 0.017, cx, cy, svgNS);
             text.classList.add('room-label');
@@ -172,7 +175,8 @@ export function buildShortcuts(host) {
         host.shortcutElements[sc.id] = obj;
         const parent = (sc.config && sc.config.decor) ? host.decorLayer : host.mapRoot;
         parent.appendChild(obj.render());
-        if (host._hass) obj.updateState(host._hass);
+        // Decor reads no entity, so it draws before hass arrives.
+        if (host._hass || (sc.config && sc.config.decor)) obj.updateState(host._hass || null);
     });
 }
 

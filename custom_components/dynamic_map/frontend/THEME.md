@@ -73,6 +73,10 @@ declared, or if a declared token is missing from this list.
 | `--dm-floor-ink` | unset. What black becomes on the floor (walls and furniture lines), e.g. `#7d879a`. The same tone recolours decor pictures (SVG greys are rewritten, raster decor goes through the canvas), so a toned decor layer ignores `--dm-object-filter`. Floors are kept for the page and the other floors are prepared while the card is idle, so a floor switch draws from memory. |
 | `--dm-floor-filter` | `none`. A CSS filter on the floor itself: the background PNG, the floor colour under it, and in `fit` mode the room plate (which is drawn in the floor colour). Kept for hosts that want a filter; a dark host should set the paper and ink above instead. |
 | `--dm-object-filter` | `none`. A CSS filter on decor shortcuts (furniture and other drawings marked `decor`). On a dark host, e.g. `brightness(0.75)`, or `invert(0.85) hue-rotate(180deg)` for line drawings. Device icons are not filtered: their colours and state images carry meaning. |
+| `--dm-room-label` | unset. Room name colour. Unset, it is dark slate on the floor, in the floor tone when one is set (so it reads on a dark host too). |
+| `--dm-room-label-halo` | unset. The thin outline behind room names that keeps them legible over furniture. Unset, the floor colour (toned). |
+
+Furniture, doors and windows are vector drawings (`shared/Furniture.js`) in greys, so the floor tone maps them like the walls; no picture is toned for them.
 
 ## HUD (long-press menus, sensor gauges, room selection)
 

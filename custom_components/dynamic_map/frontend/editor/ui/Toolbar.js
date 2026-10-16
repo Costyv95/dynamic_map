@@ -39,7 +39,7 @@ export class Toolbar {
         this.undoBtn = iconButton('↩', 'Undo (Ctrl+Z)', () => state.undo());
         this.redoBtn = iconButton('↪', 'Redo (Ctrl+Shift+Z)', () => state.redo());
         this.saveBtn = el('button.primary', { type: 'button', title: 'Save this floor to Home Assistant', onClick: () => app.saveWithFeedback() }, '💾 Save');
-        this.moreBtn = iconButton('⋯', 'More: rotation, flips, background, outside dashboard, recompute, YAML', (e) => openOverflowMenu(app, e.currentTarget));
+        this.moreBtn = iconButton('⋯', 'More: rotation, flips, floor colour, outside dashboard, YAML', (e) => openOverflowMenu(app, e.currentTarget));
         this.root.append(
             el('span.dm-brand', { title: 'Dynamic Map' }, 'Map'),
             this.floorRow, this.layerSeg, this.layoutSeg, this.linkBtn,
@@ -71,7 +71,7 @@ export class Toolbar {
         floors.forEach(f => this.floorRow.appendChild(el('button.dm-chip', {
             type: 'button', dataset: { floor: String(f) }, title: `Floor ${f}`, onClick: () => this.app.switchFloor(f)
         }, names[String(f)] || `Floor ${f}`)));
-        this.floorRow.appendChild(el('button.dm-chip.dm-add-floor', { type: 'button', title: 'Add a floor from a plan image or a blank canvas', onClick: () => this.app.addFloor() }, '＋'));
+        this.floorRow.appendChild(el('button.dm-chip.dm-add-floor', { type: 'button', title: 'Add a floor (a blank canvas to draw on)', onClick: () => this.app.addFloor() }, '＋'));
         this.setActiveFloor(active);
     }
 

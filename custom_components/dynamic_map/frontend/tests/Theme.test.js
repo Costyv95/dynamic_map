@@ -19,6 +19,9 @@ describe('theme tokens', () => {
         const used = new Set([...CARD_STYLES.matchAll(/var\((--dm-[a-z0-9-]+)/g)].map(m => m[1]));
         // --dm-room-glow is set per room polygon by the renderer.
         used.delete('--dm-room-glow');
+        // Room labels: the renderer sets the -auto tone colours; the plain
+        // names are optional overrides, undeclared so the fallback applies.
+        ['--dm-room-label', '--dm-room-label-auto', '--dm-room-label-halo', '--dm-room-label-halo-auto'].forEach(t => used.delete(t));
         expect([...used].filter(t => !declared.has(t))).toEqual([]);
     });
 

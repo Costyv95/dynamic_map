@@ -240,3 +240,18 @@ This document sequentially records the major technical and architectural decisio
     - Editor: `editor/Snap.js` alignment snapping with guide lines, arrow-key nudging, `editor/ui/AreaImport.js` (badges for a room's unplaced area devices, sized like the floor's existing badges), `editor/Drafts.js` (dirty tracking, local draft with restore, confirm before switching floors, `beforeunload` prompt), floor rename.
     - Verification used the real floor data pulled from the live box into the harness, and the live panel through a temporary admin user created with `hass --script auth` (removed afterwards).
 *   **Consequences:** every file still under 300 lines; 391 frontend tests. The first floor load regressed once during this work (a floor-switch guard compared against the state default) and is now covered by a boot test.
+
+---
+
+## 015 Drawn Floors: Vector Walls, Parametric Furniture, No Scan Import
+*   **Date:** 2026-10-16
+*   **Status:** Accepted
+*   **Context:** Costi found the map outdated and asked for manual construction only: the whole house (floors, walls, objects) as one generic model, everywhere the map is shown (HA card, editor, Portal's vendored copy), instead of the DXF/SVG scan that produced rooms and a background picture with walls and furniture baked in.
+*   **Decision:**
+    - **A floor is a canvas.** `config_floorN.json` carries `canvas: {w, h}` in map units (`shared/FloorPlan.js`); with it the card and the editor never load `bg_floorN.png`, and the background is the room plate in the floor colour. The plate reaches half a wall past the rooms when the floor has walls. A floor without a canvas still shows its old picture (read only); 🎨 in the editor can retire it, keeping the picture's size as the canvas.
+    - **Furniture, doors and windows are decor drawn from a kind and a size** (`shared/Furniture.js`, through `shortcuts/components/renderFurniture.js` and `ShortcutLayout.furnitureLayout`). Every kind draws in a local box with its back at the top, so rotation alone puts it against a wall; doors draw their swing from the hinge, can mirror, and can `cut` an unbroken wall; colours are greys toned by the floor tone like the walls. The editor's decor inspector picks the kind; new decor starts as a cabinet. Picture decor still works.
+    - **Rooms look like floor, not paint.** At rest a room is a 12% wash of its colour (none for an uncoloured room) with no outline, since walls now draw the edges; a lit room glows (warm for an uncoloured one). Labels are sentence case, ink on the floor with a halo in the floor colour (`--dm-room-label`, `--dm-room-label-halo`).
+    - **Scan import removed:** `server/` (the Flask/OpenCV/ezdxf sidecar), `/api/dynamic_map/recompute`, the editor's recompute dialog, the DXF/SVG file listing, plan-image floor creation and the PNG save path. `sidecar_url` is still accepted in `configuration.yaml` and ignored, so an old config keeps validating.
+    - **The house was migrated once** by `scratch/vector_house.py`: walls measured off the old pictures (thick dark runs, as rectangles, hand-joined into centre-line polylines), 4+3 doors, 7 windows and 39 pieces of furniture placed in the same map space, so rooms and badges did not move. Floor 3 was already drawn and only gained its canvas.
+*   **Consequences:** one model renders identically in the card, the editor and Portal, at any zoom, in any host tone; nothing on a floor is a raster any more except picture decor. The old pictures stay on disk unused. Furniture is approximate (measured by eye from the pictures) and is now edited like any decor.
+

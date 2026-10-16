@@ -4,7 +4,6 @@ All views require authentication; mutating endpoints additionally require an
 admin user. Responses keep the legacy ``{"success": bool, ...}`` body shape
 the frontend expects, but now also carry meaningful HTTP status codes.
 """
-import base64
 import json
 import logging
 import os
@@ -28,21 +27,19 @@ from . import storage, texture_gen
 
 _LOGGER = logging.getLogger(__name__)
 
-SIDECAR_TIMEOUT = aiohttp.ClientTimeout(total=300)
 TEXTURE_TIMEOUT = aiohttp.ClientTimeout(total=240)
 
 from .views_base import DynamicMapView  # noqa: F401  (re-exported)
 from .views_tools import (
     DynamicMapDeleteFloorView,
     DynamicMapGenerateTextureView,
-    DynamicMapRecomputeView,
     DynamicMapRegistryView,
     DynamicMapRoborockRoomsView,
 )
 
 
 class DynamicMapSaveView(DynamicMapView):
-    """Save per-floor map data (rooms/shortcuts/config JSON or background PNG)."""
+    """Save per-floor map data (rooms/shortcuts/config JSON) and the global lists."""
 
     url = "/api/dynamic_map/save"
     name = "api:dynamic_map:save"
@@ -59,29 +56,10 @@ class DynamicMapSaveView(DynamicMapView):
         if not storage.is_allowed_data_filename(filename):
             return self.error(
                 "Invalid filename. Expected rooms_floorN.json, shortcuts_floorN.json, "
-                "config_floorN.json or bg_floorN.png."
+                "config_floorN.json, outside.json or quick_actions.json."
             )
 
         save_path = os.path.join(self.data_dir, filename)
-
-        # Builder Mode: background image for a manually-added floor.
-        if filename.endswith(".png"):
-            image_b64 = data.get("image_base64")
-            if not image_b64:
-                return self.error("Missing image_base64 for background upload.")
-            try:
-                raw = base64.b64decode(image_b64.split(",")[-1])
-            except (ValueError, TypeError):
-                return self.error("image_base64 is not valid base64 data.")
-            if len(raw) > storage.MAX_BACKGROUND_BYTES:
-                return self.error("Background image too large.", status=413)
-
-            def save_image():
-                with open(save_path, "wb") as f:
-                    f.write(raw)
-
-            await self.hass.async_add_executor_job(save_image)
-            return self.json({"success": True})
 
         content = data.get("content")
         if content is None:
@@ -139,7 +117,7 @@ class DynamicMapEntitiesView(DynamicMapView):
 
 
 class DynamicMapFilesView(DynamicMapView):
-    """List DXF/SVG source files and custom icons in the data dir."""
+    """List the custom icons in the data dir."""
 
     url = "/api/dynamic_map/files"
     name = "api:dynamic_map:files"
@@ -148,10 +126,7 @@ class DynamicMapFilesView(DynamicMapView):
         data_dir = self.data_dir
 
         def get_files():
-            return {
-                "files": storage.list_source_files(data_dir),
-                "icons": storage.list_icons(data_dir, URL_BASE_DATA),
-            }
+            return {"icons": storage.list_icons(data_dir, URL_BASE_DATA)}
 
         data = await self.hass.async_add_executor_job(get_files)
         return self.json({"success": True, **data})
@@ -185,7 +160,6 @@ ALL_VIEWS = (
     DynamicMapEntitiesView,
     DynamicMapFilesView,
     DynamicMapFloorsView,
-    DynamicMapRecomputeView,
     DynamicMapDeleteFloorView,
     DynamicMapRegistryView,
     DynamicMapRoborockRoomsView,
