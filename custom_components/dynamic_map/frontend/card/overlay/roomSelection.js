@@ -3,8 +3,6 @@
  * map, then app_segment_clean with the mapped segment ids.
  */
 
-const SELECT_STYLE = 'background: rgba(0,0,0,0.5); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 8px;';
-
 /** Segment ids for the selected SVG rooms via the vacuum's room mapping. */
 export function segmentsForRooms(scConfig, selectedRoomIds) {
     const segments = [];
@@ -38,22 +36,20 @@ export function showRoomSelectionUI(mapContext) {
     if (mapContext.roomSelectionUI) mapContext.roomSelectionUI.remove();
     const ui = document.createElement('div');
     mapContext.roomSelectionUI = ui;
-    ui.style.cssText = 'position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.95);'
-        + 'border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; padding: 15px; color: #fff; display: flex; flex-direction: column;'
-        + 'gap: 15px; backdrop-filter: blur(10px); box-shadow: 0px 10px 30px rgba(0,0,0,0.5); z-index: 1001;';
+    ui.className = 'dm-room-select';
 
     const header = document.createElement('div');
-    header.style.cssText = 'text-align: center; font-weight: bold; font-size: 14px;';
+    header.className = 'dm-rs-title';
     header.innerText = 'Select Rooms on Map to Clean';
 
     const controls = document.createElement('div');
-    controls.style.cssText = 'display: flex; gap: 10px; justify-content: center;';
+    controls.className = 'dm-rs-row';
     const repeats = document.createElement('select');
     repeats.innerHTML = '<option value="1">1x (Default)</option><option value="2">2x (Deep)</option><option value="3">3x (Max)</option>';
-    repeats.style.cssText = SELECT_STYLE;
+    repeats.className = 'dm-rs-select';
     const mode = document.createElement('select');
     mode.innerHTML = '<option value="vac_mop">Vac & Mop</option><option value="vacuum">Vacuum Only</option><option value="mop">Mop Only</option>';
-    mode.style.cssText = SELECT_STYLE;
+    mode.className = 'dm-rs-select';
     controls.appendChild(repeats);
     controls.appendChild(mode);
 
@@ -64,14 +60,14 @@ export function showRoomSelectionUI(mapContext) {
         if (mapContext.selectionInterval) clearInterval(mapContext.selectionInterval);
     };
     const buttons = document.createElement('div');
-    buttons.style.cssText = 'display: flex; gap: 10px;';
+    buttons.className = 'dm-rs-row';
     const cancelBtn = document.createElement('button');
     cancelBtn.innerText = 'Cancel';
-    cancelBtn.style.cssText = 'flex: 1; padding: 10px; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; cursor: pointer;';
+    cancelBtn.className = 'dm-rs-btn dm-rs-cancel';
     cancelBtn.onclick = close;
     const startBtn = document.createElement('button');
     startBtn.innerText = 'Start Cleaning (0)';
-    startBtn.style.cssText = 'flex: 2; padding: 10px; background: #475569; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;';
+    startBtn.className = 'dm-rs-btn dm-rs-start';
     startBtn.onclick = () => {
         if (!mapContext.selectedRoomIds || mapContext.selectedRoomIds.length === 0) return;
         const target = mapContext.selectionVacuumTarget;
@@ -96,7 +92,7 @@ export function showRoomSelectionUI(mapContext) {
         if (!mapContext.isSelectingRooms) { clearInterval(mapContext.selectionInterval); return; }
         const n = mapContext.selectedRoomIds.length;
         startBtn.innerText = `Start Cleaning (${n})`;
-        startBtn.style.background = n > 0 ? '#10b981' : '#475569';
+        startBtn.classList.toggle('dm-ready', n > 0);
     }, 200);
 
     buttons.appendChild(cancelBtn);

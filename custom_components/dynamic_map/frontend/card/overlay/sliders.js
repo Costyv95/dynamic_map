@@ -49,11 +49,12 @@ export function buildSlider(mapContext, target, act, isVisual) {
     if (displayName) {
         const label = document.createElement('span');
         label.textContent = displayName;
-        label.style.cssText = 'font-size: 12px; font-weight: bold;';
+        label.className = 'dm-ov-label';
         container.appendChild(label);
     }
     const slider = document.createElement('input');
     slider.type = 'range';
+    slider.className = 'dm-ov-range';
     const isSymmetric = act.symmetric_scale === true;
     const r = sliderRange(mapContext._hass, target);
     if (isSymmetric) {
@@ -94,10 +95,10 @@ export function buildValueSlider(mapContext, target, act, isVisual) {
     header.style.cssText = 'display: flex; justify-content: space-between; align-items: baseline; gap: 8px;';
     const label = document.createElement('span');
     label.textContent = act.name !== undefined ? act.name : 'Value';
-    label.style.cssText = 'font-size: 12px; font-weight: bold;';
+    label.className = 'dm-ov-label';
     const valueOut = document.createElement('span');
     valueOut.textContent = fmt(r.value);
-    valueOut.style.cssText = 'font-size: 15px; font-weight: 700; color: #7dd3fc; font-variant-numeric: tabular-nums;';
+    valueOut.className = 'dm-ov-value dm-live';
     header.appendChild(label);
     header.appendChild(valueOut);
     container.appendChild(header);
@@ -105,7 +106,7 @@ export function buildValueSlider(mapContext, target, act, isVisual) {
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.min = r.min; slider.max = r.max; slider.step = r.step; slider.value = r.value;
-    slider.style.cssText = 'width: 100%; margin: 0; accent-color: #38bdf8;';
+    slider.className = 'dm-ov-range';
     container.appendChild(slider);
     slider.addEventListener('input', (e) => { valueOut.textContent = fmt(e.target.value); });
     slider.addEventListener('change', (e) => {

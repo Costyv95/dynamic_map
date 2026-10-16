@@ -26,10 +26,10 @@ export function comfortColors(tempVal, humVal) {
 function column(title, color, icon, valueStr, id) {
     return `
         <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;">
-            <span style="font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; font-family: sans-serif;">${title}</span>
+            <span class="dm-ov-caption">${title}</span>
             <div style="position: relative; width: 70px; height: 70px;">
                 <svg width="70" height="70" viewBox="0 0 70 70">
-                    <circle cx="35" cy="35" r="30" fill="none" stroke="rgba(255, 255, 255, 0.1)" stroke-width="4"></circle>
+                    <circle class="dm-ov-gauge-ring" cx="35" cy="35" r="30" fill="none" stroke-width="4"></circle>
                     <circle id="${id}" cx="35" cy="35" r="30" fill="none" stroke="${color}" stroke-width="4"
                             stroke-dasharray="${RING}" stroke-dashoffset="${RING}" stroke-linecap="round"
                             style="transition: stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1); transform: rotate(-90deg); transform-origin: 35px 35px;"></circle>
@@ -38,7 +38,7 @@ function column(title, color, icon, valueStr, id) {
                     <ha-icon icon="${icon}" style="--mdc-icon-size: 24px; color: ${color};"></ha-icon>
                 </div>
             </div>
-            <span style="font-size: 18px; font-weight: bold; color: #fff; font-family: sans-serif;">${valueStr}</span>
+            <span class="dm-ov-value dm-big">${valueStr}</span>
         </div>`;
 }
 
@@ -57,11 +57,9 @@ export function showSensorDials(mapContext, shortcut, event) {
     const humPct = !isNaN(humVal) ? Math.max(0, Math.min(1, humVal / 100)) : 0;
 
     const el = mapContext.activeOverlay;
-    el.style.cssText += 'background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); border-radius: 16px;'
-        + 'border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: 0 20px 40px rgba(0,0,0,0.6); padding: 16px 20px;'
-        + 'display: flex; gap: 20px; align-items: center; justify-content: center; z-index: 1000; color: #fff;';
+    el.classList.add('dm-gauges');
     el.innerHTML = column('Temperature', tempColor, 'mdi:thermometer', tempValStr, 'tempCircle')
-        + '<div style="width: 1px; height: 80px; background: rgba(255, 255, 255, 0.1);"></div>'
+        + '<div class="dm-ov-divider"></div>'
         + column('Humidity', humColor, 'mdi:water-percent', humValStr, 'humCircle');
     mapContext.renderRoot.appendChild(el);
     // Smoothly animate the fill values upon mounting

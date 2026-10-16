@@ -20,18 +20,17 @@ export function formatInfoValue(act, st) {
 export function buildInfoDisplay(mapContext, target, act, isVisual) {
     const st = mapContext._hass ? mapContext._hass.states[target] : null;
     const box = document.createElement('div');
-    box.style.cssText = 'display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 10px;'
-        + 'border-radius: 8px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); box-sizing: border-box;';
+    box.className = 'dm-ov-info';
     const displayName = act.name !== undefined ? act.name : 'Value';
     if (displayName) {
         const cap = document.createElement('span');
         cap.textContent = displayName;
-        cap.style.cssText = 'font-size: 10px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: #94a3b8;';
+        cap.className = 'dm-ov-caption';
         box.appendChild(cap);
     }
     const val = document.createElement('div');
     val.style.cssText = 'display: flex; align-items: center; gap: 6px;';
-    val.innerHTML = `${iconHtml(act.icon, 18)}<span style="font-size:18px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;">${formatInfoValue(act, st)}</span>`;
+    val.innerHTML = `${iconHtml(act.icon, 18)}<span class="dm-ov-value dm-big">${formatInfoValue(act, st)}</span>`;
     box.appendChild(val);
     placeVisual(box, act, isVisual);
     return box;
@@ -52,7 +51,7 @@ export function buildProgressBar(mapContext, target, act, isVisual) {
         const head = document.createElement('div');
         head.style.cssText = 'display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 11px; line-height: 1.1;';
         const cap = document.createElement('span');
-        cap.style.cssText = 'display: flex; align-items: center; gap: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #cbd5e1;';
+        cap.className = 'dm-ov-bar-cap';
         cap.innerHTML = iconHtml(act.icon, 14, 'font-size:12px;');
         capText = document.createElement('span');
         capText.textContent = bar.label || '';
@@ -61,13 +60,14 @@ export function buildProgressBar(mapContext, target, act, isVisual) {
         if (showValue) {
             const valEl = document.createElement('span');
             valEl.textContent = bar.valueStr;
-            valEl.style.cssText = 'font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap;';
+            valEl.className = 'dm-ov-value';
             head.appendChild(valEl);
         }
         wrap.appendChild(head);
     }
     const track = document.createElement('div');
-    track.style.cssText = `width: 100%; height: ${act.bar_height || 8}px; border-radius: 999px; background: rgba(255,255,255,0.12); overflow: hidden;`;
+    track.className = 'dm-ov-track';
+    track.style.height = `${act.bar_height || 8}px`;
     const fill = document.createElement('div');
     fill.style.cssText = `height: 100%; width: 0%; border-radius: 999px; background: ${bar.color}; transition: width 0.4s ease, background 0.3s;`;
     track.appendChild(fill);
@@ -86,18 +86,17 @@ export function buildProgressBar(mapContext, target, act, isVisual) {
             if (needsConfirm && !armed) {
                 armed = true;
                 if (capText) capText.textContent = act.confirm_text || 'Tap again to confirm';
-                wrap.style.outline = '1px solid rgba(239,68,68,0.6)';
-                wrap.style.borderRadius = '6px';
+                wrap.classList.add('dm-ov-armed');
                 armedTimer = setTimeout(() => {
                     armed = false;
                     if (capText) capText.textContent = originalLabel;
-                    wrap.style.outline = 'none';
+                    wrap.classList.remove('dm-ov-armed');
                 }, 4000);
                 return;
             }
             if (armedTimer) clearTimeout(armedTimer);
             armed = false;
-            wrap.style.outline = 'none';
+            wrap.classList.remove('dm-ov-armed');
             if (capText) capText.textContent = originalLabel;
             executeAction(mapContext._hass, { ...act, type: 'CALL_SERVICE' }, target, {
                 nameToSegmentId: buildRoomNameToSegmentMap(target, mapContext.shortcutElements, mapContext.rooms),

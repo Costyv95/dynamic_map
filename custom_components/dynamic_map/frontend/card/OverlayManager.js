@@ -68,10 +68,11 @@ export class OverlayManager {
         const rect = mapContext.renderRoot.getBoundingClientRect();
         const posX = event.clientX - rect.left;
         const posY = event.clientY - rect.top;
-        overlay.style.cssText += `left: ${posX}px; top: ${posY}px; transform: translate(-50%, -100%) translateY(-20px);`
-            + 'background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(10px); border-radius: 12px;'
-            + 'box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); z-index: 1000; color: #fff;';
+        overlay.style.cssText += `left: ${posX}px; top: ${posY}px; transform: translate(-50%, -100%) translateY(-20px);`;
         const isVisual = !!(shortcut.sc && shortcut.sc.config && shortcut.sc.config.menuWidth);
+        // Narrow cards dock the menu to the bottom edge (TouchStyles), so a thumb reaches it.
+        if (mapContext.isNarrow) overlay.classList.add('dm-sheet');
+        if (isVisual) overlay.classList.add('dm-visual');
         if (isVisual) {
             // Grow to hold every placed item so nothing gets clipped.
             const box = visualMenuBox(shortcut.sc.config, actions);
@@ -88,7 +89,7 @@ export class OverlayManager {
             overlay.appendChild(build(mapContext, target, act, isVisual));
         });
         mapContext.renderRoot.appendChild(overlay);
-        clampAndPositionOverlay(overlay, rect, posX, posY);
+        if (!mapContext.isNarrow) clampAndPositionOverlay(overlay, rect, posX, posY);
     }
 
     static showRoomSelectionUI(mapContext) {

@@ -1,5 +1,7 @@
-/** Card stylesheet: theme tokens with HA fallbacks, glass chrome, rooms. */
+/** Card stylesheet: theme tokens with HA fallbacks, glass chrome, rooms. THEME.md documents the tokens. */
 import { ROOM_PANEL_STYLES } from './RoomPanelStyles.js?v=3.2.1';
+import { OVERLAY_STYLES } from './OverlayStyles.js?v=3.2.1';
+import { TOUCH_STYLES } from './TouchStyles.js?v=3.2.1';
 
 export const CARD_STYLES = `
     :host {
@@ -8,16 +10,53 @@ export const CARD_STYLES = `
         height: 100%;
         min-height: 70vh; /* Fallback for non-panel views */
         position: relative;
-        /* Theme tokens with HA theme fallbacks — override via HA themes */
+        /* Theme tokens. Defaults follow the HA theme; a host page (Portal)
+           overrides any --dm-* on the custom-svg-map element, which beats
+           these :host values. THEME.md lists the contract. */
         --dm-accent: var(--primary-color, #0ea5e9);
+        --dm-on-accent: #ffffff;
         --dm-surface: var(--card-background-color, #ffffff);
         --dm-text: var(--primary-text-color, #1e293b);
         --dm-muted: var(--secondary-text-color, #64748b);
         --dm-border: var(--divider-color, #e2e8f0);
         --dm-glass: color-mix(in srgb, var(--card-background-color, #ffffff) 72%, transparent);
+        --dm-glass-strong: var(--dm-glass-strong);
         --dm-glass-border: color-mix(in srgb, var(--divider-color, #94a3b8) 45%, transparent);
+        --dm-blur: blur(14px) saturate(1.4);
         --dm-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
-        font-family: var(--primary-font-family, var(--paper-font-body1_-_font-family, Roboto, sans-serif));
+        --dm-hover: rgba(127, 127, 127, 0.14);
+        --dm-fill: rgba(127, 127, 127, 0.16);
+        --dm-fill-strong: rgba(127, 127, 127, 0.3);
+        --dm-success: #10b981;
+        --dm-warning: #d97706;
+        --dm-danger: var(--error-color, #ef4444);
+        --dm-info: #0ea5e9;
+        --dm-radius-pill: 999px;
+        --dm-radius-lg: 18px;
+        --dm-radius-md: 12px;
+        --dm-radius-sm: 8px;
+        --dm-font: var(--primary-font-family, var(--paper-font-body1_-_font-family, Roboto, sans-serif));
+        --dm-font-size: 13px;
+        --dm-font-size-sm: 11px;
+        --dm-ease: ease;
+        --dm-duration: 0.2s;
+        /* Smallest tap target; raised on touch screens below. */
+        --dm-tap: 36px;
+        /* Long-press menus and the room-selection bar: a dark HUD by default. */
+        /* Filter on the floor's background picture (e.g. a dark host: invert(.9) hue-rotate(180deg)). */
+        --dm-floor-filter: none;
+        --dm-hud-bg: rgba(15, 23, 42, 0.92);
+        --dm-hud-text: #ffffff;
+        --dm-hud-muted: #94a3b8;
+        --dm-hud-border: rgba(255, 255, 255, 0.15);
+        --dm-hud-fill: rgba(255, 255, 255, 0.1);
+        --dm-hud-fill-strong: rgba(255, 255, 255, 0.2);
+        --dm-hud-accent: #38bdf8;
+        --dm-hud-shadow: 0 16px 36px rgba(0, 0, 0, 0.5);
+        font-family: var(--dm-font);
+    }
+    @media (pointer: coarse) {
+        :host { --dm-tap: 44px; }
     }
     .dm-render-root {
         position: absolute;
@@ -47,29 +86,27 @@ export const CARD_STYLES = `
         padding: 4px;
         background: var(--dm-glass);
         border: 1px solid var(--dm-glass-border);
-        border-radius: 999px;
+        border-radius: var(--dm-radius-pill);
         box-shadow: var(--dm-shadow);
-        backdrop-filter: blur(14px) saturate(1.4);
-        -webkit-backdrop-filter: blur(14px) saturate(1.4);
+        backdrop-filter: var(--dm-blur); -webkit-backdrop-filter: var(--dm-blur);
     }
     .dm-chip {
         padding: 7px 16px;
-        font-size: 13px;
+        font-size: var(--dm-font-size);
         font-weight: 600;
         letter-spacing: 0.01em;
         color: var(--dm-text);
         cursor: pointer;
-        border-radius: 999px;
-        transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+        border-radius: var(--dm-radius-pill);
+        transition: background var(--dm-duration) var(--dm-ease), color var(--dm-duration) var(--dm-ease), transform 0.15s ease;
         user-select: none;
         text-align: center;
         white-space: nowrap;
     }
-    .dm-chip:hover:not(.active) { background: rgba(127, 127, 127, 0.14); }
     .dm-chip:active { transform: scale(0.96); }
     .dm-chip.active {
         background: var(--dm-accent);
-        color: #fff;
+        color: var(--dm-on-accent);
         box-shadow: 0 2px 8px color-mix(in srgb, var(--dm-accent) 55%, transparent);
     }
     .dm-icon-btn {
@@ -80,16 +117,14 @@ export const CARD_STYLES = `
         justify-content: center;
         background: var(--dm-glass);
         border: 1px solid var(--dm-glass-border);
-        border-radius: 999px;
+        border-radius: var(--dm-radius-pill);
         cursor: pointer;
         color: var(--dm-text);
         box-shadow: var(--dm-shadow);
-        backdrop-filter: blur(14px) saturate(1.4);
-        -webkit-backdrop-filter: blur(14px) saturate(1.4);
-        transition: background 0.2s ease, transform 0.15s ease;
+        backdrop-filter: var(--dm-blur); -webkit-backdrop-filter: var(--dm-blur);
+        transition: background var(--dm-duration) var(--dm-ease), transform 0.15s ease;
         padding: 0;
     }
-    .dm-icon-btn:hover { background: rgba(127, 127, 127, 0.14); }
     .dm-icon-btn:active { transform: scale(0.94); }
     .dm-outside-bar {
         display: flex;
@@ -98,10 +133,9 @@ export const CARD_STYLES = `
         padding: 5px 4px;
         background: var(--dm-glass);
         border: 1px solid var(--dm-glass-border);
-        border-radius: 18px;
+        border-radius: var(--dm-radius-lg);
         box-shadow: var(--dm-shadow);
-        backdrop-filter: blur(14px) saturate(1.4);
-        -webkit-backdrop-filter: blur(14px) saturate(1.4);
+        backdrop-filter: var(--dm-blur); -webkit-backdrop-filter: var(--dm-blur);
         max-width: 100%;
         overflow-x: auto;
         scrollbar-width: none;
@@ -116,20 +150,21 @@ export const CARD_STYLES = `
         padding: 3px 13px;
         min-width: 48px;
         cursor: pointer;
-        border-radius: 12px;
-        transition: background 0.2s ease;
+        border-radius: var(--dm-radius-md);
+        transition: background var(--dm-duration) var(--dm-ease);
     }
-    .dm-outside-item:hover { background: rgba(127, 127, 127, 0.14); }
     .dm-outside-item:not(:first-child) { border-left: 1px solid var(--dm-glass-border); border-radius: 0; }
     .dm-outside-item:last-child { border-radius: 0 12px 12px 0; }
     .dm-outside-item:first-child { border-radius: 12px 0 0 12px; }
-    .dm-outside-item:only-child { border-radius: 12px; }
+    .dm-outside-item:only-child { border-radius: var(--dm-radius-md); }
+    /* Items keep their width; a bar wider than the card scrolls sideways instead of overlapping. */
+    .dm-outside-item { flex: none; }
     .dm-outside-item.dm-unavailable { opacity: 0.45; }
     .dm-outside-value {
         display: flex;
         align-items: center;
         gap: 5px;
-        font-size: 13px;
+        font-size: var(--dm-font-size);
         font-weight: 700;
         color: var(--dm-text);
         white-space: nowrap;
@@ -164,12 +199,11 @@ export const CARD_STYLES = `
         padding: 8px 10px 8px 18px;
         background: var(--dm-glass);
         border: 1px solid var(--dm-glass-border);
-        border-radius: 999px;
+        border-radius: var(--dm-radius-pill);
         box-shadow: var(--dm-shadow);
-        backdrop-filter: blur(14px) saturate(1.4);
-        -webkit-backdrop-filter: blur(14px) saturate(1.4);
+        backdrop-filter: var(--dm-blur); -webkit-backdrop-filter: var(--dm-blur);
         color: var(--dm-text);
-        font-size: 13px;
+        font-size: var(--dm-font-size);
         font-weight: 600;
         font-family: inherit;
         letter-spacing: 0.02em;
@@ -192,10 +226,10 @@ export const CARD_STYLES = `
         height: 24px;
         border-radius: 50%;
         font-size: 12px;
-        background: rgba(127, 127, 127, 0.16);
-        transition: background 0.2s ease;
+        background: var(--dm-fill);
+        transition: background var(--dm-duration) var(--dm-ease);
     }
-    .dm-focus-pill:hover .dm-pill-x { background: rgba(127, 127, 127, 0.3); }
+    .dm-bg-image { filter: var(--dm-floor-filter); }
     .room-polygon {
         cursor: pointer;
         stroke-linejoin: round;
@@ -204,7 +238,6 @@ export const CARD_STYLES = `
     .room-polygon.dm-on { filter: drop-shadow(0 0 10px var(--dm-room-glow, transparent)); }
     .room-polygon.dm-selected { filter: drop-shadow(0 0 8px var(--dm-accent)); }
     .room-polygon.dm-dimmed { opacity: 0.4; }
-    .room-polygon:hover:not(.dm-selected):not(.dm-on) { filter: brightness(1.2); }
     .room-label {
         pointer-events: none;
         user-select: none;
@@ -217,49 +250,59 @@ export const CARD_STYLES = `
         transition: opacity 0.35s ease;
     }
     .room-label.dm-dimmed { opacity: 0.35; }
-    .dm-error { color: var(--error-color, #ef4444); padding: 20px; font-size: 14px; }
+    .dm-error { color: var(--dm-danger); padding: 20px; font-size: 14px; }
     /* Quick-action chips */
     .dm-quick-actions { position: absolute; left: 14px; bottom: 14px; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 28px); z-index: 11; }
     .dm-quick-chip {
-        display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: 999px; cursor: pointer;
+        display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 6px 14px; border-radius: var(--dm-radius-pill); cursor: pointer;
         background: var(--dm-glass); border: 1px solid var(--dm-glass-border); box-shadow: var(--dm-shadow); color: var(--dm-text);
-        font: inherit; font-size: 13px; font-weight: 600; backdrop-filter: blur(14px) saturate(1.4); -webkit-backdrop-filter: blur(14px) saturate(1.4);
-        transition: background 0.2s ease, transform 0.15s ease, color 0.2s ease;
+        font: inherit; font-size: var(--dm-font-size); font-weight: 600; backdrop-filter: var(--dm-blur); -webkit-backdrop-filter: var(--dm-blur);
+        transition: background var(--dm-duration) var(--dm-ease), transform 0.15s ease, color var(--dm-duration) var(--dm-ease);
     }
     .dm-quick-chip[hidden] { display: none; }
-    .dm-quick-chip:hover { background: rgba(127, 127, 127, 0.14); }
     .dm-quick-chip:active, .dm-quick-chip.dm-fired { transform: scale(0.95); }
-    .dm-quick-chip.dm-on { background: var(--dm-accent); border-color: var(--dm-accent); color: #fff; }
-    .dm-quick-chip.dm-armed { background: var(--error-color, #ef4444); border-color: var(--error-color, #ef4444); color: #fff; }
+    .dm-quick-chip.dm-on { background: var(--dm-accent); border-color: var(--dm-accent); color: var(--dm-on-accent); }
+    .dm-quick-chip.dm-armed { background: var(--dm-danger); border-color: var(--dm-danger); color: var(--dm-on-accent); }
     .dm-quick-chip.dm-unavailable { opacity: 0.45; }
     .dm-render-root.dm-room-panel-open .dm-quick-actions { max-width: calc(100% - 340px); }
-    .dm-temp-legend { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; background: var(--dm-glass); border: 1px solid var(--dm-glass-border); box-shadow: var(--dm-shadow); font-size: 11px; font-weight: 600; color: var(--dm-muted); z-index: 10; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    .dm-temp-legend { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: var(--dm-radius-pill); background: var(--dm-glass); border: 1px solid var(--dm-glass-border); box-shadow: var(--dm-shadow); font-size: var(--dm-font-size-sm); font-weight: 600; color: var(--dm-muted); z-index: 10; backdrop-filter: var(--dm-blur); -webkit-backdrop-filter: var(--dm-blur); }
     .dm-tl-bar { width: 70px; height: 8px; border-radius: 4px; }
     .dm-render-root.dm-room-panel-open .dm-temp-legend { opacity: 0; pointer-events: none; }
-    .dm-alert-legend { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: 999px; background: var(--dm-glass); border: 1px solid var(--dm-glass-border); box-shadow: var(--dm-shadow); font-size: 11px; font-weight: 600; color: var(--dm-muted); z-index: 10; cursor: pointer; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); }
+    .dm-alert-legend { position: absolute; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: var(--dm-radius-pill); background: var(--dm-glass); border: 1px solid var(--dm-glass-border); box-shadow: var(--dm-shadow); font-size: var(--dm-font-size-sm); font-weight: 600; color: var(--dm-muted); z-index: 10; cursor: pointer; backdrop-filter: var(--dm-blur); -webkit-backdrop-filter: var(--dm-blur); }
     .dm-alert-legend.dm-above-temp { bottom: 50px; }
     .dm-al-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
     .dm-al-dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.8); }
     .dm-render-root.dm-room-panel-open .dm-alert-legend { opacity: 0; pointer-events: none; }
+    /* The legends toggle [hidden]; their display:flex would otherwise keep an empty pill on screen. */
+    .dm-alert-legend[hidden], .dm-temp-legend[hidden] { display: none; }
     .dm-room-alert circle { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
     /* Search */
-    .dm-search { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 28px)); z-index: 30; background: color-mix(in srgb, var(--card-background-color, #ffffff) 94%, transparent); border: 1px solid var(--dm-glass-border); border-radius: 18px; box-shadow: var(--dm-shadow); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4); overflow: hidden; }
+    .dm-search { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 28px)); z-index: 30; background: var(--dm-glass-strong); border: 1px solid var(--dm-glass-border); border-radius: var(--dm-radius-lg); box-shadow: var(--dm-shadow); backdrop-filter: var(--dm-blur); -webkit-backdrop-filter: var(--dm-blur); overflow: hidden; }
     .dm-search input { width: 100%; box-sizing: border-box; border: none; background: transparent; color: var(--dm-text); font: inherit; font-size: 15px; padding: 12px 16px; outline: none; }
     .dm-search-results { max-height: min(320px, 50vh); overflow-y: auto; border-top: 1px solid var(--dm-glass-border); padding: 4px; }
     .dm-search-results[hidden] { display: none; }
-    .dm-search-row { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 10px; border-radius: 10px; cursor: pointer; }
-    .dm-search-row:hover { background: rgba(127,127,127,0.14); }
+    .dm-search-row { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 10px; border-radius: var(--dm-radius-md); cursor: pointer; }
     .dm-search-icon { width: 22px; text-align: center; }
     .dm-search-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-    .dm-search-sub { color: var(--dm-muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+    .dm-search-sub { color: var(--dm-muted); font-size: var(--dm-font-size-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
     .dm-search-empty { padding: 10px 14px; color: var(--dm-muted); font-size: 12px; }
     .dm-pulse { fill: none; stroke: var(--dm-accent); stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: dm-pulse 1.3s ease-out 2; pointer-events: none; }
     @keyframes dm-pulse { 0% { transform: scale(0.4); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
-    .dm-room-alert:hover circle { stroke-width: 3; }
     .dm-rp-attention { padding: 6px 6px 0; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid var(--dm-glass-border); padding-bottom: 6px; }
-    .dm-rp-subhead { padding: 4px 8px 2px; font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dm-muted); }
+    .dm-rp-subhead { padding: 4px 8px 2px; font-size: var(--dm-font-size-sm); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dm-muted); }
     .dm-rp-alert .dm-rp-value { font-weight: 600; }
-    .dm-rp-alert-open .dm-rp-value { color: #d97706; }
-    .dm-rp-alert-danger .dm-rp-value { color: #dc2626; }
+    .dm-rp-alert-open .dm-rp-value { color: var(--dm-warning); }
+    .dm-rp-alert-danger .dm-rp-value { color: var(--dm-danger); }
     .dm-rp-alert-unavailable { opacity: 0.75; }
-` + ROOM_PANEL_STYLES;
+    /* Hover only where a pointer can hover, so touch never leaves rows stuck highlighted. */
+    @media (hover: hover) {
+        .dm-chip:hover:not(.active) { background: var(--dm-hover); }
+        .dm-icon-btn:hover { background: var(--dm-hover); }
+        .dm-outside-item:hover { background: var(--dm-hover); }
+        .dm-focus-pill:hover .dm-pill-x { background: var(--dm-fill-strong); }
+        .room-polygon:hover:not(.dm-selected):not(.dm-on) { filter: brightness(1.2); }
+        .dm-quick-chip:hover { background: var(--dm-hover); }
+        .dm-search-row:hover { background: var(--dm-hover); }
+        .dm-room-alert:hover circle { stroke-width: 3; }
+    }
+` + ROOM_PANEL_STYLES + OVERLAY_STYLES + TOUCH_STYLES;
