@@ -3,14 +3,24 @@ import { applyViewport } from '../core/MapScene.js?v=3.2.1';
 import { hideRoomPanel } from './RoomPanel.js?v=3.2.1';
 import { updateRoomAlerts } from './RoomAlerts.js?v=3.2.1';
 
+/**
+ * Phones, and tablets held upright (the wall Redmi is ~800x1280), get
+ * bottom sheets instead of floating side panels: a 300px panel would
+ * cover the map's corner there, while a full-width sheet leaves the
+ * focused room visible above it.
+ */
+export function isSheetLayout(width, height) {
+    if (!(width > 0)) return false;
+    return width < 600 || (width < 900 && height > width);
+}
+
 /** Fit the rooms into the card (rotation, flips, viewBox) and re-layout what depends on it. */
 export function applyAutoCrop(host) {
     host.focusedRoomId = null;
     host.syncFocusPill();
     hideRoomPanel(host);
     const rect = host.getBoundingClientRect();
-    // Phone-sized cards get bottom sheets instead of side panels.
-    host.isNarrow = rect.width > 0 && rect.width < 600;
+    host.isNarrow = isSheetLayout(rect.width, rect.height);
     if (host.renderRoot) host.renderRoot.classList.toggle('dm-narrow', host.isNarrow);
     const vp = computeViewport({
         rooms: host.rooms, imgW: host.imgW, imgH: host.imgH,
