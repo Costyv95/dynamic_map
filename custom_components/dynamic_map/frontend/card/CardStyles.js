@@ -2,6 +2,7 @@
 import { ROOM_PANEL_STYLES } from './RoomPanelStyles.js?v=3.2.1';
 import { OVERLAY_STYLES } from './OverlayStyles.js?v=3.2.1';
 import { TOUCH_STYLES } from './TouchStyles.js?v=3.2.1';
+import { SEARCH_STYLES } from './SearchStyles.js?v=3.2.1';
 
 export const CARD_STYLES = `
     :host {
@@ -280,24 +281,6 @@ export const CARD_STYLES = `
     /* The legends toggle [hidden]; their display:flex would otherwise keep an empty pill on screen. */
     .dm-alert-legend[hidden], .dm-temp-legend[hidden] { display: none; }
     .dm-room-alert circle { filter: drop-shadow(0 1px 2px rgba(0,0,0,0.35)); }
-    /* Search */
-    .dm-search { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); width: min(420px, calc(100% - 28px)); z-index: 30; background: var(--dm-glass-strong); border: 1px solid var(--dm-glass-border); border-radius: var(--dm-radius-lg); box-shadow: var(--dm-shadow); backdrop-filter: var(--dm-blur); -webkit-backdrop-filter: var(--dm-blur); overflow: hidden; }
-    .dm-search input { width: 100%; box-sizing: border-box; border: none; background: transparent; color: var(--dm-text); font: inherit; font-size: 15px; padding: 12px 16px; outline: none; }
-    .dm-search-results { max-height: min(320px, 50vh); overflow-y: auto; border-top: 1px solid var(--dm-glass-border); padding: 4px; }
-    .dm-search-results[hidden] { display: none; }
-    .dm-search-row { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 10px; border-radius: var(--dm-radius-md); cursor: pointer; }
-    .dm-search-icon { width: 22px; text-align: center; }
-    .dm-search-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-    .dm-search-sub { color: var(--dm-muted); font-size: var(--dm-font-size-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
-    .dm-search-empty { padding: 10px 14px; color: var(--dm-muted); font-size: 12px; }
-    .dm-pulse { fill: none; stroke: var(--dm-accent); stroke-width: 3; transform-box: fill-box; transform-origin: center; animation: dm-pulse 1.3s ease-out 2; pointer-events: none; }
-    @keyframes dm-pulse { 0% { transform: scale(0.4); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
-    .dm-rp-attention { padding: 6px 6px 0; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid var(--dm-glass-border); padding-bottom: 6px; }
-    .dm-rp-subhead { padding: 4px 8px 2px; font-size: var(--dm-font-size-sm); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dm-muted); }
-    .dm-rp-alert .dm-rp-value { font-weight: 600; }
-    .dm-rp-alert-open .dm-rp-value { color: var(--dm-warning); }
-    .dm-rp-alert-danger .dm-rp-value { color: var(--dm-danger); }
-    .dm-rp-alert-unavailable { opacity: 0.75; }
     /* Hover only where a pointer can hover, so touch never leaves rows stuck highlighted. */
     @media (hover: hover) {
         .dm-chip:hover:not(.active) { background: var(--dm-hover); }
@@ -309,4 +292,4 @@ export const CARD_STYLES = `
         .dm-search-row:hover { background: var(--dm-hover); }
         .dm-room-alert:hover circle { stroke-width: 3; }
     }
-` + ROOM_PANEL_STYLES + OVERLAY_STYLES + TOUCH_STYLES;
+` + ROOM_PANEL_STYLES + SEARCH_STYLES + OVERLAY_STYLES + TOUCH_STYLES;

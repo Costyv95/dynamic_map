@@ -64,4 +64,11 @@ export const ROOM_PANEL_STYLES = `
         .dm-rp-scene:hover { background: var(--dm-fill-strong); }
         .dm-rp-alloff:hover { background: var(--dm-fill-strong); }
     }
+    /* Attention rows (open doors, leaks, unavailable devices) at the top of the panel. */
+    .dm-rp-attention { padding: 6px 6px 0; display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid var(--dm-glass-border); padding-bottom: 6px; }
+    .dm-rp-subhead { padding: 4px 8px 2px; font-size: var(--dm-font-size-sm); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dm-muted); }
+    .dm-rp-alert .dm-rp-value { font-weight: 600; }
+    .dm-rp-alert-open .dm-rp-value { color: var(--dm-warning); }
+    .dm-rp-alert-danger .dm-rp-value { color: var(--dm-danger); }
+    .dm-rp-alert-unavailable { opacity: 0.75; }
 `;
