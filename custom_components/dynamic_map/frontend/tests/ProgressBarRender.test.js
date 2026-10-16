@@ -54,7 +54,7 @@ describe('PROGRESS_BAR rendering', () => {
         expect(overlay.textContent).toContain('150 h');
 
         // fill animates in on a timer
-        const fill = wrap.querySelector('div[style*="border-radius"] > div');
+        const fill = wrap.querySelector('.dm-ov-track > div');
         expect(fill.style.width).toBe('0%');
         vi.advanceTimersByTime(100);
         expect(fill.style.width).toBe('50%');
@@ -101,7 +101,7 @@ describe('PROGRESS_BAR rendering', () => {
         });
         expect(overlay.textContent).toContain('--');
         vi.advanceTimersByTime(100);
-        const fill = overlay.lastChild.querySelector('div[style*="border-radius"] > div');
+        const fill = overlay.lastChild.querySelector('.dm-ov-track > div');
         expect(fill.style.width).toBe('0%');
     });
 });
