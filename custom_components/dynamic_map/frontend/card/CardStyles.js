@@ -22,7 +22,7 @@ export const CARD_STYLES = `
         --dm-muted: var(--secondary-text-color, #64748b);
         --dm-border: var(--divider-color, #e2e8f0);
         --dm-glass: color-mix(in srgb, var(--card-background-color, #ffffff) 72%, transparent);
-        --dm-glass-strong: var(--dm-glass-strong);
+        --dm-glass-strong: color-mix(in srgb, var(--card-background-color, #ffffff) 94%, transparent);
         --dm-glass-border: color-mix(in srgb, var(--divider-color, #94a3b8) 45%, transparent);
         --dm-blur: blur(14px) saturate(1.4);
         --dm-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
