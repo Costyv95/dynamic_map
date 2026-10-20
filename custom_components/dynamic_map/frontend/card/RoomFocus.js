@@ -169,11 +169,17 @@ export function spanBox(a, b, like) {
 }
 
 /**
- * Zoom the map to `target`. The animation is a compositor transform on the
- * svg (no per-frame re-layout or re-raster of badges and filters): the
- * span of both views is drawn once, the transform moves the camera across
- * it, and the real viewBox is written at the end. Zooming out therefore
- * ends on exactly what was drawn.
+ * Zoom the map to `target`. Zooming in is a compositor transform on the svg
+ * (no per-frame re-layout or re-raster of badges and filters): the current
+ * view is drawn, the transform magnifies it into the target, and the real
+ * viewBox is written at the end.
+ *
+ * Zooming out (any move whose start isn't already drawn in full) steps the
+ * viewBox per frame instead. Done as a transform it would start by
+ * magnifying a freshly drawn house several times over: the browser only
+ * rasters the magnified part it shows, so the rest of the house came in as
+ * white tiles while the zoom-out uncovered it (#1357), and the room looked
+ * blurry for the first frames.
  */
 export function animateViewBox(host, target, duration = ZOOM_ANIMATION_MS) {
     if (host._vbAnimFrame) { cancelAnimationFrame(host._vbAnimFrame); host._vbAnimFrame = null; }
@@ -181,9 +187,14 @@ export function animateViewBox(host, target, duration = ZOOM_ANIMATION_MS) {
     const canComposite = svg && typeof svg.animate === 'function' && typeof requestAnimationFrame === 'function';
     if (!canComposite) { animateViewBoxByFrames(host, target, duration); return; }
     const from = currentVb(host);
+    const span = spanBox(from, target, from);
+    if (span.w > from.w * 1.01) {     // the target reaches outside what is drawn: zooming out
+        settleViewBox(host);
+        animateViewBoxByFrames(host, target, duration);
+        return;
+    }
     if (host._vbAnim) { host._vbAnim.anim.cancel(); host._vbAnim = null; }
     // Draw the span of both views for real, then let the compositor carry the motion.
-    const span = spanBox(from, target, from);
     host.vb = span;
     host.updateViewBox();
     const rect = svg.getBoundingClientRect();
