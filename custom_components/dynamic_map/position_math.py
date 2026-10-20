@@ -11,14 +11,14 @@ Live readings jitter, so one reading never decides anything on its own
 (Track): readings are pooled per proxy over the last few seconds, each
 room's match is averaged over time and another room has to match clearly
 better before the dot changes room, and inside a room the dot glides
-toward the estimate no faster than a person walks.
+toward the estimate no faster than a person walks. A phone no proxy hears
+at all (locked and quiet, or gone out) stays where it was last placed.
 
 Distances are compared on a log scale: a proxy reading 1 m vs 2 m is as
 telling as 5 m vs 10 m, and log distance is linear in RSSI. A proxy that
 does not hear the phone counts as FAR away, so "not heard" is information
-too: a spot no proxy hears (a floor without proxies) is a fingerprint of
-silence, and the best-matching spots over the whole house pick the floor
-and room (room_gaps), with Bermuda's room only as the fallback. HA-free so
+too. The best-matching spots over the whole house pick the floor and room
+(room_gaps), with Bermuda's room only as the fallback. HA-free so
 it can be unit-tested outside Home Assistant.
 """
 import math
@@ -149,8 +149,14 @@ class Track:
         self.room = None
         self.pos = None          # {"x", "y"} last output inside self.room
         self.stamp = None
+        self.last = None         # the last step's result, held while the phone is unheard
 
     def step(self, fingerprints, reading, now, bermuda_room=None):
+        if not reading:
+            # No proxy hears the phone: it's locked and quiet, or out of the
+            # house. Either way nothing new is known, so it stays where it was
+            # last placed (None if it never was).
+            return self.last
         if self.stamp is not None and now - self.stamp > RESET_S:
             self.__init__()
         dt = 1.0 if self.stamp is None else max(0.0, now - self.stamp)
@@ -162,7 +168,7 @@ class Track:
         gaps = room_gaps(fingerprints, live, bermuda_room)
         if not gaps:
             self.room = self.pos = None
-            return None
+            return self.last
         # Each room's squared gap, averaged over ROOM_TAU_S; a room that drops out
         # of the candidates is remembered as matching at FAR (gap 1 decade).
         keep = 0.0 if first else math.exp(-dt / ROOM_TAU_S)
@@ -182,9 +188,11 @@ class Track:
         hit = estimate(spots, live)
         if hit is None:
             self.pos = None
-            return floor, room_id, None
-        self.pos = glide(self.pos, hit, dt)
-        return floor, room_id, {**hit, "x": self.pos["x"], "y": self.pos["y"]}
+            self.last = (floor, room_id, None)
+        else:
+            self.pos = glide(self.pos, hit, dt)
+            self.last = (floor, room_id, {**hit, "x": self.pos["x"], "y": self.pos["y"]})
+        return self.last
 
 
 def glide(prev, new, dt, tau=POS_TAU_S, max_speed=MAX_SPEED):

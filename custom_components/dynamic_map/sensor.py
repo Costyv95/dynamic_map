@@ -8,6 +8,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_interval
 
 from .const import DOMAIN
@@ -43,8 +44,12 @@ async def async_setup_platform(
     async_dispatcher_connect(hass, SIGNAL_TRACKERS, sync)
 
 
-class MapPositionSensor(SensorEntity):
-    """State: the room. Attributes: floor, x, y (map %), source, confidence."""
+class MapPositionSensor(RestoreEntity, SensorEntity):
+    """State: the room. Attributes: floor, x, y (map %), source, confidence.
+
+    Once placed, the dot never disappears: while no proxy hears the phone it
+    stays where it was (heard: false), across HA restarts too.
+    """
 
     _attr_should_poll = False
     _attr_icon = "mdi:map-marker-account"
@@ -70,6 +75,11 @@ class MapPositionSensor(SensorEntity):
         return {k: v for k, v in self._pos.items() if k != "room"}
 
     async def async_added_to_hass(self):
+        last = await self.async_get_last_state()
+        if last and last.attributes.get("x") is not None and last.attributes.get("floor") is not None:
+            kept = ("floor", "x", "y", "room_id", "area", "area_id", "source", "confidence",
+                    "fingerprints", "proxies", "last_heard")
+            self._pos = {k: last.attributes.get(k) for k in kept} | {"room": last.state, "heard": False}
         self._watch()
         self.async_on_remove(async_track_time_interval(self.hass, self._tick, REFRESH))
         self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_FINGERPRINTS, self._schedule))
@@ -127,6 +137,8 @@ class MapPositionSensor(SensorEntity):
             pos = await self.manager.async_locate(self.tracker)
         finally:
             self._busy = False
+        if pos is None and self._pos:
+            pos = {**self._pos, "heard": False}     # unheard and unplaced: stay where it was
         if changed(self._pos, pos):
             self._pos = pos
             self.async_write_ha_state()
@@ -136,7 +148,7 @@ def changed(old, new):
     """Whether the new position is worth a state write (the card glides between them)."""
     if not old or not new:
         return old != new
-    if any(old.get(k) != new.get(k) for k in ("floor", "room_id", "source", "area", "fingerprints", "proxies")):
+    if any(old.get(k) != new.get(k) for k in ("floor", "room_id", "source", "area", "fingerprints", "proxies", "heard")):
         return True
     if abs(old.get("confidence", 0) - new.get("confidence", 0)) >= 0.05:
         return True
