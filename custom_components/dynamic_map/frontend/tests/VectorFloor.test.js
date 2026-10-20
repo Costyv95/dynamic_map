@@ -28,6 +28,15 @@ describe('parametric furniture', () => {
         expect(odd.querySelector('rect').getAttribute('stroke-dasharray')).toBe('4 3');
     });
 
+    it('a planter lines its plants up along its long side, however it is sized', () => {
+        const plants = (w, h) => [...drawFurniture(svgNS, { kind: 'planter', width: w, height: h, opts: { plants: 3 } }).querySelectorAll('circle')];
+        const xs = plants(150, 50).map(c => Number(c.getAttribute('cx')));
+        const ys = plants(50, 150).map(c => Number(c.getAttribute('cy')));
+        expect(xs).toHaveLength(3);
+        expect(new Set(xs).size).toBe(3);
+        expect(new Set(ys).size).toBe(3);
+    });
+
     it('a door with cut paints the wall under its opening in the floor colour', () => {
         const g = drawFurniture(svgNS, { kind: 'door', width: 90, height: 90, colors: { ...FURNITURE_COLORS, floor: '#123456' }, opts: { cut: 18 } });
         expect([...g.querySelectorAll('rect')].some(r => r.getAttribute('fill') === '#123456')).toBe(true);

@@ -212,6 +212,38 @@ def('plant', 'Plant', [45, 45], (p, w, h, c) => {
     }
 });
 
+def('planter', 'Planter', [150, 50], (p, w, h, c, o) => {
+    // A trough of plants along its length; `plants` sets how many.
+    p.rect(-w / 2, -h / 2, w, h, { r: Math.min(w, h) * 0.12 });
+    const m = Math.min(w, h) * 0.12;
+    p.rect(-w / 2 + m, -h / 2 + m, w - 2 * m, h - 2 * m, { r: Math.min(w, h) * 0.08, fill: c.soft });
+    const long = w >= h, len = long ? w - 2 * m : h - 2 * m, across = long ? h - 2 * m : w - 2 * m;
+    const count = o.plants || clamp(Math.round(len / (across * 1.1)), 1, 12);
+    const r = Math.min(across * 0.38, len / count * 0.38);
+    for (let i = 0; i < count; i++) {
+        const t = -len / 2 + (len / count) * (i + 0.5);
+        const [x, y] = long ? [t, 0] : [0, t];
+        p.circle(x, y, r, { fill: c.fill });
+        for (let a = 0; a < 4; a++) {
+            const s = (a / 4) * Math.PI * 2 + Math.PI / 4;
+            p.line(x, y, x + Math.cos(s) * r * 0.8, y + Math.sin(s) * r * 0.8, { sw: p.thin });
+        }
+    }
+});
+
+def('grill', 'Barbecue grill', [130, 65], (p, w, h, c, o) => {
+    // Side shelves either end, the grate between them.
+    const shelf = w * 0.2;
+    p.rect(-w / 2, -h / 2 + h * 0.1, w, h * 0.8, { r: Math.min(w, h) * 0.06 });
+    p.rect(-w / 2 + shelf, -h / 2, w - 2 * shelf, h, { r: Math.min(w, h) * 0.1, fill: c.soft });
+    const bars = o.bars || clamp(Math.round((w - 2 * shelf) / 9), 3, 14);
+    const gw = w - 2 * shelf;
+    for (let i = 1; i < bars; i++) {
+        const x = -gw / 2 + (gw / bars) * i;
+        p.line(x, -h / 2 + h * 0.14, x, h / 2 - h * 0.14, { sw: p.thin });
+    }
+});
+
 def('rug', 'Rug', [200, 140], (p, w, h, c, o) => {
     if (o.round) p.ellipse(0, 0, w / 2, h / 2, { fill: c.soft, stroke: 'none' });
     else p.rect(-w / 2, -h / 2, w, h, { r: Math.min(w, h) * 0.05, fill: c.soft, stroke: 'none' });
