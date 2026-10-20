@@ -6,9 +6,12 @@ x/y in map percent. The x/y come from fingerprints recorded with the
 `dynamic_map.record_fingerprint` service (stand on a spot, tap it on the
 map); a room without fingerprints puts the dot at its centre.
 
-The live signal is Bermuda's per-proxy "Distance to <proxy>" sensors.
-Bermuda creates them disabled; we enable the ones belonging to tracked
-phones. Fingerprints live in HA's private .storage, never in the data dir
+The live signal is Bermuda's per-proxy distance, read straight from its
+coordinator about once a second. Its "Distance to <proxy>" sensors show a
+phone moving away only every 10 s (Bermuda's update_interval), which made
+the dot lag and then jump; they are the fallback when the coordinator
+can't be read. Bermuda creates them disabled; we enable the ones belonging
+to tracked phones (they also name the proxies). Fingerprints live in HA's private .storage, never in the data dir
 (that is served on the LAN without auth).
 """
 from __future__ import annotations
@@ -42,6 +45,7 @@ STORE_KEY = f"{DOMAIN}.fingerprints"
 STORE_VERSION = 1
 SIGNAL_TRACKERS = f"{DOMAIN}_position_trackers"
 SIGNAL_FINGERPRINTS = f"{DOMAIN}_position_fingerprints"
+SIGNAL_LIVE = f"{DOMAIN}_position_live"       # Bermuda finished a refresh cycle (~1 s)
 MAC_RE = re.compile(r"([0-9a-f]{2}(?::[0-9a-f]{2}){5})", re.I)
 ROOMS_RE = re.compile(r"^rooms_floor(\d+)\.json$")
 ROOMS_TTL = 60
@@ -93,6 +97,9 @@ class PositionManager:
         self._rooms_at = 0.0
         self._last_heard: dict[str, float] = {}
         self._recording: set[str] = set()
+        self._tracks: dict[str, pm.Track] = {}
+        self._bermuda = None             # Bermuda's coordinator, once found
+        self._unsub_bermuda = None
 
     async def async_start(self):
         data = await self.store.async_load() or {}
@@ -111,8 +118,28 @@ class PositionManager:
         @callback
         def started(_hass):
             self.discover()
+            self._attach_bermuda()
 
         async_at_started(self.hass, started)
+
+    @callback
+    def _attach_bermuda(self):
+        """Listen to Bermuda's own refresh cycle; positions follow it at ~1 Hz."""
+        if self._unsub_bermuda:
+            return
+        for entry in self.hass.config_entries.async_entries("bermuda"):
+            coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+            if coordinator is not None and isinstance(getattr(coordinator, "devices", None), dict):
+                self._bermuda = coordinator
+                self._unsub_bermuda = coordinator.async_add_listener(
+                    lambda: async_dispatcher_send(self.hass, SIGNAL_LIVE))
+                _LOGGER.info("Dynamic Map: map positions follow Bermuda's refresh cycle")
+                return
+        _LOGGER.warning("Dynamic Map: Bermuda's coordinator not found; positions use its rate-limited sensors")
+
+    @property
+    def live(self) -> bool:
+        return self._bermuda is not None
 
     # --- rooms -------------------------------------------------------------
 
@@ -164,6 +191,9 @@ class PositionManager:
 
     def reading(self, tracker: Tracker) -> dict:
         """{scanner mac: metres} for every proxy that hears the phone now."""
+        live = self._live_reading(tracker)
+        if live is not None:
+            return live
         out = {}
         for mac, entity_id in tracker.distance_entities.items():
             st = self.hass.states.get(entity_id)
@@ -172,12 +202,50 @@ class PositionManager:
                 out[mac] = d
         return out
 
-    async def async_locate(self, tracker: Tracker, prev: dict | None):
+    def _live_reading(self, tracker: Tracker) -> dict | None:
+        """The reading from Bermuda's coordinator, or None when it can't be read.
+
+        Bermuda's smoothed per-proxy distance (what its sensors show, minus their
+        10 s rate limit), keyed like the sensors: the proxy's wifi MAC if it has
+        one, else its Bluetooth address. None for a proxy that stopped hearing.
+        """
+        if self._bermuda is None:
+            return None
+        try:
+            device = dr.async_get(self.hass).async_get(tracker.device_id)
+            if device is None:
+                return None
+            devices = self._bermuda.devices
+            bdev = next((devices[i[1].lower()] for i in device.identifiers if i[1].lower() in devices), None)
+            if bdev is None:
+                return None
+            out = {}
+            for advert in list(bdev.adverts.values()):
+                scanner = devices.get(advert.scanner_address)
+                if scanner is None:
+                    continue
+                key = (getattr(scanner, "address_wifi_mac", None) or scanner.address).lower()
+                if key not in tracker.distance_entities:
+                    continue
+                d = pm.clamp_distance(advert.rssi_distance)
+                if d is not None:
+                    out[key] = d
+            return out
+        except Exception:   # Bermuda internals changed: fall back to its sensors for good
+            _LOGGER.warning("Dynamic Map: can't read Bermuda's coordinator; using its sensors", exc_info=True)
+            self._bermuda = None
+            if self._unsub_bermuda:
+                self._unsub_bermuda()
+                self._unsub_bermuda = None
+            return None
+
+    async def async_locate(self, tracker: Tracker):
         """The tracker's map position, or None when neither spots nor Bermuda place it.
 
         The best-matching recorded spot anywhere in the house picks the floor
         and room, so floors without proxies work once calibrated; Bermuda's
-        room is the fallback. A phone no proxy hears matches the "silent"
+        room is the fallback; pm.Track keeps the dot from jumping (pooled
+        readings, a sticky room, a walking-pace glide). A phone no proxy hears matches the "silent"
         spots only for SILENT_S after it was last heard (it may have left).
         """
         st = self.hass.states.get(tracker.area_entity)
@@ -188,7 +256,10 @@ class PositionManager:
         if reading:
             self._last_heard[tracker.device_id] = now
         usable = bool(reading) or now - self._last_heard.get(tracker.device_id, -1e9) < SILENT_S
-        pick = pm.pick_spot(self.fingerprints, reading, (b_floor, b_room.get("id")) if b_room else None) if usable else None
+        track = self._tracks.setdefault(tracker.device_id, pm.Track())
+        bermuda = (b_floor, b_room.get("id")) if b_room else None
+        pick = track.step(self.fingerprints, reading, now, bermuda) if usable else None
+        hit = None
         if pick:
             floor, room_id, hit = pick
             room = next((r for r in rooms.get(floor, []) if r.get("id") == room_id), None)
@@ -205,9 +276,7 @@ class PositionManager:
             cx, cy = pm.polygon_centre(room.get("polygon") or [[50, 50]])
             return {**base, "x": cx, "y": cy, "source": "room", "confidence": 0.0,
                     "fingerprints": len(fps), "proxies": len(reading)}
-        same_room = prev and prev.get("source") == "fingerprint" and prev.get("room_id") == room.get("id") and prev.get("floor") == floor
-        pos = pm.smooth(prev if same_room else None, hit)
-        return {**base, "x": pos["x"], "y": pos["y"], "source": "fingerprint",
+        return {**base, "x": hit["x"], "y": hit["y"], "source": "fingerprint",
                 "confidence": hit["confidence"], "fingerprints": len(fps), "proxies": len(reading)}
 
     # --- fingerprints ------------------------------------------------------
@@ -253,6 +322,7 @@ class PositionManager:
             "floor": floor, "x": round(x, 2), "y": round(y, 2),
             "room_id": room.get("id"), "room": room.get("name"),
             "features": features, "samples": len(samples), "recorded_at": int(time.time()),
+            "raw": samples,     # every second's reading, to learn each spot's spread later
         }
         self.fingerprints.append(fp)
         await self._save()

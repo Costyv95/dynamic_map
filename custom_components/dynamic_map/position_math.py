@@ -7,12 +7,19 @@ known spot of the map and we record how far every proxy thinks the phone is
 the room Bermuda picked, and the position is the weighted mean of the
 nearest ones (k-nearest-neighbour).
 
+Live readings jitter, so one reading never decides anything on its own
+(Track): readings are pooled per proxy over the last few seconds, each
+room's match is averaged over time and another room has to match clearly
+better before the dot changes room, and inside a room the dot glides
+toward the estimate no faster than a person walks.
+
 Distances are compared on a log scale: a proxy reading 1 m vs 2 m is as
 telling as 5 m vs 10 m, and log distance is linear in RSSI. A proxy that
 does not hear the phone counts as FAR away, so "not heard" is information
 too: a spot no proxy hears (a floor without proxies) is a fingerprint of
-silence, and the best-matching spot over the whole house picks the floor
-and room (pick_spot), with Bermuda's room only as the fallback. HA-free so it can be unit-tested outside Home Assistant.
+silence, and the best-matching spots over the whole house pick the floor
+and room (room_gaps), with Bermuda's room only as the fallback. HA-free so
+it can be unit-tested outside Home Assistant.
 """
 import math
 import statistics
@@ -20,7 +27,14 @@ import statistics
 FAR_M = 15.0          # a proxy that doesn't hear the phone reads as this far
 NEAR_M = 0.3          # readings below this are noise
 K = 3                 # neighbours averaged
+KERNEL_TAU = 0.05     # log10 gap over which a neighbour's weight falls by e
 MATCH_GAP = 0.3       # a best match closer than this (log10 RMS) beats Bermuda's room
+WINDOW_S = 3.0        # live readings pooled per proxy before matching
+ROOM_TAU_S = 4.0      # how long a room's match is remembered (time constant)
+ROOM_MARGIN = 0.01    # another room's mean squared gap must be this much lower to take over
+POS_TAU_S = 2.5       # the dot covers 63% of the way to a new estimate in this long
+MAX_SPEED = 12.0      # map % per second the dot may move inside a room (walking pace)
+RESET_S = 60.0        # after this long without an update the track starts afresh
 
 
 def clamp_distance(d):
@@ -82,7 +96,10 @@ def estimate(fingerprints, reading, k=K):
         ((feature_gap(fp["features"], reading), fp) for fp in fingerprints),
         key=lambda t: t[0],
     )[: max(1, k)]
-    weights = [1.0 / (gap + 0.02) for gap, _ in ranked]
+    # Weights relative to the best match: a spot KERNEL_TAU worse counts 1/e as
+    # much. Smooth in the reading, so the estimate slides between spots
+    # instead of snapping to whichever is nearest.
+    weights = [math.exp(-(gap - ranked[0][0]) / KERNEL_TAU) for gap, _ in ranked]
     total = sum(weights)
     x = sum(w * fp["x"] for w, (_, fp) in zip(weights, ranked)) / total
     y = sum(w * fp["y"] for w, (_, fp) in zip(weights, ranked)) / total
@@ -96,32 +113,90 @@ def estimate(fingerprints, reading, k=K):
     }
 
 
-def pick_spot(fingerprints, reading, bermuda_room=None, match_gap=MATCH_GAP, k=K):
-    """(floor, room_id, estimate) over every recorded spot in the house, or None.
+def room_gaps(fingerprints, reading, bermuda_room=None, match_gap=MATCH_GAP):
+    """{(floor, room_id): gap of its best-matching spot} for this reading.
 
-    The nearest fingerprint names the floor and room, then the position is
-    estimated from that room's spots only (never averaged across rooms).
-    bermuda_room is (floor, room_id) from Bermuda's area: when the best
-    match is poor (gap above match_gap) Bermuda's room wins, and None comes
-    back if that room has no spots of its own.
+    Bermuda's room counts as matching at match_gap even without spots of its
+    own, so a good fingerprint match beats Bermuda and a poor one defers to it.
     """
-    if not fingerprints:
-        return None
-    best = min(fingerprints, key=lambda fp: feature_gap(fp["features"], reading))
-    floor, room_id = best["floor"], best["room_id"]
-    if bermuda_room and bermuda_room[1] is not None and feature_gap(best["features"], reading) > match_gap:
-        floor, room_id = bermuda_room
-    spots = [fp for fp in fingerprints if fp["floor"] == floor and fp["room_id"] == room_id]
-    hit = estimate(spots, reading, k)
-    return (floor, room_id, hit) if hit else None
+    gaps = {}
+    for fp in fingerprints:
+        key = (fp["floor"], fp["room_id"])
+        g = feature_gap(fp["features"], reading)
+        if g < gaps.get(key, math.inf):
+            gaps[key] = g
+    if bermuda_room and bermuda_room[1] is not None:
+        key = tuple(bermuda_room)
+        gaps[key] = min(gaps.get(key, math.inf), match_gap)
+    return gaps
 
 
-def smooth(prev, new, alpha=0.4):
-    """Glide from the previous position toward the new one."""
+def pooled(history, now, window=WINDOW_S):
+    """One reading from the last `window` seconds of (stamp, reading) pairs."""
+    return median_reading([r for t, r in history if now - t <= window])
+
+
+class Track:
+    """One phone's position over time: pooled readings, a sticky room, a glide.
+
+    step() takes the latest reading and returns (floor, room_id, estimate);
+    estimate is None when the room has no spots (the caller centres the dot).
+    """
+
+    def __init__(self):
+        self.history = []        # [(stamp, reading)] within WINDOW_S
+        self.scores = {}         # {(floor, room_id): time-averaged squared gap}
+        self.room = None
+        self.pos = None          # {"x", "y"} last output inside self.room
+        self.stamp = None
+
+    def step(self, fingerprints, reading, now, bermuda_room=None):
+        if self.stamp is not None and now - self.stamp > RESET_S:
+            self.__init__()
+        dt = 1.0 if self.stamp is None else max(0.0, now - self.stamp)
+        first = self.stamp is None
+        self.stamp = now
+        self.history = [(t, r) for t, r in self.history if now - t <= WINDOW_S] + [(now, reading)]
+        live = pooled(self.history, now)
+
+        gaps = room_gaps(fingerprints, live, bermuda_room)
+        if not gaps:
+            self.room = self.pos = None
+            return None
+        # Each room's squared gap, averaged over ROOM_TAU_S; a room that drops out
+        # of the candidates is remembered as matching at FAR (gap 1 decade).
+        keep = 0.0 if first else math.exp(-dt / ROOM_TAU_S)
+        for key in set(self.scores) | set(gaps):
+            g2 = min(gaps.get(key, 1.0), 1.0) ** 2
+            self.scores[key] = keep * self.scores.get(key, g2) + (1 - keep) * g2
+            if key not in gaps and self.scores[key] > 0.9 and key != self.room:
+                del self.scores[key]      # long forgotten (an old Bermuda room)
+        best = min(self.scores, key=self.scores.get)
+        if self.room not in self.scores or self.room not in gaps or \
+                self.scores[best] < self.scores[self.room] - ROOM_MARGIN:
+            if best != self.room:
+                self.pos = None
+            self.room = best
+        floor, room_id = self.room
+        spots = [fp for fp in fingerprints if fp["floor"] == floor and fp["room_id"] == room_id]
+        hit = estimate(spots, live)
+        if hit is None:
+            self.pos = None
+            return floor, room_id, None
+        self.pos = glide(self.pos, hit, dt)
+        return floor, room_id, {**hit, "x": self.pos["x"], "y": self.pos["y"]}
+
+
+def glide(prev, new, dt, tau=POS_TAU_S, max_speed=MAX_SPEED):
+    """Move from prev toward new: a share 1 - e^(-dt/tau) of the way, at most max_speed * dt."""
     if not prev:
-        return new
-    return {**new, "x": round(prev["x"] + (new["x"] - prev["x"]) * alpha, 2),
-            "y": round(prev["y"] + (new["y"] - prev["y"]) * alpha, 2)}
+        return {"x": new["x"], "y": new["y"]}
+    dx, dy = new["x"] - prev["x"], new["y"] - prev["y"]
+    share = 1.0 - math.exp(-dt / tau)
+    step = math.hypot(dx, dy) * share
+    if step > max_speed * dt:
+        share *= max_speed * dt / step
+    return {"x": round(prev["x"] + dx * share, 2), "y": round(prev["y"] + dy * share, 2)}
 
 
 # --- rooms -------------------------------------------------------------------

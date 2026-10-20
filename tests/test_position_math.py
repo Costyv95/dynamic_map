@@ -69,8 +69,8 @@ class TestEstimate:
         assert (hit["x"], hit["y"], hit["confidence"]) == (50.0, 50.0, 1.0)
 
 
-class TestPickSpot:
-    """The best spot in the house picks floor and room; Bermuda is the fallback."""
+class TestTrack:
+    """The best spots in the house pick floor and room; Bermuda is the fallback."""
 
     def fp(self, floor, room, x, y, features):
         return {"floor": floor, "room_id": room, "x": x, "y": y, "features": features}
@@ -84,30 +84,59 @@ class TestPickSpot:
             self.fp(3, "terrace", 60, 40, {A: 14.0}),
         ]
 
+    def first(self, reading, bermuda=None, fps=None):
+        return pm.Track().step(self.house() if fps is None else fps, reading, 0.0, bermuda)
+
     def test_a_floor_without_proxies_is_found_by_its_silence(self):
-        floor, room, hit = pm.pick_spot(self.house(), {}, bermuda_room=None)
+        floor, room, hit = self.first({})
         assert (floor, room) == (3, "terrace") and 40 <= hit["x"] <= 60
 
     def test_a_good_match_beats_bermudas_room(self):
-        floor, room, _ = pm.pick_spot(self.house(), {A: 7.5, B: 1.1}, bermuda_room=(2, "office"))
+        floor, room, _ = self.first({A: 7.5, B: 1.1}, bermuda=(2, "office"))
         assert (floor, room) == (2, "kitchen")
 
     def test_a_poor_match_defers_to_bermuda(self):
-        floor, room, hit = pm.pick_spot(self.house(), {A: 3.0, B: 3.0, C: 0.5}, bermuda_room=(2, "office"))
+        floor, room, hit = self.first({A: 3.0, B: 3.0, C: 0.5}, bermuda=(2, "office"))
         assert (floor, room) == (2, "office") and hit is not None
 
     def test_never_averages_across_rooms(self):
-        _, room, hit = pm.pick_spot(self.house(), {A: 1.0, B: 6.0})
+        _, room, hit = self.first({A: 1.0, B: 6.0})
         assert room == "office" and hit["x"] <= 20
 
-    def test_bermuda_room_without_spots_is_none(self):
-        assert pm.pick_spot(self.house(), {A: 3.0, B: 3.0, C: 0.5}, bermuda_room=(1, "hall")) is None
-        assert pm.pick_spot([], {A: 1.0}) is None
+    def test_bermuda_room_without_spots_has_no_estimate(self):
+        assert self.first({A: 3.0, B: 3.0, C: 0.5}, bermuda=(1, "hall")) == (1, "hall", None)
+        assert self.first({A: 1.0}, fps=[]) is None
 
-    def test_smoothing_glides_and_first_fix_is_direct(self):
-        new = {"x": 20.0, "y": 10.0}
-        assert pm.smooth(None, new) == new
-        assert pm.smooth({"x": 10.0, "y": 10.0}, new, alpha=0.5)["x"] == 15.0
+    def test_one_stray_reading_does_not_change_room(self):
+        track, office, kitchen = pm.Track(), {A: 1.0, B: 6.0}, {A: 8.0, B: 1.0}
+        for t in range(10):
+            assert track.step(self.house(), office, float(t))[1] == "office"
+        assert track.step(self.house(), kitchen, 10.0)[1] == "office"
+        assert track.step(self.house(), office, 11.0)[1] == "office"
+
+    def test_walking_into_another_room_switches_within_seconds(self):
+        track, office, kitchen = pm.Track(), {A: 1.0, B: 6.0}, {A: 8.0, B: 1.0}
+        for t in range(10):
+            track.step(self.house(), office, float(t))
+        rooms = [track.step(self.house(), kitchen, 10.0 + t)[1] for t in range(10)]
+        assert rooms[-1] == "kitchen" and rooms.index("kitchen") <= 6
+
+    def test_the_dot_glides_at_walking_pace_and_first_fix_is_direct(self):
+        track = pm.Track()
+        _, _, hit = track.step(self.house(), {A: 1.0, B: 6.0}, 0.0)
+        assert hit["x"] == pytest.approx(10, abs=0.5)
+        x = [track.step(self.house(), {A: 2.0, B: 5.0}, float(t))[2]["x"] for t in range(1, 30)]
+        assert all(b >= a for a, b in zip(x, x[1:]))           # heads there steadily
+        assert x[0] < 15 and x[-1] == pytest.approx(20, abs=0.5)
+
+    def test_glide_is_capped_by_speed(self):
+        assert pm.glide(None, {"x": 20.0, "y": 10.0}, 1.0) == {"x": 20.0, "y": 10.0}
+        step = pm.glide({"x": 0.0, "y": 0.0}, {"x": 100.0, "y": 0.0}, 1.0)
+        assert step["x"] == pytest.approx(pm.MAX_SPEED)
+
+    def test_readings_are_pooled_over_the_window(self):
+        assert pm.pooled([(0.0, {A: 1.0}), (1.0, {A: 3.0}), (2.0, {A: 2.0})], 2.0) == {A: 2.0}
+        assert pm.pooled([(0.0, {A: 9.0}), (10.0, {A: 1.0})], 10.0) == {A: 1.0}   # old reading dropped
 
 
 class TestRooms:
