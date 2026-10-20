@@ -122,6 +122,14 @@ describe('presence dots', () => {
         expect(dot.el.querySelector('text').textContent).toBe('C');
     });
 
+    it('a rebuilt layer (floor switch) places its dots at once from the last hass', () => {
+        const card = makeCard({ presence: [{ entity: 'sensor.costi_area' }] });
+        card._hass = { states: { 'sensor.costi_area': { state: 'Office' } } };
+        card.buildPresenceLayer();
+        expect(card._presenceDots[0].visible).toBe(true);
+        expect(card._presenceDots[0].el.style.display).toBe('block');
+    });
+
     it('matches rooms by area id and by HA area name', () => {
         const card = presenceCard([{ entity: 'sensor.p' }]);
         card.updatePresence({ states: { 'sensor.p': { state: 'bedroom_area' } } });

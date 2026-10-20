@@ -18,7 +18,7 @@ export function buildPresenceLayer(host) {
     const layer = document.createElementNS(svgNS, 'g');
     layer.classList.add('dm-presence-layer');
     layer.style.pointerEvents = 'none';
-    const r = host.imgW * 0.016;
+    const r = host.imgW * 0.024;
     host._presenceDots = items.filter(it => it && it.entity).map((it, idx) => {
         const el = document.createElementNS(svgNS, 'g');
         el.classList.add('dm-presence-dot');
@@ -43,6 +43,8 @@ export function buildPresenceLayer(host) {
     });
     host.presenceLayer = layer;
     host.mapRoot.appendChild(layer);
+    // Place the dots now: a floor switch rebuilds the layer, and the next hass push may be seconds away.
+    if (host._hass) updatePresence(host, host._hass);
 }
 
 /** Find the room an entity's state names, or null. */
