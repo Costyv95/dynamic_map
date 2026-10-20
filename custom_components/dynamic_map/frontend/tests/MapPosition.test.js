@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import '../custom-svg-map.js';
 import { spotForState } from '../card/PresenceLayer.js';
-import { buildCalibrate, toMapPercent } from '../card/Calibrate.js';
+import { buildCalibrate, toMapPercent, defaultTracker, roomAtPercent, roomProgress, stepText } from '../card/Calibrate.js';
 
 const svgNS = 'http://www.w3.org/2000/svg';
 
@@ -82,5 +82,38 @@ describe('calibrate button', () => {
         global.DOMPoint = class { constructor(x, y) { this.x = x; this.y = y; } matrixTransform(m) { return { x: this.x * m.a + m.e, y: this.y * m.d + m.f }; } };
         expect(toMapPercent(card, 400, 1000)).toEqual({ x: 20, y: 50 });
         expect(toMapPercent(card, 4000, 10)).toBe(null);
+    });
+});
+
+describe('guided calibration', () => {
+    const trackers = [{ entity_id: 'sensor.diana', name: 'Diana Pixel (BLE)' }, { entity_id: 'sensor.costin', name: 'Costin iPhone (BLE)' }];
+    const rooms = [
+        { id: 'office', name: 'Office', polygon: [[50, 0], [100, 0], [100, 50], [50, 50]] },
+        { id: 'kitchen', name: 'Kitchen', polygon: [[0, 0], [50, 0], [50, 50], [0, 50]] },
+        { id: 'void', polygon: [[0, 50], [10, 50], [10, 60]] }
+    ];
+
+    it("picks the logged-in person's phone, else the first one", () => {
+        expect(defaultTracker(trackers, { name: 'Costin Vlad' })).toBe('sensor.costin');
+        expect(defaultTracker(trackers, { name: 'Guest' })).toBe('sensor.diana');
+        expect(defaultTracker([], { name: 'Costin' })).toBe(null);
+    });
+
+    it('finds the room under a tap', () => {
+        expect(roomAtPercent(rooms, 70, 20).id).toBe('office');
+        expect(roomAtPercent(rooms, 20, 20).id).toBe('kitchen');
+        expect(roomAtPercent(rooms, 80, 80)).toBe(null);
+    });
+
+    it('counts spots per named room on this floor only', () => {
+        const fps = [{ floor: 2, room: 'Office' }, { floor: 2, room: 'Office' }, { floor: 1, room: 'Office' }, { floor: 2, room: 'kitchen' }];
+        expect(roomProgress(rooms, fps, 2)).toEqual([{ id: 'office', name: 'Office', spots: 2 }, { id: 'kitchen', name: 'Kitchen', spots: 1 }]);
+    });
+
+    it('walks room → spot → recording → saved', () => {
+        expect(stepText({})[1]).toBe('Tap the room you are in');
+        expect(stepText({ room: rooms[0] })[1]).toBe('Tap exactly where you stand in Office');
+        expect(stepText({ room: rooms[0], busy: true, left: 12 })[1]).toBe('Hold still… 12 s');
+        expect(stepText({ room: rooms[0], saved: { room: 'Office', proxies: 5 } })[1]).toBe('Saved in Office ✓');
     });
 });
