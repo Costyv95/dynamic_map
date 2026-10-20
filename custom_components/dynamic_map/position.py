@@ -49,7 +49,6 @@ SIGNAL_LIVE = f"{DOMAIN}_position_live"       # Bermuda finished a refresh cycle
 MAC_RE = re.compile(r"([0-9a-f]{2}(?::[0-9a-f]{2}){5})", re.I)
 ROOMS_RE = re.compile(r"^rooms_floor(\d+)\.json$")
 ROOMS_TTL = 60
-SILENT_S = 600       # how long an unheard phone may still match the silent spots (floors without proxies)
 
 
 def _read_rooms(data_dir):
@@ -95,7 +94,7 @@ class PositionManager:
         self.trackers: dict[str, Tracker] = {}
         self._rooms: dict = {}
         self._rooms_at = 0.0
-        self._last_heard: dict[str, float] = {}
+        self._last_heard: dict[str, float] = {}     # device id -> wall-clock time last heard
         self._recording: set[str] = set()
         self._tracks: dict[str, pm.Track] = {}
         self._bermuda = None             # Bermuda's coordinator, once found
@@ -245,20 +244,18 @@ class PositionManager:
         The best-matching recorded spot anywhere in the house picks the floor
         and room, so floors without proxies work once calibrated; Bermuda's
         room is the fallback; pm.Track keeps the dot from jumping (pooled
-        readings, a sticky room, a walking-pace glide). A phone no proxy hears matches the "silent"
-        spots only for SILENT_S after it was last heard (it may have left).
+        readings, a sticky room, a walking-pace glide) and holds it where it
+        was while no proxy hears the phone (locked, or out of the house).
         """
         st = self.hass.states.get(tracker.area_entity)
         rooms = await self.async_rooms()
         b_floor, b_room = pm.room_for_area(rooms, st.state if st else None, self.area_names())
         reading = self.reading(tracker)
-        now = time.monotonic()
         if reading:
-            self._last_heard[tracker.device_id] = now
-        usable = bool(reading) or now - self._last_heard.get(tracker.device_id, -1e9) < SILENT_S
+            self._last_heard[tracker.device_id] = time.time()
         track = self._tracks.setdefault(tracker.device_id, pm.Track())
         bermuda = (b_floor, b_room.get("id")) if b_room else None
-        pick = track.step(self.fingerprints, reading, now, bermuda) if usable else None
+        pick = track.step(self.fingerprints, reading, time.monotonic(), bermuda)
         hit = None
         if pick:
             floor, room_id, hit = pick
@@ -269,8 +266,10 @@ class PositionManager:
             if b_room is None:
                 return None
             floor, room, hit = b_floor, b_room, None
+        heard = self._last_heard.get(tracker.device_id)
         base = {"floor": floor, "room": room.get("name"), "room_id": room.get("id"),
-                "area": st.state if st else None, "area_id": room.get("area_id")}
+                "area": st.state if st else None, "area_id": room.get("area_id"),
+                "heard": bool(reading), "last_heard": int(heard) if heard else None}
         fps = [fp for fp in self.fingerprints if fp["floor"] == floor and fp["room_id"] == room.get("id")]
         if hit is None:
             cx, cy = pm.polygon_centre(room.get("polygon") or [[50, 50]])

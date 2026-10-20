@@ -87,9 +87,13 @@ class TestTrack:
     def first(self, reading, bermuda=None, fps=None):
         return pm.Track().step(self.house() if fps is None else fps, reading, 0.0, bermuda)
 
-    def test_a_floor_without_proxies_is_found_by_its_silence(self):
-        floor, room, hit = self.first({})
-        assert (floor, room) == (3, "terrace") and 40 <= hit["x"] <= 60
+    def test_a_phone_no_proxy_hears_stays_where_it_was(self):
+        assert self.first({}) is None                                   # never placed: nowhere
+        track = pm.Track()
+        placed = track.step(self.house(), {A: 1.0, B: 6.0}, 0.0)
+        assert placed[1] == "office"
+        assert track.step(self.house(), {}, 5.0) == placed               # locked phone
+        assert track.step(self.house(), {}, 3600.0) == placed            # gone out for an hour
 
     def test_a_good_match_beats_bermudas_room(self):
         floor, room, _ = self.first({A: 7.5, B: 1.1}, bermuda=(2, "office"))
