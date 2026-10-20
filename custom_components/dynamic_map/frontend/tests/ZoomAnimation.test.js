@@ -35,31 +35,51 @@ describe('room zoom animation', () => {
         expect(host._vbAnim).toBeNull();
     });
 
-    it('a manual pan settles a running zoom at its interpolated position; a retarget continues from there', () => {
+    it('a manual pan settles a running zoom at its interpolated position', () => {
         const svg = fakeSvg();
         const host = { svg, vb: { x: 0, y: 0, w: 1000, h: 500 }, updateViewBox: vi.fn() };
-        animateViewBox(host, { x: 500, y: 0, w: 1000, h: 500 }, 300);
+        animateViewBox(host, { x: 250, y: 100, w: 500, h: 250 }, 300);
         host._vbAnim.start -= 150;                                     // half-way through
         settleViewBox(host);
         expect(host._vbAnim).toBeNull();
-        expect(Math.abs(host.vb.x - 250)).toBeLessThan(2);              // eased midpoint of 0..500
+        expect(Math.abs(host.vb.w - 750)).toBeLessThan(25);             // eased midpoint of 1000..500
         expect(svg.anims[0].cancel).toHaveBeenCalled();
-        animateViewBox(host, { x: 0, y: 0, w: 1000, h: 500 }, 300);
-        // drawn: the span of ~x250 and x0 (1250 wide); the end frame shows the 1000-wide target in it
-        expect(host.vb.w).toBeCloseTo(1250, 0);
-        expect(svg.anims[1].frames[1].transform).toContain('scale(1.25');
+        expect(svg.style.transform).toBe('');
     });
 
-    it('zooming out draws the wide view first and ends on it, so the house never pops in (#1264)', () => {
+    it('zooming out steps the viewBox per frame: no magnified layer, so no white tiles or blur (#1357)', () => {
         const svg = fakeSvg();
         const room = { x: 250, y: 100, w: 500, h: 250 }, house = { x: 0, y: 0, w: 1000, h: 500 };
         const host = { svg, vb: { ...room }, updateViewBox: vi.fn() };
+        const frames = [];
+        const raf = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => { frames.push(cb); return frames.length; });
+        const t0 = performance.now();
         animateViewBox(host, house, 300);
-        expect(host.vb).toEqual(house);                                // the whole house is drawn during the motion
-        expect(svg.anims[0].frames[0].transform).toBe('translate(-500.00px, -200.00px) scale(2.00000)');  // starts looking like the room
-        expect(svg.anims[0].frames[1].transform).toBe('translate(0.00px, 0.00px) scale(1.00000)');        // ends on what is drawn
-        svg.anims[0].onfinish();
-        expect(host.vb).toEqual(house);
+        expect(svg.anims.length).toBe(0);                               // no compositor transform
+        frames.shift()(t0 + 150);
+        expect(host.vb.w).toBeGreaterThan(room.w);                      // drawn, in between
+        expect(host.vb.w).toBeLessThan(house.w);
+        frames.shift()(t0 + 1000);
+        expect(host.vb).toEqual(house);                                 // ends on the house, drawn for real
+        expect(frames.length).toBe(0);
+        raf.mockRestore();
+    });
+
+    it('a zoom-out interrupted by a zoom-in continues from where it was', () => {
+        const svg = fakeSvg();
+        const room = { x: 250, y: 100, w: 500, h: 250 }, house = { x: 0, y: 0, w: 1000, h: 500 };
+        const host = { svg, vb: { ...room }, updateViewBox: vi.fn() };
+        const frames = [];
+        const raf = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => { frames.push(cb); return frames.length; });
+        const cancel = vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => {});
+        animateViewBox(host, house, 300);
+        frames.shift()(performance.now() + 150);
+        const mid = { ...host.vb };
+        animateViewBox(host, room, 300);                                // back into the room: compositor
+        expect(cancel).toHaveBeenCalled();
+        for (const k of ['x', 'y', 'w', 'h']) expect(host.vb[k]).toBeCloseTo(mid[k], 6);   // drawn from where the zoom-out was
+        expect(svg.anims.length).toBe(1);
+        raf.mockRestore(); cancel.mockRestore();
     });
 
     it('spanBox holds both views at the first one\'s aspect', () => {
