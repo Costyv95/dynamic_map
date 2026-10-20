@@ -1,7 +1,6 @@
 """Dynamic Floorplan Map — native SVG map card + sidebar editor for Home Assistant."""
 import logging
 import os
-import time
 
 import voluptuous as vol
 
@@ -28,6 +27,7 @@ from .const import (
     URL_BASE_DATA,
     URL_BASE_UI,
 )
+from .panel_entry import PANEL_ENTRY_URL
 from .views import ALL_VIEWS
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,15 +77,17 @@ async def async_setup(hass: HomeAssistant, config: dict):
 
     await hass.http.async_register_static_paths(
         [
-            StaticPathConfig(URL_BASE_UI, frontend_dir, cache_headers=False),
+            # Every UI URL carries the deploy's ?v= stamp, so the browser may keep
+            # them; without this a phone revalidates ~140 modules on every visit.
+            StaticPathConfig(URL_BASE_UI, frontend_dir, cache_headers=True),
             StaticPathConfig(URL_BASE_DATA, data_dir, cache_headers=False),
         ]
     )
 
     # Native custom panel: the editor element receives `hass` directly, so it
-    # needs no iframe and no token hand-off. The version query busts caches
-    # after every restart (deploys restart HA).
-    module_url = f"{URL_BASE_UI}/dynamic-map-panel.js?v={integration.version}-{int(time.time())}"
+    # needs no iframe and no token hand-off. The module is a never-cached
+    # entry that imports the panel at the deployed stamp (views.panel_entry_js).
+    module_url = PANEL_ENTRY_URL
     async_register_built_in_panel(
         hass,
         component_name="custom",
