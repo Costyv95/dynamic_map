@@ -214,7 +214,12 @@ export function roomProgress(rooms, fingerprints, floor) {
 export function stepText(c) {
     const name = c.room && c.room.name;
     if (c.busy) return [3, `Hold still… ${c.left} s`, 'Keep the phone where it is. Recording what every Bluetooth proxy hears.'];
-    if (c.saved) return [4, `Saved in ${c.saved.room} ✓`, `${c.saved.proxies} proxies heard the phone. Take 2–3 steps, stand still and tap your new spot. Tap another room to move on.`];
+    if (c.saved) {
+        const heard = c.saved.proxies
+            ? `${c.saved.proxies} ${c.saved.proxies === 1 ? 'proxy' : 'proxies'} heard the phone.`
+            : 'No proxy hears the phone here, and that silence is saved as this spot (fine on a floor without proxies).';
+        return [4, `Saved in ${c.saved.room} ✓`, `${heard} Take 2–3 steps, stand still and tap your new spot. Tap another room to move on.`];
+    }
     if (name) return [2, `Tap exactly where you stand in ${name}`, 'Stand still first. Then you have 20 seconds of keeping still.'];
     return [1, 'Tap the room you are in', 'On the map or in the list below. The map zooms in so you can tap your exact spot.'];
 }

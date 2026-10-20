@@ -10,7 +10,9 @@ nearest ones (k-nearest-neighbour).
 Distances are compared on a log scale: a proxy reading 1 m vs 2 m is as
 telling as 5 m vs 10 m, and log distance is linear in RSSI. A proxy that
 does not hear the phone counts as FAR away, so "not heard" is information
-too. HA-free so it can be unit-tested outside Home Assistant.
+too: a spot no proxy hears (a floor without proxies) is a fingerprint of
+silence, and the best-matching spot over the whole house picks the floor
+and room (pick_spot), with Bermuda's room only as the fallback. HA-free so it can be unit-tested outside Home Assistant.
 """
 import math
 import statistics
@@ -18,6 +20,7 @@ import statistics
 FAR_M = 15.0          # a proxy that doesn't hear the phone reads as this far
 NEAR_M = 0.3          # readings below this are noise
 K = 3                 # neighbours averaged
+MATCH_GAP = 0.3       # a best match closer than this (log10 RMS) beats Bermuda's room
 
 
 def clamp_distance(d):
@@ -39,7 +42,7 @@ def feature_gap(a, b):
     """
     keys = set(a) | set(b)
     if not keys:
-        return float("inf")
+        return 0.0     # neither side heard by any proxy: the same silence
     total = 0.0
     for k in keys:
         da = math.log10(a.get(k, FAR_M))
@@ -73,7 +76,7 @@ def estimate(fingerprints, reading, k=K):
     toward 0 as the nearest gap grows to ~0.5 decades (a factor of 3 in
     distance on every proxy).
     """
-    if not fingerprints or not reading:
+    if not fingerprints:
         return None
     ranked = sorted(
         ((feature_gap(fp["features"], reading), fp) for fp in fingerprints),
@@ -91,6 +94,26 @@ def estimate(fingerprints, reading, k=K):
         "gap": round(best, 3),
         "used": len(ranked),
     }
+
+
+def pick_spot(fingerprints, reading, bermuda_room=None, match_gap=MATCH_GAP, k=K):
+    """(floor, room_id, estimate) over every recorded spot in the house, or None.
+
+    The nearest fingerprint names the floor and room, then the position is
+    estimated from that room's spots only (never averaged across rooms).
+    bermuda_room is (floor, room_id) from Bermuda's area: when the best
+    match is poor (gap above match_gap) Bermuda's room wins, and None comes
+    back if that room has no spots of its own.
+    """
+    if not fingerprints:
+        return None
+    best = min(fingerprints, key=lambda fp: feature_gap(fp["features"], reading))
+    floor, room_id = best["floor"], best["room_id"]
+    if bermuda_room and bermuda_room[1] is not None and feature_gap(best["features"], reading) > match_gap:
+        floor, room_id = bermuda_room
+    spots = [fp for fp in fingerprints if fp["floor"] == floor and fp["room_id"] == room_id]
+    hit = estimate(spots, reading, k)
+    return (floor, room_id, hit) if hit else None
 
 
 def smooth(prev, new, alpha=0.4):
