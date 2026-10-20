@@ -5,6 +5,9 @@ import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
  * each entity's state names the room (room name, HA area id, or area
  * name - e.g. a Bermuda/ESPresense area sensor). The dot glides to that
  * room's centre and hides when the person isn't on this floor.
+ *
+ * A dynamic_map map-position sensor (#1354) also carries `floor`, `x`, `y`
+ * (map %): the dot then sits on that spot, and only on that floor.
  */
 
 const NOWHERE = ['', 'unknown', 'unavailable', 'not_home', 'away', 'none', 'off'];
@@ -62,10 +65,15 @@ export function updatePresence(host, hass) {
     const byRoom = {};
     host._presenceDots.forEach(dot => {
         const st = hass.states[dot.entity];
+        const spot = spotForState(st, host.activeFloor);
+        if (spot) {
+            if (spot.here) place(dot, (spot.x / 100) * host.imgW, (spot.y / 100) * host.imgH);
+            else hide(dot);
+            return;
+        }
         const room = roomForState(host.rooms, st ? st.state : '', hass.areas);
         if (!room) {
-            dot.visible = false;
-            dot.el.style.display = 'none';
+            hide(dot);
             return;
         }
         (byRoom[room.id] = byRoom[room.id] || []).push({ dot, room });
@@ -76,18 +84,40 @@ export function updatePresence(host, hass) {
             const c = MapGeometry.getPolygonCenter(room.polygon);
             const off = group.length > 1 ? host.imgW * 0.025 : 0;
             const angle = (i / group.length) * Math.PI * 2;
-            dot.tx = (c[0] / 100) * host.imgW + Math.cos(angle) * off;
-            dot.ty = (c[1] / 100) * host.imgH + Math.sin(angle) * off;
-            if (!dot.visible) {
-                // First appearance: place directly, no glide from (0,0).
-                dot.curX = dot.tx;
-                dot.curY = dot.ty;
-                dot.el.setAttribute('transform', `translate(${dot.curX.toFixed(1)}, ${dot.curY.toFixed(1)})`);
-            }
-            dot.visible = true;
-            dot.el.style.display = 'block';
+            place(dot, (c[0] / 100) * host.imgW + Math.cos(angle) * off, (c[1] / 100) * host.imgH + Math.sin(angle) * off);
         });
     }
+}
+
+/**
+ * {here, x, y} when the state carries a calibrated map spot (floor + x/y in
+ * %), else null. A room-centre guess (source 'room') goes the room way, so
+ * two people in one uncalibrated room still sit side by side.
+ */
+export function spotForState(st, activeFloor) {
+    const a = st && st.attributes;
+    if (!a || a.floor === undefined || a.floor === null || a.source === 'room') return null;
+    const x = Number(a.x), y = Number(a.y);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return { here: String(a.floor) === String(activeFloor), x, y };
+}
+
+function hide(dot) {
+    dot.visible = false;
+    dot.el.style.display = 'none';
+}
+
+function place(dot, x, y) {
+    dot.tx = x;
+    dot.ty = y;
+    if (!dot.visible) {
+        // First appearance: place directly, no glide from (0,0).
+        dot.curX = dot.tx;
+        dot.curY = dot.ty;
+        dot.el.setAttribute('transform', `translate(${dot.curX.toFixed(1)}, ${dot.curY.toFixed(1)})`);
+    }
+    dot.visible = true;
+    dot.el.style.display = 'block';
 }
 
 /** Per-frame glide toward the target position. */
