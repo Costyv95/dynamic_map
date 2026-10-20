@@ -7,6 +7,11 @@ import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
 import { EditOverlay } from './EditOverlay.js?v=3.2.1';
 import { applyRoomLabel, roomBox } from '../core/RoomLabels.js?v=3.2.1';
 
+/** A phone-sized screen (the editor's narrow layout). */
+export function isPhone() {
+    return typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
+}
+
 /**
  * The editor's map: the card's own SVG scene (core/MapScene) inside an
  * <svg>, plus the EditOverlay on top. It is the scene host / mapContext
@@ -97,7 +102,8 @@ export class EditorCanvas {
      */
     sizeForLayout() {
         const rect = this.container.getBoundingClientRect();
-        const portrait = this.activeMode === 'vertical';
+        // On a phone the screen already is the phone: no frame, use the whole pane.
+        const portrait = this.activeMode === 'vertical' && !isPhone();
         this.svg.classList.toggle('dm-phone-sim', portrait);
         if (portrait && rect.width > 0 && rect.height > 0) {
             const w = Math.min(rect.width, rect.height * 0.5625);

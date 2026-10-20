@@ -160,7 +160,8 @@ button.primary.dm-dirty { background: #f59e0b; border-color: #f59e0b; }
     .dm-inspector-resizer { display: none; }
     .dm-inspector-handle { display: flex; align-items: center; justify-content: center; gap: 10px; height: 44px; cursor: pointer; user-select: none; touch-action: none; font-weight: 600; color: var(--dm-muted); }
     .dm-inspector-handle::before { content: ''; width: 40px; height: 4px; border-radius: 2px; background: var(--dm-border); }
-    .dm-toolbar { padding: 6px 8px; gap: 6px; }
+    .dm-toolbar { padding: 6px 8px; gap: 6px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .dm-toolbar::-webkit-scrollbar { display: none; }
     .dm-toolbar .dm-seg-txt { display: none; }
     .dm-toolbar .dm-seg { padding: 4px 10px; }
     .dm-toolbar .dm-chip { padding: 4px 10px; }

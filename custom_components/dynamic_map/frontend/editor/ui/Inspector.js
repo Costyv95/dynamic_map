@@ -4,6 +4,7 @@ import { renderShortcutPanel } from './ShortcutPanel.js?v=3.2.1';
 import { renderWallPanel } from './WallPanel.js?v=3.2.1';
 import { renderLayerList } from './LayerList.js?v=3.2.1';
 import { renderMultiPanel } from './MultiPanel.js?v=3.2.1';
+import { isPhone } from '../EditorCanvas.js?v=3.2.1';
 
 /**
  * Contextual side panel: shows what is selected on the active layer. On
@@ -19,6 +20,8 @@ export class Inspector {
         this.body = el('div.dm-inspector-body');
         this.resizer = el('div.dm-inspector-resizer', { title: 'Drag to resize the panel' });
         root.append(this.resizer, this.handle, this.body);
+        // On a phone the map gets the screen: the sheet starts as a handle and opens on a selection.
+        if (isPhone()) root.classList.add('dm-collapsed');
         this.bindSheetDrag();
         this.bindWidthDrag();
     }

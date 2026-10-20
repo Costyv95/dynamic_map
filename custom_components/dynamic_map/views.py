@@ -9,6 +9,7 @@ import logging
 import os
 
 import aiohttp
+from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView
 from homeassistant.helpers import area_registry, entity_registry, floor_registry
@@ -24,6 +25,7 @@ from .const import (
     URL_BASE_DATA,
 )
 from . import storage, texture_gen
+from .panel_entry import PANEL_ENTRY_URL, panel_entry_js
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -171,6 +173,28 @@ class DynamicMapFingerprintsView(DynamicMapView):
         return self.json({"success": True, "fingerprints": manager.public_fingerprints(), "trackers": trackers})
 
 
+class DynamicMapPanelEntryView(DynamicMapView):
+    """GET /dynamic_map_panel_entry.js: the Map Editor panel's module_url."""
+
+    url = PANEL_ENTRY_URL
+    name = "dynamic_map:panel_entry"
+    requires_auth = False
+
+    async def get(self, request):
+        path = self.hass.config.path("custom_components", DOMAIN, "frontend", "dynamic-map-panel.js")
+
+        def read():
+            with open(path, encoding="utf-8") as f:
+                return f.read(4096)
+
+        try:
+            source = await self.hass.async_add_executor_job(read)
+        except OSError:
+            source = ""
+        return web.Response(text=panel_entry_js(source), content_type="application/javascript",
+                            headers={"Cache-Control": "no-cache"})
+
+
 ALL_VIEWS = (
     DynamicMapSaveView,
     DynamicMapStateView,
@@ -182,4 +206,5 @@ ALL_VIEWS = (
     DynamicMapRoborockRoomsView,
     DynamicMapGenerateTextureView,
     DynamicMapFingerprintsView,
+    DynamicMapPanelEntryView,
 )
