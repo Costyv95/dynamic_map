@@ -11,10 +11,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_interval
 
 from .const import DOMAIN
-from .position import SIGNAL_FINGERPRINTS, SIGNAL_TRACKERS, PositionManager, Tracker
+from .position import SIGNAL_FINGERPRINTS, SIGNAL_LIVE, SIGNAL_TRACKERS, PositionManager, Tracker
 
 _LOGGER = logging.getLogger(__name__)
 REFRESH = timedelta(seconds=5)
+MOVED = 0.3      # map %: a smaller move isn't worth a state write
 
 
 async def async_setup_platform(
@@ -56,6 +57,7 @@ class MapPositionSensor(SensorEntity):
         self._pos: dict | None = None
         self._unsub_states = None
         self._pending = None
+        self._busy = False
 
     @property
     def native_value(self):
@@ -71,6 +73,7 @@ class MapPositionSensor(SensorEntity):
         self._watch()
         self.async_on_remove(async_track_time_interval(self.hass, self._tick, REFRESH))
         self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_FINGERPRINTS, self._schedule))
+        self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_LIVE, self._live))
         self.async_on_remove(self._unwatch)
         await self._update()
 
@@ -97,6 +100,12 @@ class MapPositionSensor(SensorEntity):
             self._pending = None
 
     @callback
+    def _live(self):
+        # Bermuda's refresh cycle: the sensors' rate limit doesn't apply.
+        if not self._busy and self._pending is None:
+            self.hass.async_create_task(self._update())
+
+    @callback
     def _schedule(self, *_):
         # Bermuda updates its proxies one after another; settle for a second.
         if self._pending is None:
@@ -111,7 +120,24 @@ class MapPositionSensor(SensorEntity):
         await self._update()
 
     async def _update(self):
-        pos = await self.manager.async_locate(self.tracker, self._pos)
-        if pos != self._pos:
+        if self._busy:
+            return
+        self._busy = True
+        try:
+            pos = await self.manager.async_locate(self.tracker)
+        finally:
+            self._busy = False
+        if changed(self._pos, pos):
             self._pos = pos
             self.async_write_ha_state()
+
+
+def changed(old, new):
+    """Whether the new position is worth a state write (the card glides between them)."""
+    if not old or not new:
+        return old != new
+    if any(old.get(k) != new.get(k) for k in ("floor", "room_id", "source", "area", "fingerprints", "proxies")):
+        return True
+    if abs(old.get("confidence", 0) - new.get("confidence", 0)) >= 0.05:
+        return True
+    return abs(old["x"] - new["x"]) >= MOVED or abs(old["y"] - new["y"]) >= MOVED
