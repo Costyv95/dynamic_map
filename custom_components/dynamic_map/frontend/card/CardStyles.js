@@ -3,6 +3,7 @@ import { ROOM_PANEL_STYLES } from './RoomPanelStyles.js?v=3.2.1';
 import { OVERLAY_STYLES } from './OverlayStyles.js?v=3.2.1';
 import { TOUCH_STYLES } from './TouchStyles.js?v=3.2.1';
 import { SEARCH_STYLES } from './SearchStyles.js?v=3.2.1';
+import { CALIBRATE_STYLES } from './CalibrateStyles.js?v=3.2.1';
 
 export const CARD_STYLES = `
     :host {
@@ -295,4 +296,4 @@ export const CARD_STYLES = `
         .dm-search-row:hover { background: var(--dm-hover); }
         .dm-room-alert:hover circle { stroke-width: 3; }
     }
-` + ROOM_PANEL_STYLES + SEARCH_STYLES + OVERLAY_STYLES + TOUCH_STYLES;
+` + ROOM_PANEL_STYLES + SEARCH_STYLES + CALIBRATE_STYLES + OVERLAY_STYLES + TOUCH_STYLES;

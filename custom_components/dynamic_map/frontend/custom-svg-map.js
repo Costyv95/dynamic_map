@@ -17,6 +17,7 @@ import { discoverFloors, floorLabel, loadData } from './card/FloorData.js?v=3.2.
 import { applyAutoCrop } from './card/CardViewport.js?v=3.2.1';
 import { buildTempLegend } from './card/TempLegend.js?v=3.2.1';
 import { buildSearch } from './card/Search.js?v=3.2.1';
+import { buildCalibrate } from './card/Calibrate.js?v=3.2.1';
 import { applyHidden, unwatchHidden, watchHidden } from './card/HiddenEntities.js?v=3.2.1';
 import { setDataBase } from './shared/DataUrl.js?v=3.2.1';
 
@@ -132,6 +133,7 @@ class CustomSvgMap extends HTMLElement {
         if (floorSwitcher) this.topLeftUI.appendChild(floorSwitcher);
         this.topLeftUI.appendChild(MapBuilder.buildRotationSwitcher(this));
         buildSearch(this);
+        buildCalibrate(this);
         buildFocusPill(this);
         buildOutsideBar(this);
         buildRoomPanelEl(this);

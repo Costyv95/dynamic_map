@@ -153,6 +153,23 @@ class DynamicMapFloorsView(DynamicMapView):
         )
 
 
+class DynamicMapFingerprintsView(DynamicMapView):
+    """Calibration spots for the card's calibrate mode, and the phones it can record (#1354)."""
+
+    url = "/api/dynamic_map/fingerprints"
+    name = "api:dynamic_map:fingerprints"
+
+    async def get(self, request):
+        manager = self.hass.data.get(DOMAIN, {}).get("position")
+        if manager is None:
+            return self.json({"success": True, "fingerprints": [], "trackers": []})
+        ent_reg = entity_registry.async_get(self.hass)
+        trackers = []
+        for t in manager.trackers.values():
+            entity_id = ent_reg.async_get_entity_id("sensor", DOMAIN, f"map_position_{t.device_id}")
+            trackers.append({"entity_id": entity_id, "name": t.name, "proxies": len(t.distance_entities)})
+        return self.json({"success": True, "fingerprints": manager.public_fingerprints(), "trackers": trackers})
+
 
 ALL_VIEWS = (
     DynamicMapSaveView,
@@ -164,4 +181,5 @@ ALL_VIEWS = (
     DynamicMapRegistryView,
     DynamicMapRoborockRoomsView,
     DynamicMapGenerateTextureView,
+    DynamicMapFingerprintsView,
 )

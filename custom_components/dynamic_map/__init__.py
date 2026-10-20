@@ -15,6 +15,7 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.loader import async_get_integration
 
 from . import roborock_maps, storage
+from .position import PositionManager
 from .const import (
     CONF_ANTHROPIC_API_KEY,
     CONF_SIDECAR_URL,
@@ -101,6 +102,11 @@ async def async_setup(hass: HomeAssistant, config: dict):
         },
         require_admin=True,
     )
+
+    # Bermuda rooms made into spots on the map (#1354).
+    manager = hass.data[DOMAIN]["position"] = PositionManager(hass)
+    await manager.async_start()
+    hass.async_create_task(discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config))
 
     if conf.get(CONF_VACUUM_MAPS, True):
         _serve_aligned_maps(hass, config, conf.get(CONF_VACUUM_MAP_ASPECT, 1.5) or None)
