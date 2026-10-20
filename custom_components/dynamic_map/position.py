@@ -45,6 +45,7 @@ SIGNAL_FINGERPRINTS = f"{DOMAIN}_position_fingerprints"
 MAC_RE = re.compile(r"([0-9a-f]{2}(?::[0-9a-f]{2}){5})", re.I)
 ROOMS_RE = re.compile(r"^rooms_floor(\d+)\.json$")
 ROOMS_TTL = 60
+SILENT_S = 600       # how long an unheard phone may still match the silent spots (floors without proxies)
 
 
 def _read_rooms(data_dir):
@@ -90,6 +91,7 @@ class PositionManager:
         self.trackers: dict[str, Tracker] = {}
         self._rooms: dict = {}
         self._rooms_at = 0.0
+        self._last_heard: dict[str, float] = {}
         self._recording: set[str] = set()
 
     async def async_start(self):
@@ -171,17 +173,34 @@ class PositionManager:
         return out
 
     async def async_locate(self, tracker: Tracker, prev: dict | None):
-        """The tracker's map position, or None when Bermuda has no room."""
+        """The tracker's map position, or None when neither spots nor Bermuda place it.
+
+        The best-matching recorded spot anywhere in the house picks the floor
+        and room, so floors without proxies work once calibrated; Bermuda's
+        room is the fallback. A phone no proxy hears matches the "silent"
+        spots only for SILENT_S after it was last heard (it may have left).
+        """
         st = self.hass.states.get(tracker.area_entity)
         rooms = await self.async_rooms()
-        floor, room = pm.room_for_area(rooms, st.state if st else None, self.area_names())
-        if room is None:
-            return None
-        base = {"floor": floor, "room": room.get("name"), "room_id": room.get("id"),
-                "area": st.state, "area_id": room.get("area_id")}
-        fps = [fp for fp in self.fingerprints if fp["floor"] == floor and fp["room_id"] == room.get("id")]
+        b_floor, b_room = pm.room_for_area(rooms, st.state if st else None, self.area_names())
         reading = self.reading(tracker)
-        hit = pm.estimate(fps, reading) if fps else None
+        now = time.monotonic()
+        if reading:
+            self._last_heard[tracker.device_id] = now
+        usable = bool(reading) or now - self._last_heard.get(tracker.device_id, -1e9) < SILENT_S
+        pick = pm.pick_spot(self.fingerprints, reading, (b_floor, b_room.get("id")) if b_room else None) if usable else None
+        if pick:
+            floor, room_id, hit = pick
+            room = next((r for r in rooms.get(floor, []) if r.get("id") == room_id), None)
+            if room is None:
+                pick = None
+        if not pick:
+            if b_room is None:
+                return None
+            floor, room, hit = b_floor, b_room, None
+        base = {"floor": floor, "room": room.get("name"), "room_id": room.get("id"),
+                "area": st.state if st else None, "area_id": room.get("area_id")}
+        fps = [fp for fp in self.fingerprints if fp["floor"] == floor and fp["room_id"] == room.get("id")]
         if hit is None:
             cx, cy = pm.polygon_centre(room.get("polygon") or [[50, 50]])
             return {**base, "x": cx, "y": cy, "source": "room", "confidence": 0.0,
@@ -223,14 +242,12 @@ class PositionManager:
         try:
             samples = []
             for _ in range(int(call.data["seconds"])):
-                if r := self.reading(tracker):
-                    samples.append(r)
+                samples.append(self.reading(tracker))
                 await asyncio.sleep(1)
         finally:
             self._recording.discard(tracker.device_id)
+        # No proxy hearing the phone is a fingerprint too: silence on a floor without proxies.
         features = pm.median_reading(samples)
-        if not features:
-            raise HomeAssistantError(f"No proxy heard {tracker.name} while recording")
         fp = {
             "id": uuid.uuid4().hex[:12], "tracker": tracker.device_id, "name": tracker.name,
             "floor": floor, "x": round(x, 2), "y": round(y, 2),

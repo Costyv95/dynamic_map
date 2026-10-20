@@ -115,5 +115,6 @@ describe('guided calibration', () => {
         expect(stepText({ room: rooms[0] })[1]).toBe('Tap exactly where you stand in Office');
         expect(stepText({ room: rooms[0], busy: true, left: 12 })[1]).toBe('Hold still… 12 s');
         expect(stepText({ room: rooms[0], saved: { room: 'Office', proxies: 5 } })[1]).toBe('Saved in Office ✓');
+        expect(stepText({ room: rooms[0], saved: { room: 'Terrace', proxies: 0 } })[2]).toMatch(/silence/);
     });
 });
