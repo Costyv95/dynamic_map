@@ -202,14 +202,20 @@ class PositionManager:
         return out
 
     def offline(self, tracker: Tracker) -> set:
-        """The proxies that are down: Bermuda marks their distance sensors unavailable.
+        """The proxies that are down.
 
-        (A proxy that is up but doesn't hear the phone reads unknown instead.)
+        Bermuda marks their distance sensors unavailable, and after a restart
+        doesn't create them at all while the proxy stays away. (A proxy that is
+        up but doesn't hear the phone reads unknown instead.)
         """
+        ent_reg = er.async_get(self.hass)
         out = set()
         for mac, entity_id in tracker.distance_entities.items():
+            entry = ent_reg.async_get(entity_id)
+            if entry is not None and entry.disabled_by:
+                continue      # switched off by hand: not a proxy that is down
             st = self.hass.states.get(entity_id)
-            if st is not None and st.state == "unavailable":
+            if st is None or st.state == "unavailable":
                 out.add(mac)
         return out
 
