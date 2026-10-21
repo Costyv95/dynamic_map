@@ -65,6 +65,21 @@ def feature_gap(a, b):
     return math.sqrt(total / len(keys))
 
 
+def drop_scanners(fingerprints, scanners):
+    """The fingerprints with these proxies left out of every spot.
+
+    An offline proxy hears nobody, so live it would read FAR for every phone
+    and every spot it heard up close would stop matching; its silence says
+    nothing about where the phone is.
+    """
+    if not scanners:
+        return fingerprints
+    return [
+        {**fp, "features": {k: v for k, v in fp["features"].items() if k not in scanners}}
+        for fp in fingerprints
+    ]
+
+
 def median_reading(samples):
     """One fingerprint from a list of readings: the per-scanner median.
 

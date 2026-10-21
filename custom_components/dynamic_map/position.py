@@ -201,6 +201,18 @@ class PositionManager:
                 out[mac] = d
         return out
 
+    def offline(self, tracker: Tracker) -> set:
+        """The proxies that are down: Bermuda marks their distance sensors unavailable.
+
+        (A proxy that is up but doesn't hear the phone reads unknown instead.)
+        """
+        out = set()
+        for mac, entity_id in tracker.distance_entities.items():
+            st = self.hass.states.get(entity_id)
+            if st is not None and st.state == "unavailable":
+                out.add(mac)
+        return out
+
     def _live_reading(self, tracker: Tracker) -> dict | None:
         """The reading from Bermuda's coordinator, or None when it can't be read.
 
@@ -255,7 +267,9 @@ class PositionManager:
             self._last_heard[tracker.device_id] = time.time()
         track = self._tracks.setdefault(tracker.device_id, pm.Track())
         bermuda = (b_floor, b_room.get("id")) if b_room else None
-        pick = track.step(self.fingerprints, reading, time.monotonic(), bermuda)
+        offline = self.offline(tracker)
+        spots = pm.drop_scanners(self.fingerprints, offline)
+        pick = track.step(spots, reading, time.monotonic(), bermuda)
         hit = None
         if pick:
             floor, room_id, hit = pick
@@ -269,7 +283,8 @@ class PositionManager:
         heard = self._last_heard.get(tracker.device_id)
         base = {"floor": floor, "room": room.get("name"), "room_id": room.get("id"),
                 "area": st.state if st else None, "area_id": room.get("area_id"),
-                "heard": bool(reading), "last_heard": int(heard) if heard else None}
+                "heard": bool(reading), "last_heard": int(heard) if heard else None,
+                "proxies_offline": len(offline)}
         fps = [fp for fp in self.fingerprints if fp["floor"] == floor and fp["room_id"] == room.get("id")]
         if hit is None:
             cx, cy = pm.polygon_centre(room.get("polygon") or [[50, 50]])
