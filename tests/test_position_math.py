@@ -133,6 +133,19 @@ class TestTrack:
         assert all(b >= a for a, b in zip(x, x[1:]))           # heads there steadily
         assert x[0] < 15 and x[-1] == pytest.approx(20, abs=0.5)
 
+    def test_an_offline_proxy_is_left_out_of_every_spot(self):
+        # C went down after calibration: live it hears nobody. Counted as FAR it
+        # would pull the office reading toward the kitchen, which C never heard.
+        fps = [
+            self.fp(2, "office", 10, 10, {A: 1.0, B: 6.0, C: 1.0}),
+            self.fp(2, "kitchen", 70, 70, {A: 4.0, B: 2.0}),
+        ]
+        live = {A: 1.2, B: 5.0}
+        assert self.first(live, fps=fps)[1] == "kitchen"
+        assert self.first(live, fps=pm.drop_scanners(fps, {C}))[1] == "office"
+        assert pm.drop_scanners(fps, set()) is fps
+        assert fps[0]["features"][C] == 1.0              # the stored spot is untouched
+
     def test_glide_is_capped_by_speed(self):
         assert pm.glide(None, {"x": 20.0, "y": 10.0}, 1.0) == {"x": 20.0, "y": 10.0}
         step = pm.glide({"x": 0.0, "y": 0.0}, {"x": 100.0, "y": 0.0}, 1.0)
