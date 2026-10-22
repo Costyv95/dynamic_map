@@ -16,15 +16,22 @@
 
 const CONFIRM_MS = 4000;
 
-/** Built-in chip: switch off every light in the house (two taps). Off with `lights_off_button: false`. */
-const LIGHTS_OFF = { builtin: 'lights_off', name: 'All lights off', icon: '🌙', call: { domain: 'light', service: 'turn_off', data: { entity_id: 'all' } }, entity: null, confirm: true };
+/**
+ * Built-in chip: switch off every light that is on (two taps). Off with `lights_off_button: false`.
+ * It names those lights rather than sending `entity_id: all`: Portal's hass passes entity targets
+ * only, and refused "all" (#1369). The chip then switches off exactly the lights it counts.
+ */
+const LIGHTS_OFF = { builtin: 'lights_off', name: 'All lights off', icon: '🌙', call: { domain: 'light', service: 'turn_off', data: {} }, entity: null, confirm: true };
+
+/** The lights that are on right now. */
+export function lightsOn(hass) {
+    if (!hass || !hass.states) return [];
+    return Object.keys(hass.states).filter(id => id.startsWith('light.') && hass.states[id].state === 'on');
+}
 
 /** How many lights are on right now. */
 export function lightsOnCount(hass) {
-    if (!hass || !hass.states) return 0;
-    let n = 0;
-    for (const id in hass.states) if (id.startsWith('light.') && hass.states[id].state === 'on') n++;
-    return n;
+    return lightsOn(hass).length;
 }
 
 /** Normalise one config entry into { name, icon, call, entity, confirm }. */
@@ -71,7 +78,12 @@ export function buildQuickActions(host) {
                 return;
             }
             if (armed) { clearTimeout(armed); armed = null; chip.classList.remove('dm-armed'); chip.querySelector('.dm-qc-name').textContent = item.name; }
-            host._hass.callService(item.call.domain, item.call.service, item.call.data);
+            if (item.builtin === 'lights_off') {
+                const ids = lightsOn(host._hass);
+                if (ids.length) host._hass.callService('light', 'turn_off', { entity_id: ids });
+            } else {
+                host._hass.callService(item.call.domain, item.call.service, item.call.data);
+            }
             chip.classList.add('dm-fired');
             setTimeout(() => chip.classList.remove('dm-fired'), 350);
         });
