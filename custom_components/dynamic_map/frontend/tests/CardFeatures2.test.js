@@ -16,7 +16,7 @@ describe('built-in all-lights-off chip', () => {
         expect(hass.callService).not.toHaveBeenCalled();              // armed
         expect(chip.textContent).toContain('Tap again');
         chip.click();
-        expect(hass.callService).toHaveBeenCalledWith('light', 'turn_off', { entity_id: 'all' });
+        expect(hass.callService).toHaveBeenCalledWith('light', 'turn_off', { entity_id: ['light.a', 'light.b'] });   // named, not 'all' (#1369)
         hass.states['light.a'].state = 'off'; hass.states['light.b'].state = 'off';
         updateQuickActions(host, hass);
         expect(chip.hidden).toBe(true);
