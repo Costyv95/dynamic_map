@@ -32,6 +32,8 @@ export const TOUCH_STYLES = `
         .dm-ov-switch .dm-ov-thumb { width: 24px; height: 24px; }
         .dm-ov-switch.dm-on .dm-ov-thumb { left: 20px; }
         .dm-ov-range { height: 32px; }
+        .dm-ov-range.dm-ov-warmth { height: 12px; margin: 10px 0; }
+        .dm-ov-warmth::-webkit-slider-thumb { width: 28px; height: 28px; }
     }
     /* Narrow cards: floor chips and the round buttons share one row; the outside bar takes the next. */
     .dm-render-root.dm-narrow .dm-top-ui { top: 8px; left: 8px; right: 8px; gap: 6px; }
