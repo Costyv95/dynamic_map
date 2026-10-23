@@ -1,7 +1,7 @@
 import { clampAndPositionOverlay } from './overlay/common.js?v=3.2.1';
 import { buildColorHoneycomb } from './overlay/colorHoneycomb.js?v=3.2.1';
 import { showSensorDials } from './overlay/sensorDials.js?v=3.2.1';
-import { buildSlider, buildValueSlider } from './overlay/sliders.js?v=3.2.1';
+import { buildSlider, buildValueSlider, buildWarmthSlider } from './overlay/sliders.js?v=3.2.1';
 import { buildInfoDisplay, buildProgressBar } from './overlay/infoItems.js?v=3.2.1';
 import { buildToggle, buildButton } from './overlay/buttons.js?v=3.2.1';
 import { showRoomSelectionUI } from './overlay/roomSelection.js?v=3.2.1';
@@ -14,6 +14,7 @@ import { showRoomSelectionUI } from './overlay/roomSelection.js?v=3.2.1';
 const BUILDERS = {
     SLIDER: buildSlider,
     VALUE_SLIDER: buildValueSlider,
+    WARMTH: buildWarmthSlider,
     INFO_DISPLAY: buildInfoDisplay,
     PROGRESS_BAR: buildProgressBar,
     COLOR_PICKER: buildColorHoneycomb,

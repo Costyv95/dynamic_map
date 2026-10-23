@@ -6,6 +6,8 @@
  * stays open so colours can be tried in sequence.
  */
 
+import { placeVisual } from './common.js?v=3.2.1';
+
 const RINGS = 4;                     // 1 + 6 + 12 + 18 + 24 = 61 cells
 const HEX_R = 11;                    // hexagon radius (px)
 const DIRS = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]];
@@ -35,7 +37,7 @@ export function hexCells() {
     return cells;
 }
 
-export function buildColorHoneycomb(mapContext, target, act) {
+export function buildColorHoneycomb(mapContext, target, act, isVisual) {
     const cellW = HEX_R * 2;             // flat-top hexagon width
     const cellH = Math.sqrt(3) * HEX_R;  // flat-top hexagon height
 
@@ -96,5 +98,7 @@ export function buildColorHoneycomb(mapContext, target, act) {
         });
         grid.appendChild(cell);
     });
+    // In a designed menu it sits where the layout put it (it used to land at the top left).
+    placeVisual(wrap, act, isVisual, { height: false });
     return wrap;
 }
