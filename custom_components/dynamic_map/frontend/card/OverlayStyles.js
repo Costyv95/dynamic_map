@@ -17,6 +17,7 @@ export const OVERLAY_STYLES = `
     .dm-ov-value.dm-big { font-size: 18px; }
     .dm-ov-value.dm-live { font-size: 15px; color: var(--dm-hud-accent); }
     .dm-ov-range { width: 100%; margin: 0; accent-color: var(--dm-hud-accent); cursor: pointer; }
+    .dm-ov-warmth { accent-color: #f8fafc; border-radius: 999px; background: linear-gradient(to right, #ff9f43, #ffe2b8, #f8fafc, #cfe2ff); }
     .dm-ov-toggle { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding: 6px 4px; }
     .dm-ov-toggle > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .dm-ov-switch { width: 36px; height: 20px; flex: none; border-radius: var(--dm-radius-pill); position: relative; cursor: pointer; background: var(--dm-hud-fill-strong); transition: background var(--dm-duration) var(--dm-ease); }

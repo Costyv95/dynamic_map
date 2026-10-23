@@ -5,7 +5,7 @@ const TYPES = [
     ['TOGGLE', 'Toggle'], ['TOGGLE_ON', 'Turn on'], ['TOGGLE_OFF', 'Turn off'], ['CALL_SERVICE', 'Call a service'],
     ['SLIDER', 'Slider (brightness)'], ['VALUE_SLIDER', 'Value slider (live readout)'], ['INFO_DISPLAY', 'Info display (read-only)'],
     ['PROGRESS_BAR', 'Progress bar'], ['ROOM_SELECTOR', 'Select rooms on the map'], ['SENSOR_OVERLAY', 'Sensor dials'],
-    ['COLOR_PICKER', 'Colour honeycomb (light)'], ['VACUUM_ROOMS', 'Vacuum rooms']
+    ['WARMTH', 'Warmth slider (light colour temperature)'], ['COLOR_PICKER', 'Colour honeycomb (light)'], ['VACUUM_ROOMS', 'Vacuum rooms']
 ];
 const TYPE_LABEL = Object.fromEntries(TYPES);
 const isMenu = (a) => a.trigger === 'long_press' || a.trigger === 'overlay';

@@ -117,4 +117,40 @@ export function buildValueSlider(mapContext, target, act, isVisual) {
     return container;
 }
 
+/** The light's colour-temperature range and current value, in kelvin. */
+export function warmthRange(hass, target) {
+    const st = hass ? hass.states[target] : null;
+    const a = st ? st.attributes || {} : {};
+    const min = Number(a.min_color_temp_kelvin) || 2200, max = Number(a.max_color_temp_kelvin) || 6500;
+    const k = Number(a.color_temp_kelvin);
+    return { min, max, value: Number.isFinite(k) && k > 0 ? Math.min(max, Math.max(min, k)) : Math.round((min + max) / 2) };
+}
+
+/** WARMTH: colour temperature of a light, warm (left) to cool (right). Commits light.turn_on color_temp_kelvin. */
+export function buildWarmthSlider(mapContext, target, act, isVisual) {
+    const container = document.createElement('div');
+    container.style.cssText = 'display: flex; flex-direction: column; gap: 5px;';
+    const displayName = act.name !== undefined && act.name !== '' ? act.name : 'Warmth';
+    const label = document.createElement('span');
+    label.textContent = displayName;
+    label.className = 'dm-ov-label';
+    container.appendChild(label);
+    const r = warmthRange(mapContext._hass, target);
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.className = 'dm-ov-range dm-ov-warmth';
+    slider.min = r.min; slider.max = r.max; slider.step = 50; slider.value = r.value;
+    slider.style.width = act.width ? act.width + (String(act.width).match(/\d$/) ? 'px' : '') : '150px';
+    slider.addEventListener('change', (e) => {
+        if (!mapContext._hass) return;
+        mapContext._hass.callService('light', 'turn_on', { entity_id: target, color_temp_kelvin: parseInt(e.target.value, 10) });
+    });
+    container.appendChild(slider);
+    if (placeVisual(container, act, isVisual)) {
+        slider.style.width = '100%';
+        container.style.justifyContent = 'center';
+    }
+    return container;
+}
+
 export { iconHtml };
