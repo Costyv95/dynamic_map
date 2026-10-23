@@ -17,7 +17,10 @@ export const OVERLAY_STYLES = `
     .dm-ov-value.dm-big { font-size: 18px; }
     .dm-ov-value.dm-live { font-size: 15px; color: var(--dm-hud-accent); }
     .dm-ov-range { width: 100%; margin: 0; accent-color: var(--dm-hud-accent); cursor: pointer; }
-    .dm-ov-warmth { accent-color: #f8fafc; border-radius: 999px; background: linear-gradient(to right, #ff9f43, #ffe2b8, #f8fafc, #cfe2ff); }
+    /* Warm (left) to cool (right): a drawn track, so the gradient shows instead of the native one. */
+    .dm-ov-range.dm-ov-warmth { -webkit-appearance: none; appearance: none; height: 8px; border-radius: 999px; background: linear-gradient(to right, #ff9f43, #ffe2b8, #f8fafc, #cfe2ff); }
+    .dm-ov-warmth::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 2px solid rgb(0 0 0 / 35%); box-shadow: 0 1px 4px rgb(0 0 0 / 40%); }
+    .dm-ov-warmth::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 2px solid rgb(0 0 0 / 35%); }
     .dm-ov-toggle { display: flex; justify-content: space-between; align-items: center; gap: 15px; padding: 6px 4px; }
     .dm-ov-toggle > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .dm-ov-switch { width: 36px; height: 20px; flex: none; border-radius: var(--dm-radius-pill); position: relative; cursor: pointer; background: var(--dm-hud-fill-strong); transition: background var(--dm-duration) var(--dm-ease); }
