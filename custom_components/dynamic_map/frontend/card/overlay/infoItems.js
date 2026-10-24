@@ -30,7 +30,11 @@ export function buildInfoDisplay(mapContext, target, act, isVisual) {
     }
     const val = document.createElement('div');
     val.style.cssText = 'display: flex; align-items: center; gap: 6px;';
-    val.innerHTML = `${iconHtml(act.icon, 18)}<span class="dm-ov-value dm-big">${formatInfoValue(act, st)}</span>`;
+    val.innerHTML = iconHtml(act.icon, 18);
+    const valText = document.createElement('span');
+    valText.className = 'dm-ov-value dm-big';
+    valText.textContent = formatInfoValue(act, st); // entity state is data, never markup (security bug 1442)
+    val.appendChild(valText);
     box.appendChild(val);
     placeVisual(box, act, isVisual);
     return box;
