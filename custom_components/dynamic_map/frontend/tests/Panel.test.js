@@ -9,6 +9,14 @@ import { ApiManager } from '../shared/ApiManager.js?v=3.2.1';
 const ROOMS = [{ id: 'r1', name: 'Living', polygon: [[10, 10], [60, 10], [60, 50], [10, 50]] }];
 const SHORTCUTS = [{ id: 's1', name: 'Lamp', type: 'light', entity_id: 'light.l', position: [30, 30], config: {} }];
 
+// Poll for the loaded editor rather than sleeping a fixed time: on a busy host a
+// 50 ms sleep was too short (#1537).
+const WAIT = { timeout: 10000, interval: 10 };
+const loaded = (el) => vi.waitFor(() => {
+    expect(el.app?.canvas?.shortcutElements?.s1).toBeTruthy();
+    expect(el.shadowRoot.querySelector('#toolbar button')).toBeTruthy();
+}, WAIT);
+
 function respond(url) {
     const json = (data) => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(data) });
     if (url.includes('rooms_floor1')) return json(ROOMS);
@@ -42,7 +50,7 @@ describe('dynamic-map-panel', () => {
         const el = document.createElement('dynamic-map-panel');
         el.hass = hass;
         document.body.appendChild(el);
-        await new Promise(r => setTimeout(r, 50));
+        await loaded(el);
         expect(el.shadowRoot.querySelector('#toolbar button')).toBeTruthy();
         expect(el.shadowRoot.querySelector('svg.dm-editor-svg')).toBeTruthy();
         expect(el.shadowRoot.querySelector('link[rel="stylesheet"]').getAttribute('href')).toContain('editor.css');
@@ -55,7 +63,7 @@ describe('dynamic-map-panel', () => {
         const el = document.createElement('dynamic-map-panel');
         document.body.appendChild(el);
         el.hass = hass;
-        await new Promise(r => setTimeout(r, 50));
+        await loaded(el);
         const badge = el.app.canvas.shortcutElements.s1;
         expect(badge).toBeTruthy();
         expect(badge._glowVisible).toBe(true);
@@ -68,7 +76,7 @@ describe('dynamic-map-panel', () => {
         const el = document.createElement('dynamic-map-panel');
         document.body.appendChild(el);
         el.hass = hass;
-        await new Promise(r => setTimeout(r, 50));
+        await loaded(el);
         const app = el.app;
         app.state.selectedShortcutIdx = 0;
         el.remove();
@@ -81,7 +89,7 @@ describe('dynamic-map-panel', () => {
         const again = document.createElement('dynamic-map-panel');
         document.body.appendChild(again);
         again.hass = hass;
-        await new Promise(r => setTimeout(r, 50));
+        await vi.waitFor(() => expect(again.shadowRoot.querySelector('.dm-reload-bar')).toBeTruthy(), WAIT);
         const bar = again.shadowRoot.querySelector('.dm-reload-bar');
         expect(bar.textContent).toContain('9.9.9');
         again.remove();

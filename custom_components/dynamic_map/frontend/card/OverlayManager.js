@@ -36,15 +36,22 @@ export function visualMenuBox(cfg, actions) {
     return { w, h };
 }
 
+// One outside-tap listener per card, added at once: a 50 ms timer outlived quick
+// closes (and jsdom in tests), and earlier menus' listeners were never removed.
 function closeOnOutsideTap(mapContext) {
+    if (mapContext._outsideTap) document.removeEventListener('pointerdown', mapContext._outsideTap);
+    const openedAt = performance.now();
     const listener = (e) => {
-        if (mapContext.activeOverlay && !mapContext.activeOverlay.contains(e.composedPath()[0])) {
-            mapContext.activeOverlay.remove();
-            mapContext.activeOverlay = null;
-            document.removeEventListener('pointerdown', listener);
-        }
+        if (performance.now() - openedAt < 50) return; // the press that opened it
+        const ov = mapContext.activeOverlay;
+        if (ov && ov.contains(e.composedPath()[0])) return;
+        if (ov) ov.remove();
+        mapContext.activeOverlay = null;
+        mapContext._outsideTap = null;
+        document.removeEventListener('pointerdown', listener);
     };
-    setTimeout(() => document.addEventListener('pointerdown', listener), 50);
+    mapContext._outsideTap = listener;
+    document.addEventListener('pointerdown', listener);
 }
 
 export class OverlayManager {

@@ -50,3 +50,6 @@ floor*.dxf
 # Misc
 .env
 *.tmp
+
+# Written by scratch/auto_version.py on every deploy; not source (#1537).
+scratch/current_version.txt
