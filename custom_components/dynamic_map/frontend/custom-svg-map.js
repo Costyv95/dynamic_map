@@ -65,13 +65,16 @@ class CustomSvgMap extends HTMLElement {
             });
             this.resizeObserver.observe(this);
         }
+        // Re-attached (HA view switch): the loop was parked on detach (#1736).
+        this.resumeAnimation();
     }
 
     disconnectedCallback() {
         if (this._onVisible) { document.removeEventListener('visibilitychange', this._onVisible); this._onVisible = null; }
         if (this.resizeObserver) { this.resizeObserver.disconnect(); this.resizeObserver = null; }
-        if (this.cameraManager) { this.cameraManager.destroy(); this.cameraManager = null; }
-        if (this.animationFrame) { cancelAnimationFrame(this.animationFrame); this.animationFrame = null; }
+        // The camera stays: its listeners sit on this card's own svg, which HA
+        // may re-attach later (#1736). The loop parks and resumes on connect.
+        if (this.animationFrame) { cancelAnimationFrame(this.animationFrame); this.animationFrame = null; this._parked = true; }
         unwatchHidden(this);
     }
 
