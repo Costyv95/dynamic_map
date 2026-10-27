@@ -11,7 +11,7 @@ import aiohttp
 from aiohttp import web
 
 from homeassistant.components.http import HomeAssistantView
-from homeassistant.helpers import area_registry, entity_registry, floor_registry
+from homeassistant.helpers import area_registry, device_registry, entity_registry, floor_registry
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
@@ -174,13 +174,18 @@ class DynamicMapFingerprintsView(DynamicMapView):
         Keyed like the fingerprints' features (the proxy's MAC), named from
         Bermuda's "Distance to <proxy>" sensor; online while any of them is.
         """
+        dev_reg = device_registry.async_get(self.hass)
         out = {}
         for t in manager.trackers.values():
             for mac, entity_id in t.distance_entities.items():
                 entry = ent_reg.async_get(entity_id)
                 name = (entry.original_name or "").removeprefix("Distance to ").strip() if entry else ""
                 st = self.hass.states.get(entity_id)
-                p = out.setdefault(mac, {"id": mac, "name": name or mac, "online": False})
+                if mac not in out:
+                    # The proxy's own device area: the editor shows an unplaced proxy in that room to drag from.
+                    dev = dev_reg.async_get_device(connections={(device_registry.CONNECTION_NETWORK_MAC, mac)})
+                    out[mac] = {"id": mac, "name": name or mac, "online": False, "area": dev.area_id if dev else None}
+                p = out[mac]
                 p["online"] = p["online"] or (st is not None and st.state != "unavailable")
         return sorted(out.values(), key=lambda p: p["name"].lower())
 

@@ -1,7 +1,10 @@
+import { suggestedProxies } from '../ProxySuggest.js?v=3.2.1';
+
 /**
  * Proxies layer: a tap on the map places the proxy picked in the panel
  * (state.placingProxy); dragging a placed marker moves it; tapping a
- * marker selects it. Positions are map percent, like calibration spots.
+ * marker selects it. A faded suggestion (an unplaced proxy in its room)
+ * becomes placed when dragged or tapped. Positions are map percent, like calibration spots.
  */
 export class ProxyTool {
     constructor(canvas, state) {
@@ -16,7 +19,10 @@ export class ProxyTool {
         const state = this.state;
         if (state.placingProxy || hit.kind !== 'handle' || hit.handle !== 'proxy') return false;
         state.selectedProxyId = hit.proxyId;
-        this.drag = { id: hit.proxyId, moved: false };
+        const hint = !state.proxies.some(p => p.id === hit.proxyId)
+            && suggestedProxies(state.knownProxies, state.proxies, state.rooms).find(p => p.id === hit.proxyId);
+        if (hint) state.proxies.push({ id: hint.id, name: hint.name, position: hint.position });  // placed on release
+        this.drag = { id: hit.proxyId, moved: false, suggested: !!hint };
         state.updateUICallback();
         state.requestDrawCallback();
         return true;
@@ -37,7 +43,7 @@ export class ProxyTool {
         this.drag = null;
         if (!drag) return false;
         const p = this.state.proxies.find(x => x.id === drag.id);
-        if (drag.moved && p) this.state.placeProxy(p, p.position);
+        if ((drag.moved || drag.suggested) && p) this.state.placeProxy(p, p.position);   // a tap accepts a suggestion
         return true;
     }
 

@@ -1,6 +1,7 @@
 import { shortcutFrame, badgeTransform, screenRotation } from '../shared/ShortcutGeometry.js?v=3.2.1';
 import { resizeCursorFor, HANDLE_DIRS } from './HitTest.js?v=3.2.1';
 import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeometry.js?v=3.2.1';
+import { suggestedProxies } from './ProxySuggest.js?v=3.2.1';
 
 const ACCENT = '#0ea5e9';
 // Handles grow on touch screens (coarse pointer) so fingers can grab them.
@@ -159,19 +160,20 @@ export class EditOverlay {
     renderProxies(ctx, k) {
         const { state } = ctx;
         const r = PROXY_PX * k;
-        state.proxies.forEach(p => {
+        [...suggestedProxies(state.knownProxies, state.proxies, state.rooms), ...state.proxies].forEach(p => {
             if (!Array.isArray(p.position)) return;
             const [x, y] = this.toPx(ctx, p.position);
             const selected = p.id === state.selectedProxyId;
             const known = state.knownProxies.find(q => q.id === p.id);
-            const g = this.el('g', { 'data-handle': 'proxy', 'data-proxy-id': p.id, style: 'cursor: move;' });
+            const g = this.el('g', { 'data-handle': 'proxy', 'data-proxy-id': p.id, style: 'cursor: move;',
+                ...(p.suggested ? { opacity: 0.55, 'stroke-dasharray': `${3 * k} ${2 * k}` } : {}) });
             this.el('circle', { cx: x, cy: y, r, fill: known && !known.online ? '#94a3b8' : PROXY_COLOR,
                 stroke: selected ? ACCENT : '#ffffff', 'stroke-width': (selected ? 3 : 2) * k }, g);
             const icon = this.el('text', { x, y: y + r * 0.38, 'text-anchor': 'middle', 'font-size': r * 1.1, 'pointer-events': 'none' }, g);
             icon.textContent = '📡';
             const label = this.el('text', { x, y: y + r + 12 * k, 'text-anchor': 'middle', 'font-size': 11 * k, fill: '#1e293b',
                 'paint-order': 'stroke', stroke: '#ffffff', 'stroke-width': 3 * k, 'pointer-events': 'none' }, g);
-            label.textContent = (known && known.name) || p.name || p.id;
+            label.textContent = ((known && known.name) || p.name || p.id) + (p.suggested ? ' · drag to its spot' : '');
         });
     }
 
