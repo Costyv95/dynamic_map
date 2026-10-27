@@ -49,7 +49,9 @@ export function setupInteractions(host) {
 
 export function onClick(host) {
     const actions = host.config.actions || [];
-    const tapActions = actions.filter(a => a.trigger === 'tap');
+    // A TOGGLE aimed at a sensor can't toggle anything (#1743): skip it.
+    const readOnly = (a) => a.type === 'TOGGLE' && /^(binary_)?sensor\./.test(a.action_entity || host.sc.entity_id || '');
+    const tapActions = actions.filter(a => a.trigger === 'tap' && !readOnly(a));
     if (tapActions.length > 0) {
         tapActions.forEach(act => {
             const target = act.action_entity || host.sc.entity_id;

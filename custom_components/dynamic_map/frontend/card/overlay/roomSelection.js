@@ -80,7 +80,8 @@ export function showRoomSelectionUI(mapContext) {
             console.warn('[DynamicMap] No mapped room segments found for selection!');
             return;
         }
-        if (target.split('.')[0] === 'roborock') applyRoborockMode(mapContext._hass, target, mode.value);
+        // The vacuum entity is vacuum.*; Roborock is its integration (bug 1743).
+        if (mapContext._hass.entities?.[target]?.platform === 'roborock') applyRoborockMode(mapContext._hass, target, mode.value);
         mapContext._hass.callService('vacuum', 'send_command', {
             entity_id: target,
             command: 'app_segment_clean',

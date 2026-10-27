@@ -22,7 +22,8 @@ const BUILDERS = {
     TOGGLE_ON: buildButton,
     TOGGLE_OFF: buildButton,
     CALL_SERVICE: buildButton,
-    ROOM_SELECTOR: buildButton
+    ROOM_SELECTOR: buildButton,
+    VACUUM_ROOMS: (ctx, target, act, v) => buildButton(ctx, target, { ...act, type: 'ROOM_SELECTOR' }, v)   // the old preset's name (#1743)
 };
 
 /** Menu size for a designed layout: the saved size, or larger if items stick out. */
