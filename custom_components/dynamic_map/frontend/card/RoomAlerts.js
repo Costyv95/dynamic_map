@@ -1,11 +1,11 @@
-import { areaEntities } from './RoomEntities.js?v=3.2.1';
+import { areaEntities, DANGER_CLASSES } from './RoomEntities.js?v=3.2.1';
 import { roomBox } from '../core/RoomLabels.js?v=3.2.1';
 import { buildAlertLegend, updateAlertLegend } from './AlertLegend.js?v=3.2.1';
 import { roomVacuumAlerts } from './VacuumAlerts.js?v=3.2.1';
 
 /**
  * Attention badges on rooms: a counter in the room's corner while a
- * door/window is open (amber) or a leak/smoke/gas sensor fires (red).
+ * door/window is open (amber) or a leak/smoke/gas/CO/safety/problem sensor fires (red).
  * Unavailable devices are counted only when asked for (grey). Tapping a
  * badge focuses the room; hovering lists the reasons.
  *
@@ -15,7 +15,6 @@ import { roomVacuumAlerts } from './VacuumAlerts.js?v=3.2.1';
  * `[open, danger, vacuum, unavailable]`, or `{unavailable: true}`.
  */
 const OPEN_CLASSES = ['door', 'window', 'opening', 'garage_door'];
-const DANGER_CLASSES = ['moisture', 'smoke', 'gas', 'carbon_monoxide', 'safety', 'problem'];
 const ALL_KINDS = ['open', 'danger', 'vacuum', 'unavailable'];
 const KIND_LABEL = { open: 'Open', danger: 'Alert', vacuum: 'Robot', unavailable: 'Unavailable' };
 const KIND_FILL = { danger: '#ef4444', open: '#f59e0b', vacuum: '#6366f1', unavailable: '#94a3b8' };
