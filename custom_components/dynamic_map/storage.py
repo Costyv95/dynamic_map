@@ -7,6 +7,8 @@ import json
 import os
 import re
 import shutil
+import tempfile
+import threading
 
 # Floors are drawn (config_floorN.json carries the canvas, walls and plate);
 # a bg_floorN.png left from a scanned floor is still found, shown and deleted
@@ -80,27 +82,40 @@ def validate_save_content(filename, content):
     return False
 
 
+_path_locks = {}
+_path_locks_guard = threading.Lock()
+
+
+def _lock_for(path):
+    with _path_locks_guard:
+        return _path_locks.setdefault(os.path.abspath(path), threading.Lock())
+
+
 def write_json_atomic(path, content):
     """Write content as JSON to path without ever leaving it half-written.
 
-    The JSON goes to a temp file in the same directory, is fsynced, and then
-    os.replace()s the old file, so a crash or full disk mid-write leaves the
-    previous version in place. The previous version is also kept as
+    The JSON goes to a temp file of its own in the same directory, is fsynced,
+    and then os.replace()s the old file, so a crash or full disk mid-write
+    leaves the previous version in place. The previous version is also kept as
     ``<name>.bak``, one save deep, because config_floorN.json is the only copy
-    of a hand-drawn floor.
+    of a hand-drawn floor. Saves of one path run one at a time (#1739): two
+    editor tabs saving together each finish whole, the later one wins.
     """
-    tmp_path = f"{path}.tmp"
-    try:
-        with open(tmp_path, "w", encoding="utf-8") as handle:
-            json.dump(content, handle, ensure_ascii=False, indent=2)
-            handle.flush()
-            os.fsync(handle.fileno())
-        if os.path.exists(path):
-            shutil.copy2(path, f"{path}.bak")
-        os.replace(tmp_path, path)
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+    with _lock_for(path):
+        fd, tmp_path = tempfile.mkstemp(dir=os.path.dirname(path) or ".",
+                                        prefix=os.path.basename(path) + ".", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(content, handle, ensure_ascii=False, indent=2)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.chmod(tmp_path, 0o644)   # mkstemp makes 0600; the data dir is served read-only
+            if os.path.exists(path):
+                shutil.copy2(path, f"{path}.bak")
+            os.replace(tmp_path, path)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
 
 def ensure_global_lists(data_dir):

@@ -167,9 +167,57 @@ class TestWriteJsonAtomic:
     def test_bak_and_tmp_names_are_not_floors(self, tmp_path):
         (tmp_path / "config_floor3.json.bak").write_text("{}")
         (tmp_path / "config_floor4.json.tmp").write_text("{}")
+        (tmp_path / "config_floor5.json.k3j2_x.tmp").write_text("{}")
         assert storage.discover_floors(str(tmp_path)) == []
 
 
 @pytest.mark.parametrize("bad", ["../x", "1/../2", "", None, "1a"])
 def test_floor_filenames_rejects_non_numeric(bad):
     assert storage.floor_filenames(bad) == []
+
+
+def test_concurrent_writers_of_one_path_each_finish_whole(tmp_path, monkeypatch):
+    """Two saves of one file at once (#1739): no shared temp, valid JSON, a sane .bak."""
+    import threading
+    path = tmp_path / "shortcuts_floor2.json"
+    path.write_text('[{"id": "old"}]')
+    big = [{"id": f"s{i}", "name": "x" * 200} for i in range(200)]
+    small = [{"id": "tiny"}]
+    real_dump = json.dump
+    started = threading.Event()
+
+    def slow_dump(obj, fh, **kw):
+        # Writer 1 parks mid-write until writer 2 has had its chance to run.
+        if obj is big:
+            started.set()
+            fh.write("[")
+            threading.Event().wait(0.2)
+            fh.seek(0)
+        real_dump(obj, fh, **kw)
+
+    monkeypatch.setattr(storage.json, "dump", slow_dump)
+    errors = []
+
+    def run(content):
+        try:
+            storage.write_json_atomic(str(path), content)
+        except Exception as err:   # noqa: BLE001 - the test reports any failure
+            errors.append(err)
+
+    t1 = threading.Thread(target=run, args=(big,))
+    t1.start()
+    started.wait(2)
+    t2 = threading.Thread(target=run, args=(small,))
+    t2.start()
+    t1.join(5)
+    t2.join(5)
+    assert errors == []
+    assert json.loads(path.read_text()) == small          # the later save wins, whole
+    assert json.loads((tmp_path / "shortcuts_floor2.json.bak").read_text()) == big
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["shortcuts_floor2.json", "shortcuts_floor2.json.bak"]
+
+
+def test_saved_file_is_world_readable(tmp_path):
+    path = tmp_path / "config_floor1.json"
+    storage.write_json_atomic(str(path), {"v": 1})
+    assert oct(path.stat().st_mode & 0o777) == "0o644"

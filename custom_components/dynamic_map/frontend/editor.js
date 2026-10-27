@@ -88,11 +88,15 @@ export class EditorApp {
     }
 
     async saveWithFeedback() {
+        if (this._saving) return;   // a held Ctrl+S or a double click: one save at a time (#1739)
+        this._saving = true;
         try {
             await this.save();
             this.ui.toast('Saved to Home Assistant.', 'ok');
         } catch (err) {
             this.ui.toast(`Save failed: ${err.message}`, 'error');
+        } finally {
+            this._saving = false;
         }
     }
 
