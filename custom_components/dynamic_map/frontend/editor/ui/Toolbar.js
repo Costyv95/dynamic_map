@@ -23,7 +23,8 @@ export class Toolbar {
             { value: 'rooms', label: '🏠 Rooms', title: 'Draw and reshape rooms' },
             { value: 'objects', label: '📍 Objects', title: 'Interactive badges (lights, sensors, vacuum)' },
             { value: 'decor', label: '🪴 Decor', title: 'Scenery: furniture, plants (never clickable on the dashboard)' },
-            { value: 'walls', label: '🧱 Walls', title: 'Architectural walls' }
+            { value: 'walls', label: '🧱 Walls', title: 'Architectural walls' },
+            { value: 'proxies', label: '📡 Proxies', title: 'Where each Bluetooth proxy sits (for room positioning)' }
         ], state.activeLayer, (v) => {
             state.setActiveLayer(v);
             if (v === 'walls' && !state.walls.length && !state.drawingWall) state.drawingWall = [];
@@ -61,6 +62,7 @@ export class Toolbar {
         switch (state.activeLayer) {
             case 'rooms': app.ui.toast('Shift-click on the map to place corners, Enter to close the room.'); break;
             case 'decor': app.addDecor(); break;
+            case 'proxies': app.ui.toast('Pick a proxy in the panel, then tap where it sits on the map.'); break;
             case 'walls': state.drawingWall = []; state.selectedWallIdx = -1; app.ui.refresh(); state.requestDrawCallback(); break;
             default: app.addObject();
         }
@@ -95,7 +97,7 @@ export class Toolbar {
         this.saveBtn.classList.toggle('dm-dirty', dirty);
         this.saveBtn.textContent = dirty ? '💾 Save •' : '💾 Save';
         this.saveBtn.title = dirty ? 'Unsaved changes (Ctrl+S). A local draft is kept until you save.' : 'Save this floor to Home Assistant';
-        const addLabel = { rooms: '＋ Room', objects: '＋ Object', decor: '＋ Decor', walls: '＋ Wall' };
+        const addLabel = { rooms: '＋ Room', objects: '＋ Object', decor: '＋ Decor', walls: '＋ Wall', proxies: '＋ Proxy' };
         this.addBtn.textContent = addLabel[state.activeLayer] || '＋ Add';
     }
 }

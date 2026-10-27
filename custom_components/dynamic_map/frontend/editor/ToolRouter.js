@@ -4,6 +4,7 @@ import { openShortcutsHelp } from './ui/HelpDialog.js?v=3.2.1';
 import { ShortcutTool } from './tools/ShortcutTool.js?v=3.2.1';
 import { RoomTool } from './tools/RoomTool.js?v=3.2.1';
 import { WallTool } from './tools/WallTool.js?v=3.2.1';
+import { ProxyTool } from './tools/ProxyTool.js?v=3.2.1';
 
 const TAP_SLOP_PX = 5;
 
@@ -20,6 +21,7 @@ export class ToolRouter {
         this.shortcutTool = new ShortcutTool(canvas, state);
         this.roomTool = new RoomTool(canvas, state);
         this.wallTool = new WallTool(canvas, state);
+        this.proxyTool = new ProxyTool(canvas, state);
         this.active = null;
         this.panCandidate = null;
         this.bind();
@@ -42,9 +44,9 @@ export class ToolRouter {
     }
 
     tools() {
-        return this.state.activeLayer === 'walls'
-            ? [this.wallTool]
-            : [this.shortcutTool, this.roomTool];
+        if (this.state.activeLayer === 'walls') return [this.wallTool];
+        if (this.state.activeLayer === 'proxies') return [this.proxyTool];
+        return [this.shortcutTool, this.roomTool];
     }
 
     onPointerDown(e) {
@@ -96,7 +98,8 @@ export class ToolRouter {
         if (!cand || dragged) return;
         const moved = Math.hypot(e.clientX - cand.x, e.clientY - cand.y) > TAP_SLOP_PX;
         if (moved || e.button === 2) return;
-        if (this.state.activeLayer !== 'walls') this.roomTool.onClick(e, cand.hit, cand.pt);
+        if (this.state.activeLayer === 'proxies') this.proxyTool.onClick(cand.pt);
+        else if (this.state.activeLayer !== 'walls') this.roomTool.onClick(e, cand.hit, cand.pt);
     }
 
     onKeyDown(e) {
@@ -116,6 +119,8 @@ export class ToolRouter {
             this.state.selectedExtra = [];
             this.state.selectedRooms = [];
             this.state.selectedWallIdx = -1;
+            this.state.selectedProxyId = null;
+            this.state.placingProxy = null;
             this.state.updateUICallback();
             this.state.requestDrawCallback();
             return;

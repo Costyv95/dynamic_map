@@ -74,6 +74,7 @@ export class EditorApp {
             background_color: c.backgroundColor || undefined,
             background_mode: c.backgroundMode !== 'image' ? c.backgroundMode : undefined,
             walls: this.state.walls.length ? this.state.walls : undefined,
+            ble_proxies: this.state.proxies.length ? this.state.proxies : undefined,
             ...extra
         };
     }
@@ -154,10 +155,13 @@ export class EditorApp {
         state.rooms = src.rooms || [];
         state.shortcuts = src.shortcuts || [];
         state.walls = (src.config && src.config.walls) || (restored ? src.walls : []) || [];
+        state.proxies = (src.config && src.config.ble_proxies) || [];
         state.floorName = (data.config && data.config.name) || undefined;
         state.selectedRooms = [];
         state.selectedShortcutIdx = -1;
         state.selectedWallIdx = -1;
+        state.selectedProxyId = null;
+        state.placingProxy = null;
         state.previewStateIdx = -1;
         state.historyManager.reset();
         this.dirty.reset();
@@ -255,12 +259,20 @@ export class EditorApp {
     loadRegistry() { return loadRegistry(this); }
     loadEntities() { return loadEntities(this); }
 
+    /** Bermuda's proxies for the Proxies layer; none (and a quiet log) when Bermuda isn't there. */
+    async loadProxies() {
+        try { this.state.knownProxies = await ApiManager.fetchProxies(); }
+        catch (err) { console.warn('[DynamicMapDebug] No proxy list', err); this.state.knownProxies = []; }
+        this.ui.refresh();
+    }
+
     /** pollHass: read the parent app's hass (iframe mode); the panel hands hass in itself. */
     start({ pollHass = true } = {}) {
         this.loadRegistry();
         loadIconList(this.root);
         this.discoverFloors();
         this.loadEntities();
+        this.loadProxies();
         if (pollHass) this.hassBridge.startPolling();
         return this;
     }

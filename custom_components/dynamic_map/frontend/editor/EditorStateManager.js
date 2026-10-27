@@ -28,6 +28,12 @@ export class EditorStateManager {
         this.selectedWallIdx = -1;
         this.drawingWall = null;   // in-progress points while the wall tool is armed
         this.wallCursor = null;    // live map-px cursor for the drawing preview
+        // Bluetooth proxies placed on this floor: [{id: proxy MAC, name, position: [x%, y%]}],
+        // persisted as config.ble_proxies. knownProxies is Bermuda's list.
+        this.proxies = [];
+        this.knownProxies = [];
+        this.selectedProxyId = null;
+        this.placingProxy = null;  // {id, name} while the next tap on the map places it
         
         // Split/Edit states
         this.isSplitting = false;
@@ -46,7 +52,7 @@ export class EditorStateManager {
     }
 
     saveState() {
-        this.historyManager.saveState(this.rooms, this.shortcuts, this.walls);
+        this.historyManager.saveState(this.rooms, this.shortcuts, this.walls, this.proxies);
         if (this.onRevision) this.onRevision();
     }
 
@@ -56,6 +62,7 @@ export class EditorStateManager {
             this.rooms = state.rooms;
             this.shortcuts = state.shortcuts;
             this.walls = state.walls || [];
+            this.proxies = state.proxies || [];
             this.selectedRooms = [];
             this.selectedWallIdx = -1;
             if(this.updateUICallback) this.updateUICallback();
@@ -71,6 +78,7 @@ export class EditorStateManager {
             this.rooms = state.rooms;
             this.shortcuts = state.shortcuts;
             this.walls = state.walls || [];
+            this.proxies = state.proxies || [];
             this.selectedRooms = [];
             this.selectedWallIdx = -1;
             if(this.updateUICallback) this.updateUICallback();
@@ -154,7 +162,9 @@ export class EditorStateManager {
     }
 
     deleteSelection() {
-        if (this.activeLayer === 'walls') {
+        if (this.activeLayer === 'proxies') {
+            if (!this.removeProxy(this.selectedProxyId)) return false;
+        } else if (this.activeLayer === 'walls') {
             if (this.selectedWallIdx === -1) return false;
             this.walls.splice(this.selectedWallIdx, 1);
             this.selectedWallIdx = -1;
@@ -189,9 +199,33 @@ export class EditorStateManager {
         this.selectedWallIdx = -1;
         this.drawingWall = null;
         this.drawingPolygon = null;
+        this.selectedProxyId = null;
+        this.placingProxy = null;
         if (layer !== 'rooms') this.selectedRooms = [];
         if (this.updateUICallback) this.updateUICallback();
         if (this.requestDrawCallback) this.requestDrawCallback();
+    }
+
+    /** Put proxy {id, name} at [x%, y%] on this floor (moving it if already placed); one undo step. */
+    placeProxy(proxy, position) {
+        const at = [round2(position[0]), round2(position[1])];
+        const placed = this.proxies.find(p => p.id === proxy.id);
+        if (placed) placed.position = at;
+        else this.proxies.push({ id: proxy.id, name: proxy.name || proxy.id, position: at });
+        this.selectedProxyId = proxy.id;
+        this.placingProxy = null;
+        this.saveState();
+        if (this.updateUICallback) this.updateUICallback();
+        if (this.requestDrawCallback) this.requestDrawCallback();
+    }
+
+    /** Take a proxy off this floor; false when it wasn't on it. */
+    removeProxy(id) {
+        const idx = this.proxies.findIndex(p => p.id === id);
+        if (idx === -1) return false;
+        this.proxies.splice(idx, 1);
+        if (this.selectedProxyId === id) this.selectedProxyId = null;
+        return true;
     }
 
     /** Kept for callers that still think in edit-mode terms. */
@@ -199,6 +233,8 @@ export class EditorStateManager {
         this.setActiveLayer(mode ? 'rooms' : 'objects');
     }
 }
+
+const round2 = (v) => Math.round(Math.max(0, Math.min(100, v)) * 100) / 100;
 
 /** Deep copy of a shortcut, moved 2% right/down, with a fresh id and a "copy" name. */
 function cloneNudged(src, n = 0) {

@@ -40,7 +40,8 @@ export class EditorUI {
     updateStatus() {
         const { state } = this;
         let text = null;
-        if (state.drawingWall) text = state.drawingWall.length ? 'Click to add corners · Enter to finish · Esc to cancel' : 'Click on the map to start a wall';
+        if (state.placingProxy) text = `Tap where ${state.placingProxy.name || 'the proxy'} sits · Esc to cancel`;
+        else if (state.drawingWall) text = state.drawingWall.length ? 'Click to add corners · Enter to finish · Esc to cancel' : 'Click on the map to start a wall';
         else if (state.drawingPolygon) text = `${state.drawingPolygon.length} corner${state.drawingPolygon.length === 1 ? '' : 's'} · Enter to close the room · Esc to cancel`;
         else if (state.activeLayer === 'rooms' && !state.rooms.length) text = 'Shift-click on the map to draw your first room';
         this.status.textContent = text || '';

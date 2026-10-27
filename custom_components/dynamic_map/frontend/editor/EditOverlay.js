@@ -8,6 +8,8 @@ const COARSE = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)
 const HANDLE_PX = 5 * COARSE;      // half-size of a resize handle on screen
 const VERTEX_PX = 8 * COARSE;      // room corner handle radius on screen
 const ROT_STEM_PX = 18 * COARSE;
+const PROXY_PX = 11 * COARSE;      // proxy marker radius on screen
+const PROXY_COLOR = '#7c3aed';
 
 /**
  * The editing layer: an SVG group that shares the map root's transform so
@@ -44,6 +46,7 @@ export class EditOverlay {
         this.renderDrawingPolygon(ctx, k);
         this.renderSplitLine(ctx, k);
         if (state.activeLayer === 'walls') this.renderWalls(ctx, k);
+        else if (state.activeLayer === 'proxies') this.renderProxies(ctx, k);
         else this.renderShortcuts(ctx, k);
     }
 
@@ -150,6 +153,26 @@ export class EditOverlay {
             });
         }
         pts.forEach(p => this.el('circle', { cx: p[0], cy: p[1], r: 4 * k, fill: ACCENT, 'pointer-events': 'none' }));
+    }
+
+    /** Proxies layer: a draggable 📡 marker with its name for every placed proxy. */
+    renderProxies(ctx, k) {
+        const { state } = ctx;
+        const r = PROXY_PX * k;
+        state.proxies.forEach(p => {
+            if (!Array.isArray(p.position)) return;
+            const [x, y] = this.toPx(ctx, p.position);
+            const selected = p.id === state.selectedProxyId;
+            const known = state.knownProxies.find(q => q.id === p.id);
+            const g = this.el('g', { 'data-handle': 'proxy', 'data-proxy-id': p.id, style: 'cursor: move;' });
+            this.el('circle', { cx: x, cy: y, r, fill: known && !known.online ? '#94a3b8' : PROXY_COLOR,
+                stroke: selected ? ACCENT : '#ffffff', 'stroke-width': (selected ? 3 : 2) * k }, g);
+            const icon = this.el('text', { x, y: y + r * 0.38, 'text-anchor': 'middle', 'font-size': r * 1.1, 'pointer-events': 'none' }, g);
+            icon.textContent = '📡';
+            const label = this.el('text', { x, y: y + r + 12 * k, 'text-anchor': 'middle', 'font-size': 11 * k, fill: '#1e293b',
+                'paint-order': 'stroke', stroke: '#ffffff', 'stroke-width': 3 * k, 'pointer-events': 'none' }, g);
+            label.textContent = (known && known.name) || p.name || p.id;
+        });
     }
 
     renderShortcuts(ctx, k) {

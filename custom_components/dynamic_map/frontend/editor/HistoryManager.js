@@ -4,11 +4,11 @@ export class HistoryManager {
         this.historyIndex = -1;
     }
 
-    saveState(rooms, shortcuts, walls = []) {
+    saveState(rooms, shortcuts, walls = [], proxies = []) {
         if (this.historyIndex < this.history.length - 1) {
             this.history = this.history.slice(0, this.historyIndex + 1);
         }
-        const serialized = JSON.stringify({ rooms, shortcuts, walls }, (key, value) => {
+        const serialized = JSON.stringify({ rooms, shortcuts, walls, proxies }, (key, value) => {
             if (key === '_imgCache') return undefined;
             return value;
         });
