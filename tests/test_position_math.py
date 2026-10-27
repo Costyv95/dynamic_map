@@ -256,3 +256,10 @@ def test_a_lasting_bermuda_change_still_moves_an_uncalibrated_room():
     t = pm.Track()
     rooms = [t.step([], {A: 2.0}, float(i), (1, "bedroom" if i < 10 else "hallway"))[1] for i in range(30)]
     assert rooms[9] == "bedroom" and rooms[-1] == "hallway"
+
+
+def test_new_spot_record():
+    fp = sp.new_spot("dev1", "Phone", 2, 10.123, 20.456, {"id": "r1", "name": "Hall"}, [{A: 1.0}, {A: 1.2}], {A: 1.1})
+    assert {k: fp[k] for k in ("tracker", "floor", "x", "y", "room_id", "room", "samples", "features")} == {
+        "tracker": "dev1", "floor": 2, "x": 10.12, "y": 20.46, "room_id": "r1", "room": "Hall", "samples": 2, "features": {A: 1.1}}
+    assert len(fp["id"]) == 12 and fp["raw"] == [{A: 1.0}, {A: 1.2}]

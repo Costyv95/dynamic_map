@@ -3,6 +3,8 @@
 HA-free, so the tests load it by path like position_math.py.
 """
 import re
+import time
+import uuid
 
 MAC_RE = re.compile(r"[0-9a-f]{2}(?::[0-9a-f]{2}){5}", re.I)
 
@@ -35,3 +37,14 @@ def live_spots(fingerprints, rooms_by_floor, room_at):
         if room is not None:
             out.append({**fp, "room_id": room.get("id"), "room": room.get("name")})
     return out
+
+
+def new_spot(tracker_id, name, floor, x, y, room, samples, features):
+    """The stored record of one calibration spot."""
+    return {
+        "id": uuid.uuid4().hex[:12], "tracker": tracker_id, "name": name,
+        "floor": floor, "x": round(x, 2), "y": round(y, 2),
+        "room_id": room.get("id"), "room": room.get("name"),
+        "features": features, "samples": len(samples), "recorded_at": int(time.time()),
+        "raw": samples,     # every second's reading, to learn each spot's spread later
+    }

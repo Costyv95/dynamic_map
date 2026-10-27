@@ -22,7 +22,6 @@ import logging
 import os
 import re
 import time
-import uuid
 
 import voluptuous as vol
 
@@ -340,17 +339,10 @@ class PositionManager:
         finally:
             self._recording.discard(tracker.device_id)
         # No proxy hearing the phone is a fingerprint too: silence on a floor without proxies.
-        features = pm.median_reading(samples)
-        fp = {
-            "id": uuid.uuid4().hex[:12], "tracker": tracker.device_id, "name": tracker.name,
-            "floor": floor, "x": round(x, 2), "y": round(y, 2),
-            "room_id": room.get("id"), "room": room.get("name"),
-            "features": features, "samples": len(samples), "recorded_at": int(time.time()),
-            "raw": samples,     # every second's reading, to learn each spot's spread later
-        }
+        fp = sp.new_spot(tracker.device_id, tracker.name, floor, x, y, room, samples, pm.median_reading(samples))
         self.fingerprints.append(fp)
         await self._save()
-        return {"id": fp["id"], "room": fp["room"], "samples": fp["samples"], "proxies": len(features)}
+        return {"id": fp["id"], "room": fp["room"], "samples": fp["samples"], "proxies": len(fp["features"])}
 
     async def async_delete(self, call: ServiceCall):
         before = len(self.fingerprints)
