@@ -151,11 +151,30 @@ function slider(host, d, r, call) {
     s.className = 'dm-rp-slider';
     s.title = 'Brightness';
     s.addEventListener('click', (e) => e.stopPropagation());
-    s.addEventListener('pointerdown', (e) => { e.stopPropagation(); host._rpDragging = true; });
+    let committed = false;
+    // A tap, or a drag back to the start value, fires no 'change' (#1735): any
+    // release ends the drag. One tick later, so a 'change' from the same release
+    // still finds this slider; then catch up on updates held back meanwhile.
+    const release = () => {
+        window.removeEventListener('pointerup', release);
+        window.removeEventListener('pointercancel', release);
+        setTimeout(() => {
+            if (!host._rpDragging) return;
+            host._rpDragging = false;
+            if (!committed) updateRoomPanel(host, host._hass);
+        }, 0);
+    };
+    s.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        host._rpDragging = true;
+        committed = false;
+        window.addEventListener('pointerup', release);
+        window.addEventListener('pointercancel', release);
+    });
+    s.addEventListener('lostpointercapture', release);
     s.addEventListener('input', () => { r.querySelector('.dm-rp-value').textContent = `${s.value}%`; });
-    const commit = () => { host._rpDragging = false; call(controlCall(d, 'brightness', Number(s.value))); r.classList.add('dm-on'); };
+    const commit = () => { committed = true; host._rpDragging = false; call(controlCall(d, 'brightness', Number(s.value))); r.classList.add('dm-on'); };
     s.addEventListener('change', commit);
-    s.addEventListener('pointercancel', () => { host._rpDragging = false; });
     return s;
 }
 
