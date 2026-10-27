@@ -89,3 +89,6 @@ ssh -o ConnectTimeout=5 "$REMOTE_HOST" "$REMOTE_COMMANDS"
 
 echo ""
 echo "=== Deployment & Restart Completed Successfully ==="
+
+# Portal vendors the card; say when its copy is behind what just shipped (#1701).
+python3 "$(dirname "$0")/portal_vendor_status.py" || true
