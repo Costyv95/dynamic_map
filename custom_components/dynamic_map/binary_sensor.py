@@ -12,7 +12,6 @@ from datetime import timedelta
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
@@ -63,11 +62,18 @@ class ProxyOfflineSensor(BinarySensorEntity):
         self.mac = mac
         self._attr_unique_id = PREFIX + mac
         self._attr_name = f"{name} offline"
-        self._attr_device_info = DeviceInfo(connections={(dr.CONNECTION_NETWORK_MAC, mac)})
         self._debounce = Debounce()
         self._attr_is_on = False
+        self.device_id = None
 
     async def async_added_to_hass(self):
+        # Without a config entry HA ignores device_info, so tie the entity to the
+        # proxy's device by hand: it then takes the device's area, i.e. its room.
+        device = dr.async_get(self.hass).async_get_device(connections={(dr.CONNECTION_NETWORK_MAC, self.mac)})
+        self.device_id = device.id if device else None
+        entry = self.registry_entry
+        if device and entry and entry.device_id != device.id:
+            er.async_get(self.hass).async_update_entity(self.entity_id, device_id=device.id)
         self.async_on_remove(async_track_time_interval(self.hass, self._check, CHECK))
         self._check()
 
@@ -79,7 +85,7 @@ class ProxyOfflineSensor(BinarySensorEntity):
     @callback
     def _check(self, _now=None):
         ent_reg = er.async_get(self.hass)
-        device_id = self.registry_entry.device_id if self.registry_entry else None
+        device_id = self.device_id
         states = [
             (st.state if (st := self.hass.states.get(e.entity_id)) else None)
             for e in er.async_entries_for_device(ent_reg, device_id) if e.platform != DOMAIN and not e.disabled_by
