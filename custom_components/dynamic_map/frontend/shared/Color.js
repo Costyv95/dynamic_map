@@ -2,17 +2,16 @@
  * Small colour helpers shared by the card and the editor.
  */
 
-/** Parse '#rrggbb' or 'rgb(r, g, b)' into [r, g, b] (0-255), or null. */
-export function parseColor(color) {
-    const mRgb = /^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/.exec(color || '');
-    if (mRgb) return [+mRgb[1], +mRgb[2], +mRgb[3]];
-    if (/^#[0-9a-f]{6}$/i.test(color || '')) {
-        return [
-            parseInt(color.slice(1, 3), 16),
-            parseInt(color.slice(3, 5), 16),
-            parseInt(color.slice(5, 7), 16)
-        ];
-    }
+/** '#rgb', '#rrggbb', 'rgb(r, g, b)', 'rgb(r g b)' or 'rgba(…)' -> [r, g, b] (0-255), else null.
+ * The one colour parser of the card and the editor (#1708). */
+export function parseColor(value) {
+    const s = String(value || '').trim().toLowerCase();
+    let m = s.match(/^#([0-9a-f]{3})$/);
+    if (m) return [...m[1]].map(c => parseInt(c + c, 16));
+    m = s.match(/^#([0-9a-f]{6})$/);
+    if (m) return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16));
+    m = s.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
+    if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
     return null;
 }
 

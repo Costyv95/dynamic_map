@@ -12,21 +12,13 @@
 
 /** Up to this spread between channels (0-255) a colour counts as a grey of
  * the drawing, so near-black navy walls tone too; a purple divider does not. */
+import { parseColor } from '../shared/Color.js?v=3.2.1';
+
 const GREY_CHROMA = 40;
 
 const toned = new Map();   // `${url}|${paper}|${ink}` -> Promise<string|null>
 
-/** '#rgb', '#rrggbb' or 'rgb(r g b)' / 'rgb(r, g, b)' -> [r, g, b], else null. */
-export function parseColor(value) {
-    const s = String(value || '').trim().toLowerCase();
-    let m = s.match(/^#([0-9a-f]{3})$/);
-    if (m) return [...m[1]].map(c => parseInt(c + c, 16));
-    m = s.match(/^#([0-9a-f]{6})$/);
-    if (m) return [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16));
-    m = s.match(/^rgba?\(\s*(\d+)[\s,]+(\d+)[\s,]+(\d+)/);
-    if (m) return [Number(m[1]), Number(m[2]), Number(m[3])];
-    return null;
-}
+export { parseColor };
 
 const hex = rgb => '#' + rgb.map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
 
