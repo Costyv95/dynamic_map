@@ -145,3 +145,31 @@ class TestEnsureGlobalLists:
 
     def test_a_missing_directory_is_not_an_error(self, tmp_path):
         assert storage.ensure_global_lists(str(tmp_path / "nope")) == []
+
+
+class TestWriteJsonAtomic:
+    def test_writes_and_keeps_previous_as_bak(self, tmp_path):
+        path = tmp_path / "config_floor1.json"
+        storage.write_json_atomic(str(path), {"v": 1})
+        assert not (tmp_path / "config_floor1.json.bak").exists()
+        storage.write_json_atomic(str(path), {"v": 2})
+        assert json.loads(path.read_text()) == {"v": 2}
+        assert json.loads((tmp_path / "config_floor1.json.bak").read_text()) == {"v": 1}
+
+    def test_failed_write_leaves_previous_file_intact(self, tmp_path):
+        path = tmp_path / "config_floor1.json"
+        path.write_text('{"walls": [1, 2, 3]}')
+        with pytest.raises(TypeError):
+            storage.write_json_atomic(str(path), {"bad": object()})
+        assert json.loads(path.read_text()) == {"walls": [1, 2, 3]}
+        assert sorted(p.name for p in tmp_path.iterdir()) == ["config_floor1.json"]
+
+    def test_bak_and_tmp_names_are_not_floors(self, tmp_path):
+        (tmp_path / "config_floor3.json.bak").write_text("{}")
+        (tmp_path / "config_floor4.json.tmp").write_text("{}")
+        assert storage.discover_floors(str(tmp_path)) == []
+
+
+@pytest.mark.parametrize("bad", ["../x", "1/../2", "", None, "1a"])
+def test_floor_filenames_rejects_non_numeric(bad):
+    assert storage.floor_filenames(bad) == []

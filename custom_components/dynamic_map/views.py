@@ -4,7 +4,6 @@ All views require authentication; mutating endpoints additionally require an
 admin user. Responses keep the legacy ``{"success": bool, ...}`` body shape
 the frontend expects, but now also carry meaningful HTTP status codes.
 """
-import json
 import logging
 import os
 
@@ -69,12 +68,8 @@ class DynamicMapSaveView(DynamicMapView):
         if not storage.validate_save_content(filename, content):
             return self.error(f"Content has the wrong shape for {filename}.")
 
-        def save_file():
-            with open(save_path, "w", encoding="utf-8") as f:
-                json.dump(content, f, ensure_ascii=False, indent=2)
-
         try:
-            await self.hass.async_add_executor_job(save_file)
+            await self.hass.async_add_executor_job(storage.write_json_atomic, save_path, content)
         except OSError as err:
             _LOGGER.error("Failed to save %s: %s", filename, err)
             return self.error(str(err), status=500)

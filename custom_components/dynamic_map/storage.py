@@ -6,6 +6,7 @@ unit-tested outside a HA environment.
 import json
 import os
 import re
+import shutil
 
 # Floors are drawn (config_floorN.json carries the canvas, walls and plate);
 # a bg_floorN.png left from a scanned floor is still found, shown and deleted
@@ -30,7 +31,9 @@ def is_allowed_data_filename(filename):
 
 
 def floor_filenames(floor_num):
-    """All data files that make up one floor."""
+    """All data files that make up one floor; [] unless floor_num is a number."""
+    if not str(floor_num).isdigit():
+        return []
     return [
         f"rooms_floor{floor_num}.json",
         f"shortcuts_floor{floor_num}.json",
@@ -75,6 +78,29 @@ def validate_save_content(filename, content):
     if filename.startswith("config_"):
         return isinstance(content, dict)
     return False
+
+
+def write_json_atomic(path, content):
+    """Write content as JSON to path without ever leaving it half-written.
+
+    The JSON goes to a temp file in the same directory, is fsynced, and then
+    os.replace()s the old file, so a crash or full disk mid-write leaves the
+    previous version in place. The previous version is also kept as
+    ``<name>.bak``, one save deep, because config_floorN.json is the only copy
+    of a hand-drawn floor.
+    """
+    tmp_path = f"{path}.tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as handle:
+            json.dump(content, handle, ensure_ascii=False, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if os.path.exists(path):
+            shutil.copy2(path, f"{path}.bak")
+        os.replace(tmp_path, path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
 
 def ensure_global_lists(data_dir):
