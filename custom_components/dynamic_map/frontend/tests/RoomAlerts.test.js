@@ -30,6 +30,15 @@ describe('room alerts', () => {
         expect(roomAlerts(h, { id: 'x' })).toEqual([]);
     });
 
+    it.each(['moisture', 'smoke', 'gas', 'carbon_monoxide', 'safety', 'problem'])('raises a red badge for a firing %s sensor (#1737)', cls => {
+        const h = makeHass();
+        h.entities['binary_sensor.alarm'] = { area_id: 'hall' };
+        h.states['binary_sensor.alarm'] = { state: 'on', attributes: { device_class: cls, friendly_name: 'Alarm' } };
+        expect(roomAlerts(h, room, alertKinds({})).filter(a => a.kind === 'danger').map(a => a.id)).toEqual(['binary_sensor.alarm']);
+        h.states['binary_sensor.alarm'].state = 'off';
+        expect(roomAlerts(h, room, alertKinds({})).some(a => a.kind === 'danger')).toBe(false);
+    });
+
     it('counts open and danger by default; unavailable only when asked for', () => {
         expect(alertKinds({})).toEqual(['open', 'danger', 'vacuum']);
         expect(alertKinds({ room_alerts: true })).toEqual(['open', 'danger', 'vacuum']);

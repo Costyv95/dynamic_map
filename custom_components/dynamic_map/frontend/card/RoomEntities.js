@@ -6,7 +6,9 @@
 
 const CONTROL_DOMAINS = ['light', 'switch', 'fan', 'input_boolean', 'cover', 'lock', 'climate', 'media_player', 'vacuum'];
 const SENSOR_CLASSES = ['temperature', 'humidity', 'illuminance', 'power', 'energy', 'battery', 'co2', 'pm25', 'moisture'];
-const BINARY_CLASSES = ['motion', 'occupancy', 'presence', 'door', 'window', 'opening', 'garage_door', 'moisture', 'smoke'];
+/** Binary sensors that raise the red room badge (RoomAlerts); always listed here too (#1737). */
+export const DANGER_CLASSES = ['moisture', 'smoke', 'gas', 'carbon_monoxide', 'safety', 'problem'];
+const BINARY_CLASSES = ['motion', 'occupancy', 'presence', 'door', 'window', 'opening', 'garage_door', ...DANGER_CLASSES];
 const ORDER = { light: 0, switch: 1, fan: 2, input_boolean: 3, cover: 4, lock: 5, climate: 6, media_player: 7, vacuum: 8, binary_sensor: 9, sensor: 10 };
 
 /** Entity ids in an area (directly or through their device), user-facing only. */
@@ -49,7 +51,8 @@ export function isInteresting(id, st) {
 const ICONS = {
     light: '💡', switch: '🔌', fan: '🌀', input_boolean: '🔘', cover: '🪟', lock: '🔒', climate: '🌡️', media_player: '🎵', vacuum: '🤖',
     temperature: '🌡️', humidity: '💧', illuminance: '☀️', power: '⚡', energy: '⚡', battery: '🔋', co2: '🫧', pm25: '🌫️', moisture: '💧',
-    motion: '🚶', occupancy: '🚶', presence: '🚶', door: '🚪', window: '🪟', opening: '🚪', garage_door: '🚗', smoke: '🔥'
+    motion: '🚶', occupancy: '🚶', presence: '🚶', door: '🚪', window: '🪟', opening: '🚪', garage_door: '🚗', smoke: '🔥',
+    gas: '💨', carbon_monoxide: '☁️', safety: '⚠️', problem: '⚠️'
 };
 
 /** Display model for one entity: { id, name, icon, value, kind, on }. */
@@ -89,8 +92,8 @@ function describeLive(hass, id) {
     return { id, name, icon, kind: 'value', value, on: false };
 }
 
-const BINARY_ON = { motion: 'Motion', occupancy: 'Occupied', presence: 'Home', door: 'Open', window: 'Open', opening: 'Open', garage_door: 'Open', moisture: 'Wet', smoke: 'Smoke!' };
-const BINARY_OFF = { motion: 'Clear', occupancy: 'Empty', presence: 'Away', door: 'Closed', window: 'Closed', opening: 'Closed', garage_door: 'Closed', moisture: 'Dry', smoke: 'Clear' };
+const BINARY_ON = { motion: 'Motion', occupancy: 'Occupied', presence: 'Home', door: 'Open', window: 'Open', opening: 'Open', garage_door: 'Open', moisture: 'Wet', smoke: 'Smoke!', gas: 'Gas!', carbon_monoxide: 'CO!', safety: 'Unsafe', problem: 'Problem' };
+const BINARY_OFF = { motion: 'Clear', occupancy: 'Empty', presence: 'Away', door: 'Closed', window: 'Closed', opening: 'Closed', garage_door: 'Closed', moisture: 'Dry', smoke: 'Clear', gas: 'Clear', carbon_monoxide: 'Clear', safety: 'Safe', problem: 'OK' };
 
 /** Service call for a control gesture: { domain, service, data } or null. */
 export function controlCall(desc, action = 'primary', value) {
