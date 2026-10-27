@@ -114,6 +114,38 @@ describe('RoomPanel', () => {
         expect(h._rpDragging).toBe(false);
     });
 
+    it('a tap on the slider without moving it does not freeze the panel (#1735)', async () => {
+        const hass = makeHass();
+        const h = host(hass);
+        buildRoomPanelEl(h);
+        showRoomPanel(h, { id: 'r', name: 'Office', area_id: 'office' });
+        const s = h.roomPanel.querySelector('.dm-rp-slider');
+        s.dispatchEvent(new Event('pointerdown'));
+        window.dispatchEvent(new Event('pointerup'));               // no 'change': the value did not move
+        hass.states['light.desk'] = { ...hass.states['light.desk'], state: 'off', attributes: { ...hass.states['light.desk'].attributes, brightness: 0 } };
+        await new Promise(r => setTimeout(r, 0));
+        expect(h._rpDragging).toBe(false);
+        expect(h.roomPanel.querySelector('.dm-rp-list .dm-rp-row .dm-rp-value').textContent).toBe('Off');
+        showRoomPanel(h, { id: 'k', name: 'Kitchen', area_id: 'kitchen' });
+        expect(h.roomPanel.querySelector('.dm-rp-title').textContent).toBe('Kitchen');
+        expect(hass.callService).not.toHaveBeenCalled();
+    });
+
+    it('a change fired right after the pointerup still sets the brightness', async () => {
+        const hass = makeHass();
+        const h = host(hass);
+        buildRoomPanelEl(h);
+        showRoomPanel(h, { id: 'r', name: 'Office', area_id: 'office' });
+        const s = h.roomPanel.querySelector('.dm-rp-slider');
+        s.dispatchEvent(new Event('pointerdown'));
+        s.value = '30';
+        window.dispatchEvent(new Event('pointerup'));
+        s.dispatchEvent(new Event('change'));
+        await new Promise(r => setTimeout(r, 0));
+        expect(hass.callService).toHaveBeenCalledWith('light', 'turn_on', { entity_id: 'light.desk', brightness_pct: 30 });
+        expect(h.roomPanel.querySelector('.dm-rp-slider')).toBe(s);   // no flicker back to the old value
+    });
+
     it('"All off" switches off what is on in the room and hides when nothing is', () => {
         const hass = makeHass();
         const h = host(hass);
