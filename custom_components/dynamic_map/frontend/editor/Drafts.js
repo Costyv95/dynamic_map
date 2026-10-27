@@ -52,7 +52,8 @@ export function formatAge(ts, now = Date.now()) {
 export class DirtyTracker {
     constructor() { this.revision = 0; this.saved = 0; this.listeners = []; }
     bump() { this.revision++; this.emit(); }
-    markSaved() { this.saved = this.revision; this.emit(); }
+    /** `rev`: the revision a save captured when it started; later edits stay dirty (#1738). */
+    markSaved(rev = this.revision) { this.saved = rev; this.emit(); }
     reset() { this.revision = 0; this.saved = 0; this.emit(); }
     get dirty() { return this.revision !== this.saved; }
     onChange(fn) { this.listeners.push(fn); }

@@ -132,6 +132,72 @@ describe('editor boot through the real entry point', () => {
         expect(cfg.content.rotation_mode).toBe('auto');
     });
 
+    const saveOk = (onSave) => {
+        global.fetch = vi.fn((url, opts) => {
+            if (String(url).includes('/api/dynamic_map/save')) {
+                onSave && onSave(JSON.parse(opts.body));
+                return Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) });
+            }
+            return mockFetch(String(url));
+        });
+    };
+
+    it('an undo after a save is unsaved, and its draft is written (#1738)', async () => {
+        vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+        try {
+            app.state.shortcuts = app.state.shortcuts.filter(s => s.id !== 's1');
+            app.state.saveState();
+            saveOk();
+            await app.save();
+            expect(app.dirty.dirty).toBe(false);
+            app.state.undo();
+            expect(app.state.shortcuts.map(s => s.id)).toEqual(['s1', 's2']);
+            expect(app.dirty.dirty).toBe(true);
+            vi.advanceTimersByTime(500);
+            expect(JSON.parse(localStorage.getItem('dm_draft_floor_1')).shortcuts.map(s => s.id)).toEqual(['s1', 's2']);
+            app.state.redo();
+            expect(app.dirty.dirty).toBe(true);
+        } finally { vi.useRealTimers(); }
+    });
+
+    it('an edit made while a save is in flight stays unsaved, with its draft (#1738)', async () => {
+        let release;
+        global.fetch = vi.fn((url, opts) => {
+            if (String(url).includes('/api/dynamic_map/save')) {
+                return new Promise(r => { release = () => r({ ok: true, json: () => Promise.resolve({ success: true }) }); });
+            }
+            return mockFetch(String(url));
+        });
+        const saving = app.save();
+        await vi.waitFor(() => expect(release).toBeTypeOf('function'));
+        app.state.shortcuts[0].position = [80, 80];                 // drag the lamp mid-save
+        app.state.saveState();
+        localStorage.setItem('dm_draft_floor_1', JSON.stringify({ ts: 1, shortcuts: [] }));   // stands in for the debounced draft
+        const pending = setInterval(() => release && release(), 1);
+        await saving;
+        clearInterval(pending);
+        expect(app.dirty.dirty).toBe(true);
+        expect(localStorage.getItem('dm_draft_floor_1')).not.toBe(null);
+    });
+
+    it('changing the card rotation from the ⋯ menu marks the floor unsaved (#1738)', async () => {
+        const { openOverflowMenu } = await import('../editor/ui/OverflowMenu.js');
+        expect(app.dirty.dirty).toBe(false);
+        openOverflowMenu(app, document.body);
+        [...document.querySelectorAll('.dm-menu-item')].find(b => b.textContent.includes('Card rotation')).click();
+        expect(app.dirty.dirty).toBe(true);
+    });
+
+    it('a plain save clears the draft and the dirty flag', async () => {
+        app.state.shortcuts[0].position = [70, 70];
+        app.state.saveState();
+        localStorage.setItem('dm_draft_floor_1', JSON.stringify({ ts: 1, shortcuts: [] }));
+        saveOk();
+        await app.save();
+        expect(app.dirty.dirty).toBe(false);
+        expect(localStorage.getItem('dm_draft_floor_1')).toBe(null);
+    });
+
     it('switchFloor loads the floor on the first call even when it equals the state default', async () => {
         document.body.innerHTML = body;
         localStorage.clear();

@@ -15,22 +15,24 @@ export function openOverflowMenu(app, anchor) {
     const menu = el('div.dm-menu', { role: 'menu' });
     const item = (label, hint, onClick) => el('button.dm-menu-item', { type: 'button', onClick: () => { menu.remove(); onClick(); } },
         el('span', {}, label), hint ? el('span.dm-hint', {}, hint) : null);
+    // Rotation and flips are saved in config_floorN.json: mark the floor unsaved (#1738).
+    const changed = () => { if (state.onRevision) state.onRevision(); };
     const flipsOn = canvas.rotationMode !== 'auto';
     const f = canvas.flips[canvas.activeMode] || { h: false, v: false };
     menu.append(
         item(`🔁 Card rotation: ${ROTATION[canvas.rotationMode][0]}`, 'Click to cycle. Auto is recommended.', () => {
             canvas.rotationMode = ROTATION[canvas.rotationMode][1];
-            canvas.layout(); app.ui.refresh();
+            canvas.layout(); app.ui.refresh(); changed();
         }),
         item(`↔ Flip horizontally ${f.h ? '(on)' : ''}`, flipsOn ? `For the ${canvas.activeMode} layout` : 'Only with a forced rotation', () => {
             if (!flipsOn) return;
             canvas.flips[canvas.activeMode].h = !canvas.flips[canvas.activeMode].h;
-            canvas.layout();
+            canvas.layout(); changed();
         }),
         item(`↕ Flip vertically ${f.v ? '(on)' : ''}`, flipsOn ? `For the ${canvas.activeMode} layout` : 'Only with a forced rotation', () => {
             if (!flipsOn) return;
             canvas.flips[canvas.activeMode].v = !canvas.flips[canvas.activeMode].v;
-            canvas.layout();
+            canvas.layout(); changed();
         }),
         item('✏️ Rename floor…', `Shown on the chips and the card: "${app.floorLabel(state.activeFloor)}"`, async () => {
             const name = await promptDialog('Rename floor', 'Leave empty to use the number.', { value: app.floorNames?.[String(state.activeFloor)] || '', placeholder: `Floor ${state.activeFloor}` });
