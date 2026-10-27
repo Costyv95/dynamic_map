@@ -199,3 +199,60 @@ def test_room_for_area_shared_cases():
         floor, room = pm.room_for_area(rooms, case["state"], fx["area_names"])
         got = [floor, room["id"]] if room else None
         assert got == case["expect"], case["state"]
+
+
+# --- #1740 -------------------------------------------------------------------
+
+SP_PATH = os.path.join(os.path.dirname(PATH), "spots.py")
+_sp_spec = importlib.util.spec_from_file_location("dynamic_map_spots", SP_PATH)
+sp = importlib.util.module_from_spec(_sp_spec)
+_sp_spec.loader.exec_module(sp)
+
+
+@pytest.mark.parametrize("living_reading", [2.19, 2.04])   # gaps of about 0.34 and 0.31
+def test_one_bermuda_blip_does_not_move_the_room(living_reading):
+    """Bermuda says bedroom except for one step; a calibrated room nearly as good must not win."""
+    fps = [{"floor": 1, "room_id": "living", "x": 10, "y": 10, "features": {A: 1.0}}]
+    t = pm.Track()
+    rooms = []
+    for i in range(40):
+        bermuda = (1, "hallway") if i == 10 else (1, "bedroom")
+        floor, room, _ = t.step(fps, {A: living_reading}, float(i), bermuda)
+        rooms.append(room)
+    assert set(rooms) == {"bedroom"}, rooms
+
+
+def test_a_room_that_matches_clearly_better_still_takes_over():
+    fps = [{"floor": 1, "room_id": "living", "x": 10, "y": 10, "features": {A: 1.0}}]
+    t = pm.Track()
+    rooms = [t.step(fps, {A: 1.05}, float(i), (1, "bedroom"))[1] for i in range(30)]
+    assert rooms[-1] == "living"
+
+
+def test_spots_of_split_or_deleted_rooms_move_to_the_room_holding_them():
+    rooms = {1: [{"id": "r_kitchen", "name": "Kitchen", "polygon": [[0, 0], [50, 0], [50, 50], [0, 50]]}]}
+    fps = [
+        {"floor": 1, "room_id": "r_kitchen", "x": 10, "y": 10, "features": {A: 1.0}},
+        {"floor": 1, "room_id": "r_old", "x": 20, "y": 20, "features": {A: 2.0}},     # split: point is in the kitchen now
+        {"floor": 1, "room_id": "r_office", "x": 80, "y": 80, "features": {A: 3.0}},  # deleted: point in no room
+    ]
+    live = sp.live_spots(fps, rooms, pm.room_at)
+    assert [(f["room_id"], f["x"]) for f in live] == [("r_kitchen", 10), ("r_kitchen", 20)]
+    assert live[1]["room"] == "Kitchen" and fps[1]["room_id"] == "r_old"   # stored spots untouched
+    t = pm.Track()
+    assert t.step(live, {A: 3.0}, 0.0, None)[1] == "r_kitchen"   # the ghost office can't win
+
+
+@pytest.mark.parametrize("uid, mac", [
+    ("fc9d2a1b3c4d5e6f_b4:bf:e9:c8:f6:5c_range", "b4:bf:e9:c8:f6:5c"),
+    ("aa:bb:cc:dd:ee:ff_B4:BF:E9:C8:F6:5C_range", "b4:bf:e9:c8:f6:5c"),   # the device id is a MAC itself
+    ("no_mac_here_range", None),
+])
+def test_proxy_mac_is_the_last_mac_in_the_uid(uid, mac):
+    assert sp.proxy_mac(uid) == mac
+
+
+def test_a_lasting_bermuda_change_still_moves_an_uncalibrated_room():
+    t = pm.Track()
+    rooms = [t.step([], {A: 2.0}, float(i), (1, "bedroom" if i < 10 else "hallway"))[1] for i in range(30)]
+    assert rooms[9] == "bedroom" and rooms[-1] == "hallway"

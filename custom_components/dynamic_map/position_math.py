@@ -161,6 +161,7 @@ class Track:
     def __init__(self):
         self.history = []        # [(stamp, reading)] within WINDOW_S
         self.scores = {}         # {(floor, room_id): time-averaged squared gap}
+        self.seen = {}           # {(floor, room_id): last stamp it was a candidate}
         self.room = None
         self.pos = None          # {"x", "y"} last output inside self.room
         self.stamp = None
@@ -186,15 +187,20 @@ class Track:
             return self.last
         # Each room's squared gap, averaged over ROOM_TAU_S; a room that drops out
         # of the candidates is remembered as matching at FAR (gap 1 decade).
+        # A room new to the average starts there at FAR too, and one missing for
+        # less than ROOM_TAU_S (a Bermuda blip) holds its score (#1740).
         keep = 0.0 if first else math.exp(-dt / ROOM_TAU_S)
+        self.seen.update((key, now) for key in gaps)
         for key in set(self.scores) | set(gaps):
+            if key not in gaps and key in self.scores and now - self.seen.get(key, now) < ROOM_TAU_S:
+                continue
             g2 = min(gaps.get(key, 1.0), 1.0) ** 2
-            self.scores[key] = keep * self.scores.get(key, g2) + (1 - keep) * g2
+            self.scores[key] = keep * self.scores.get(key, 1.0) + (1 - keep) * g2
             if key not in gaps and self.scores[key] > 0.9 and key != self.room:
                 del self.scores[key]      # long forgotten (an old Bermuda room)
+                self.seen.pop(key, None)
         best = min(self.scores, key=self.scores.get)
-        if self.room not in self.scores or self.room not in gaps or \
-                self.scores[best] < self.scores[self.room] - ROOM_MARGIN:
+        if self.room not in self.scores or self.scores[best] < self.scores[self.room] - ROOM_MARGIN:
             if best != self.room:
                 self.pos = None
             self.room = best
