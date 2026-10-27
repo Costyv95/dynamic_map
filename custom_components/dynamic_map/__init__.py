@@ -109,6 +109,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
     manager = hass.data[DOMAIN]["position"] = PositionManager(hass)
     await manager.async_start()
     hass.async_create_task(discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config))
+    hass.async_create_task(discovery.async_load_platform(hass, "binary_sensor", DOMAIN, {}, config))
 
     if conf.get(CONF_VACUUM_MAPS, True):
         _serve_aligned_maps(hass, config, conf.get(CONF_VACUUM_MAP_ASPECT, 1.5) or None)
