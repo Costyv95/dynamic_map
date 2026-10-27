@@ -36,6 +36,7 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 
 from . import position_math as pm
+from . import radio_model as rm
 from . import spots as sp
 from .const import DATA_DIR, DOMAIN
 
@@ -93,6 +94,9 @@ class PositionManager:
         self.trackers: dict[str, Tracker] = {}
         self._rooms: dict = {}
         self._rooms_at = 0.0
+        self._placed: dict = {}          # {floor: placed proxies} from config_floorN.json
+        self._models: dict = {}          # {floor: rm.FloorModel}
+        self._model_key = None
         self._last_heard: dict[str, float] = {}     # device id -> wall-clock time last heard
         self._recording: set[str] = set()
         self._tracks: dict[str, pm.Track] = {}
@@ -144,8 +148,21 @@ class PositionManager:
     async def async_rooms(self, force=False):
         if force or time.monotonic() - self._rooms_at > ROOMS_TTL:
             self._rooms = await self.hass.async_add_executor_job(_read_rooms, self.hass.config.path(DATA_DIR))
+            self._placed = await self.hass.async_add_executor_job(rm.read_proxies, self.hass.config.path(DATA_DIR))
             self._rooms_at = time.monotonic()
         return self._rooms
+
+    async def async_models(self, rooms, spots):
+        """The radio maps, refitted when the rooms, placed proxies or spots change."""
+        key = json.dumps([rooms, self._placed, [fp["id"] for fp in spots]], sort_keys=True, default=str)
+        if key != self._model_key:
+            self._model_key = key
+            try:
+                self._models = await self.hass.async_add_executor_job(rm.build, rooms, self._placed, spots)
+            except Exception:  # noqa: BLE001 - a bad config must not stop positioning
+                _LOGGER.exception("Radio map fit failed; using fingerprints only")
+                self._models = {}
+        return self._models
 
     def area_names(self):
         return {a.id: a.name for a in ar.async_get(self.hass).async_list_areas()}
@@ -275,7 +292,9 @@ class PositionManager:
         offline = self.offline(tracker)
         live = sp.live_spots(self.fingerprints, rooms, pm.room_at)
         spots = pm.drop_scanners(live, offline)
-        pick = track.step(spots, reading, time.monotonic(), bermuda)
+        models = await self.async_models(rooms, live)
+        model = (lambda r: rm.house_gaps(models, r, offline)) if models else None
+        pick = track.step(spots, reading, time.monotonic(), bermuda, model, rm.refine if models else None)
         hit = None
         if pick:
             floor, room_id, hit = pick
@@ -296,7 +315,7 @@ class PositionManager:
             cx, cy = pm.polygon_centre(room.get("polygon") or [[50, 50]])
             return {**base, "x": cx, "y": cy, "source": "room", "confidence": 0.0,
                     "fingerprints": len(fps), "proxies": len(reading)}
-        return {**base, "x": hit["x"], "y": hit["y"], "source": "fingerprint",
+        return {**base, "x": hit["x"], "y": hit["y"], "source": "model" if hit.get("used") == 0 else "fingerprint",
                 "confidence": hit["confidence"], "fingerprints": len(fps), "proxies": len(reading)}
 
     # --- fingerprints ------------------------------------------------------
