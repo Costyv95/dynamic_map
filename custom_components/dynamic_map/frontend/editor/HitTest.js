@@ -65,7 +65,8 @@ export function describeTarget(target) {
             roomIdx: d.roomIdx !== undefined ? +d.roomIdx : undefined,
             vertexIdx: d.vertexIdx !== undefined ? +d.vertexIdx : undefined,
             edgeIdx: d.edgeIdx !== undefined ? +d.edgeIdx : undefined,
-            wallIdx: d.wallIdx !== undefined ? +d.wallIdx : undefined
+            wallIdx: d.wallIdx !== undefined ? +d.wallIdx : undefined,
+            proxyId: d.proxyId
         };
     }
     const sc = target.closest('.shortcut-group');

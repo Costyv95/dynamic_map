@@ -165,7 +165,24 @@ class DynamicMapFingerprintsView(DynamicMapView):
         for t in manager.trackers.values():
             entity_id = ent_reg.async_get_entity_id("sensor", DOMAIN, f"map_position_{t.device_id}")
             trackers.append({"entity_id": entity_id, "name": t.name, "proxies": len(t.distance_entities)})
-        return self.json({"success": True, "fingerprints": manager.public_fingerprints(), "trackers": trackers})
+        return self.json({"success": True, "fingerprints": manager.public_fingerprints(), "trackers": trackers,
+                          "proxies": self.proxies(manager, ent_reg)})
+
+    def proxies(self, manager, ent_reg):
+        """Every Bermuda proxy a tracked phone has a distance sensor for, for the editor's Proxies layer.
+
+        Keyed like the fingerprints' features (the proxy's MAC), named from
+        Bermuda's "Distance to <proxy>" sensor; online while any of them is.
+        """
+        out = {}
+        for t in manager.trackers.values():
+            for mac, entity_id in t.distance_entities.items():
+                entry = ent_reg.async_get(entity_id)
+                name = (entry.original_name or "").removeprefix("Distance to ").strip() if entry else ""
+                st = self.hass.states.get(entity_id)
+                p = out.setdefault(mac, {"id": mac, "name": name or mac, "online": False})
+                p["online"] = p["online"] or (st is not None and st.state != "unavailable")
+        return sorted(out.values(), key=lambda p: p["name"].lower())
 
 
 class DynamicMapPanelEntryView(DynamicMapView):

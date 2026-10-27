@@ -214,4 +214,10 @@ export class ApiManager {
     static async fetchEntities() {
         return await apiJson('/api/dynamic_map/entities');
     }
+
+    /** Bermuda's proxies [{id, name, online}], for the editor's Proxies layer. */
+    static async fetchProxies() {
+        const data = await apiJson('/api/dynamic_map/fingerprints');
+        return (data && data.proxies) || [];
+    }
 }

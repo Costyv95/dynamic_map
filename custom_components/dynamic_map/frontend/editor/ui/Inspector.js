@@ -2,6 +2,7 @@ import { el, clear, append } from './dom.js?v=3.2.1';
 import { renderRoomPanel, renderRoomsOverview } from './RoomPanel.js?v=3.2.1';
 import { renderShortcutPanel } from './ShortcutPanel.js?v=3.2.1';
 import { renderWallPanel } from './WallPanel.js?v=3.2.1';
+import { renderProxyPanel } from './ProxyPanel.js?v=3.2.1';
 import { renderLayerList } from './LayerList.js?v=3.2.1';
 import { renderMultiPanel } from './MultiPanel.js?v=3.2.1';
 import { isPhone } from '../EditorCanvas.js?v=3.2.1';
@@ -90,14 +91,14 @@ export class Inspector {
         if (state.activeLayer === 'walls') return state.selectedWallIdx !== -1 ? `Wall ${state.selectedWallIdx + 1}` : 'Walls';
         if (state.selectedRooms.length === 1) return state.rooms[state.selectedRooms[0]]?.name || 'Room';
         if (state.selectedRooms.length > 1) return `${state.selectedRooms.length} rooms`;
-        return { rooms: 'Rooms', objects: 'Objects', decor: 'Decor' }[state.activeLayer] || 'Inspector';
+        return { rooms: 'Rooms', objects: 'Objects', decor: 'Decor', proxies: 'Bluetooth proxies' }[state.activeLayer] || 'Inspector';
     }
 
     render() {
         const { state, app } = this;
         const ctx = app.ctx();
         // Keep the scroll position across re-renders of the same selection.
-        const key = `${state.activeLayer}:${state.selectedShortcutIdx}:${state.selectedRooms.join(',')}:${state.selectedWallIdx}`;
+        const key = `${state.activeLayer}:${state.selectedShortcutIdx}:${state.selectedRooms.join(',')}:${state.selectedWallIdx}:${state.selectedProxyId}`;
         const scroll = this.lastKey === key ? this.body.scrollTop : 0;
         this.lastKey = key;
         clear(this.body);
@@ -110,6 +111,8 @@ export class Inspector {
             content = renderShortcutPanel(ctx, state.shortcuts[state.selectedShortcutIdx]);
         } else if (state.activeLayer === 'walls') {
             content = renderWallPanel(ctx);
+        } else if (state.activeLayer === 'proxies') {
+            content = renderProxyPanel(ctx);
         } else if (state.activeLayer === 'rooms') {
             content = state.selectedRooms.length ? renderRoomPanel(ctx) : renderRoomsOverview(ctx);
         } else {
