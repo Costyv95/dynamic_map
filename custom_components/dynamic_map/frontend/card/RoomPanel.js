@@ -46,7 +46,8 @@ export function updateRoomPanel(host, hass) {
     const shown = [...ids.filter(id => !dead(id)), ...ids.filter(dead)].slice(0, max);   // live controls first
     const kinds = alertKinds(host.config);
     const alerts = kinds ? roomAlerts(hass, room, kinds, host) : [];
-    const onIds = shown.filter(id => describeEntity(hass, id).kind === 'toggle' && hass.states[id].state === 'on');
+    // All off covers every light in the room, not only the rows shown (#1743).
+    const onIds = ids.filter(id => describeEntity(hass, id).kind === 'toggle' && hass.states[id].state === 'on');
     const tempId = roomTemperatureEntity(host, hass, room);
     const trend = document.createElement('div');
     trend.className = 'dm-rp-trend';

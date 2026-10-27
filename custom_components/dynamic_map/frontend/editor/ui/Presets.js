@@ -15,7 +15,7 @@ const PRESETS = {
             { id: uid('st'), name: 'Error', state_entity: entity, operator: '==', value: 'error', color: '#ef4444', icon: '⚠️', image: `${DEFAULT_DATA_BASE}/icons/vacuum_error.svg` }
         ],
         actions: [
-            { id: uid('act'), type: 'VACUUM_ROOMS', trigger: 'overlay', action_entity: entity },
+            { id: uid('act'), type: 'ROOM_SELECTOR', trigger: 'overlay', action_entity: entity },
             { id: uid('act'), type: 'CALL_SERVICE', trigger: 'overlay', action_entity: entity, service: 'vacuum.return_to_base', name: 'Return to Dock', icon: '🏠' },
             { id: uid('act'), type: 'CALL_SERVICE', trigger: 'overlay', action_entity: entity, service: 'vacuum.start', name: 'Clean House', icon: '🧹' }
         ]
@@ -42,7 +42,7 @@ const PRESETS = {
                 { id: uid('st'), name: 'Humidity Wet', state_entity: h, operator: '>', value: '60', color: '#3b82f6', icon: '🌧️' }
             ],
             actions: [
-                { id: uid('act'), type: 'TOGGLE', trigger: 'tap', action_entity: entity },
+                // No tap action: a tap cycles the readings (#1743).
                 { id: uid('act'), type: 'SENSOR_OVERLAY', trigger: 'long_press', action_entity: entity }
             ]
         };

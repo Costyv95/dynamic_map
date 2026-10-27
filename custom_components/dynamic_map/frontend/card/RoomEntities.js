@@ -83,7 +83,7 @@ function describeLive(hass, id) {
     }
     if (domain === 'cover') return { id, name, icon, kind: 'cover', value: s, on: s === 'open' || s === 'opening' };
     if (domain === 'lock') return { id, name, icon, kind: 'lock', value: s, on: s === 'unlocked' };
-    if (domain === 'climate') return { id, name, icon, kind: 'climate', value: a.temperature !== undefined ? `${a.temperature}°` : s, current: a.current_temperature, on: s !== 'off', target: a.temperature, step: a.target_temp_step || 0.5 };
+    if (domain === 'climate') return { id, name, icon, kind: 'climate', value: a.temperature != null ? `${a.temperature}°` : s, current: a.current_temperature, on: s !== 'off', target: a.temperature ?? null, step: a.target_temp_step || 0.5, min: a.min_temp, max: a.max_temp };
     if (domain === 'media_player') return { id, name, icon, kind: 'media', value: s === 'playing' ? (a.media_title || 'Playing') : s, on: s === 'playing' };
     if (domain === 'vacuum') return { id, name, icon, kind: 'vacuum', value: s, on: s === 'cleaning' };
     if (domain === 'binary_sensor') return { id, name, icon, kind: 'binary', value: s === 'on' ? (BINARY_ON[cls] || 'On') : (BINARY_OFF[cls] || 'Off'), on: s === 'on' };
@@ -107,8 +107,11 @@ export function controlCall(desc, action = 'primary', value) {
         case 'media': return { domain: 'media_player', service: 'media_play_pause', data };
         case 'vacuum': return { domain: 'vacuum', service: desc.on ? 'return_to_base' : 'start', data };
         case 'climate': {
-            if (action === 'up' || action === 'down') {
-                const t = (desc.target ?? 20) + (action === 'up' ? desc.step : -desc.step);
+            // No single target (heat_cool, off): nothing to step (#1743). Stay in min..max.
+            if ((action === 'up' || action === 'down') && desc.target != null) {
+                let t = desc.target + (action === 'up' ? desc.step : -desc.step);
+                if (Number.isFinite(desc.max)) t = Math.min(t, desc.max);
+                if (Number.isFinite(desc.min)) t = Math.max(t, desc.min);
                 return { domain: 'climate', service: 'set_temperature', data: { ...data, temperature: Math.round(t * 10) / 10 } };
             }
             return null;

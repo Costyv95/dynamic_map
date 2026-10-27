@@ -49,7 +49,10 @@ async function boot() {
 describe('editor boot through the real entry point', () => {
     let app;
     beforeEach(async () => { app = await boot(); });
-    afterEach(() => { app.hassBridge.stop(); vi.restoreAllMocks(); });
+    // A test that leaves the floor dirty leaves a 400 ms draft timer behind; on a
+    // loaded host it fired after the next test's localStorage.clear() and the next
+    // floor load waited forever on "Restore unsaved edits?" (30 s timeouts).
+    afterEach(() => { clearTimeout(app._draftTimer); app.hassBridge.stop(); vi.restoreAllMocks(); });
 
     it('mounts the card scene: rooms, walls, decor and badges land in the SVG', () => {
         const svg = document.querySelector('svg.dm-editor-svg');
