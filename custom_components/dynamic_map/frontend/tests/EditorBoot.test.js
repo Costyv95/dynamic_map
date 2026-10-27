@@ -188,6 +188,16 @@ describe('editor boot through the real entry point', () => {
         expect(app.dirty.dirty).toBe(true);
     });
 
+    it('a second save while one is in flight is ignored (held Ctrl+S, #1739)', async () => {
+        let n = 0;
+        saveOk(() => { n++; });
+        app.ui.toast = vi.fn();
+        await Promise.all([app.saveWithFeedback(), app.saveWithFeedback()]);
+        const perSave = n;
+        await app.saveWithFeedback();
+        expect(n).toBe(perSave * 2);   // the parallel pair counted once; the next save runs again
+    });
+
     it('a plain save clears the draft and the dirty flag', async () => {
         app.state.shortcuts[0].position = [70, 70];
         app.state.saveState();
