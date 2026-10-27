@@ -10,6 +10,8 @@ import { MapGeometry } from '../shared/MapGeometry.js?v=3.2.1';
  * (map %): the dot then sits on that spot, and only on that floor.
  */
 
+// Same set, order and floor rule as position_math.room_for_area; both suites
+// run tests/fixtures/area_room_cases.json (#1708).
 const NOWHERE = ['', 'unknown', 'unavailable', 'not_home', 'away', 'none', 'off'];
 const PALETTE = ['#f472b6', '#38bdf8', '#a3e635', '#fb923c'];
 
@@ -50,14 +52,34 @@ export function buildPresenceLayer(host) {
     if (host._hass) updatePresence(host, host._hass);
 }
 
-/** Find the room an entity's state names, or null. */
+/**
+ * Find the room an entity's state names on these rooms (one floor), or null:
+ * HA area id first, then room name, then HA area name. A raw area sensor
+ * carries no floor, so the card matches on the floor it shows; the backend
+ * takes the first floor in number order with a match.
+ */
 export function roomForState(rooms, state, areas) {
     const s = state ? String(state).trim().toLowerCase() : '';
     if (NOWHERE.includes(s)) return null;
-    return rooms.find(rm => (rm.name || '').trim().toLowerCase() === s)
-        || rooms.find(rm => rm.area_id && String(rm.area_id).toLowerCase() === s)
+    return rooms.find(rm => rm.area_id && String(rm.area_id).toLowerCase() === s)
+        || rooms.find(rm => (rm.name || '').trim().toLowerCase() === s)
         || rooms.find(rm => rm.area_id && ((areas || {})[rm.area_id]?.name || '').trim().toLowerCase() === s)
         || null;
+}
+
+/**
+ * The room for a presence state. A dynamic_map position sensor has already
+ * resolved floor + room_id in the backend: use that, so card and sensor
+ * agree; anything else (a Bermuda area sensor) goes through roomForState.
+ * Returns undefined when the resolved room is on another floor.
+ */
+export function roomForPresence(rooms, st, areas, activeFloor) {
+    const a = st && st.attributes;
+    if (a && a.room_id && a.floor !== undefined && a.floor !== null) {
+        if (String(a.floor) !== String(activeFloor)) return undefined;
+        return rooms.find(rm => rm.id === a.room_id) || null;
+    }
+    return roomForState(rooms, st ? st.state : '', areas);
 }
 
 export function updatePresence(host, hass) {
@@ -71,7 +93,7 @@ export function updatePresence(host, hass) {
             else hide(dot);
             return;
         }
-        const room = roomForState(host.rooms, st ? st.state : '', hass.areas);
+        const room = roomForPresence(host.rooms, st, hass.areas, host.activeFloor);
         if (!room) {
             hide(dot);
             return;

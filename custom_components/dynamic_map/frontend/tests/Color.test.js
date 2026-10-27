@@ -35,3 +35,15 @@ describe('Color helpers', () => {
         expect(isTransparentFill('#fff')).toBe(false);
     });
 });
+
+describe('parseColor / contrastText short and rgba forms (#1708)', () => {
+    it('reads #rgb, rgb(r g b) and rgba()', () => {
+        expect(parseColor('#fff')).toEqual([255, 255, 255]);
+        expect(parseColor('rgb(1 2 3)')).toEqual([1, 2, 3]);
+        expect(parseColor('rgba(1,2,3,0.5)')).toEqual([1, 2, 3]);
+    });
+    it('gives dark text on a #fff or light rgba background', () => {
+        expect(contrastText('#fff')).toBe('#1e293b');
+        expect(contrastText('rgba(240, 240, 240, 0.9)')).toBe('#1e293b');
+    });
+});

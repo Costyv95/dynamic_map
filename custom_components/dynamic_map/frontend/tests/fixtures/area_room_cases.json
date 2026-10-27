@@ -1,0 +1,33 @@
+{
+  "_doc": "Bermuda area -> room cases for position_math.room_for_area (pytest) and PresenceLayer.roomForState (vitest), #1708. expect = [floor, room id] or null.",
+  "area_names": {"living_room": "Living Room", "office": "Study", "hallway": "Hallway"},
+  "rooms_by_floor": {
+    "1": [{"id": "f1_hall", "name": "Hallway", "area_id": "entrance"}],
+    "2": [
+      {"id": "f2_den", "name": "living_room"},
+      {"id": "f2_living", "name": "Lounge", "area_id": "living_room"},
+      {"id": "f2_office", "name": "Office", "area_id": "office"},
+      {"id": "f2_hall", "name": "Upper hall", "area_id": "hallway"}
+    ],
+    "3": [{"id": "f3_office", "name": "Office"}]
+  },
+  "cases": [
+    {"state": "living_room", "expect": [2, "f2_living"]},
+    {"state": "Living Room", "expect": [2, "f2_living"]},
+    {"state": " LOUNGE ", "expect": [2, "f2_living"]},
+    {"state": "Study", "expect": [2, "f2_office"]},
+    {"state": "office", "expect": [2, "f2_office"]},
+    {"state": "Office", "expect": [2, "f2_office"]},
+    {"state": "hallway", "expect": [2, "f2_hall"]},
+    {"state": "Hallway", "expect": [2, "f2_hall"]},
+    {"state": "entrance", "expect": [1, "f1_hall"]},
+    {"state": "Garage", "expect": null},
+    {"state": "unknown", "expect": null},
+    {"state": "unavailable", "expect": null},
+    {"state": "not_home", "expect": null},
+    {"state": "away", "expect": null},
+    {"state": "none", "expect": null},
+    {"state": "off", "expect": null},
+    {"state": "", "expect": null}
+  ]
+}

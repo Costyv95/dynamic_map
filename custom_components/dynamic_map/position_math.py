@@ -264,10 +264,18 @@ def room_at(rooms_by_floor, floor, x, y):
     return None
 
 
+NOWHERE = ("unknown", "unavailable", "not_home", "away", "none", "off")
+
+
 def room_for_area(rooms_by_floor, area, area_names=None):
-    """(floor, room) for a Bermuda area: matched by area id, room name or area name."""
+    """(floor, room) for a Bermuda area: matched by area id, room name or area name.
+
+    Each rule is tried on every floor in number order before the next rule.
+    The card's PresenceLayer.roomForState uses the same order and NOWHERE set;
+    both suites run frontend/tests/fixtures/area_room_cases.json (#1708).
+    """
     s = (area or "").strip().lower()
-    if not s or s in ("unknown", "unavailable", "not_home", "away", "none"):
+    if not s or s in NOWHERE:
         return None, None
     names = {k: (v or "").strip().lower() for k, v in (area_names or {}).items()}
     for match in (

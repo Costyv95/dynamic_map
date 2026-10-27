@@ -3,6 +3,7 @@
 HA-free; loaded by path like test_storage.py. Run with: python -m pytest tests/
 """
 import importlib.util
+import json
 import os
 
 import pytest
@@ -184,3 +185,17 @@ class TestRooms:
 
     def test_centre_of_a_square(self):
         assert pm.polygon_centre([[0, 0], [10, 0], [10, 10], [0, 10]]) == [5.0, 5.0]
+
+
+def test_room_for_area_shared_cases():
+    """Same fixture as frontend/tests/AreaRoomCases.test.js (#1708)."""
+    fx_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "custom_components", "dynamic_map", "frontend", "tests", "fixtures",
+                           "area_room_cases.json")
+    with open(fx_path, encoding="utf-8") as fh:
+        fx = json.load(fh)
+    rooms = {int(f): rs for f, rs in fx["rooms_by_floor"].items()}
+    for case in fx["cases"]:
+        floor, room = pm.room_for_area(rooms, case["state"], fx["area_names"])
+        got = [floor, room["id"]] if room else None
+        assert got == case["expect"], case["state"]
