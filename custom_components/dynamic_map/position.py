@@ -16,19 +16,14 @@ to tracked phones (they also name the proxies). Fingerprints live in HA's privat
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
 import re
 import time
 
-import voluptuous as vol
-
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse, callback
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import area_registry as ar
-from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
@@ -36,7 +31,9 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 
 from . import position_math as pm
+from . import radio_model as rm
 from . import spots as sp
+from .position_services import SIGNAL_FINGERPRINTS, FingerprintServices  # noqa: F401 - re-exported
 from .const import DATA_DIR, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,7 +41,6 @@ _LOGGER = logging.getLogger(__name__)
 STORE_KEY = f"{DOMAIN}.fingerprints"
 STORE_VERSION = 1
 SIGNAL_TRACKERS = f"{DOMAIN}_position_trackers"
-SIGNAL_FINGERPRINTS = f"{DOMAIN}_position_fingerprints"
 SIGNAL_LIVE = f"{DOMAIN}_position_live"       # Bermuda finished a refresh cycle (~1 s)
 ROOMS_RE = re.compile(r"^rooms_floor(\d+)\.json$")
 ROOMS_TTL = 60
@@ -83,7 +79,7 @@ class Tracker:
         return [self.area_entity, *self.distance_entities.values()]
 
 
-class PositionManager:
+class PositionManager(FingerprintServices):
     """Trackers, fingerprints, rooms and the services that edit them."""
 
     def __init__(self, hass: HomeAssistant):
@@ -93,6 +89,9 @@ class PositionManager:
         self.trackers: dict[str, Tracker] = {}
         self._rooms: dict = {}
         self._rooms_at = 0.0
+        self._placed: dict = {}          # {floor: placed proxies} from config_floorN.json
+        self._models: dict = {}          # {floor: rm.FloorModel}
+        self._model_key = None
         self._last_heard: dict[str, float] = {}     # device id -> wall-clock time last heard
         self._recording: set[str] = set()
         self._tracks: dict[str, pm.Track] = {}
@@ -144,8 +143,21 @@ class PositionManager:
     async def async_rooms(self, force=False):
         if force or time.monotonic() - self._rooms_at > ROOMS_TTL:
             self._rooms = await self.hass.async_add_executor_job(_read_rooms, self.hass.config.path(DATA_DIR))
+            self._placed = await self.hass.async_add_executor_job(rm.read_proxies, self.hass.config.path(DATA_DIR))
             self._rooms_at = time.monotonic()
         return self._rooms
+
+    async def async_models(self, rooms, spots):
+        """The radio maps, refitted when the rooms, placed proxies or spots change."""
+        key = json.dumps([rooms, self._placed, [fp["id"] for fp in spots]], sort_keys=True, default=str)
+        if key != self._model_key:
+            self._model_key = key
+            try:
+                self._models = await self.hass.async_add_executor_job(rm.build, rooms, self._placed, spots)
+            except Exception:  # noqa: BLE001 - a bad config must not stop positioning
+                _LOGGER.exception("Radio map fit failed; using fingerprints only")
+                self._models = {}
+        return self._models
 
     def area_names(self):
         return {a.id: a.name for a in ar.async_get(self.hass).async_list_areas()}
@@ -275,7 +287,9 @@ class PositionManager:
         offline = self.offline(tracker)
         live = sp.live_spots(self.fingerprints, rooms, pm.room_at)
         spots = pm.drop_scanners(live, offline)
-        pick = track.step(spots, reading, time.monotonic(), bermuda)
+        models = await self.async_models(rooms, live)
+        model = (lambda r: rm.house_gaps(models, r, offline)) if models else None
+        pick = track.step(spots, reading, time.monotonic(), bermuda, model, rm.refine if models else None)
         hit = None
         if pick:
             floor, room_id, hit = pick
@@ -296,91 +310,5 @@ class PositionManager:
             cx, cy = pm.polygon_centre(room.get("polygon") or [[50, 50]])
             return {**base, "x": cx, "y": cy, "source": "room", "confidence": 0.0,
                     "fingerprints": len(fps), "proxies": len(reading)}
-        return {**base, "x": hit["x"], "y": hit["y"], "source": "fingerprint",
+        return {**base, "x": hit["x"], "y": hit["y"], "source": "model" if hit.get("used") == 0 else "fingerprint",
                 "confidence": hit["confidence"], "fingerprints": len(fps), "proxies": len(reading)}
-
-    # --- fingerprints ------------------------------------------------------
-
-    async def _save(self):
-        await self.store.async_save({"fingerprints": self.fingerprints})
-        async_dispatcher_send(self.hass, SIGNAL_FINGERPRINTS)
-
-    def tracker_for(self, entity_id: str) -> Tracker | None:
-        """A tracker by its map-position sensor, its Bermuda area sensor or its device id."""
-        ent_reg = er.async_get(self.hass)
-        entry = ent_reg.async_get(entity_id) if entity_id else None
-        if entry and entry.platform == DOMAIN and entry.unique_id.startswith("map_position_"):
-            return self.trackers.get(entry.unique_id[len("map_position_"):])
-        for t in self.trackers.values():
-            if entity_id in (t.area_entity, t.device_id):
-                return t
-        return None
-
-    async def async_record(self, call: ServiceCall):
-        tracker = self.tracker_for(call.data["entity_id"])
-        if tracker is None:
-            raise HomeAssistantError(f"{call.data['entity_id']} is not a tracked phone")
-        floor, x, y = call.data["floor"], call.data["x"], call.data["y"]
-        rooms = await self.async_rooms(force=True)
-        room = pm.room_at(rooms, floor, x, y)
-        if room is None:
-            raise HomeAssistantError(f"({x}, {y}) on floor {floor} is not inside a room")
-        if not tracker.distance_entities:
-            # No proxy sensors found for it: a spot would record silence, not a place (#1740).
-            raise HomeAssistantError(f"No Bermuda proxy distances for {tracker.name}")
-        if tracker.device_id in self._recording:
-            raise HomeAssistantError(f"Already recording {tracker.name}")
-        self._recording.add(tracker.device_id)
-        try:
-            samples = []
-            for _ in range(int(call.data["seconds"])):
-                samples.append(self.reading(tracker))
-                await asyncio.sleep(1)
-        finally:
-            self._recording.discard(tracker.device_id)
-        # No proxy hearing the phone is a fingerprint too: silence on a floor without proxies.
-        fp = sp.new_spot(tracker.device_id, tracker.name, floor, x, y, room, samples, pm.median_reading(samples))
-        self.fingerprints.append(fp)
-        await self._save()
-        return {"id": fp["id"], "room": fp["room"], "samples": fp["samples"], "proxies": len(fp["features"])}
-
-    async def async_delete(self, call: ServiceCall):
-        before = len(self.fingerprints)
-        self.fingerprints = [fp for fp in self.fingerprints if fp["id"] != call.data["id"]]
-        await self._save()
-        return {"deleted": before - len(self.fingerprints)}
-
-    async def async_clear(self, call: ServiceCall):
-        floor, room = call.data.get("floor"), call.data.get("room_id")
-        before = len(self.fingerprints)
-        self.fingerprints = [
-            fp for fp in self.fingerprints
-            if not ((floor is None or fp["floor"] == floor) and (room is None or fp["room_id"] == room))
-        ]
-        await self._save()
-        return {"deleted": before - len(self.fingerprints)}
-
-    def public_fingerprints(self):
-        """What the card draws: spots, never the raw readings."""
-        return [
-            {k: fp[k] for k in ("id", "name", "floor", "x", "y", "room", "samples", "recorded_at")}
-            | {"proxies": len(fp["features"])}
-            for fp in self.fingerprints
-        ]
-
-    def _register_services(self):
-        reg = self.hass.services.async_register
-        reg(DOMAIN, "record_fingerprint", self.async_record, vol.Schema({
-            vol.Required("entity_id"): cv.string,
-            vol.Required("floor"): vol.Coerce(int),
-            vol.Required("x"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
-            vol.Required("y"): vol.All(vol.Coerce(float), vol.Range(min=0, max=100)),
-            vol.Optional("seconds", default=20): vol.All(vol.Coerce(int), vol.Range(min=3, max=60)),
-        }), supports_response=SupportsResponse.OPTIONAL)
-        reg(DOMAIN, "delete_fingerprint", self.async_delete, vol.Schema({
-            vol.Required("id"): cv.string,
-        }), supports_response=SupportsResponse.OPTIONAL)
-        reg(DOMAIN, "clear_fingerprints", self.async_clear, vol.Schema({
-            vol.Optional("floor"): vol.Coerce(int),
-            vol.Optional("room_id"): cv.string,
-        }), supports_response=SupportsResponse.OPTIONAL)

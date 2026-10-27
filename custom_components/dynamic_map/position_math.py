@@ -18,8 +18,8 @@ Distances are compared on a log scale: a proxy reading 1 m vs 2 m is as
 telling as 5 m vs 10 m, and log distance is linear in RSSI. A proxy that
 does not hear the phone counts as FAR away, so "not heard" is information
 too. The best-matching spots over the whole house pick the floor and room
-(room_gaps), with Bermuda's room only as the fallback. HA-free so
-it can be unit-tested outside Home Assistant.
+(room_gaps), with Bermuda's room only as the fallback, and where proxies
+are placed the radio map's room gaps compete too (radio_model). HA-free.
 """
 import math
 import statistics
@@ -167,7 +167,8 @@ class Track:
         self.stamp = None
         self.last = None         # the last step's result, held while the phone is unheard
 
-    def step(self, fingerprints, reading, now, bermuda_room=None):
+    def step(self, fingerprints, reading, now, bermuda_room=None, model=None, refine=None):
+        """model(live) -> {(floor, room_id): (gap, [x, y])}, the proxies' radio map (radio_model)."""
         if not reading:
             # No proxy hears the phone: it's locked and quiet, or out of the
             # house. Either way nothing new is known, so it stays where it was
@@ -182,6 +183,8 @@ class Track:
         live = pooled(self.history, now)
 
         gaps = room_gaps(fingerprints, live, bermuda_room)
+        modelled = model(live) if model else {}
+        gaps.update({key: min(gaps.get(key, math.inf), g) for key, (g, _) in modelled.items()})
         if not gaps:
             self.room = self.pos = None
             return self.last
@@ -207,6 +210,7 @@ class Track:
         floor, room_id = self.room
         spots = [fp for fp in fingerprints if fp["floor"] == floor and fp["room_id"] == room_id]
         hit = estimate(spots, live)
+        hit = refine(hit, modelled.get(self.room)) if refine else hit
         if hit is None:
             self.pos = None
             self.last = (floor, room_id, None)
