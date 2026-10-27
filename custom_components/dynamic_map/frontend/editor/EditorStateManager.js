@@ -60,6 +60,8 @@ export class EditorStateManager {
             this.selectedWallIdx = -1;
             if(this.updateUICallback) this.updateUICallback();
             if(this.requestDrawCallback) this.requestDrawCallback();
+            // An undo/redo after a save is an unsaved change too (#1738).
+            if (this.onRevision) this.onRevision();
         }
     }
 
@@ -73,6 +75,8 @@ export class EditorStateManager {
             this.selectedWallIdx = -1;
             if(this.updateUICallback) this.updateUICallback();
             if(this.requestDrawCallback) this.requestDrawCallback();
+            // An undo/redo after a save is an unsaved change too (#1738).
+            if (this.onRevision) this.onRevision();
         }
     }
 

@@ -79,9 +79,12 @@ export class EditorApp {
     }
 
     async save(extra = {}) {
-        await ApiManager.saveToHA(this.state.activeFloor, this.state.rooms, this.state.shortcuts, this.floorConfig(extra));
-        this.dirty.markSaved();
-        clearDraft(this.state.activeFloor);
+        // Edits made while the request is in flight are not in it: only the
+        // revision captured here counts as saved, and their draft stays (#1738).
+        const floor = this.state.activeFloor, rev = this.dirty.revision;
+        await ApiManager.saveToHA(floor, this.state.rooms, this.state.shortcuts, this.floorConfig(extra));
+        this.dirty.markSaved(rev);
+        if (!this.dirty.dirty) clearDraft(floor);
     }
 
     async saveWithFeedback() {
