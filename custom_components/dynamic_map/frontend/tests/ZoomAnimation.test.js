@@ -38,9 +38,11 @@ describe('room zoom animation', () => {
     it('a manual pan settles a running zoom at its interpolated position', () => {
         const svg = fakeSvg();
         const host = { svg, vb: { x: 0, y: 0, w: 1000, h: 500 }, updateViewBox: vi.fn() };
+        const now = vi.spyOn(performance, 'now').mockReturnValue(1000);  // a fixed clock: a loaded CI box can't drift it
         animateViewBox(host, { x: 250, y: 100, w: 500, h: 250 }, 300);
-        host._vbAnim.start -= 150;                                     // half-way through
+        now.mockReturnValue(1150);                                      // half-way through
         settleViewBox(host);
+        now.mockRestore();
         expect(host._vbAnim).toBeNull();
         expect(Math.abs(host.vb.w - 750)).toBeLessThan(25);             // eased midpoint of 1000..500
         expect(svg.anims[0].cancel).toHaveBeenCalled();
