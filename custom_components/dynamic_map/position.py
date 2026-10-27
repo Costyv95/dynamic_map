@@ -22,7 +22,6 @@ import logging
 import os
 import re
 import time
-import uuid
 
 import voluptuous as vol
 
@@ -37,6 +36,7 @@ from homeassistant.helpers.start import async_at_started
 from homeassistant.helpers.storage import Store
 
 from . import position_math as pm
+from . import spots as sp
 from .const import DATA_DIR, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -46,7 +46,6 @@ STORE_VERSION = 1
 SIGNAL_TRACKERS = f"{DOMAIN}_position_trackers"
 SIGNAL_FINGERPRINTS = f"{DOMAIN}_position_fingerprints"
 SIGNAL_LIVE = f"{DOMAIN}_position_live"       # Bermuda finished a refresh cycle (~1 s)
-MAC_RE = re.compile(r"([0-9a-f]{2}(?::[0-9a-f]{2}){5})", re.I)
 ROOMS_RE = re.compile(r"^rooms_floor(\d+)\.json$")
 ROOMS_TTL = 60
 
@@ -171,10 +170,10 @@ class PositionManager:
             for e in entries:
                 if not (e.original_name or "").startswith("Distance to "):
                     continue
-                m = MAC_RE.search(e.unique_id or "")
-                if not m:
+                mac = sp.proxy_mac(e.unique_id)
+                if not mac:
                     continue
-                distances[m.group(1).lower()] = e.entity_id
+                distances[mac] = e.entity_id
                 if e.disabled_by == er.RegistryEntryDisabler.INTEGRATION:
                     ent_reg.async_update_entity(e.entity_id, disabled_by=None)
                     _LOGGER.info("Dynamic Map: enabled %s for map positions", e.entity_id)
@@ -274,7 +273,8 @@ class PositionManager:
         track = self._tracks.setdefault(tracker.device_id, pm.Track())
         bermuda = (b_floor, b_room.get("id")) if b_room else None
         offline = self.offline(tracker)
-        spots = pm.drop_scanners(self.fingerprints, offline)
+        live = sp.live_spots(self.fingerprints, rooms, pm.room_at)
+        spots = pm.drop_scanners(live, offline)
         pick = track.step(spots, reading, time.monotonic(), bermuda)
         hit = None
         if pick:
@@ -291,7 +291,7 @@ class PositionManager:
                 "area": st.state if st else None, "area_id": room.get("area_id"),
                 "heard": bool(reading), "last_heard": int(heard) if heard else None,
                 "proxies_offline": len(offline)}
-        fps = [fp for fp in self.fingerprints if fp["floor"] == floor and fp["room_id"] == room.get("id")]
+        fps = [fp for fp in live if fp["floor"] == floor and fp["room_id"] == room.get("id")]
         if hit is None:
             cx, cy = pm.polygon_centre(room.get("polygon") or [[50, 50]])
             return {**base, "x": cx, "y": cy, "source": "room", "confidence": 0.0,
@@ -325,6 +325,9 @@ class PositionManager:
         room = pm.room_at(rooms, floor, x, y)
         if room is None:
             raise HomeAssistantError(f"({x}, {y}) on floor {floor} is not inside a room")
+        if not tracker.distance_entities:
+            # No proxy sensors found for it: a spot would record silence, not a place (#1740).
+            raise HomeAssistantError(f"No Bermuda proxy distances for {tracker.name}")
         if tracker.device_id in self._recording:
             raise HomeAssistantError(f"Already recording {tracker.name}")
         self._recording.add(tracker.device_id)
@@ -336,17 +339,10 @@ class PositionManager:
         finally:
             self._recording.discard(tracker.device_id)
         # No proxy hearing the phone is a fingerprint too: silence on a floor without proxies.
-        features = pm.median_reading(samples)
-        fp = {
-            "id": uuid.uuid4().hex[:12], "tracker": tracker.device_id, "name": tracker.name,
-            "floor": floor, "x": round(x, 2), "y": round(y, 2),
-            "room_id": room.get("id"), "room": room.get("name"),
-            "features": features, "samples": len(samples), "recorded_at": int(time.time()),
-            "raw": samples,     # every second's reading, to learn each spot's spread later
-        }
+        fp = sp.new_spot(tracker.device_id, tracker.name, floor, x, y, room, samples, pm.median_reading(samples))
         self.fingerprints.append(fp)
         await self._save()
-        return {"id": fp["id"], "room": fp["room"], "samples": fp["samples"], "proxies": len(features)}
+        return {"id": fp["id"], "room": fp["room"], "samples": fp["samples"], "proxies": len(fp["features"])}
 
     async def async_delete(self, call: ServiceCall):
         before = len(self.fingerprints)
