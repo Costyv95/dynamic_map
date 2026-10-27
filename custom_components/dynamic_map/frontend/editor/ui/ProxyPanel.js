@@ -30,7 +30,8 @@ export function renderProxyPanel(ctx) {
     return [
         el('div.dm-help', {},
             el('p', {}, 'Mark where each Bluetooth proxy physically sits. Room positioning uses these spots together with what the proxies hear.'),
-            el('p', {}, el('b', {}, 'Place: '), 'press Place, then tap the exact spot on the map. Drag a marker to fine-tune it. Save when done.'),
+            el('p', {}, 'Faded markers are proxies not placed yet, shown in the middle of their room: drag each to its exact spot (or tap it to keep it there), then Save.'),
+            el('p', {}, el('b', {}, 'Place: '), 'or press Place, then tap the exact spot on the map. Drag a marker to fine-tune it.'),
             el('p', {}, 'Place each proxy on the floor where it is; a proxy on another floor stays listed here as "not placed".')),
         section('Proxies', items.length ? el('div.dm-list', {}, items)
             : el('div.dm-empty', {}, 'No proxies found. Bermuda lists a proxy once a tracked phone has a distance sensor for it.'),
