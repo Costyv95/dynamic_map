@@ -19,6 +19,7 @@ from .const import (
     CONF_ANTHROPIC_API_KEY,
     CONF_SIDECAR_URL,
     CONF_TEXTURE_MODEL,
+    CONF_TEXTURE_SIDECAR_TOKEN,
     CONF_TEXTURE_SIDECAR_URL,
     CONF_VACUUM_MAP_ASPECT,
     CONF_VACUUM_MAPS,
@@ -41,6 +42,7 @@ CONFIG_SCHEMA = vol.Schema(
                 vol.Optional(CONF_ANTHROPIC_API_KEY): cv.string,
                 vol.Optional(CONF_TEXTURE_MODEL): cv.string,
                 vol.Optional(CONF_TEXTURE_SIDECAR_URL): cv.url,
+                vol.Optional(CONF_TEXTURE_SIDECAR_TOKEN): cv.string,
                 vol.Optional(CONF_VACUUM_MAPS): cv.boolean,
                 vol.Optional(CONF_VACUUM_MAP_ASPECT): vol.Any(
                     vol.All(vol.Coerce(float), vol.Range(min=0.2, max=5)), False
@@ -62,6 +64,7 @@ async def async_setup(hass: HomeAssistant, config: dict):
         CONF_ANTHROPIC_API_KEY: conf.get(CONF_ANTHROPIC_API_KEY),
         CONF_TEXTURE_MODEL: conf.get(CONF_TEXTURE_MODEL),
         CONF_TEXTURE_SIDECAR_URL: conf.get(CONF_TEXTURE_SIDECAR_URL),
+        CONF_TEXTURE_SIDECAR_TOKEN: conf.get(CONF_TEXTURE_SIDECAR_TOKEN),
     }
 
     for view_cls in ALL_VIEWS:

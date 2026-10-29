@@ -52,6 +52,7 @@ dynamic_map:
   #  - a claude-agent service (headless Claude Code on your subscription,
   #    see https://github.com/Costyv95/home_net claude-agent/):
   # texture_sidecar_url: http://192.168.1.202:8098
+  # texture_sidecar_token: !secret claude_agent_token   # claude-agent bearer token
   #  - or the paid Anthropic API. ALWAYS reference a !secret for the key:
   # anthropic_api_key: !secret anthropic_api_key
   # texture_model: claude-opus-4-8

@@ -109,3 +109,12 @@ class TestPromptAndBody:
             {"type": "text", "text": "></svg>"},
         ]}
         assert texture_gen.response_text(body) == "<svg></svg>"
+
+
+class TestAgentHeaders:
+    def test_bearer_when_token_set(self):
+        assert texture_gen.agent_headers("abc") == {"Authorization": "Bearer abc"}
+
+    def test_no_header_without_token(self):
+        assert texture_gen.agent_headers(None) == {}
+        assert texture_gen.agent_headers("") == {}
