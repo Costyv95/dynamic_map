@@ -94,7 +94,7 @@ describe('TemplateEvaluator', () => {
         } finally {
             globalThis.Function = fn;
         }
-        for (const bad of ["{alert(1)}", "{this}", "{constructor.constructor('x')()}", "{states.constructor}", "{x = 1}", "{window}", "{states('a')[0]}"]) {
+        for (const bad of ["{alert(1)}", "{this}", "{constructor.constructor('x')()}", "{states.constructor}", "{x = 1}", "{window}", "{states('a')[0]}", "{constructor}", "{toString}", "{__proto__}", "{Math.constructor(1)}", "{Math.toString()}"]) {
             expect(evaluateTemplate(bad, mockHass)).toBe('');
         }
     });

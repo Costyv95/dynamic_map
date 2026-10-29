@@ -9,8 +9,8 @@
  * Anything else (other names, property access, assignments) is a syntax error.
  */
 const TOKEN = /\s*(?:(\d+(?:\.\d+)?(?:[eE][-+]?\d+)?|\.\d+)|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|([A-Za-z_][A-Za-z0-9_]*)|(===|!==|==|!=|<=|>=|&&|\|\||\?\?|[-+*/%<>!?:(),.]))/y;
-const MATH = { round: Math.round, floor: Math.floor, ceil: Math.ceil, abs: Math.abs, min: Math.min, max: Math.max };
-const LITERALS = { true: true, false: false, null: null };
+const MATH = { __proto__: null, round: Math.round, floor: Math.floor, ceil: Math.ceil, abs: Math.abs, min: Math.min, max: Math.max };
+const LITERALS = { __proto__: null, true: true, false: false, null: null };
 const BINARY = [
     ['??', '||'], ['&&'], ['==', '!=', '===', '!=='], ['<', '<=', '>', '>='], ['+', '-'], ['*', '/', '%'],
 ];
