@@ -1,8 +1,23 @@
 /**
  * TemplateEvaluator.js
- * High-performance client-side dynamic JS template evaluation engine.
- * Safely parses and evaluates expressions wrapped in {...} blocks.
+ * Client-side template evaluation: each expression wrapped in {...} is parsed by TemplateExpression.js
+ * (no eval, so the card runs under a CSP without 'unsafe-eval') and compiled once per text.
  */
+import { compileExpression } from './TemplateExpression.js?v=3.2.1';
+
+const compiled = new Map();
+const MAX_COMPILED = 500;
+
+function compile(expression) {
+    let fn = compiled.get(expression);
+    if (!fn) {
+        fn = compileExpression(expression);
+        if (compiled.size >= MAX_COMPILED) compiled.clear();
+        compiled.set(expression, fn);
+    }
+    return fn;
+}
+
 export function evaluateTemplate(templateStr, hass) {
     if (!templateStr || typeof templateStr !== 'string') return templateStr || '';
     if (!templateStr.includes('{') || !templateStr.includes('}')) return templateStr;
@@ -33,9 +48,7 @@ export function evaluateTemplate(templateStr, hass) {
                 return isNaN(val) ? defaultVal : val;
             };
 
-            // Compile sandbox Function to execute the expression safely with helper variables
-            const fn = new Function('states', 'state_attr', 'get_value', `return (${expression});`);
-            const res = fn(states, state_attr, get_value);
+            const res = compile(expression)({ states, state_attr, get_value });
             return (res !== undefined && res !== null) ? String(res) : '';
         } catch (e) {
             console.warn(`[DynamicMap] Template evaluation failed for: "${expression}":`, e);

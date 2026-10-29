@@ -71,4 +71,31 @@ describe('TemplateEvaluator', () => {
         const result = evaluateTemplate(template, mockHass);
         expect(result).toBe("");
     });
+
+    it('should evaluate literals, arithmetic, comparisons and conditionals', () => {
+        expect(evaluateTemplate("{1 + 2 * 3}|{(1 + 2) * 3}|{-get_value('sensor.temperature')}|{7 % 4}", mockHass)).toBe('7|9|-21.5|3');
+        expect(evaluateTemplate("{get_value('sensor.temperature') > 21 ? 'warm' : 'cold'}", mockHass)).toBe('warm');
+        expect(evaluateTemplate("{states('sensor.temperature') == '21.5' && !false}", mockHass)).toBe('true');
+        expect(evaluateTemplate("{state_attr('sensor.temperature', 'missing') ?? 'n/a'}", mockHass)).toBe('n/a');
+        expect(evaluateTemplate('{"a" + \'b\'} {null} {.5 + 1e1}', mockHass)).toBe('ab  10.5');
+    });
+
+    it('should round with Math and toFixed', () => {
+        expect(evaluateTemplate("{Math.round(get_value('sensor.temperature'))}", mockHass)).toBe('22');
+        expect(evaluateTemplate("{get_value('sensor.temperature').toFixed(2)}", mockHass)).toBe('21.50');
+        expect(evaluateTemplate("{Math.max(1, 5, 3)}", mockHass)).toBe('5');
+    });
+
+    it('should never evaluate code: no eval, no new Function, no names beyond the helpers', () => {
+        const fn = globalThis.Function;
+        globalThis.Function = function () { throw new Error('new Function used'); };
+        try {
+            expect(evaluateTemplate("{states('sensor.temperature')}°", mockHass)).toBe('21.5°');
+        } finally {
+            globalThis.Function = fn;
+        }
+        for (const bad of ["{alert(1)}", "{this}", "{constructor.constructor('x')()}", "{states.constructor}", "{x = 1}", "{window}", "{states('a')[0]}"]) {
+            expect(evaluateTemplate(bad, mockHass)).toBe('');
+        }
+    });
 });
