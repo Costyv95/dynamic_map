@@ -16,7 +16,6 @@ const BINARY = [
 ];
 const APPLY = {
     '??': (a, b) => a ?? b(), '||': (a, b) => a || b(), '&&': (a, b) => a && b(),
-    // eslint-disable-next-line eqeqeq
     '==': (a, b) => a == b(), '!=': (a, b) => a != b(), '===': (a, b) => a === b(), '!==': (a, b) => a !== b(),
     '<': (a, b) => a < b(), '<=': (a, b) => a <= b(), '>': (a, b) => a > b(), '>=': (a, b) => a >= b(),
     '+': (a, b) => a + b(), '-': (a, b) => a - b(), '*': (a, b) => a * b(), '/': (a, b) => a / b(), '%': (a, b) => a % b(),
