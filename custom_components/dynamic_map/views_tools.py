@@ -12,6 +12,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .const import (
     CONF_ANTHROPIC_API_KEY,
     CONF_TEXTURE_MODEL,
+    CONF_TEXTURE_SIDECAR_TOKEN,
     CONF_TEXTURE_SIDECAR_URL,
     DATA_DIR,
     DOMAIN,
@@ -183,6 +184,9 @@ class DynamicMapGenerateTextureView(DynamicMapView):
                 async with session.post(
                     f"{agent_url.rstrip('/')}/run",
                     json=payload,
+                    headers=texture_gen.agent_headers(
+                        domain_data.get(CONF_TEXTURE_SIDECAR_TOKEN)
+                    ),
                     timeout=TEXTURE_TIMEOUT,
                 ) as resp:
                     body = await resp.json()

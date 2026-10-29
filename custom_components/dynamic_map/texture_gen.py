@@ -129,6 +129,11 @@ def texture_filename(description: str, requested: str | None = None) -> str:
     return f"obj_{slugify(description)}.svg"
 
 
+def agent_headers(token: str | None) -> dict:
+    """Headers for claude-agent's POST /run: a bearer token when one is set."""
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
+
 def build_request_body(
     subject: str, model: str, tileable: bool = False, style: str = "badge"
 ) -> dict:
