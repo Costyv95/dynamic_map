@@ -24,7 +24,6 @@ from .const import (
     CONF_VACUUM_MAPS,
     DATA_DIR,
     DOMAIN,
-    URL_BASE_DATA,
     URL_BASE_UI,
 )
 from .panel_entry import PANEL_ENTRY_URL
@@ -80,7 +79,6 @@ async def async_setup(hass: HomeAssistant, config: dict):
             # Every UI URL carries the deploy's ?v= stamp, so the browser may keep
             # them; without this a phone revalidates ~140 modules on every visit.
             StaticPathConfig(URL_BASE_UI, frontend_dir, cache_headers=True),
-            StaticPathConfig(URL_BASE_DATA, data_dir, cache_headers=False),
         ]
     )
 

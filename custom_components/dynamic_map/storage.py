@@ -32,6 +32,23 @@ def is_allowed_data_filename(filename):
     return bool(filename) and bool(ALLOWED_SAVE_RE.match(filename))
 
 
+def resolve_data_file(data_dir, rel):
+    """Absolute path of the file `rel` names inside data_dir, or None.
+
+    The data view serves only files under data_dir: no absolute path, no
+    `.`/`..` or hidden segment, and no symlink that leads outside it.
+    """
+    if not isinstance(rel, str) or not rel or rel.startswith("/") or "\\" in rel or "\0" in rel:
+        return None
+    if any(not part or part.startswith(".") for part in rel.split("/")):
+        return None
+    root = os.path.realpath(data_dir)
+    path = os.path.realpath(os.path.join(root, rel))
+    if not path.startswith(root + os.sep) or not os.path.isfile(path):
+        return None
+    return path
+
+
 def floor_filenames(floor_num):
     """All data files that make up one floor; [] unless floor_num is a number."""
     if not str(floor_num).isdigit():

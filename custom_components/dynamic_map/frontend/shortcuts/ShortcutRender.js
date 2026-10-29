@@ -1,7 +1,7 @@
 import { ComponentRegistry } from './ComponentRegistry.js?v=3.2.1';
 import { evaluateTemplate } from './TemplateEvaluator.js?v=3.2.1';
 import { buildTiledImage, applyBadgeDepth } from './ShortcutDefs.js?v=3.2.1';
-import { resolveDataUrl } from '../shared/DataUrl.js?v=3.2.1';
+import { resolveDataUrl, dataImageUrl } from '../shared/DataUrl.js?v=3.2.1';
 
 const IMAGE_RETRY_MS = 15000;
 
@@ -59,13 +59,14 @@ function bindIcon(host, el, comp) {
 const probes = new Map();
 function probeImage(href) {
     if (probes.has(href)) return probes.get(href);
-    const p = new Promise((resolve) => {
+    const p = dataImageUrl(href).then(src => new Promise((resolve) => {
+        if (!src) { resolve(false); return; }
         if (typeof Image !== 'function') { resolve(true); return; }
         const img = new Image();
         img.onload = () => resolve(true);
         img.onerror = () => resolve(false);
-        img.src = href;
-    });
+        img.src = src;
+    }));
     probes.set(href, p);
     return p;
 }

@@ -1,5 +1,5 @@
 import { apiFetch, apiJson, postJson, setPanelHass, usesPanelHass } from './HassApi.js?v=3.2.1';
-import { dataUrl } from './DataUrl.js?v=3.2.1';
+import { dataUrl, dataFetch } from './DataUrl.js?v=3.2.1';
 
 const DEBUG = false;
 const log = (...args) => { if (DEBUG) console.log('[ApiManager]', ...args); };
@@ -114,7 +114,7 @@ export class ApiManager {
 
         const fetchJson = async (url) => {
             try {
-                const res = await fetch(url);
+                const res = await dataFetch(url);
                 return res.ok ? await res.json() : null;
             } catch (e) {
                 return null;
@@ -133,7 +133,7 @@ export class ApiManager {
     /** A global list file (outside.json, quick_actions.json); [] when missing. */
     static async fetchGlobalList(filename) {
         try {
-            const res = await fetch(dataUrl(`${filename}?t=${Date.now()}`));
+            const res = await dataFetch(dataUrl(`${filename}?t=${Date.now()}`));
             const data = res.ok ? await res.json() : [];
             return Array.isArray(data) ? data : [];
         } catch (e) {

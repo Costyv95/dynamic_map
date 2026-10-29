@@ -1,5 +1,5 @@
 import { isTransparentFill } from '../shared/Color.js?v=3.2.1';
-import { resolveDataUrl } from '../shared/DataUrl.js?v=3.2.1';
+import { resolveDataUrl, setDataHref } from '../shared/DataUrl.js?v=3.2.1';
 
 /**
  * Per-shortcut SVG <defs>: the badge gloss/shadow look and tiled image
@@ -62,9 +62,7 @@ export function buildTiledImage(host, comp) {
     const img = pattern.querySelector('image');
     img.setAttribute('width', tile.toString());
     img.setAttribute('height', tile.toString());
-    const href = resolveDataUrl(comp.value || '');
-    img.setAttribute('href', href);
-    img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', href);
+    setDataHref(img, resolveDataUrl(comp.value || ''));
     const rect = document.createElementNS(svgNS, 'rect');
     rect.setAttribute('x', ((comp.x || 0) - w / 2).toString());
     rect.setAttribute('y', ((comp.y || 0) - h / 2).toString());

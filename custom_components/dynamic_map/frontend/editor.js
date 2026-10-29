@@ -13,7 +13,8 @@ import { newObject, newDecor } from './editor/ui/Presets.js?v=3.2.1';
 import { setUiRoot, confirmDialog } from './editor/ui/Dialog.js?v=3.2.1';
 import { DirtyTracker, writeDraft, readDraft, clearDraft, draftDiffers, formatAge } from './editor/Drafts.js?v=3.2.1';
 import { isTyping } from './editor/Keys.js?v=3.2.1';
-import { dataUrl } from './shared/DataUrl.js?v=3.2.1';
+import { dataUrl, dataImageUrl, setDataFetch } from './shared/DataUrl.js?v=3.2.1';
+import { apiFetch } from './shared/HassApi.js?v=3.2.1';
 
 console.log('[DynamicMapDebug] Map Editor loaded (Version: 4.0.0)');
 
@@ -26,6 +27,7 @@ export class EditorApp {
     /** `root` is the document or a shadow root holding the app shell. */
     constructor(root = document) {
         this.root = root;
+        setDataFetch(apiFetch);   // data files read with the editor's session (#1646)
         setUiRoot(root === document ? document.body : root.querySelector('#dm-app') || root);
         this.container = root.querySelector('#canvas-container');
         this.state = new EditorStateManager(() => this.ui.refresh(), () => this.canvas.refresh());
@@ -173,12 +175,13 @@ export class EditorApp {
         this.ui.refresh();
     }
 
-    loadImageSize(url) {
+    async loadImageSize(url) {
+        const src = await dataImageUrl(url);
         return new Promise((resolve) => {
             const img = this.state.bgImage;
             img.onload = () => resolve({ w: img.naturalWidth || 1280, h: img.naturalHeight || 1920 });
             img.onerror = () => resolve({ w: 1280, h: 1920 });   // keep the editor usable
-            img.src = url;
+            img.src = src;
         });
     }
 

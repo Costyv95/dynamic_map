@@ -221,3 +221,29 @@ def test_saved_file_is_world_readable(tmp_path):
     path = tmp_path / "config_floor1.json"
     storage.write_json_atomic(str(path), {"v": 1})
     assert oct(path.stat().st_mode & 0o777) == "0o644"
+
+
+class TestResolveDataFile:
+    """The authenticated data view serves only files inside the data dir (#1646)."""
+
+    @pytest.fixture
+    def data_dir(self, tmp_path):
+        (tmp_path / "icons").mkdir()
+        (tmp_path / "icons" / "lamp.svg").write_text("<svg/>")
+        (tmp_path / "rooms_floor1.json").write_text("[]")
+        (tmp_path / ".hidden").write_text("x")
+        (tmp_path.parent / "secrets.yaml").write_text("k: v")
+        (tmp_path / "escape.json").symlink_to(tmp_path.parent / "secrets.yaml")
+        return tmp_path
+
+    @pytest.mark.parametrize("rel", ["rooms_floor1.json", "icons/lamp.svg"])
+    def test_serves_files_in_the_dir(self, data_dir, rel):
+        assert storage.resolve_data_file(str(data_dir), rel) == os.path.realpath(data_dir / rel)
+
+    @pytest.mark.parametrize("rel", [
+        None, "", "/etc/passwd", "../secrets.yaml", "icons/../../secrets.yaml",
+        "icons/./lamp.svg", ".hidden", "icons//lamp.svg", "icons\\lamp.svg",
+        "escape.json", "icons", "missing.json",
+    ])
+    def test_refuses_anything_else(self, data_dir, rel):
+        assert storage.resolve_data_file(str(data_dir), rel) is None

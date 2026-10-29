@@ -5,6 +5,7 @@ import { WALL_DEFAULT_THICKNESS, WALL_DEFAULT_COLOR } from '../shared/WallGeomet
 import { applyRoomLabel, roomBox } from './RoomLabels.js?v=3.2.1';
 import { toneColor } from '../card/FloorTone.js?v=3.2.1';
 import { platePad } from '../shared/FloorPlan.js?v=3.2.1';
+import { setDataHref } from '../shared/DataUrl.js?v=3.2.1';
 
 /**
  * The one SVG scene for a floor, built into a "scene host": an object (the
@@ -41,7 +42,7 @@ export function buildBackground(host, bgUrl) {
         host.mapRoot.appendChild(underlay);
     }
     const image = document.createElementNS(svgNS, 'image');
-    image.setAttribute('href', bgUrl);
+    setDataHref(image, bgUrl);
     image.setAttribute('width', host.imgW.toString());
     image.setAttribute('height', host.imgH.toString());
     image.setAttribute('preserveAspectRatio', 'none');

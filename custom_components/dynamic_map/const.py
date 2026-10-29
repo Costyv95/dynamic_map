@@ -5,7 +5,7 @@ DOMAIN = "dynamic_map"
 # Folder (inside the HA config dir) holding user map data: backgrounds, rooms, shortcuts.
 DATA_DIR = f"{DOMAIN}_data"
 
-# Static URL bases registered by the integration.
+# URL bases: the UI is a static path; the data dir an authenticated view (#1646).
 URL_BASE_UI = "/dynamic_map_ui"
 URL_BASE_DATA = "/dynamic_map_data"
 
