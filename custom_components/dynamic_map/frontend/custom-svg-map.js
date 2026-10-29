@@ -197,9 +197,8 @@ class CustomSvgMap extends HTMLElement {
             if (this.shortcutElements[id].updateState(hass)) anyChanged = true;
         }
         if (this.shortcutElements && anyChanged) {
-            const sX = this.mapScaleX !== undefined ? this.mapScaleX : 1;
-            const sY = this.mapScaleY !== undefined ? this.mapScaleY : 1;
-            this.applyShortcutTransforms(this.isRotated ? sX : 1, this.isRotated ? sY : 1);
+            // Same counter-flip as applyViewport: a flipped floor needs it rotated or not.
+            this.applyShortcutTransforms(this.mapScaleX ?? 1, this.mapScaleY ?? 1);
         }
         // Room fills track their light entity and temperature: restyle when either changed.
         const tints = tintSignature(this, hass);
