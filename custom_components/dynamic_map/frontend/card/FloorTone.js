@@ -13,6 +13,7 @@
 /** Up to this spread between channels (0-255) a colour counts as a grey of
  * the drawing, so near-black navy walls tone too; a purple divider does not. */
 import { parseColor } from '../shared/Color.js?v=3.2.1';
+import { dataFetch } from '../shared/DataUrl.js?v=3.2.1';
 
 const GREY_CHROMA = 40;
 
@@ -60,7 +61,7 @@ export function tonePixels(tone, data) {
 }
 
 async function renderToned(url, tone) {
-    const res = await fetch(url);
+    const res = await dataFetch(url);
     if (!res.ok) return null;
     const bitmap = await createImageBitmap(await res.blob());
     const canvas = document.createElement('canvas');
@@ -76,7 +77,7 @@ async function renderToned(url, tone) {
 }
 
 async function renderTonedSvg(url, tone) {
-    const res = await fetch(url);
+    const res = await dataFetch(url);
     if (!res.ok) return null;
     const text = (await res.text()).replace(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/gi, c => toneColor(tone, c));
     return URL.createObjectURL(new Blob([text], { type: 'image/svg+xml' }));

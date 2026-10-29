@@ -19,13 +19,18 @@ import { buildTempLegend } from './card/TempLegend.js?v=3.2.1';
 import { buildSearch } from './card/Search.js?v=3.2.1';
 import { buildCalibrate } from './card/Calibrate.js?v=3.2.1';
 import { applyHidden, unwatchHidden, watchHidden } from './card/HiddenEntities.js?v=3.2.1';
-import { setDataBase } from './shared/DataUrl.js?v=3.2.1';
+import { setDataBase, setDataFetch } from './shared/DataUrl.js?v=3.2.1';
 
 /**
  * The Lovelace card. It is the scene host for core/MapScene and the
  * mapContext for every MapShortcut; the heavy lifting lives in core/ and
  * card/ modules that build into this element.
  */
+// HA's data files need the session (#1646); one stable fetch reads them
+// through whichever card last received hass.
+let liveHass = null;
+const fetchWithHass = (url, init) => liveHass.fetchWithAuth(url, init);
+
 const FX_FRAME_S = 1 / 30;   // effects need no more than 30 fps; halves the raster work on phones
 
 class CustomSvgMap extends HTMLElement {
@@ -184,6 +189,7 @@ class CustomSvgMap extends HTMLElement {
     set hass(hass) {
         const prev = this._hass;
         this._hass = hass;
+        if (hass && typeof hass.fetchWithAuth === 'function') { liveHass = hass; setDataFetch(fetchWithHass); }
         if (this._needsFloorDiscovery) { this.discoverFloors(hass); return; }
         if (!this._floorNamesRequested && hass.callApi) { this._floorNamesRequested = true; this.loadFloorNames(hass); }
         let anyChanged = false;

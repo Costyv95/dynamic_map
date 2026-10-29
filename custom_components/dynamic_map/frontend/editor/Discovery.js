@@ -1,6 +1,6 @@
 import { ApiManager } from '../shared/ApiManager.js?v=3.2.1';
 import { fillEntityDatalist } from './ui/EntityAutocomplete.js?v=3.2.1';
-import { dataUrl } from '../shared/DataUrl.js?v=3.2.1';
+import { dataUrl, dataFetch } from '../shared/DataUrl.js?v=3.2.1';
 
 /** Start-up discovery for the editor: floors, the HA registry and the entity list. `app` is the EditorApp. */
 export async function discoverFloors(app) {
@@ -15,11 +15,10 @@ export async function discoverFloors(app) {
         console.warn('[editor] Floor discovery failed:', err.message);
     }
     if (!floors.length) {
-        // Authenticated API unavailable (companion-app webview without a
-        // web session): probe the public data files instead.
+        // The floors API failed: probe the data files instead.
         const t = Date.now();
         const probes = await Promise.all([...Array(12)].map((_, i) =>
-            fetch(dataUrl(`rooms_floor${i + 1}.json?t=${t}`), { method: 'HEAD' })
+            dataFetch(dataUrl(`rooms_floor${i + 1}.json?t=${t}`))
                 .then(r => (r.ok ? i + 1 : null)).catch(() => null)));
         floors = probes.filter(Boolean);
     }

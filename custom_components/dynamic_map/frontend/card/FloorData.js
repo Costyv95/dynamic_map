@@ -1,5 +1,5 @@
 import { DEFAULT_FLIPS } from '../core/Viewport.js?v=3.2.1';
-import { dataUrl, resolveDataUrl } from '../shared/DataUrl.js?v=3.2.1';
+import { dataUrl, resolveDataUrl, dataFetch, dataImageUrl } from '../shared/DataUrl.js?v=3.2.1';
 import { readFloorTone, tonedImageUrl, tonedDecor } from './FloorTone.js?v=3.2.1';
 import { floorCanvas, floorBackgroundMode } from '../shared/FloorPlan.js?v=3.2.1';
 
@@ -38,7 +38,7 @@ const kept = new Map();   // dataUrl('floorN') -> { files, stamp, w, h }
 
 const fetchJson = async (url) => {
     try {
-        const res = await fetch(url);
+        const res = await dataFetch(url);
         return res.ok ? await res.json() : null;
     } catch (e) { return null; }
 };
@@ -55,12 +55,12 @@ async function readFloorFiles(floor) {
     return { rooms, shortcuts, config, outside, quick };
 }
 
-const imageSize = (url) => new Promise((resolve) => {
+const imageSize = (url) => dataImageUrl(url).then(src => new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve({ w: img.naturalWidth || 1000, h: img.naturalHeight || 1000 });
     img.onerror = () => resolve({ w: 1000, h: 1000 });
-    img.src = url;
-});
+    img.src = src;
+}));
 
 /** Forget every kept floor (tests; a host that knows its files changed). */
 export function forgetFloors() { kept.clear(); }

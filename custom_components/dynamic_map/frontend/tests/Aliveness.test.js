@@ -216,7 +216,9 @@ describe('tiled image textures', () => {
     });
     const hass = { states: { 'light.strip': { state: 'off', attributes: {} } } };
 
-    it('repeats the image as square tiles across the rect', () => {
+    it('repeats the image as square tiles across the rect', async () => {
+        const realFetch = global.fetch;
+        global.fetch = vi.fn(async () => ({ ok: true, blob: async () => new Blob(['<svg/>']) }));
         const sc = makeShortcut(stripData(true), hass);
         const rect = sc.contentGroup.querySelector('rect#fallback_image');
         expect(rect).toBeTruthy();
@@ -227,8 +229,11 @@ describe('tiled image textures', () => {
         const pattern = sc.group.querySelector('defs pattern#dm_tile_sc_strip');
         expect(pattern.getAttribute('width')).toBe('24');
         expect(pattern.getAttribute('height')).toBe('24');
-        expect(pattern.querySelector('image').getAttribute('href')).toBe('/dynamic_map_data/icons/obj_led_strip_tile.svg');
+        // The HA data file is read with the session and drawn from a blob (#1646).
+        await vi.waitFor(() => expect(pattern.querySelector('image').getAttribute('href')).toMatch(/^blob:/));
+        expect(global.fetch).toHaveBeenCalledWith('/dynamic_map_data/icons/obj_led_strip_tile.svg', undefined);
         expect(sc.iconImage).toBe(rect);
+        global.fetch = realFetch;
     });
 
     it('keeps the classic stretched image without the flag', () => {

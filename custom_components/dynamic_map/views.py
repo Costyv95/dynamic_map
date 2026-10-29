@@ -190,6 +190,24 @@ class DynamicMapFingerprintsView(DynamicMapView):
         return sorted(out.values(), key=lambda p: p["name"].lower())
 
 
+class DynamicMapDataView(DynamicMapView):
+    """GET /dynamic_map_data/<file>: the data dir, for a logged-in user only (#1646).
+
+    Floor pictures, icons and the rooms/shortcuts JSON (entity ids) used to
+    be a static path anyone on the LAN could read. The card reads them with
+    hass.fetchWithAuth; Portal's driver with its own token.
+    """
+
+    url = URL_BASE_DATA + "/{path:.+}"
+    name = "dynamic_map:data"
+
+    async def get(self, request, path):
+        file_path = await self.hass.async_add_executor_job(storage.resolve_data_file, self.data_dir, path)
+        if file_path is None:
+            return web.Response(status=404)
+        return web.FileResponse(file_path, headers={"Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff"})
+
+
 class DynamicMapPanelEntryView(DynamicMapView):
     """GET /dynamic_map_panel_entry.js: the Map Editor panel's module_url."""
 
@@ -224,4 +242,5 @@ ALL_VIEWS = (
     DynamicMapGenerateTextureView,
     DynamicMapFingerprintsView,
     DynamicMapPanelEntryView,
+    DynamicMapDataView,
 )
