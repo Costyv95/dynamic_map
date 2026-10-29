@@ -175,6 +175,10 @@ export class MapShortcut {
 
         this.updateCoordinates();
         this.activeState = this._matchState(hass);
+        // Rebuild from the instance size, never the last state's: a per-state size must not stick.
+        this._instScale = this._instScale || { x: this.scaleX, y: this.scaleY };
+        this.scaleX = this._instScale.x;
+        this.scaleY = this._instScale.y;
         const built = buildLayout(this, this.activeState, hass, mode);
         this.scaleX = built.scaleX;
         this.scaleY = built.scaleY;

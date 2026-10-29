@@ -42,7 +42,7 @@ export function applyAutoCrop(host) {
     // next hass tick.
     if (host._lastAppliedMode !== host.activeMode && host.shortcutElements && host._hass) {
         for (const id in host.shortcutElements) host.shortcutElements[id].updateState(host._hass);
-        host.applyShortcutTransforms(host.isRotated ? vp.scaleX : 1, host.isRotated ? vp.scaleY : 1);
+        host.applyShortcutTransforms(vp.scaleX, vp.scaleY);
     }
     host._lastAppliedMode = host.activeMode;
     if (host._hass) updateRoomAlerts(host, host._hass);   // badge size follows the on-screen scale

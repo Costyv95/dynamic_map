@@ -122,12 +122,15 @@ export function updateRoomAlerts(host, hass) {
     const r = badgeRadius(host);
     const upright = uprightTransform(host);
     const counts = { open: 0, danger: 0, vacuum: 0, unavailable: 0 };
+    const counted = new Set();   // two rooms on one area share its entities: count each once
     let firstRoom = null;
     host.rooms.forEach(room => {
         const alerts = roomAlerts(hass, room, kinds, host);
         let g = host._alertEls[room.id];
         if (!alerts.length) { if (g) g.style.display = 'none'; return; }
-        alerts.forEach(a => { counts[a.kind]++; });
+        alerts.forEach(a => {
+            if (!counted.has(a.kind + a.id)) { counted.add(a.kind + a.id); counts[a.kind]++; }
+        });
         firstRoom = firstRoom || room;
         if (!g) g = host._alertEls[room.id] = makeBadge(host, room);
         sizeBadge(g, r);

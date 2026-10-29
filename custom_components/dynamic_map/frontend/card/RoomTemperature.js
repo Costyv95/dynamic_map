@@ -33,7 +33,8 @@ function isTempSensor(hass, id) {
     const st = hass.states[id];
     if (!st || !id.startsWith('sensor.')) return false;
     const a = st.attributes || {};
-    return a.device_class === 'temperature' || /°/.test(a.unit_of_measurement || '');
+    // Unit must be a temperature unit: a wind direction or angle also uses '°'.
+    return a.device_class === 'temperature' || /^°[CF]$|^K$/.test(a.unit_of_measurement || '');
 }
 
 /** A sensor with a numeric reading right now (unavailable/unknown never wins over a live one). */
