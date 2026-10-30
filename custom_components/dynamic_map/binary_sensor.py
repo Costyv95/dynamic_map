@@ -24,6 +24,12 @@ CHECK = timedelta(seconds=30)
 PREFIX = "proxy_offline_"
 
 
+def _proxy_device(dev_reg, mac: str):
+    """The device a proxy's MAC belongs to (async_get_device is deprecated in HA 2026.x)."""
+    devices = dev_reg.async_get_devices(connections={(dr.CONNECTION_NETWORK_MAC, mac)})
+    return devices[0] if devices else None
+
+
 async def async_setup_platform(hass: HomeAssistant, config: dict, async_add_entities: AddEntitiesCallback,
                                discovery_info: dict | None = None) -> None:
     """A sensor per proxy any tracked phone has a distance sensor for, added as proxies appear."""
@@ -39,7 +45,7 @@ async def async_setup_platform(hass: HomeAssistant, config: dict, async_add_enti
         macs |= {e.unique_id.removeprefix(PREFIX) for e in er.async_get(hass).entities.values()
                  if e.platform == DOMAIN and e.unique_id.startswith(PREFIX)}
         for mac in sorted(macs):
-            device = dev_reg.async_get_device(connections={(dr.CONNECTION_NETWORK_MAC, mac)})
+            device = _proxy_device(dev_reg, mac)
             if mac in known or device is None:
                 continue        # a proxy HA has no device for (the host's own adapter) has nothing to watch
             known.add(mac)
@@ -69,7 +75,7 @@ class ProxyOfflineSensor(BinarySensorEntity):
     async def async_added_to_hass(self):
         # Without a config entry HA ignores device_info, so tie the entity to the
         # proxy's device by hand: it then takes the device's area, i.e. its room.
-        device = dr.async_get(self.hass).async_get_device(connections={(dr.CONNECTION_NETWORK_MAC, self.mac)})
+        device = _proxy_device(dr.async_get(self.hass), self.mac)
         self.device_id = device.id if device else None
         entry = self.registry_entry
         if device and entry and entry.device_id != device.id:
