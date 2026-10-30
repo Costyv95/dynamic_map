@@ -5,7 +5,7 @@ import { showSchedulesSheet, daysLabel, scheduleSummary, schedulesFor } from '..
 afterEach(() => { document.body.innerHTML = ''; vi.useRealTimers(); });
 
 const SCHED = [
-    { id: 'b', entity_id: 'vacuum.r', enabled: true, time: '13:00', days: [1, 3], rooms: ['Kitchen'], mode: 'vac_mop', repeat: 1 },
+    { id: 'b', entity_id: 'vacuum.r', enabled: true, time: '13:00', days: [1, 3], rooms: ['Kitchen'], mode: 'vac_mop', repeat: 1, suction: 'max', water: 'moderate', route: 'deep_plus' },
     { id: 'a', entity_id: 'vacuum.r', enabled: false, time: '10:00', days: [5, 6], rooms: [], mode: 'vacuum', repeat: 2 },
     { id: 'z', entity_id: 'vacuum.other', enabled: true, time: '09:00', days: [0], rooms: [], mode: 'mop', repeat: 1 }
 ];
@@ -66,6 +66,14 @@ describe('vacuum schedules sheet', () => {
         }));
         await Promise.resolve(); await Promise.resolve();
         expect(ui.querySelector('.dm-sc-list')).toBeTruthy();
+    });
+
+    it('editing keeps saved modes the robot has not offered yet', () => {
+        const { ui, hass } = setup();
+        hass.states['sensor.vacuum_schedules'].attributes.vacuums = {};
+        ui.querySelectorAll('.dm-sc-text')[1].click();
+        const selects = ui.querySelectorAll('select');
+        expect([...selects].slice(1, 4).map(s => s.value)).toEqual(['max', 'moderate', 'deep_plus']);
     });
 
     it('a VACUUM_SCHEDULES menu button opens the sheet', () => {
