@@ -4,7 +4,7 @@ import { openMenuLayoutEditor } from './MenuLayoutEditor.js?v=3.2.1';
 const TYPES = [
     ['TOGGLE', 'Toggle'], ['TOGGLE_ON', 'Turn on'], ['TOGGLE_OFF', 'Turn off'], ['CALL_SERVICE', 'Call a service'],
     ['SLIDER', 'Slider (brightness)'], ['VALUE_SLIDER', 'Value slider (live readout)'], ['INFO_DISPLAY', 'Info display (read-only)'],
-    ['PROGRESS_BAR', 'Progress bar'], ['ROOM_SELECTOR', 'Select rooms on the map'], ['SENSOR_OVERLAY', 'Sensor dials'],
+    ['PROGRESS_BAR', 'Progress bar'], ['ROOM_SELECTOR', 'Select rooms on the map'], ['VACUUM_SCHEDULES', 'Cleaning schedules (vacuum)'], ['SENSOR_OVERLAY', 'Sensor dials'],
     ['WARMTH', 'Warmth slider (light colour temperature)'], ['COLOR_PICKER', 'Colour honeycomb (light)']
 ];
 const TYPE_LABEL = Object.fromEntries(TYPES);

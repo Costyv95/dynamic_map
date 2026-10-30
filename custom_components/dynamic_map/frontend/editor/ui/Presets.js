@@ -16,6 +16,7 @@ const PRESETS = {
         ],
         actions: [
             { id: uid('act'), type: 'ROOM_SELECTOR', trigger: 'overlay', action_entity: entity },
+            { id: uid('act'), type: 'VACUUM_SCHEDULES', trigger: 'overlay', action_entity: entity, name: 'Schedules', icon: '🗓️' },
             { id: uid('act'), type: 'CALL_SERVICE', trigger: 'overlay', action_entity: entity, service: 'vacuum.return_to_base', name: 'Return to Dock', icon: '🏠' },
             { id: uid('act'), type: 'CALL_SERVICE', trigger: 'overlay', action_entity: entity, service: 'vacuum.start', name: 'Clean House', icon: '🧹' }
         ]

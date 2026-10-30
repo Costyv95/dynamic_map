@@ -15,6 +15,7 @@ from homeassistant.loader import async_get_integration
 
 from . import roborock_maps, storage
 from .position import PositionManager
+from .vacuum_schedules import VacuumScheduler
 from .const import (
     CONF_ANTHROPIC_API_KEY,
     CONF_SIDECAR_URL,
@@ -109,6 +110,9 @@ async def async_setup(hass: HomeAssistant, config: dict):
     # Bermuda rooms made into spots on the map (#1354).
     manager = hass.data[DOMAIN]["position"] = PositionManager(hass)
     await manager.async_start()
+    # Cleaning schedules run from HA, not from the robot's app.
+    scheduler = hass.data[DOMAIN]["vacuum_schedules"] = VacuumScheduler(hass)
+    await scheduler.async_start()
     hass.async_create_task(discovery.async_load_platform(hass, "sensor", DOMAIN, {}, config))
     hass.async_create_task(discovery.async_load_platform(hass, "binary_sensor", DOMAIN, {}, config))
 
