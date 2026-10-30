@@ -128,16 +128,16 @@ export function showSchedulesSheet(mapContext, target, act = {}) {
     const renderForm = (s) => {
         editing = true;
         const { offer } = schedulesFor(mapContext._hass, target, entity);
-        const opt = (list) => (list || []).map(v => [v, pretty(v)]);
+        const opt = (list, what) => (list || []).map(v => [v, `${what}: ${pretty(v)}`]);
         const name = h('input', 'dm-rs-select'); name.placeholder = 'Name (optional)'; name.value = s.name || '';
         const time = h('input', 'dm-rs-select'); time.type = 'time'; time.value = s.time;
         const days = new Set(s.days);
         const roomNames = [...new Set([...(offer.rooms || []), ...(s.rooms || [])])];
         const rooms = new Set(roomNames.map((n, i) => (s.rooms || []).includes(n) ? i : -1).filter(i => i >= 0));
         const mode = selectOf(MODES, s.mode);
-        const suction = selectOf(opt(offer.suction), s.suction, 'Suction: as is');
-        const water = selectOf(opt(offer.water), s.water, 'Water: as is');
-        const route = selectOf(opt(offer.route), s.route, 'Route: as is');
+        const suction = selectOf(opt(offer.suction, 'Suction'), s.suction, 'Suction: as is');
+        const water = selectOf(opt(offer.water, 'Water'), s.water, 'Water: as is');
+        const route = selectOf(opt(offer.route, 'Route'), s.route, 'Route: as is');
         const passes = selectOf([['1', '1 pass'], ['2', '2 passes'], ['3', '3 passes']], String(s.repeat || 1));
         const label = (t) => h('div', 'dm-sc-label', t);
         const save = h('button', 'dm-rs-btn dm-rs-start dm-ready', 'Save'); save.type = 'button';
