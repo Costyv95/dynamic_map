@@ -23,6 +23,7 @@ const BUILDERS = {
     TOGGLE_OFF: buildButton,
     CALL_SERVICE: buildButton,
     ROOM_SELECTOR: buildButton,
+    VACUUM_SCHEDULES: buildButton,
     VACUUM_ROOMS: (ctx, target, act, v) => buildButton(ctx, target, { ...act, type: 'ROOM_SELECTOR' }, v)   // the old preset's name (#1743)
 };
 

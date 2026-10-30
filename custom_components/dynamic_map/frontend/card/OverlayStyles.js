@@ -3,6 +3,7 @@
  * HUD look driven by the --dm-hud-* tokens (dark by default) so a host can
  * restyle them without touching the builders. Appended to CARD_STYLES.
  */
+import { SCHEDULE_STYLES } from './ScheduleStyles.js?v=3.2.1';
 export const OVERLAY_STYLES = `
     .dm-overlay {
         background: var(--dm-hud-bg); color: var(--dm-hud-text);
@@ -63,4 +64,4 @@ export const OVERLAY_STYLES = `
         .dm-ov-btn:hover, .dm-rs-btn:hover { background: var(--dm-hud-fill-strong); }
         .dm-rs-start.dm-ready:hover { background: color-mix(in srgb, var(--dm-success) 85%, #000); }
     }
-`;
+` + SCHEDULE_STYLES;

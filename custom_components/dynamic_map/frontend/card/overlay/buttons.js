@@ -1,6 +1,7 @@
 import { placeVisual, iconHtml, onServiceError } from './common.js?v=3.2.1';
 import { executeAction, buildRoomNameToSegmentMap } from '../../shared/ActionRunner.js?v=3.2.1';
 import { showRoomSelectionUI } from './roomSelection.js?v=3.2.1';
+import { showSchedulesSheet } from './vacuumSchedules.js?v=3.2.1';
 
 /** TOGGLE switch row and the button-style actions. */
 
@@ -40,6 +41,7 @@ const BUTTON_STYLE = {
     TOGGLE_ON: { cls: 'dm-on-btn', name: 'Turn On' },
     TOGGLE_OFF: { cls: 'dm-off-btn', name: 'Turn Off' },
     ROOM_SELECTOR: { cls: 'dm-rooms-btn', name: 'Select Rooms' },
+    VACUUM_SCHEDULES: { cls: 'dm-rooms-btn', name: 'Schedules' },
     CALL_SERVICE: { cls: '', name: 'Run Action' }
 };
 
@@ -65,6 +67,10 @@ export function buildButton(mapContext, target, act, isVisual) {
             mapContext.selectionVacuumTarget = target;
             mapContext.updateRoomStyles();
             showRoomSelectionUI(mapContext);
+            return;
+        }
+        if (act.type === 'VACUUM_SCHEDULES') {
+            showSchedulesSheet(mapContext, target, act);
             return;
         }
         // Menu buttons apply room-name -> segment-ID replacement and
