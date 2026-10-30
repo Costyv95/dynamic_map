@@ -9,6 +9,7 @@ entity state and the save/delete/run services.
 from __future__ import annotations
 
 import logging
+import time
 from datetime import timedelta
 
 import voluptuous as vol
@@ -67,7 +68,8 @@ class VacuumScheduler:
         reg(DOMAIN, "run_vacuum_schedule", self.async_run_now,
             vol.Schema({vol.Required("id"): cv.string}))
         async_track_time_change(self.hass, self._tick, second=0)
-        async_track_time_interval(self.hass, self._refresh, timedelta(hours=1))
+        # Roborock comes up after us: look every 5 min until a vacuum has rooms, then hourly.
+        async_track_time_interval(self.hass, self._refresh, timedelta(minutes=5))
 
     def find(self, sid: str) -> dict:
         for s in self.schedules:
@@ -92,6 +94,8 @@ class VacuumScheduler:
             self.schedules[self.schedules.index(old)] = s
         else:
             self.schedules.append(s)
+        if not (self.vacuums.get(s["entity_id"]) or {}).get("rooms"):
+            await self._vacuum_info(s["entity_id"])
         await self._changed()
         return {"schedule": s}
 
@@ -138,6 +142,9 @@ class VacuumScheduler:
 
     async def _refresh(self, _now=None):
         for vac in {s["entity_id"] for s in self.schedules} | set(self._known_vacuums()):
+            known = self.vacuums.get(vac)
+            if known and known["rooms"] and time.monotonic() - known.get("_at", 0) < 3600:
+                continue
             await self._vacuum_info(vac)
         async_dispatcher_send(self.hass, SIGNAL)
 
@@ -167,7 +174,7 @@ class VacuumScheduler:
                 "route": opts(selects.get("mop_mode")),
             },
         }
-        self.vacuums[vac] = info["public"]
+        self.vacuums[vac] = info["public"] | {"_at": time.monotonic()}
         return info
 
     async def _rooms(self, vac: str) -> dict[int, str]:
@@ -207,7 +214,8 @@ class VacuumSchedulesSensor(SensorEntity):
         return {
             "schedules": [s | {"next_run": runs[s["id"]].isoformat() if runs[s["id"]] else None}
                           for s in self.scheduler.schedules],
-            "vacuums": self.scheduler.vacuums,
+            "vacuums": {v: {k: x for k, x in o.items() if k != "_at"}
+                        for v, o in self.scheduler.vacuums.items()},
             "next_run": min(upcoming).isoformat() if upcoming else None,
         }
 
