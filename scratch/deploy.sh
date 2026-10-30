@@ -1,5 +1,7 @@
 #!/bin/bash
-# deploy.sh — Deploys custom_components/dynamic_map to a remote HAOS box and restarts core.
+# deploy.sh — Deploys custom_components/dynamic_map to a remote HAOS box. Restarts
+# core only when something outside frontend/ changed (scratch/deploy_plan.py);
+# DYNAMIC_MAP_FORCE_RESTART=1 forces it.
 #
 # Version stamping happens in a temporary build directory so the repository
 # sources stay clean; only the deployed copy carries the cache-busting ?v= strings.
@@ -37,9 +39,23 @@ echo ""
 
 # 1. Sync build to remote (sudo rsync overrides root permission barriers)
 echo "Syncing code files to $REMOTE_HOST..."
-rsync -avz --delete \
+# Checksums, not mtimes: every clone has fresh mtimes, so all files look changed.
+PLAN=$(rsync -anc --delete --itemize-changes \
+      --rsync-path="sudo rsync" \
+      "$BUILD_DIR/dynamic_map/" "$REMOTE_HOST:$REMOTE_PATH" | python3 "$REPO_ROOT/scratch/deploy_plan.py")
+[ -n "$DYNAMIC_MAP_FORCE_RESTART" ] && PLAN=restart
+echo "Deploy plan: $PLAN"
+rsync -avzc --delete \
       --rsync-path="sudo rsync" \
       "$BUILD_DIR/dynamic_map/" "$REMOTE_HOST:$REMOTE_PATH"
+
+# 2a. Frontend-only: bump the card resource over the websocket and keep HA up.
+if [ "$PLAN" = frontend ] && python3 "$REPO_ROOT/scratch/bump_resource.py" "$VERSION_STR"; then
+    echo ""
+    echo "=== Deployment Completed (frontend only, HA not restarted) ==="
+    python3 "$(dirname "$0")/portal_vendor_status.py" || true
+    exit 0
+fi
 
 # 2. Update Lovelace resource version & restart HA core
 echo "Connecting to remote HAOS to update Lovelace resource & restart core..."
