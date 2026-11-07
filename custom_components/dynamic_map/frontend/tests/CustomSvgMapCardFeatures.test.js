@@ -126,7 +126,7 @@ describe('CustomSvgMap card', () => {
             const chip = card.outsideBar.querySelector('.dm-outside-item');
             expect(chip.querySelector('.dm-oi-icon').textContent).toBe('⛅');
             expect(chip.querySelector('.dm-oi-text').textContent).toBe('21.5°');
-            expect(chip.querySelector('.dm-outside-label').textContent).toBe('partlycloudy');
+            expect(chip.querySelector('.dm-outside-label').textContent).toBe('Partly cloudy');
         });
 
         it('marks unavailable entities and shows an em dash', () => {

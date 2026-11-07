@@ -110,14 +110,14 @@ describe('presence dots', () => {
         return card;
     };
 
-    it('places a dot at the center of the room named by the entity state', () => {
+    it('places a dot just under the label of the room named by the entity state (#2507)', () => {
         const card = presenceCard([{ entity: 'sensor.costi_area', name: 'Costi', color: '#123456' }]);
         card.updatePresence({ states: { 'sensor.costi_area': { state: 'Office' } } });
         const dot = card._presenceDots[0];
         expect(dot.visible).toBe(true);
         expect(dot.tx).toBeCloseTo(200);
-        expect(dot.ty).toBeCloseTo(200);
-        expect(dot.el.getAttribute('transform')).toBe('translate(200.0, 200.0)');
+        expect(dot.ty).toBeCloseTo(236);   // the label sits on the centre
+        expect(dot.el.getAttribute('transform')).toBe('translate(200.0, 236.0)');
         expect(dot.el.querySelector('circle').getAttribute('fill')).toBe('#123456');
         expect(dot.el.querySelector('text').textContent).toBe('C');
     });
