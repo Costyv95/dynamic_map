@@ -11,6 +11,15 @@ export const WEATHER_ICONS = {
     'sunny': '☀️', 'windy': '💨', 'windy-variant': '💨', 'exceptional': '⚠️'
 };
 
+/** HA's weather conditions in words: `partlycloudy` would otherwise read as one word. */
+export const WEATHER_WORDS = {
+    'clear-night': 'Clear', 'cloudy': 'Cloudy', 'fog': 'Fog', 'hail': 'Hail',
+    'lightning': 'Storm', 'lightning-rainy': 'Storm', 'partlycloudy': 'Partly cloudy',
+    'pouring': 'Pouring', 'rainy': 'Rain', 'snowy': 'Snow', 'snowy-rainy': 'Sleet',
+    'sunny': 'Sunny', 'windy': 'Windy', 'windy-variant': 'Windy', 'exceptional': 'Warning'
+};
+const weatherWord = (state) => WEATHER_WORDS[state] || String(state).replace(/[-_]/g, ' ');
+
 const isDead = (st) => !st || st.state === 'unavailable' || st.state === 'unknown';
 
 export function buildOutsideBar(host) {
@@ -44,7 +53,22 @@ export function buildOutsideBar(host) {
     (host.topLeftUI || host.renderRoot).appendChild(bar);
     host.outsideBar = bar;
     host.renderRoot.classList.add('dm-has-outside');
+    bar.addEventListener('scroll', () => markHiddenEdges(bar), { passive: true });
+    if (typeof ResizeObserver === 'function') new ResizeObserver(() => markHiddenEdges(bar)).observe(bar);
     if (host._hass) updateOutsideBar(host, host._hass);
+}
+
+/** Fade the edges of a bar wider than the card where it hides items (its scrollbar is hidden). */
+export function markHiddenEdges(bar) {
+    const over = bar.scrollWidth - bar.clientWidth;
+    const start = over > 1 && bar.scrollLeft > 1, end = over > 1 && bar.scrollLeft < over - 1;
+    bar.classList.toggle('dm-more-start', start);
+    bar.classList.toggle('dm-more-end', end);
+    const mask = start || end
+        ? `linear-gradient(to right, ${start ? 'transparent' : '#000'}, #000 28px, #000 calc(100% - 28px), ${end ? 'transparent' : '#000'})`
+        : '';
+    bar.style.maskImage = mask;
+    bar.style.webkitMaskImage = mask;
 }
 
 /** Format one item's value/label/icon from its entity state. */
@@ -57,8 +81,8 @@ export function outsideItemView(item, st) {
         if (isWeather && !item.attribute) {
             if (!icon) icon = WEATHER_ICONS[st.state] || '🌤️';
             const temp = st.attributes.temperature;
-            value = (temp !== undefined && temp !== null) ? `${temp}°` : String(st.state).replace(/[-_]/g, ' ');
-            if (!label) label = String(st.state).replace(/[-_]/g, ' ');
+            value = (temp !== undefined && temp !== null) ? `${temp}°` : weatherWord(st.state);
+            if (!label) label = weatherWord(st.state);
         } else {
             const raw = item.attribute ? st.attributes[item.attribute] : st.state;
             const num = Number(raw);
@@ -90,4 +114,5 @@ export function updateOutsideBar(host, hass) {
         labelEl.textContent = v.label;
         labelEl.style.display = v.label ? '' : 'none';
     });
+    if (host.outsideBar) markHiddenEdges(host.outsideBar);
 }

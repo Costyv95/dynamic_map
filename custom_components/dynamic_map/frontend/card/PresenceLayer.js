@@ -44,10 +44,11 @@ export function buildPresenceLayer(host) {
         label.textContent = initial;
         el.appendChild(label);
         layer.appendChild(el);
-        return { el, entity: it.entity, visible: false, curX: 0, curY: 0, tx: 0, ty: 0 };
+        return { el, label, entity: it.entity, visible: false, curX: 0, curY: 0, tx: 0, ty: 0 };
     });
     host.presenceLayer = layer;
     host.mapRoot.appendChild(layer);
+    orientPresence(host, false);
     // Place the dots now: a floor switch rebuilds the layer, and the next hass push may be seconds away.
     if (host._hass) updatePresence(host, host._hass);
 }
@@ -102,12 +103,43 @@ export function updatePresence(host, hass) {
     });
     for (const id in byRoom) {
         const group = byRoom[id];
+        // The room's label sits on its centre: the dots go just under it, on screen.
+        const [dx, dy] = screenDown(host, host.imgW * (group.length > 1 ? 0.06 : 0.036));
         group.forEach(({ dot, room }, i) => {
             const c = MapGeometry.getPolygonCenter(room.polygon);
             const off = group.length > 1 ? host.imgW * 0.025 : 0;
             const angle = (i / group.length) * Math.PI * 2;
-            place(dot, (c[0] / 100) * host.imgW + Math.cos(angle) * off, (c[1] / 100) * host.imgH + Math.sin(angle) * off);
+            place(dot, (c[0] / 100) * host.imgW + dx + Math.cos(angle) * off, (c[1] / 100) * host.imgH + dy + Math.sin(angle) * off);
         });
+    }
+}
+
+/**
+ * Image-space step that shows as `d` straight down on screen: the map root is
+ * rotate(90) then the flips (Viewport.js), so undo both.
+ */
+export function screenDown(host, d) {
+    const sx = host.mapScaleX || 1, sy = host.mapScaleY || 1;
+    return host.isRotated ? [sx * d, 0] : [0, sy * d];
+}
+
+/**
+ * Keep the initials upright under the viewport's rotation and flips, as the
+ * room labels are (labelTransform), and re-place the dots under the labels.
+ * Called when the viewport changes; `replace` false while building.
+ */
+export function orientPresence(host, replace = true) {
+    if (!host._presenceDots) return;
+    let t = '';
+    if ((host.mapScaleX || 1) !== 1 || (host.mapScaleY || 1) !== 1) t += `scale(${host.mapScaleX || 1}, ${host.mapScaleY || 1}) `;
+    if (host.isRotated) t += 'rotate(-90)';
+    host._presenceDots.forEach(dot => {
+        if (t) dot.label.setAttribute('transform', t.trim());
+        else dot.label.removeAttribute('transform');
+    });
+    if (replace && host._hass) {
+        host._presenceDots.forEach(dot => { dot.visible = false; });   // re-placed at once, no glide
+        updatePresence(host, host._hass);
     }
 }
 
