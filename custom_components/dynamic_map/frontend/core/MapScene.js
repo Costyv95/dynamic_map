@@ -6,6 +6,7 @@ import { applyRoomLabel, roomBox } from './RoomLabels.js?v=3.2.1';
 import { toneColor } from '../card/FloorTone.js?v=3.2.1';
 import { platePad } from '../shared/FloorPlan.js?v=3.2.1';
 import { setDataHref } from '../shared/DataUrl.js?v=3.2.1';
+import { shortcutFrame } from '../shared/ShortcutGeometry.js?v=3.2.1';
 
 /**
  * The one SVG scene for a floor, built into a "scene host": an object (the
@@ -160,8 +161,21 @@ export function buildWalls(host) {
 }
 
 /**
+ * Draw order: largest first, so a big object (a light strip's area, a rug) sits under the
+ * small badges it overlaps and never hides or steals their taps. Ties keep the saved order.
+ */
+export function drawOrder(shortcuts) {
+    const area = (sc) => {
+        try { const f = shortcutFrame(sc); return Math.abs(f.w * f.h) || 0; } catch (e) { return 0; }
+    };
+    return shortcuts.map((sc, i) => ({ sc, i, a: area(sc) }))
+        .sort((p, q) => (q.a - p.a) || (p.i - q.i)).map(p => p.sc);
+}
+
+/**
  * Decor sub-layer plus interactive shortcuts. Decor always renders beneath
- * badges regardless of array order. Fills host.shortcutElements.
+ * badges regardless of array order; within each layer, largest first (drawOrder).
+ * Fills host.shortcutElements.
  */
 export function buildShortcuts(host) {
     host.shortcutElements = {};
@@ -171,7 +185,7 @@ export function buildShortcuts(host) {
     // Below the room labels (which sit right after the walls), above walls.
     if (host.labelsLayer && host.labelsLayer.parentNode === host.mapRoot) host.mapRoot.insertBefore(host.decorLayer, host.labelsLayer);
     else host.mapRoot.appendChild(host.decorLayer);
-    host.shortcuts.forEach(sc => {
+    drawOrder(host.shortcuts).forEach(sc => {
         const obj = ShortcutFactory.create(sc, host.svgNS, host.imgW, host.imgH, host);
         host.shortcutElements[sc.id] = obj;
         const parent = (sc.config && sc.config.decor) ? host.decorLayer : host.mapRoot;
