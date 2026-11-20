@@ -12,6 +12,8 @@ import { toneColor } from './FloorTone.js?v=3.2.1';
 import { updateRoomPanel, showRoomPanel } from './RoomPanel.js?v=3.2.1';
 import { updateQuickActions } from './QuickActions.js?v=3.2.1';
 import { updateRoomAlerts } from './RoomAlerts.js?v=3.2.1';
+import { choreTint } from './Chores.js?v=3.2.1';
+import { setMapMode, updateChoresMode } from './ChoresMode.js?v=3.2.1';
 
 /**
  * Card methods that simply forward to the scene/feature modules with the
@@ -48,8 +50,11 @@ export const cardDelegates = {
     getCardSize() { return 3; },
     /** Resolves after the next buildSVG (floor switch from search). */
     whenBuilt() { return new Promise(r => { (this._buildWaiters = this._buildWaiters || []).push(r); }); },
-    /** Temperature tint for a room (null unless room_temperature is on). */
-    roomTint(room) { return roomTint(this, this._hass, room); },
+    /** Room tint: chore level in Chores mode, else temperature (null unless room_temperature is on). */
+    roomTint(room) { return this.mapMode === 'chores' ? choreTint(this, this._hass, room) : roomTint(this, this._hass, room); },
+    /** 'lights' or 'chores' (see ChoresMode). */
+    setMapMode(mode) { setMapMode(this, mode); },
+    refreshRoomPanel() { updateRoomPanel(this, this._hass); },
     loadFloorNames(hass) { return MapBuilder.loadFloorNames(this, hass); },
     /** Everything that follows hass besides the badges and room fills. */
     updateLiveFeatures(hass) {
@@ -59,6 +64,7 @@ export const cardDelegates = {
         updateRoomPanel(this, hass);
         updateQuickActions(this, hass);
         updateRoomAlerts(this, hass);
+        updateChoresMode(this, hass);
     },
     /** Paint the letterbox around the map in the floor colour ('fit' keeps the card surface). */
     applyFloorBackground() {

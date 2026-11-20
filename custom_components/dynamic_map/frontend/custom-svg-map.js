@@ -20,6 +20,8 @@ import { buildSearch } from './card/Search.js?v=3.2.1';
 import { buildCalibrate } from './card/Calibrate.js?v=3.2.1';
 import { applyHidden, unwatchHidden, watchHidden } from './card/HiddenEntities.js?v=3.2.1';
 import { setDataBase, setDataFetch } from './shared/DataUrl.js?v=3.2.1';
+import { buildChoresMode } from './card/ChoresMode.js?v=3.2.1';
+import { choresSignature } from './card/Chores.js?v=3.2.1';
 
 /**
  * The Lovelace card. It is the scene host for core/MapScene and the
@@ -147,6 +149,7 @@ class CustomSvgMap extends HTMLElement {
         buildRoomPanelEl(this);
         buildQuickActions(this);
         buildTempLegend(this);
+        buildChoresMode(this);
 
         if (this.cameraManager) this.cameraManager.destroy();
         this.cameraManager = new CameraManager(this.svg, this);
@@ -201,7 +204,7 @@ class CustomSvgMap extends HTMLElement {
             this.applyShortcutTransforms(this.mapScaleX ?? 1, this.mapScaleY ?? 1);
         }
         // Room fills track their light entity and temperature: restyle when either changed.
-        const tints = tintSignature(this, hass);
+        const tints = tintSignature(this, hass) + choresSignature(this, hass);
         const roomsChanged = tints !== this._tintSig || this.rooms.some(r => r.entity_id && roomIsOn(r, prev) !== roomIsOn(r, hass));
         this._tintSig = tints;
         if (roomsChanged || !this._initialStylesRendered) {

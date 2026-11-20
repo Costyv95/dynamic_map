@@ -1,0 +1,108 @@
+/**
+ * House chores from the Crumbs integration (sensor.crumbs_house_chores).
+ * `attributes.areas` is keyed by the HA area each Crumbs room is linked
+ * to: { due, overdue, people: [{id, name}], chores: [...] }. In Chores
+ * mode a room is coloured by its worst chore: overdue (jam red), due
+ * today (amber), otherwise calm green. A room without an entry stays plain.
+ * Config: `chores_entity` (default below), `chores: false` hides the mode.
+ */
+
+export const DEFAULT_CHORES_ENTITY = 'sensor.crumbs_house_chores';
+
+const LEVEL_RGB = {
+    overdue: 'rgb(190, 30, 70)',
+    due: 'rgb(245, 158, 11)',
+    calm: 'rgb(34, 197, 94)'
+};
+
+export function choresEntityId(config) {
+    return (config && config.chores_entity) || DEFAULT_CHORES_ENTITY;
+}
+
+/** The chores sensor's state object, or null when Chores is off or the sensor is missing. */
+export function choresState(host, hass) {
+    if (!host.config || host.config.chores === false || !hass || !hass.states) return null;
+    return hass.states[choresEntityId(host.config)] || null;
+}
+
+const norm = (s) => String(s || '').trim().toLowerCase();
+
+/**
+ * The Crumbs entry for a map room: by the room's HA area id, then
+ * case-insensitively by that area's name or the room's own name.
+ */
+export function roomChores(host, hass, room) {
+    const st = choresState(host, hass);
+    const areas = st && st.attributes && st.attributes.areas;
+    if (!areas || typeof areas !== 'object') return null;
+    if (room.area_id && areas[room.area_id]) return areas[room.area_id];
+    const names = [room.area_id, hass.areas && room.area_id && hass.areas[room.area_id] ? hass.areas[room.area_id].name : null, room.name]
+        .map(norm).filter(Boolean);
+    const key = Object.keys(areas).find(k => names.includes(norm(k)));
+    return key ? areas[key] : null;
+}
+
+/** 'overdue' | 'due' | 'calm' for an area entry. */
+export function choreLevel(entry) {
+    if (!entry) return null;
+    if (Number(entry.overdue) > 0) return 'overdue';
+    if (Number(entry.due) > 0) return 'due';
+    return 'calm';
+}
+
+export function levelColor(level) {
+    return LEVEL_RGB[level] || null;
+}
+
+/** Room fill colour in Chores mode, or null (room not linked to a Crumbs room). */
+export function choreTint(host, hass, room) {
+    return levelColor(choreLevel(roomChores(host, hass, room)));
+}
+
+/** Signature of every room's chore look, so the map restyles only when it changed. */
+export function choresSignature(host, hass) {
+    if (host.mapMode !== 'chores') return '';
+    return 'c:' + (host.rooms || []).map(r => {
+        const e = roomChores(host, hass, r);
+        return e ? `${choreLevel(e)}${e.overdue || 0}/${e.due || 0}` : '-';
+    }).join('|');
+}
+
+/** Chores in display order: most late first, then due today, then by next due date. */
+export function sortedChores(entry) {
+    const list = (entry && Array.isArray(entry.chores)) ? entry.chores.slice() : [];
+    const rank = (c) => (c.late_days > 0 ? 0 : c.due ? 1 : 2);
+    return list.sort((a, b) => rank(a) - rank(b)
+        || (b.late_days || 0) - (a.late_days || 0)
+        || String(a.due_on || '9999').localeCompare(String(b.due_on || '9999'))
+        || String(a.title || '').localeCompare(String(b.title || '')));
+}
+
+const DAY_MS = 86400000;
+const dayStart = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+/** Whole local days from `iso` to `now` (negative in the future), or null. */
+export function daysSince(iso, now = new Date()) {
+    if (!iso) return null;
+    // A bare date (YYYY-MM-DD) is a local calendar day, not UTC midnight.
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(`${iso}T00:00:00`) : new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    return Math.round((dayStart(now) - dayStart(d)) / DAY_MS);
+}
+
+/** "last done 3 d ago · Diana", "done today · Costin", "never done". */
+export function lastDoneText(chore, now = new Date()) {
+    const n = daysSince(chore.last_done, now);
+    if (n === null) return 'never done';
+    const when = n <= 0 ? 'done today' : n === 1 ? 'done yesterday' : `last done ${n} d ago`;
+    return chore.last_done_by ? `${when} · ${chore.last_done_by}` : when;
+}
+
+/** Status pill text and level for one chore. */
+export function choreStatus(chore, now = new Date()) {
+    if (chore.late_days > 0) return { text: `${chore.late_days} d late`, level: 'overdue' };
+    if (chore.due) return { text: 'due today', level: 'due' };
+    const n = daysSince(chore.due_on, now);
+    if (n === null) return { text: '', level: 'calm' };
+    return { text: n === -1 ? 'tomorrow' : `in ${-n} d`, level: 'calm' };
+}

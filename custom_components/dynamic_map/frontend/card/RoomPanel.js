@@ -3,6 +3,7 @@ import { roomAlerts, alertKinds } from './RoomAlerts.js?v=3.2.1';
 import { scenesBar } from './RoomScenes.js?v=3.2.1';
 import { attachTrend } from './RoomHistory.js?v=3.2.1';
 import { roomTemperatureEntity } from './RoomTemperature.js?v=3.2.1';
+import { choresPanelBody } from './ChoresPanel.js?v=3.2.1';
 
 /**
  * Glass panel that opens with a room's zoom: everything in the room's HA
@@ -39,6 +40,12 @@ export function updateRoomPanel(host, hass) {
     const panel = host.roomPanel;
     const room = host._roomPanelRoom;
     if (!panel || !room || !hass || host._rpDragging || host._rpHover) return;   // never re-render under a finger on a slider or the chart
+    if (host.mapMode === 'chores') {
+        panel.replaceChildren(handle(host), ...choresPanelBody(host, hass, room));
+        panel.classList.add('dm-visible');
+        host.renderRoot.classList.add('dm-room-panel-open');
+        return;
+    }
     const ids = room.area_id ? areaEntities(hass, room.area_id) : [];
     if (room.entity_id && hass.states[room.entity_id] && !ids.includes(room.entity_id)) ids.unshift(room.entity_id);
     const max = Number(host.config.room_panel_max) > 0 ? Number(host.config.room_panel_max) : 12;
