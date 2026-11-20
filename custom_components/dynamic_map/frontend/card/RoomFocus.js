@@ -44,7 +44,8 @@ export function onRoomTap(host, room) {
         host.updateRoomStyles();
         return;
     }
-    const action = room.tap_action || host.config.room_tap_action || 'zoom';
+    const chores = host.mapMode === 'chores';   // Chores mode: a tap always opens the room's chores
+    const action = chores ? 'zoom' : (room.tap_action || host.config.room_tap_action || 'zoom');
     switch (action) {
         case 'none':
             return;
@@ -79,7 +80,7 @@ export function onRoomTap(host, room) {
                 host.zoomToRoom(room);
                 host.updateRoomStyles();
                 host.syncFocusPill();
-                showRoomPanel(host, room);
+                showRoomPanel(host, room, chores);
             }
     }
 }

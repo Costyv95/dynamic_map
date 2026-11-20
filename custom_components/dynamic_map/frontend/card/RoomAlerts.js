@@ -67,7 +67,7 @@ export function buildRoomAlerts(host) {
 }
 
 /** Counter-transform so the badge reads upright under the map's rotation/flip. */
-function uprightTransform(host) {
+export function uprightTransform(host) {
     const sx = host.mapScaleX || 1, sy = host.mapScaleY || 1;
     let s = '';
     if (sx !== 1 || sy !== 1) s += ` scale(${sx}, ${sy})`;

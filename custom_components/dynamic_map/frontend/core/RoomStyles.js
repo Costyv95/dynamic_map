@@ -43,7 +43,8 @@ export function updateRoomStyles(host) {
         const isFocused = (host.focusedRoomId === room.id);
         const tint = typeof host.roomTint === 'function' ? host.roomTint(room) : null;
         const { solid, fillAt, neutral } = tint ? tintPalette(tint) : roomPalette(room, idx);
-        const isOn = roomIsOn(room, host._hass);
+        const chores = host.mapMode === 'chores';
+        const isOn = !chores && roomIsOn(room, host._hass);
 
         poly.classList.remove('dm-selected', 'dm-on');
         poly.classList.toggle('dm-dimmed', anyFocus && !isFocused);
@@ -72,6 +73,10 @@ export function updateRoomStyles(host) {
             poly.setAttribute('stroke', 'none');
             poly.style.setProperty('--dm-room-glow', solid);
             poly.classList.add('dm-on');
+        } else if (chores) {
+            // Chores: a clear wash of the room's chore level; unlinked rooms stay plain.
+            poly.setAttribute('fill', tint ? fillAt(0.2) : 'rgba(0, 0, 0, 0)');
+            poly.setAttribute('stroke', 'none');
         } else {
             // At rest a soft wash of the room's colour; the walls draw the edges.
             poly.setAttribute('fill', neutral ? 'rgba(0, 0, 0, 0)' : fillAt(0.12));

@@ -1,4 +1,5 @@
 /** Room panel (glass sheet listing the area's devices) — appended to CARD_STYLES. */
+import { CHORES_STYLES } from './ChoresStyles.js?v=3.2.1';
 export const ROOM_PANEL_STYLES = `
     /* Room panel: opens with a room's zoom, lists the area's devices. */
     .dm-room-panel {
@@ -71,4 +72,4 @@ export const ROOM_PANEL_STYLES = `
     .dm-rp-alert-open .dm-rp-value { color: var(--dm-warning); }
     .dm-rp-alert-danger .dm-rp-value { color: var(--dm-danger); }
     .dm-rp-alert-unavailable { opacity: 0.75; }
-`;
+` + CHORES_STYLES;
