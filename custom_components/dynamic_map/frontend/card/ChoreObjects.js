@@ -1,16 +1,17 @@
-import { roomChores, sortedChores, choreStatus, levelColor } from './Chores.js?v=3.2.1';
+import { roomChores, sortedChores, choreState, CHORE_MARKS } from './Chores.js?v=3.2.1';
+import { roomBox } from '../core/RoomLabels.js?v=3.2.1';
 import { chorePeople, selectedPerson } from './ChoreWho.js?v=3.2.1';
 import { choreBusy, completeChore } from './ChoresPanel.js?v=3.2.1';
 import { uprightTransform } from './RoomAlerts.js?v=3.2.1';
 
 /**
- * Object checks: in Chores mode, a chore about a piece of furniture in the
- * open room ("Change bedsheets" → the bed) gets a round ✓ on that object.
- * A tap credits the person picked in the who switch, like the panel's Done
+ * Chore marks: in Chores mode every chore gets a round mark coloured by
+ * its freshness (Chores.js CHORE_MARKS), on the furniture it is about
+ * ("Change bedsheets" → the bed) or under the room's name. In the open room
+ * a tap credits the person picked in the who switch, like the panel's Done
  * button. The match is by title keywords → furniture kind, among furniture
  * shortcuts whose centre lies in the room; with several candidates the one
- * whose name shares a word with the title wins ("coffee table"). Chores
- * with no match stay list-only.
+ * whose name shares a word with the title wins ("coffee table").
  */
 const KIND_WORDS = [
     [/\bbed(?!room)|sheets?\b|duvet|pillows?\b|mattress/, ['bed']],
@@ -101,6 +102,7 @@ export function choreObject(chore, furniture) {
 export function buildChoreObjects(host) {
     host.choreObjects = null;
     host._choreObjSig = null;
+    host._choreFurn = null;
     if (!host.mapRoot) return;
     host.choreObjects = document.createElementNS(host.svgNS, 'g');
     host.choreObjects.classList.add('dm-chore-objects');
@@ -114,43 +116,91 @@ function checkRadius(host) {
     return vb && vb.w > 0 && pxW > 0 ? 14 * vb.w / pxW : host.imgW * 0.012;
 }
 
-/** Draw the checks for the open room (Chores mode only); redrawn only when something shown changed. */
+/** roomFurniture, cached per room until the drawn shortcuts change. */
+function furnitureOf(host, room) {
+    const n = Object.keys(host.shortcutElements || {}).length;
+    if (!host._choreFurn || host._choreFurn.n !== n) host._choreFurn = { n, rooms: {} };
+    const c = host._choreFurn.rooms;
+    return c[room.id] || (c[room.id] = roomFurniture(host, room));
+}
+
+/**
+ * Spots for `count` marks with no furniture: rows under the room's name as
+ * seen on screen, wrapped to the room's width. Offsets are laid out
+ * upright and mapped back through the marks' upright transform, so a
+ * rotated or mirrored map still gets them below the label.
+ */
+export function roomSpots(host, room, r, count) {
+    const box = roomBox(room, host.imgW, host.imgH);
+    const rot = !!host.isRotated, sx = host.mapScaleX || 1, sy = host.mapScaleY || 1;
+    const W = rot ? box.h : box.w, H = rot ? box.w : box.h;
+    const toMap = (x, y) => (rot ? [sx * y, -sy * x] : [sx * x, sy * y]);
+    const step = r * 2.3;
+    const perRow = Math.max(1, Math.min(count, Math.floor(W / step) || 1));
+    const y0 = Math.max(r * 1.2, Math.min(H / 2 - r * 1.4, r * 2.6));
+    return Array.from({ length: count }, (_, i) => {
+        const row = Math.floor(i / perRow), col = i % perRow;
+        const inRow = Math.min(perRow, count - row * perRow);
+        const [dx, dy] = toMap((col - (inRow - 1) / 2) * step, y0 + row * step);
+        return { x: box.cx + dx, y: box.cy + dy };
+    });
+}
+
+/**
+ * Chores mode: every chore of every room on the floor gets a mark coloured
+ * by its freshness, on its furniture when one matches, else in a row under
+ * the room's name. In the open room a tap credits the picked person; on the
+ * overview a tap opens the room. Redrawn only when something shown changed.
+ */
 export function updateChoreObjects(host, hass, now = new Date()) {
     const layer = host.choreObjects;
     if (!layer) return;
-    const room = host.mapMode === 'chores' ? host._roomPanelRoom : null;
-    const entry = room && hass ? roomChores(host, hass, room) : null;
-    const furniture = entry ? roomFurniture(host, room) : [];
-    const person = entry ? selectedPerson(host, chorePeople(host, hass)) : null;
+    const open = host._roomPanelRoom;
+    const rooms = host.mapMode === 'chores' && hass ? (host.rooms || []) : [];
+    const person = rooms.length ? selectedPerson(host, chorePeople(host, hass)) : null;
     const r = checkRadius(host);
     const items = [];
-    const perObject = {};
-    sortedChores(entry).forEach(chore => {
-        const f = choreObject(chore, furniture);
-        if (!f) return;
-        const i = perObject[f.id] = (perObject[f.id] || 0) + 1;
-        items.push({ chore, f, slot: i - 1, level: choreStatus(chore, now).level, busy: choreBusy(host, chore) });
+    rooms.forEach(room => {
+        const entry = roomChores(host, hass, room);
+        const chores = sortedChores(entry);
+        if (!chores.length) return;
+        const furniture = furnitureOf(host, room);
+        const perObject = {};
+        const loose = [];
+        chores.forEach(chore => {
+            const busy = !!choreBusy(host, chore);
+            const it = { chore, room, open: !!open && open.id === room.id, busy, state: busy ? 'done' : choreState(chore, now) };
+            const f = choreObject(chore, furniture);
+            if (!f) { loose.push(it); return; }
+            const slot = perObject[f.id] = (perObject[f.id] || 0) + 1;
+            items.push({ ...it, at: f, x: f.x + (slot - 1) * r * 2.3, y: f.y });
+        });
+        roomSpots(host, room, r, loose.length).forEach((p, i) => items.push({ ...loose[i], at: { id: `room:${room.id}`, name: room.name || '' }, ...p }));
     });
-    const sig = [room && room.id, r.toFixed(1), person && person.id, host.isRotated, host.mapScaleX, host.mapScaleY,
-        ...items.map(it => `${it.chore.id}@${it.f.id}${it.level}${it.busy ? 'b' : ''}${it.chore.title}`)].join('|');
+    const rank = { ok: 0, done: 1, soon: 2, late: 3 };
+    items.sort((a, b) => rank[a.state] - rank[b.state]);   // the urgent ones drawn last, on top
+    const sig = [open && open.id, r.toFixed(1), person && person.id, host.isRotated, host.mapScaleX, host.mapScaleY,
+        ...items.map(it => `${it.chore.id}@${it.at.id}${it.state}${it.open ? 'o' : ''}${it.busy ? 'b' : ''}${it.chore.title}`)].join('|');
     if (sig === host._choreObjSig) return;
     host._choreObjSig = sig;
     const upright = uprightTransform(host);
-    layer.replaceChildren(...items.map(it => checkEl(host, it, person, r, upright)));
+    layer.replaceChildren(...items.map(it => markEl(host, it, person, r, upright)));
 }
 
-function checkEl(host, { chore, f, slot, level, busy }, person, r, upright) {
+function markEl(host, { chore, room, at, x, y, state, open, busy }, person, r, upright) {
     const ns = host.svgNS;
+    const mark = CHORE_MARKS[state] || CHORE_MARKS.ok;
     const g = document.createElementNS(ns, 'g');
-    g.classList.add('dm-chore-obj');
+    g.classList.add('dm-chore-obj', `dm-chore-${state}`);
     if (busy) g.classList.add('dm-busy');
     g.dataset.chore = String(chore.id);
-    g.dataset.object = f.id;
-    const x = f.x + slot * r * 2.3;
-    g.setAttribute('transform', `translate(${x.toFixed(1)}, ${f.y.toFixed(1)})${upright}`);
+    g.dataset.object = at.id;
+    g.dataset.state = state;
+    g.setAttribute('transform', `translate(${x.toFixed(1)}, ${y.toFixed(1)})${upright}`);
+    const rr = state === 'ok' ? r * 0.75 : r;   // "not due yet" stays quiet
     const c = document.createElementNS(ns, 'circle');
-    c.setAttribute('r', r.toFixed(1));
-    c.setAttribute('fill', levelColor(busy ? 'calm' : level));
+    c.setAttribute('r', rr.toFixed(1));
+    c.setAttribute('fill', mark.color);
     c.setAttribute('stroke', 'rgba(255,255,255,0.95)');
     c.setAttribute('stroke-width', (r * 0.16).toFixed(1));
     const t = document.createElementNS(ns, 'text');
@@ -159,13 +209,16 @@ function checkEl(host, { chore, f, slot, level, busy }, person, r, upright) {
     t.setAttribute('font-size', (r * 1.2).toFixed(1));
     t.setAttribute('font-weight', '700');
     t.setAttribute('fill', 'white');
-    t.textContent = '✓';
+    t.textContent = mark.glyph;
     const tip = document.createElementNS(ns, 'title');
-    tip.textContent = busy ? `${chore.title}: sent` : `${chore.title} (${f.name})${person ? ` · tap: done by ${person.name}` : ''}`;
+    const where = at.name && !at.id.startsWith('room:') ? ` (${at.name})` : '';
+    tip.textContent = busy ? `${chore.title}: sent`
+        : `${chore.title}${where} · ${mark.label}${open && person ? ` · tap: done by ${person.name}` : ''}`;
     g.append(tip, c, t);
     g.addEventListener('pointerdown', e => e.stopPropagation());
     g.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (!open) { if (host.onRoomTap) host.onRoomTap(room); return; }   // overview: open the room first
         if (!busy) completeChore(host, chore, selectedPerson(host, chorePeople(host, host._hass)));   // the pick at tap time
     });
     return g;

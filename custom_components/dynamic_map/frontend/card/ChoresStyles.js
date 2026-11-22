@@ -18,6 +18,8 @@ export const CHORES_STYLES = `
     .dm-render-root.dm-room-panel-open .dm-chores-legend { opacity: 0; pointer-events: none; }
     .dm-cl-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
     .dm-cl-floor { font: inherit; color: var(--dm-text, inherit); background: var(--dm-fill); border: none; border-radius: var(--dm-radius-pill); padding: 3px 9px; margin: -3px -6px -3px 0; cursor: pointer; }
+    .dm-cl-late { margin: -3px 0 -3px -6px; }
+    .dm-rp-subhead.dm-rp-link { cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
     .dm-cl-dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.8); }
     /* Chore rows in the room panel. */
     .dm-chores-list { gap: 4px; }
@@ -65,5 +67,6 @@ export const CHORES_STYLES = `
     .dm-chore-obj { cursor: pointer; }
     .dm-chore-obj circle { filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4)); transition: transform 0.15s; }
     .dm-chore-obj text { pointer-events: none; }
+    .dm-chore-obj.dm-chore-ok { opacity: 0.85; }
     .dm-chore-obj.dm-busy { cursor: default; opacity: 0.7; }
 `;

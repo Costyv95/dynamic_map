@@ -53,9 +53,16 @@ export function roomChores(host, hass, room) {
     return key ? areas[key] : null;
 }
 
-/** 'overdue' | 'due' | 'calm' for an area entry. */
+const STATE_LEVEL = { late: 'overdue', soon: 'due', ok: 'calm', done: 'calm' };
+
+/**
+ * 'overdue' | 'due' | 'calm' for an area entry: from its Crumbs `state`
+ * (its worst chore's freshness) when the sensor carries one, else from the
+ * overdue / due-today counts.
+ */
 export function choreLevel(entry) {
     if (!entry) return null;
+    if (STATE_LEVEL[entry.state]) return STATE_LEVEL[entry.state];
     if (Number(entry.overdue) > 0) return 'overdue';
     if (Number(entry.due) > 0) return 'due';
     return 'calm';
@@ -75,7 +82,7 @@ export function choresSignature(host, hass) {
     if (host.mapMode !== 'chores') return '';
     return 'c:' + (host.rooms || []).map(r => {
         const e = roomChores(host, hass, r);
-        return e ? `${choreLevel(e)}${e.overdue || 0}/${e.due || 0}` : '-';
+        return e ? `${choreLevel(e)}${e.overdue || 0}/${e.due || 0}${e.state || ''}` : '-';
     }).join('|');
 }
 
@@ -109,11 +116,43 @@ export function lastDoneText(chore, now = new Date()) {
     return chore.last_done_by ? `${when} · ${chore.last_done_by}` : when;
 }
 
-/** Status pill text and level for one chore. */
+/** Status pill text, and its level from the chore's freshness (a "soon" one is amber days ahead). */
 export function choreStatus(chore, now = new Date()) {
+    const level = STATE_LEVEL[choreState(chore, now)] || 'calm';
     if (chore.late_days > 0) return { text: `${chore.late_days} d late`, level: 'overdue' };
     if (chore.due) return { text: 'due today', level: 'due' };
     const n = daysSince(chore.due_on, now);
-    if (n === null) return { text: '', level: 'calm' };
-    return { text: n === -1 ? 'tomorrow' : `in ${-n} d`, level: 'calm' };
+    if (n === null) return { text: '', level };
+    return { text: n >= 0 ? 'due today' : n === -1 ? 'tomorrow' : `in ${-n} d`, level };
+}
+
+/**
+ * Freshness marks (Crumbs `state`): done = in the first 20% of the cycle
+ * after a finish (green ✓), ok = 20–80% (gray), soon = the last 20%, due day
+ * included (yellow !), late = past the due date (red !).
+ */
+export const CHORE_MARKS = {
+    done: { color: 'rgb(34, 197, 94)', glyph: '✓', label: 'done recently' },
+    ok: { color: 'rgb(148, 163, 184)', glyph: '', label: 'not due yet' },
+    soon: { color: 'rgb(245, 158, 11)', glyph: '!', label: 'due soon' },
+    late: { color: 'rgb(190, 30, 70)', glyph: '!', label: 'late' }
+};
+
+/**
+ * A chore's freshness: Crumbs' `state` when present, else the same rule
+ * from late_days / due / last_done and the rhythm (older sensors).
+ */
+export function choreState(chore, now = new Date()) {
+    if (!chore) return null;
+    if (CHORE_MARKS[chore.state]) return chore.state;
+    if (chore.late_days > 0) return 'late';
+    if (chore.due) return 'soon';
+    const period = Number(chore.period_days || chore.every_days);
+    const since = daysSince(chore.last_done, now);
+    if (period > 0 && since !== null) {
+        const p = since / period;
+        if (p < 0.2) return 'done';
+        if (p >= 0.8) return 'soon';
+    }
+    return 'ok';
 }
