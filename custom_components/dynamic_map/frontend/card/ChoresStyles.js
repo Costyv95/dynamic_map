@@ -35,4 +35,34 @@ export const CHORES_STYLES = `
     .dm-chore-done:disabled { opacity: 0.55; cursor: default; }
     .dm-chore-done.dm-on { opacity: 1; background: var(--dm-success); color: white; }
     .dm-chore-error { font-size: 12px; color: var(--dm-danger); }
+    /* Wide cards: the chores panel is a fixed column on the left; the camera frames the room beside it (RoomFocus).
+       The doubled class outranks the phone-sheet rules, which also apply to the upright wall tablet. */
+    .dm-render-root.dm-chores-dock .dm-room-panel.dm-room-panel {
+        left: 0; top: 0; bottom: 0; right: auto; width: var(--dm-dock-w, 300px); max-height: none;
+        border-radius: 0; border-width: 0 1px 0 0; background: var(--dm-surface); backdrop-filter: none; -webkit-backdrop-filter: none;
+        transform: translateX(-16px);
+    }
+    .dm-render-root.dm-chores-dock .dm-room-panel.dm-room-panel.dm-visible { transform: translateX(0); }
+    .dm-render-root.dm-chores-dock .dm-rp-handle { display: none; }
+    .dm-render-root.dm-chores-dock .dm-rp-head { padding-top: 12px; }
+    .dm-render-root.dm-chores-dock .dm-chores-list { flex: 1; }
+    .dm-render-root.dm-chores-dock.dm-chores-dock .dm-top-ui, .dm-render-root.dm-chores-dock.dm-chores-dock .dm-quick-actions { left: calc(var(--dm-dock-w, 300px) + 14px); }
+    /* Who's doing it: lower right; the legend steps up above it. */
+    .dm-chores-who { position: absolute; right: 14px; bottom: 14px; z-index: 13; }
+    .dm-chores-who[hidden] { display: none; }
+    .dm-mode-chores .dm-chores-legend { bottom: 60px; }
+    .dm-render-root.dm-has-outside .dm-chores-who { bottom: 64px; }
+    .dm-render-root.dm-has-outside.dm-mode-chores .dm-chores-legend { bottom: 110px; }
+    .dm-render-root.dm-narrow .dm-chores-who { right: 8px; bottom: 8px; }
+    .dm-render-root.dm-narrow.dm-room-panel-open:not(.dm-chores-dock) .dm-chores-who { bottom: calc(38% + 16px); }
+    .dm-render-root.dm-narrow:has(.dm-room-panel.dm-expanded) .dm-chores-who { display: none; }
+    .dm-who-chip { font: inherit; border: none; }
+    .dm-who-chip:not(.active) { background: transparent; }
+    /* ✓ on the furniture a chore is about (ChoreObjects). */
+    .dm-chore-objects { display: none; }
+    .dm-mode-chores .dm-chore-objects { display: inline; }
+    .dm-chore-obj { cursor: pointer; }
+    .dm-chore-obj circle { filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4)); transition: transform 0.15s; }
+    .dm-chore-obj text { pointer-events: none; }
+    .dm-chore-obj.dm-busy { cursor: default; opacity: 0.7; }
 `;

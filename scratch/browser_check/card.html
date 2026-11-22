@@ -23,7 +23,7 @@
     'sensor.room_temperature': { state: '21.4', attributes: { unit_of_measurement: '°C' } },
     'sun.sun': { state: 'above_horizon', attributes: { elevation: 30 } }
   };
-  window.__hass = { states, callService: (...a) => (window.__calls = (window.__calls || []).concat([a])), callApi: async () => ({ floors: [1, 2] }) };
+  window.__hass = { states, callService: (...a) => (window.__calls = (window.__calls || []).concat([a])), fetchWithAuth: (u, i) => fetch(u, i), callApi: async () => ({ floors: [1, 2] }) };
   card.hass = window.__hass;
   window.__card = card;
 </script>

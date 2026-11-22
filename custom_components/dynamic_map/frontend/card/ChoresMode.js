@@ -2,11 +2,14 @@ import { choresState, roomChores, choreLevel, levelColor } from './Chores.js?v=3
 import { badgeRadius, uprightTransform } from './RoomAlerts.js?v=3.2.1';
 import { roomBox } from '../core/RoomLabels.js?v=3.2.1';
 import { showRoomPanel, updateRoomPanel } from './RoomPanel.js?v=3.2.1';
+import { buildWhoToggle, updateWhoToggle } from './ChoreWho.js?v=3.2.1';
+import { buildChoreObjects, updateChoreObjects } from './ChoreObjects.js?v=3.2.1';
 
 /**
  * Lights | Chores switch. Chores mode dims the device shortcuts, colours
  * each room by its Crumbs chores and puts a due-count badge on it; a room
- * tap lists its chores. The mode survives floor switches. Config:
+ * tap lists its chores (docked on the left, with ✓ checks on the objects
+ * they are about) and a "who's doing it" switch sits lower right. The mode survives floor switches. Config:
  * `default_mode: chores`, `mode_toggle: false` (hide the built-in switch
  * and drive it from outside with `card.setMapMode('chores')`). Every change
  * fires a `dm-mode-change` event with `detail.mode`.
@@ -26,9 +29,11 @@ export function setMapMode(host, mode) {
     host._choreBadgesSig = null;
     host.updateRoomStyles();
     updateChoresMode(host, host._hass);
-    if (host._roomPanelRoom) {
-        if (mode === 'chores') showRoomPanel(host, host._roomPanelRoom, true);
+    const room = host._roomPanelRoom;
+    if (room) {
+        if (mode === 'chores') showRoomPanel(host, room, true);
         else updateRoomPanel(host, host._hass);
+        if (host.zoomToRoom) host.zoomToRoom(room);   // the chores panel docks left, the lights one floats: re-frame the room
     }
     host.dispatchEvent(new CustomEvent('dm-mode-change', { detail: { mode }, bubbles: true, composed: true }));
 }
@@ -44,6 +49,8 @@ export function buildChoresMode(host) {
     host.modeToggle = null;
     host.choreBadges = null;
     host.choresLegend = null;
+    host.choresWho = null;
+    host.choreObjects = null;
     host._choreBadgesSig = null;
     if (!host.config || host.config.chores === false) return;
     if (host.config.mode_toggle !== false && host.topLeftUI) {
@@ -72,6 +79,8 @@ export function buildChoresMode(host) {
     legend.hidden = true;
     host.renderRoot.appendChild(legend);
     host.choresLegend = legend;
+    buildWhoToggle(host);
+    buildChoreObjects(host);
     applyModeClass(host);
     if (host.mapMode === 'chores') host.updateRoomStyles();   // the scene was styled before the mode was known
     updateChoresMode(host, host._hass);   // hass usually arrived before the build
@@ -87,6 +96,8 @@ export function updateChoresMode(host, hass) {
     }
     updateLegend(host, st);
     updateBadges(host, hass);
+    updateWhoToggle(host, hass);
+    updateChoreObjects(host, hass);
 }
 
 function updateLegend(host, st) {

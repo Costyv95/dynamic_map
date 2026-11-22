@@ -4,6 +4,8 @@ import { scenesBar } from './RoomScenes.js?v=3.2.1';
 import { attachTrend } from './RoomHistory.js?v=3.2.1';
 import { roomTemperatureEntity } from './RoomTemperature.js?v=3.2.1';
 import { choresPanelBody } from './ChoresPanel.js?v=3.2.1';
+import { choresDockWidth } from './Chores.js?v=3.2.1';
+import { updateChoreObjects } from './ChoreObjects.js?v=3.2.1';
 
 /**
  * Glass panel that opens with a room's zoom: everything in the room's HA
@@ -32,7 +34,8 @@ export function hideRoomPanel(host) {
     if (!host.roomPanel) return;
     host._roomPanelRoom = null;
     host.roomPanel.classList.remove('dm-visible', 'dm-expanded');
-    host.renderRoot.classList.remove('dm-room-panel-open');
+    host.renderRoot.classList.remove('dm-room-panel-open', 'dm-chores-dock');
+    updateChoreObjects(host, host._hass);
 }
 
 /** Re-render rows from the current hass (cheap: a dozen small nodes). */
@@ -44,8 +47,11 @@ export function updateRoomPanel(host, hass) {
         panel.replaceChildren(handle(host), ...choresPanelBody(host, hass, room));
         panel.classList.add('dm-visible');
         host.renderRoot.classList.add('dm-room-panel-open');
+        dock(host);
+        updateChoreObjects(host, hass);
         return;
     }
+    host.renderRoot.classList.remove('dm-chores-dock');
     const ids = room.area_id ? areaEntities(hass, room.area_id) : [];
     if (room.entity_id && hass.states[room.entity_id] && !ids.includes(room.entity_id)) ids.unshift(room.entity_id);
     const max = Number(host.config.room_panel_max) > 0 ? Number(host.config.room_panel_max) : 12;
@@ -70,6 +76,13 @@ export function updateRoomPanel(host, hass) {
     if (tempId) attachTrend(host, trend, tempId);
     panel.classList.add('dm-visible');
     host.renderRoot.classList.add('dm-room-panel-open');
+}
+
+/** Chores mode on a wide card: the panel is a fixed column on the left (ChoresStyles), not a floating sheet. */
+function dock(host) {
+    const w = choresDockWidth(host, host.getBoundingClientRect ? host.getBoundingClientRect().width : 0);
+    host.renderRoot.classList.toggle('dm-chores-dock', w > 0);
+    if (w) host.renderRoot.style.setProperty('--dm-dock-w', `${w}px`);
 }
 
 /** Phone bottom sheet grip: tap or swipe up expands, swipe down collapses, then closes. */

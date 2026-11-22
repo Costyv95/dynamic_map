@@ -1,9 +1,11 @@
 import { roomChores, sortedChores, lastDoneText, choreStatus } from './Chores.js?v=3.2.1';
+import { chorePeople, selectedPerson } from './ChoreWho.js?v=3.2.1';
 
 /**
  * Room panel body in Chores mode: one row per Crumbs chore with its
  * status ("2 d late", "due today", "in 3 d"), "last done N d ago · who"
- * and a button per person who can be credited. A press calls
+ * and one Done button that credits the person picked in the "who's doing
+ * it" switch (ChoreWho.js). A press calls
  * crumbs.complete_chore {task_id, done_by}; the button stays marked until
  * the sensor shows the new last_done (or BUSY_MS passes), and a refusal
  * (service_validation_error) is shown under the chore.
@@ -44,25 +46,30 @@ export function choresPanelBody(host, hass, room, now = new Date()) {
     }
     const list = document.createElement('div');
     list.className = 'dm-rp-list dm-chores-list';
-    chores.forEach(c => list.appendChild(choreRow(host, c, entry.people || [], now)));
+    const person = selectedPerson(host, chorePeople(host, hass));
+    chores.forEach(c => list.appendChild(choreRow(host, c, person, now)));
     out.push(list);
     return out;
 }
 
-function busyFor(host, chore) {
+/** The pending press on a chore ({who, at, lastDone}), or null once the sensor moved or BUSY_MS passed. */
+export function choreBusy(host, chore) {
     const b = (host._choreBusy || {})[chore.id];
     if (!b) return null;
     if (b.lastDone !== chore.last_done || Date.now() - b.at > BUSY_MS) { delete host._choreBusy[chore.id]; return null; }
     return b;
 }
 
-function complete(host, chore, person) {
-    if (!host._hass) return;
+/** Credit `person` with `chore` (panel row or object check); a refusal is kept for the panel. */
+export function completeChore(host, chore, person) {
+    if (!host._hass || !person) return;
     host._choreBusy = host._choreBusy || {};
     host._choreErr = host._choreErr || {};
-    host._choreBusy[chore.id] = { who: person.id, at: Date.now(), lastDone: chore.last_done };
+    host._choreBusy[chore.id] = { who: person.id, name: person.name, at: Date.now(), lastDone: chore.last_done };
     delete host._choreErr[chore.id];
-    const rerender = () => { if (host._roomPanelRoom && host.refreshRoomPanel) host.refreshRoomPanel(); };
+    const rerender = () => {
+        if (host._roomPanelRoom && host.refreshRoomPanel) host.refreshRoomPanel();
+    };
     let ret;
     try { ret = host._hass.callService('crumbs', 'complete_chore', { task_id: chore.id, done_by: person.id }); } catch (e) { ret = Promise.reject(e); }
     Promise.resolve(ret).catch((e) => {
@@ -73,7 +80,7 @@ function complete(host, chore, person) {
     rerender();
 }
 
-function choreRow(host, chore, people, now) {
+function choreRow(host, chore, person, now) {
     const st = choreStatus(chore, now);
     const r = document.createElement('div');
     r.className = `dm-chore-row dm-chore-${st.level}`;
@@ -81,19 +88,17 @@ function choreRow(host, chore, people, now) {
     r.querySelector('.dm-chore-title').textContent = chore.title || 'Chore';
     r.querySelector('.dm-chore-status').textContent = st.text;
     r.querySelector('.dm-chore-sub').textContent = lastDoneText(chore, now) + (chore.assignee ? ` · for ${chore.assignee}` : '');
-    const busy = busyFor(host, chore);
-    const who = r.querySelector('.dm-chore-who');
-    people.forEach(p => {
+    const busy = choreBusy(host, chore);
+    if (person || busy) {
         const b = document.createElement('button');
         b.className = 'dm-rp-btn dm-chore-done';
-        const mine = busy && busy.who === p.id;
-        b.textContent = mine ? `✓ ${p.name}` : p.name;
-        b.title = `${p.name} did "${chore.title}"`;
+        b.textContent = busy ? `✓ ${busy.name || 'Done'}` : `Done · ${person.name}`;
+        b.title = person ? `${person.name} did "${chore.title}"` : '';
         b.disabled = !!busy;
-        b.classList.toggle('dm-on', !!mine);
-        b.addEventListener('click', (e) => { e.stopPropagation(); complete(host, chore, p); });
-        who.appendChild(b);
-    });
+        b.classList.toggle('dm-on', !!busy);
+        b.addEventListener('click', (e) => { e.stopPropagation(); completeChore(host, chore, person); });
+        r.querySelector('.dm-chore-who').appendChild(b);
+    }
     const err = (host._choreErr || {})[chore.id];
     if (err) {
         const d = document.createElement('div');
