@@ -68,7 +68,7 @@ export function completeChore(host, chore, person) {
     host._choreBusy[chore.id] = { who: person.id, name: person.name, at: Date.now(), lastDone: chore.last_done };
     delete host._choreErr[chore.id];
     const rerender = () => {
-        if (host._roomPanelRoom && host.refreshRoomPanel) host.refreshRoomPanel();
+        if (host.refreshRoomPanel) host.refreshRoomPanel();   // the open room or the floor-wide list
     };
     let ret;
     try { ret = host._hass.callService('crumbs', 'complete_chore', { task_id: chore.id, done_by: person.id }); } catch (e) { ret = Promise.reject(e); }

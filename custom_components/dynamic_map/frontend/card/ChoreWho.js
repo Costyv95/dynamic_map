@@ -34,7 +34,7 @@ export function setSelectedPerson(host, id) {
     host._choreWho = String(id);
     try { if (globalThis.localStorage) localStorage.setItem(STORE_KEY, String(id)); } catch (e) { /* private mode: this session only */ }
     updateWhoToggle(host, host._hass);
-    if (host._roomPanelRoom && host.refreshRoomPanel) host.refreshRoomPanel();
+    if (host.refreshRoomPanel) host.refreshRoomPanel();   // the open room or the floor-wide list
 }
 
 export function buildWhoToggle(host) {
