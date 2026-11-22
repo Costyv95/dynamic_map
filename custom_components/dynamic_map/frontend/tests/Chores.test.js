@@ -119,7 +119,7 @@ describe('chores mode', () => {
         expect(fills[3]).toBe('rgba(0, 0, 0, 0)');
         const badges = [...host.choreBadges.querySelectorAll('.dm-chore-badge')].filter(g => g.style.display !== 'none');
         expect(badges.map(g => g.textContent)).toEqual(['3', '1']);
-        expect(host.choresLegend.textContent).toBe('1 late2 due today');
+        expect(host.choresLegend.textContent).toBe('1 late2 soon');
         setMapMode(host, 'lights');
         expect(host.renderRoot.classList.contains('dm-mode-chores')).toBe(false);
         expect(host.choresLegend.hidden).toBe(true);

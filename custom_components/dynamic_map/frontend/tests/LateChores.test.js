@@ -14,7 +14,7 @@ function makeHass() {
     return {
         areas: {}, floors: {}, entities: {}, devices: {},
         states: {
-            'sensor.crumbs_house_chores': { state: '3', attributes: { due: 1, soon: 2, late: [], areas: {
+            'sensor.crumbs_house_chores': { state: '3', attributes: { due: 1, late: [], areas: {
                 kitchen: { room: 'Kitchen', emoji: '🍳', state: 'late', people, chores: [chore(1, 'Scrub counters', 'late', { late_days: 2 }), chore(2, 'Clean fridge', 'soon')] },
                 office: { room: 'Office', state: 'late', people, chores: [chore(3, 'Tidy up', 'late', { late_days: 5 }), chore(4, 'Dust', 'done')] },
                 second_floor: { room: 'Second floor', state: 'late', people, chores: [chore(5, 'Mop', 'late', { late_days: 1 })] },
