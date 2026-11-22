@@ -27,6 +27,18 @@ export function lateCount(host, hass) {
     return lateChoreAreas(host, hass).reduce((n, a) => n + a.chores.length, 0);
 }
 
+/**
+ * Chores due soon, house-wide, counted from the per-chore states (the
+ * sensor has no top-level `soon`); null when the sensor lists no areas.
+ */
+export function soonCount(host, hass, now = new Date()) {
+    const st = choresState(host, hass);
+    const areas = st && st.attributes && st.attributes.areas;
+    if (!areas || typeof areas !== 'object' || !Object.keys(areas).length) return null;
+    return Object.values(areas).reduce((n, e) => n
+        + (e && Array.isArray(e.chores) ? e.chores.filter(c => choreState(c, now) === 'soon').length : 0), 0);
+}
+
 const refresh = (host) => { if (host.refreshRoomPanel) host.refreshRoomPanel(); };
 
 export function openLateChores(host) {

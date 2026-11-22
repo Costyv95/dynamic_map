@@ -5,7 +5,7 @@ import { showRoomPanel, updateRoomPanel } from './RoomPanel.js?v=3.2.1';
 import { buildWhoToggle, updateWhoToggle } from './ChoreWho.js?v=3.2.1';
 import { buildChoreObjects, updateChoreObjects } from './ChoreObjects.js?v=3.2.1';
 import { floorChoresChip } from './FloorChores.js?v=3.2.1';
-import { lateCount, openLateChores } from './LateChores.js?v=3.2.1';
+import { lateCount, soonCount, openLateChores } from './LateChores.js?v=3.2.1';
 
 /**
  * Lights | Chores switch. Chores mode dims the device shortcuts, colours
@@ -112,10 +112,11 @@ function updateLegend(host, st, hass) {
     if (!el) return;
     const a = st && st.attributes ? st.attributes : {};
     const late = st ? lateCount(host, hass) : 0;
-    const soon = Number(a.soon !== undefined ? a.soon : a.due) || 0;
+    const counted = st ? soonCount(host, hass) : null;
+    const soon = counted !== null ? counted : Number(a.due) || 0;
     const items = [];
     if (late) items.push(['overdue', `${late} late`]);
-    if (soon) items.push(['due', a.soon !== undefined ? `${soon} soon` : `${soon} due today`]);
+    if (soon) items.push(['due', counted !== null ? `${soon} soon` : `${soon} due today`]);
     if (!items.length && st) items.push(['calm', 'All done']);
     const floor = floorChoresChip(host, hass);
     el.hidden = host.mapMode !== 'chores' || !items.length;
