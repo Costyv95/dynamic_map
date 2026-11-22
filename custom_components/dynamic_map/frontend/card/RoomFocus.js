@@ -1,5 +1,6 @@
 import { roomViewBox } from '../core/Viewport.js?v=3.2.1';
 import { showRoomPanel, hideRoomPanel } from './RoomPanel.js?v=3.2.1';
+import { choresDockWidth } from './Chores.js?v=3.2.1';
 
 /**
  * Room tap behaviour and the zoom camera: `room_tap_action` / per-room
@@ -88,6 +89,7 @@ export function onRoomTap(host, room) {
 /** Animate the camera into a room's bounding box. */
 /** Share of the card the room sheet covers on a phone (0 on wide cards or with the panel off). */
 export function sheetFraction(host) {
+    if (choresDockWidth(host, host.getBoundingClientRect().width)) return 0;   // the chores panel docks left instead
     return host.isNarrow && !(host.config && host.config.room_panel === false) ? SHEET_FRACTION : 0;
 }
 const SHEET_FRACTION = 0.38;
@@ -95,14 +97,16 @@ const SHEET_FRACTION = 0.38;
 export function zoomToRoom(host, room) {
     const rect = host.getBoundingClientRect();
     const sheet = sheetFraction(host);
-    // On a phone the room must fit the part of the card above the bottom sheet.
-    const ratio = (rect.width > 0 ? rect.width : 1) / ((rect.height > 0 ? rect.height : 1) * (1 - sheet));
+    const dock = rect.width > 0 ? choresDockWidth(host, rect.width) / rect.width : 0;
+    // The room must fit the part of the card beside the docked chores panel / above the phone sheet.
+    const ratio = (rect.width > 0 ? rect.width : 1) * (1 - dock) / ((rect.height > 0 ? rect.height : 1) * (1 - sheet));
     // Respect the same minimum zoom window as manual pinch/wheel zoom.
     const vb = roomViewBox({
         mapPoint: (x, y) => host.mapPointToView(x, y), room,
         imgW: host.imgW, imgH: host.imgH, screenRatio: ratio, minW: host.imgW * 0.05
     });
     vb.h = vb.h / (1 - sheet);   // extend downwards: the sheet covers the extra strip
+    if (dock) { const w = vb.w / (1 - dock); vb.x -= w - vb.w; vb.w = w; }   // extend leftwards under the docked panel
     host._zoomTargetVb = vb;
     host.animateViewBox(host._zoomTargetVb);
 }

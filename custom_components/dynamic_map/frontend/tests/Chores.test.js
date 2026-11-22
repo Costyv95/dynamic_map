@@ -4,7 +4,9 @@ import { buildChoresMode, updateChoresMode, setMapMode } from '../card/ChoresMod
 import { choresPanelBody } from '../card/ChoresPanel.js';
 import { updateRoomStyles } from '../core/RoomStyles.js';
 import { buildRoomPanelEl, updateRoomPanel } from '../card/RoomPanel.js';
-import { onRoomTap } from '../card/RoomFocus.js';
+import { onRoomTap, zoomToRoom } from '../card/RoomFocus.js';
+import { chorePeople, selectedPerson } from '../card/ChoreWho.js';
+import { choreKinds, choreObject, roomFurniture } from '../card/ChoreObjects.js';
 
 const svgNS = 'http://www.w3.org/2000/svg';
 const NOW = new Date('2026-11-20T18:00:00');
@@ -131,7 +133,7 @@ describe('chores mode', () => {
 });
 
 describe('chores panel', () => {
-    it('lists chores with status, last done and a button per person that completes the chore', async () => {
+    it('lists chores with status, last done and one Done button for the selected person', async () => {
         const hass = makeHass(), host = makeHost(hass);
         const nodes = choresPanelBody(host, hass, rooms[0], NOW);
         const box = document.createElement('div');
@@ -141,12 +143,16 @@ describe('chores panel', () => {
         const rows = [...box.querySelectorAll('.dm-chore-row')];
         expect(rows.map(r => r.querySelector('.dm-chore-status').textContent)).toEqual(['3 d late', 'due today', 'in 5 d']);
         expect(rows[1].querySelector('.dm-chore-sub').textContent).toBe('last done 3 d ago · Diana');
-        rows[0].querySelectorAll('.dm-chore-done')[1].click();
+        expect([...rows[0].querySelectorAll('.dm-chore-done')].map(b => b.textContent)).toEqual(['Done · Costin']);
+        host._choreWho = '9';
+        const box2 = document.createElement('div');
+        box2.append(...choresPanelBody(host, hass, rooms[0], NOW));
+        box2.querySelector('.dm-chore-done').click();
         expect(hass.callService).toHaveBeenCalledWith('crumbs', 'complete_chore', { task_id: 12, done_by: 9 });
         const again = document.createElement('div');
         again.append(...choresPanelBody(host, hass, rooms[0], NOW));
-        const btns = again.querySelectorAll('.dm-chore-row')[0].querySelectorAll('.dm-chore-done');
-        expect([...btns].map(b => [b.textContent, b.disabled])).toEqual([['Costin', true], ['✓ Diana', true]]);
+        const btn = again.querySelectorAll('.dm-chore-row')[0].querySelector('.dm-chore-done');
+        expect([btn.textContent, btn.disabled]).toEqual(['✓ Diana', true]);
     });
 
     it('shows a refusal under the chore and frees the buttons', async () => {
@@ -178,5 +184,125 @@ describe('chores panel', () => {
         expect(hass.callService).not.toHaveBeenCalled();
         expect(host.zoomToRoom).toHaveBeenCalledWith(rooms[0]);
         expect(host.roomPanel.querySelectorAll('.dm-chore-row').length).toBe(3);
+    });
+});
+
+describe("who's doing it", () => {
+    it('lists everyone once, starts on the first and remembers the pick per device', () => {
+        localStorage.removeItem('dm-chores-who');
+        const hass = makeHass(), host = makeHost(hass);
+        buildRoomPanelEl(host);
+        buildChoresMode(host);
+        expect(chorePeople(host, hass).map(p => p.name)).toEqual(['Costin', 'Diana']);
+        expect(host.choresWho.hidden).toBe(true);   // Lights mode
+        setMapMode(host, 'chores');
+        const chips = [...host.choresWho.querySelectorAll('.dm-who-chip')];
+        expect(chips.map(c => [c.textContent, c.classList.contains('active')])).toEqual([['Costin', true], ['Diana', false]]);
+        chips[1].click();
+        expect(localStorage.getItem('dm-chores-who')).toBe('9');
+        expect(host.choresWho.querySelector('.active').textContent).toBe('Diana');
+        expect(selectedPerson(makeHost(hass), chorePeople(host, hass)).name).toBe('Diana');   // a fresh card on this device
+        localStorage.setItem('dm-chores-who', '42');   // someone no longer listed
+        expect(selectedPerson(makeHost(hass), chorePeople(host, hass)).name).toBe('Costin');
+        localStorage.removeItem('dm-chores-who');
+    });
+});
+
+describe('object checks', () => {
+    it('reads furniture kinds from chore titles', () => {
+        expect(choreKinds('Change bedsheets')).toEqual(['bed']);
+        expect(choreKinds('Clean bedroom')).toEqual([]);
+        expect(choreKinds('Clean tub')).toEqual(['bathtub']);
+        expect(choreKinds('Organize closets')).toEqual(['wardrobe']);
+        expect(choreKinds('Clean cushions')).toEqual(['sofa']);
+        expect(choreKinds('Dust and clean window sill')).toEqual(['window']);
+        expect(choreKinds('Tidy up')).toEqual([]);
+    });
+
+    it('picks the furniture in the room, preferring a shared name word', () => {
+        const furniture = [{ id: 'a', name: 'Coffee table', kind: 'table' }, { id: 'b', name: 'Dining table', kind: 'dining_table' }];
+        expect(choreObject({ title: 'Oil dining table' }, furniture).id).toBe('b');
+        expect(choreObject({ title: 'Clean coffee table' }, furniture).id).toBe('a');
+        expect(choreObject({ title: 'Clean fridge' }, furniture)).toBe(null);
+    });
+
+    function withFurniture(host) {
+        host.shortcuts = [
+            { id: 'f_ctr', name: 'Counter', config: { decor: true, furniture: 'counter' } },
+            { id: 'f_bed', name: 'Bed', config: { decor: true, furniture: 'bed' } },
+            { id: 'light', name: 'Lamp', config: {} },
+            { id: 'f_win', name: 'Window', config: { decor: true, furniture: 'window' } },
+            { id: 'f_box', name: 'Box', config: { decor: true, furniture: 'cabinet' } }
+        ];
+        host.shortcutElements = { f_ctr: { px: 200, py: 200 }, f_bed: { px: 900, py: 900 }, light: { px: 210, py: 210 }, f_win: { px: 300, py: 90 }, f_box: { px: 300, py: 90 } };
+        return host;
+    }
+
+    it('only furniture whose centre is inside the room counts, windows and doors also in the wall', () => {
+        const host = withFurniture(makeHost(makeHass()));
+        expect(roomFurniture(host, rooms[0]).map(f => f.id)).toEqual(['f_ctr', 'f_win']);
+    });
+
+    it('draws a check on the object for the open room in Chores mode; a tap credits the selected person', () => {
+        const hass = makeHass();
+        hass.states['sensor.crumbs_house_chores'].attributes.areas.kitchen.chores[0].title = 'Scrub counters';
+        const host = withFurniture(makeHost(hass));
+        buildRoomPanelEl(host);
+        buildChoresMode(host);
+        expect(host.choreObjects.children.length).toBe(0);
+        setMapMode(host, 'chores');
+        host.onRoomTap(rooms[0]);
+        const checks = [...host.choreObjects.querySelectorAll('.dm-chore-obj')];
+        expect(checks.map(c => [c.dataset.chore, c.dataset.object])).toEqual([['11', 'f_ctr']]);
+        expect(checks[0].getAttribute('transform')).toMatch(/^translate\(200\.0, 200\.0\)/);
+        host._choreWho = '9';
+        checks[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(hass.callService).toHaveBeenCalledWith('crumbs', 'complete_chore', { task_id: 11, done_by: 9 });
+        expect(host.choreObjects.querySelector('.dm-chore-obj').classList.contains('dm-busy')).toBe(true);
+        host.zoomOutToDefault = () => { host._roomPanelRoom = null; };
+        setMapMode(host, 'lights');
+        expect(host.choreObjects.children.length).toBe(0);
+    });
+});
+
+describe('docked chores panel', () => {
+    function cameraHost(width, mode) {
+        const host = makeHost(makeHass());
+        host.mapMode = mode;
+        host.getBoundingClientRect = () => ({ width, height: 600 });
+        host.mapPointToView = (x, y) => ({ x, y });
+        host.animateViewBox = vi.fn();
+        return host;
+    }
+
+    it('frames the room beside the left column on a wide card in Chores mode only', () => {
+        const wide = cameraHost(1000, 'chores');
+        zoomToRoom(wide, rooms[0]);
+        const lights = cameraHost(1000, 'lights');
+        zoomToRoom(lights, rooms[0]);
+        const a = wide._zoomTargetVb, b = lights._zoomTargetVb;
+        expect(a.w / a.h).toBeCloseTo(1000 / 600, 5);   // still fills the card
+        const dock = 340 / 1000;
+        expect(a.x + a.w * dock).toBeLessThanOrEqual(100 + 1e-6);   // the room's left edge clears the column
+        expect(b.x).toBeGreaterThan(a.x);
+    });
+
+    it('docks the panel with its width on wide cards and keeps the sheet on phones', () => {
+        const hass = makeHass();
+        const wide = makeHost(hass);
+        wide.getBoundingClientRect = () => ({ width: 1000, height: 600 });
+        buildRoomPanelEl(wide);
+        buildChoresMode(wide);
+        setMapMode(wide, 'chores');
+        wide.onRoomTap(rooms[0]);
+        expect(wide.renderRoot.classList.contains('dm-chores-dock')).toBe(true);
+        expect(wide.renderRoot.style.getPropertyValue('--dm-dock-w')).toBe('340px');
+        const phone = makeHost(hass);
+        phone.getBoundingClientRect = () => ({ width: 400, height: 800 });
+        buildRoomPanelEl(phone);
+        buildChoresMode(phone);
+        setMapMode(phone, 'chores');
+        phone.onRoomTap(rooms[0]);
+        expect(phone.renderRoot.classList.contains('dm-chores-dock')).toBe(false);
     });
 });

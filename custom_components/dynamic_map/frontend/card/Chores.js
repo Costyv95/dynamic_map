@@ -15,6 +15,17 @@ const LEVEL_RGB = {
     calm: 'rgb(34, 197, 94)'
 };
 
+/**
+ * Width in px of the chores panel docked on the left (0 = not docked): in
+ * Chores mode on any card at least DOCK_MIN_W wide, the wall tablet held
+ * upright included; phones keep the bottom sheet.
+ */
+const DOCK_MIN_W = 600;
+export function choresDockWidth(host, cardW) {
+    if (host.mapMode !== 'chores' || !(cardW >= DOCK_MIN_W) || (host.config && host.config.chores === false)) return 0;
+    return Math.round(Math.min(340, Math.max(260, cardW * 0.34)));
+}
+
 export function choresEntityId(config) {
     return (config && config.chores_entity) || DEFAULT_CHORES_ENTITY;
 }
