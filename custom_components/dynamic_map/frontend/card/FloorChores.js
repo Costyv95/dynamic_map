@@ -69,6 +69,7 @@ const refresh = (host) => (host.refreshRoomPanel ? host.refreshRoomPanel() : upd
 
 export function openFloorChores(host) {
     host._floorChoresOpen = true;
+    host._lateChoresOpen = false;
     refresh(host);
 }
 

@@ -80,7 +80,7 @@ export function completeChore(host, chore, person) {
     rerender();
 }
 
-function choreRow(host, chore, person, now) {
+export function choreRow(host, chore, person, now = new Date()) {
     const st = choreStatus(chore, now);
     const r = document.createElement('div');
     r.className = `dm-chore-row dm-chore-${st.level}`;

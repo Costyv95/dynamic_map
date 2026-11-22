@@ -7,6 +7,7 @@ import { choresPanelBody } from './ChoresPanel.js?v=3.2.1';
 import { choresDockWidth } from './Chores.js?v=3.2.1';
 import { updateChoreObjects } from './ChoreObjects.js?v=3.2.1';
 import { updateFloorChores } from './FloorChores.js?v=3.2.1';
+import { updateLateChores } from './LateChores.js?v=3.2.1';
 
 /**
  * Glass panel that opens with a room's zoom: everything in the room's HA
@@ -29,6 +30,8 @@ export function showRoomPanel(host, room, force = false) {
     if (!host.roomPanel || (host.config.room_panel === false && !force)) return;
     host._floorChoresOpen = false;
     host._floorChoresShown = false;
+    host._lateChoresOpen = false;
+    host._lateChoresShown = false;
     host._roomPanelRoom = room;
     updateRoomPanel(host, host._hass);
 }
@@ -46,7 +49,10 @@ export function updateRoomPanel(host, hass) {
     const panel = host.roomPanel;
     const room = host._roomPanelRoom;
     if (!panel || !hass || host._rpDragging || host._rpHover) return;   // never re-render under a finger on a slider or the chart
-    if (!room) { updateFloorChores(host, hass, dock); return; }   // no room open: maybe the floor-wide chores
+    if (!room) {   // no room open: maybe the house-wide late list or the floor-wide chores
+        if (!updateLateChores(host, hass, dock)) updateFloorChores(host, hass, dock);
+        return;
+    }
     if (host.mapMode === 'chores') {
         panel.replaceChildren(handle(host), ...choresPanelBody(host, hass, room));
         panel.classList.add('dm-visible');

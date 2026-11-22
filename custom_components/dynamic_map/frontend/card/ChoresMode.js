@@ -5,12 +5,14 @@ import { showRoomPanel, updateRoomPanel } from './RoomPanel.js?v=3.2.1';
 import { buildWhoToggle, updateWhoToggle } from './ChoreWho.js?v=3.2.1';
 import { buildChoreObjects, updateChoreObjects } from './ChoreObjects.js?v=3.2.1';
 import { floorChoresChip } from './FloorChores.js?v=3.2.1';
+import { lateCount, openLateChores } from './LateChores.js?v=3.2.1';
 
 /**
  * Lights | Chores switch. Chores mode dims the device shortcuts, colours
  * each room by its Crumbs chores and puts a due-count badge on it; a room
- * tap lists its chores (docked on the left, with ✓ checks on the objects
- * they are about) and a "who's doing it" switch sits lower right. The mode survives floor switches. Config:
+ * tap lists its chores (docked on the left). Every chore has a freshness
+ * mark on the map (ChoreObjects.js), the legend's red "N late" chip lists
+ * the late ones house-wide (LateChores.js), and a "who's doing it" switch sits lower right. The mode survives floor switches. Config:
  * `default_mode: chores`, `mode_toggle: false` (hide the built-in switch
  * and drive it from outside with `card.setMapMode('chores')`). Every change
  * fires a `dm-mode-change` event with `detail.mode`.
@@ -55,6 +57,8 @@ export function buildChoresMode(host) {
     host._choreBadgesSig = null;
     host._floorChoresOpen = false;
     host._floorChoresShown = false;
+    host._lateChoresOpen = false;
+    host._lateChoresShown = false;
     if (!host.config || host.config.chores === false) return;
     if (host.config.mode_toggle !== false && host.topLeftUI) {
         const g = document.createElement('div');
@@ -106,20 +110,26 @@ export function updateChoresMode(host, hass) {
 function updateLegend(host, st, hass) {
     const el = host.choresLegend;
     if (!el) return;
-    const overdue = st ? Number(st.state) || 0 : 0;
-    const due = st && st.attributes ? Number(st.attributes.due) || 0 : 0;
+    const a = st && st.attributes ? st.attributes : {};
+    const late = st ? lateCount(host, hass) : 0;
+    const soon = Number(a.soon !== undefined ? a.soon : a.due) || 0;
     const items = [];
-    if (overdue) items.push(['overdue', `${overdue} overdue`]);
-    if (due) items.push(['due', `${due} due today`]);
+    if (late) items.push(['overdue', `${late} late`]);
+    if (soon) items.push(['due', a.soon !== undefined ? `${soon} soon` : `${soon} due today`]);
     if (!items.length && st) items.push(['calm', 'All done']);
     const floor = floorChoresChip(host, hass);
     el.hidden = host.mapMode !== 'chores' || !items.length;
     el.replaceChildren(...items.map(([level, text]) => {
-        const s = document.createElement('span');
+        const s = document.createElement(level === 'overdue' ? 'button' : 'span');
         s.className = 'dm-cl-item';
         s.innerHTML = '<span class="dm-cl-dot"></span><span></span>';
         s.firstChild.style.background = levelColor(level);
         s.lastChild.textContent = text;
+        if (level === 'overdue') {   // the late list, house-wide
+            s.classList.add('dm-cl-floor', 'dm-cl-late');
+            s.title = 'All late chores';
+            s.addEventListener('click', (e) => { e.stopPropagation(); openLateChores(host); });
+        }
         return s;
     }), ...(floor ? [floor] : []));
 }

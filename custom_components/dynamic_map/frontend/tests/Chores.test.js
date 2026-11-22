@@ -6,7 +6,7 @@ import { updateRoomStyles } from '../core/RoomStyles.js';
 import { buildRoomPanelEl, updateRoomPanel } from '../card/RoomPanel.js';
 import { onRoomTap, zoomToRoom } from '../card/RoomFocus.js';
 import { chorePeople, selectedPerson } from '../card/ChoreWho.js';
-import { choreKinds, choreObject, roomFurniture } from '../card/ChoreObjects.js';
+import { choreKinds, choreObject, roomFurniture, roomSpots } from '../card/ChoreObjects.js';
 
 const svgNS = 'http://www.w3.org/2000/svg';
 const NOW = new Date('2026-11-20T18:00:00');
@@ -119,7 +119,7 @@ describe('chores mode', () => {
         expect(fills[3]).toBe('rgba(0, 0, 0, 0)');
         const badges = [...host.choreBadges.querySelectorAll('.dm-chore-badge')].filter(g => g.style.display !== 'none');
         expect(badges.map(g => g.textContent)).toEqual(['3', '1']);
-        expect(host.choresLegend.textContent).toBe('1 overdue2 due today');
+        expect(host.choresLegend.textContent).toBe('1 late2 due today');
         setMapMode(host, 'lights');
         expect(host.renderRoot.classList.contains('dm-mode-chores')).toBe(false);
         expect(host.choresLegend.hidden).toBe(true);
@@ -243,7 +243,7 @@ describe('object checks', () => {
         expect(roomFurniture(host, rooms[0]).map(f => f.id)).toEqual(['f_ctr', 'f_win']);
     });
 
-    it('draws a check on the object for the open room in Chores mode; a tap credits the selected person', () => {
+    it('marks every chore of every room in Chores mode: on its object, else under the room name', () => {
         const hass = makeHass();
         hass.states['sensor.crumbs_house_chores'].attributes.areas.kitchen.chores[0].title = 'Scrub counters';
         const host = withFurniture(makeHost(hass));
@@ -251,17 +251,36 @@ describe('object checks', () => {
         buildChoresMode(host);
         expect(host.choreObjects.children.length).toBe(0);
         setMapMode(host, 'chores');
-        host.onRoomTap(rooms[0]);
-        const checks = [...host.choreObjects.querySelectorAll('.dm-chore-obj')];
-        expect(checks.map(c => [c.dataset.chore, c.dataset.object])).toEqual([['11', 'f_ctr']]);
-        expect(checks[0].getAttribute('transform')).toMatch(/^translate\(200\.0, 200\.0\)/);
+        const marks = () => [...host.choreObjects.querySelectorAll('.dm-chore-obj')];
+        expect(marks().map(c => [c.dataset.chore, c.dataset.object, c.dataset.state])).toEqual([
+            ['13', 'room:k', 'ok'], ['11', 'f_ctr', 'soon'], ['21', 'room:l', 'soon'], ['12', 'room:k', 'late']]);   // urgent on top
+        expect(marks()[1].getAttribute('transform')).toMatch(/^translate\(200\.0, 200\.0\)/);
+        expect(marks().map(m => m.querySelector('text').textContent)).toEqual(['', '!', '!', '!']);
+        expect(marks()[3].querySelector('circle').getAttribute('fill')).toBe('rgb(190, 30, 70)');
+        const [ok, , , late] = marks();
+        expect(late.getAttribute('transform')).not.toBe(ok.getAttribute('transform'));   // side by side under the name
+        // On the overview a tap opens the room; in the open room it credits the picked person.
+        marks()[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        expect(hass.callService).not.toHaveBeenCalled();
+        expect(host._roomPanelRoom).toBe(rooms[0]);
         host._choreWho = '9';
-        checks[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        host.choreObjects.querySelector('[data-object="f_ctr"]').dispatchEvent(new MouseEvent('click', { bubbles: true }));
         expect(hass.callService).toHaveBeenCalledWith('crumbs', 'complete_chore', { task_id: 11, done_by: 9 });
-        expect(host.choreObjects.querySelector('.dm-chore-obj').classList.contains('dm-busy')).toBe(true);
+        expect(host.choreObjects.querySelector('[data-object="f_ctr"]').classList.contains('dm-busy')).toBe(true);
         host.zoomOutToDefault = () => { host._roomPanelRoom = null; };
         setMapMode(host, 'lights');
         expect(host.choreObjects.children.length).toBe(0);
+    });
+
+    it('wraps marks under the name to the room width', () => {
+        const host = { imgW: 1000, imgH: 1000 };
+        const spots = roomSpots(host, { polygon: [[0, 0], [5, 0], [5, 40], [0, 40]] }, 10, 5);   // 50 wide: 2 a row
+        expect(new Set(spots.map(p => p.y)).size).toBe(3);
+        expect(spots[0].x).toBeCloseTo(25 - 11.5);
+        expect(spots[4].x).toBeCloseTo(25);
+        const rotated = roomSpots({ ...host, isRotated: true }, { polygon: [[0, 0], [40, 0], [40, 5], [0, 5]] }, 10, 2);
+        expect(rotated.map(p => p.x)).toEqual([226, 226]);   // screen-down is map +x when turned
+        expect(rotated[0].y).toBeCloseTo(25 + 11.5);
     });
 });
 
