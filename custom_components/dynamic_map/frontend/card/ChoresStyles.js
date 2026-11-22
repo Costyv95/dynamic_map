@@ -17,6 +17,7 @@ export const CHORES_STYLES = `
     .dm-chores-legend[hidden] { display: none; }
     .dm-render-root.dm-room-panel-open .dm-chores-legend { opacity: 0; pointer-events: none; }
     .dm-cl-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+    .dm-cl-floor { font: inherit; color: var(--dm-text, inherit); background: var(--dm-fill); border: none; border-radius: var(--dm-radius-pill); padding: 3px 9px; margin: -3px -6px -3px 0; cursor: pointer; }
     .dm-cl-dot { width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.8); }
     /* Chore rows in the room panel. */
     .dm-chores-list { gap: 4px; }

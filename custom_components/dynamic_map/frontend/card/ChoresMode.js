@@ -4,6 +4,7 @@ import { roomBox } from '../core/RoomLabels.js?v=3.2.1';
 import { showRoomPanel, updateRoomPanel } from './RoomPanel.js?v=3.2.1';
 import { buildWhoToggle, updateWhoToggle } from './ChoreWho.js?v=3.2.1';
 import { buildChoreObjects, updateChoreObjects } from './ChoreObjects.js?v=3.2.1';
+import { floorChoresChip } from './FloorChores.js?v=3.2.1';
 
 /**
  * Lights | Chores switch. Chores mode dims the device shortcuts, colours
@@ -34,7 +35,7 @@ export function setMapMode(host, mode) {
         if (mode === 'chores') showRoomPanel(host, room, true);
         else updateRoomPanel(host, host._hass);
         if (host.zoomToRoom) host.zoomToRoom(room);   // the chores panel docks left, the lights one floats: re-frame the room
-    }
+    } else updateRoomPanel(host, host._hass);   // the floor-wide list closes in Lights mode
     host.dispatchEvent(new CustomEvent('dm-mode-change', { detail: { mode }, bubbles: true, composed: true }));
 }
 
@@ -52,6 +53,8 @@ export function buildChoresMode(host) {
     host.choresWho = null;
     host.choreObjects = null;
     host._choreBadgesSig = null;
+    host._floorChoresOpen = false;
+    host._floorChoresShown = false;
     if (!host.config || host.config.chores === false) return;
     if (host.config.mode_toggle !== false && host.topLeftUI) {
         const g = document.createElement('div');
@@ -94,13 +97,13 @@ export function updateChoresMode(host, hass) {
         const n = st ? Number(st.state) : 0;
         host.modeToggle.querySelector('[data-mode="chores"] .dm-mode-count').textContent = n > 0 ? String(n) : '';
     }
-    updateLegend(host, st);
+    updateLegend(host, st, hass);
     updateBadges(host, hass);
     updateWhoToggle(host, hass);
     updateChoreObjects(host, hass);
 }
 
-function updateLegend(host, st) {
+function updateLegend(host, st, hass) {
     const el = host.choresLegend;
     if (!el) return;
     const overdue = st ? Number(st.state) || 0 : 0;
@@ -109,6 +112,7 @@ function updateLegend(host, st) {
     if (overdue) items.push(['overdue', `${overdue} overdue`]);
     if (due) items.push(['due', `${due} due today`]);
     if (!items.length && st) items.push(['calm', 'All done']);
+    const floor = floorChoresChip(host, hass);
     el.hidden = host.mapMode !== 'chores' || !items.length;
     el.replaceChildren(...items.map(([level, text]) => {
         const s = document.createElement('span');
@@ -117,7 +121,7 @@ function updateLegend(host, st) {
         s.firstChild.style.background = levelColor(level);
         s.lastChild.textContent = text;
         return s;
-    }));
+    }), ...(floor ? [floor] : []));
 }
 
 function makeBadge(host, room) {
